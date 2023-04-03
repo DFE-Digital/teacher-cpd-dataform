@@ -1,0 +1,394 @@
+config {
+  type: "table",
+  assertions: {
+    uniqueKey: ["application_id"],
+    nonNull: ["created_at"]
+  },
+  bigquery: {
+    partitionBy: "DATE(application_created_at)",
+    clusterBy: ["funding_choice"]
+  },
+  /*description: "Data about documents that have been uploaded to vacancies, along with their sizes and content types.",
+  columns: {
+    upload_request_id: "ID of the web request where this document was uploaded.",
+    created_at: "Date this document was first uploaded.",
+    name: "Full filename of the document.",
+    vacancy_id: "ID of the vacancy the document was uploaded to",
+    size: "Size of the document in bytes.",
+    content_type: "Content type of the document e.g. application/pdf"
+  }*/
+}
+
+WITH npqdeclarations AS (
+  SELECT
+    DISTINCT user_id,
+    participant_profile_id,
+    course_identifier,
+    state,
+    declaration_type,
+    cpd_lead_provider_name,
+    updated_at AS declaration_updated_at,
+    (
+      ROW_NUMBER() OVER (
+        PARTITION BY id,
+        participant_profile_id
+        ORDER BY
+          updated_at DESC
+      )
+    ) AS rn4,
+  FROM
+    `ecf-bq.provider_declarations.participant_declarations_production`
+  WHERE
+    course_identifier LIKE 'npq%'
+),
+npqapplications AS (
+  SELECT
+    npqra.user_id,
+    npqra.user_created_at,
+    npqra.trn_verified,
+    npqra.trn_auto_verified,
+    npqra.application_id,
+    npqra.application_ecf_id,
+    npqra.application_created_at,
+    npqra.headteacher_status,
+    npqra.eligible_for_funding,
+    npqra.funding_choice,
+    npqra.school_urn,
+    npqra.school_name,
+    npqra.establishment_type_name,
+    npqra.high_pupil_premium,
+    npqra.la_name,
+    npqra.school_postcode,
+    npqra.course_name,
+    CASE
+      WHEN npqra.course_name = 'NPQ for Senior Leadership (NPQSL)' THEN "npq-senior-leadership"
+      WHEN npqra.course_name = 'NPQ for Headship (NPQH)' THEN "npq-headship"
+      WHEN npqra.course_name = 'NPQ for Leading Teaching (NPQLT)' THEN "npq-leading-teaching"
+      WHEN npqra.course_name = 'NPQ for Leading Teacher Development (NPQLTD)' THEN "npq-leading-teaching-development"
+      WHEN npqra.course_name = 'NPQ for Leading Behaviour and Culture (NPQLBC)' THEN "npq-leading-behaviour-culture"
+      WHEN npqra.course_name = 'NPQ for Executive Leadership (NPQEL)' THEN "npq-executive-leadership"
+      WHEN npqra.course_name = 'NPQ for Early Years Leadership (NPQEYL)' THEN "npq-early-years-leadership"
+      WHEN npqra.course_name = 'NPQ for Leading Literacy (NPQLL)' THEN "npq-leading-literacy"
+      WHEN npqra.course_name = 'Additional Support Offer for new headteachers' THEN "npq-additional-support-offer"
+      WHEN npqra.course_name = 'Early Headship Coaching Offer' THEN "npq-early-headship-coaching-offer"
+      ELSE npqra.course_name
+    END AS declaration_course_identifier,
+    CASE
+      WHEN npqra.provider_name = 'Best Practice Network (home of Outstanding Leaders Partnership)' THEN 'Best Practice Network'
+      WHEN npqra.provider_name = 'Leadership Learning South East (LLSE)' THEN 'Leadership Learning South East'
+      ELSE npqra.provider_name
+    END AS provider_name,
+    npqra.ecf_user_id,
+    npqra.targeted_delivery_funding_eligibility,
+    npqra.works_in_childcare,
+    npqra.kind_of_nursery,
+    npqra.cohort,
+    npqra.private_childcare_provider_urn,
+    npqra.funding_eligiblity_status_code,
+    ROW_NUMBER() OVER(
+      PARTITION BY npqra.application_ecf_id
+      ORDER BY
+        npqra.application_created_at
+    ) AS rn99
+  FROM
+    ${ref("applications")} npqra
+),
+npqenrollments AS (
+  SELECT
+    npqre.application_ecf_id,
+    npqre.status,
+    npqre.updated_at,
+    npqre.employer_name,
+    npqre.employment_role,
+    npqre.cohort,
+    (
+      ROW_NUMBER() OVER (
+        PARTITION BY npqre.application_ecf_id
+        ORDER BY
+          npqre.updated_at DESC
+      )
+    ) AS rn1
+  FROM
+    `ecf-bq.npq_registration.enrollments_production` npqre
+),
+npqprofiles AS (
+  SELECT
+    user_id,
+    application_ecf_id,
+    training_status,
+    schedule_identifier,
+    course_identifier,
+    updated_at,
+    (
+      ROW_NUMBER() OVER (
+        PARTITION BY application_ecf_id,
+        course_identifier
+        ORDER BY
+          updated_at DESC
+      )
+    ) AS rn3
+  FROM
+    `ecf-bq.npq_registration.profiles_production`
+),
+npqstartdec AS (
+  SELECT
+    id AS started_declaration_id,
+    participant_profile_id,
+    course_identifier,
+    declaration_type,
+    (
+      ROW_NUMBER() OVER (
+        PARTITION BY participant_profile_id,
+        id
+        ORDER BY
+          updated_at DESC
+      )
+    ) AS rn,
+    state
+  FROM
+    `ecf-bq.provider_declarations.participant_declarations_production`
+  WHERE
+    declaration_type = 'started'
+    AND course_identifier LIKE 'npq%'
+),
+npqretained1dec AS (
+  SELECT
+    id AS retained1_declaration_id,
+    participant_profile_id,
+    course_identifier,
+    declaration_type,
+    (
+      ROW_NUMBER() OVER (
+        PARTITION BY participant_profile_id,
+        id
+        ORDER BY
+          updated_at DESC
+      )
+    ) AS rn_r1,
+    state AS retained1_declaration_state,
+  FROM
+    `ecf-bq.provider_declarations.participant_declarations_production`
+  WHERE
+    declaration_type = 'retained-1'
+    AND course_identifier LIKE 'npq%'
+),
+npqretained2dec AS (
+  SELECT
+    id AS retained2_declaration_id,
+    participant_profile_id,
+    course_identifier,
+    declaration_type,
+    (
+      ROW_NUMBER() OVER (
+        PARTITION BY participant_profile_id,
+        id
+        ORDER BY
+          updated_at DESC
+      )
+    ) AS rn_r2,
+    state AS retained2_declaration_state,
+  FROM
+    `ecf-bq.provider_declarations.participant_declarations_production`
+  WHERE
+    declaration_type = 'retained-2'
+    AND course_identifier LIKE 'npq%'
+),
+npqcompleteddec AS (
+  SELECT
+    id AS completed_declaration_id,
+    participant_profile_id,
+    course_identifier,
+    declaration_type,
+    (
+      ROW_NUMBER() OVER (
+        PARTITION BY participant_profile_id,
+        id
+        ORDER BY
+          updated_at DESC
+      )
+    ) AS rn_cd,
+    state AS completed_declaration_state
+  FROM
+    `ecf-bq.provider_declarations.participant_declarations_production`
+  WHERE
+    declaration_type = 'completed'
+    AND course_identifier LIKE 'npq%'
+),
+npqlatestoutcome AS (
+  SELECT
+    state AS latest_outcome_state,
+    completion_date AS latest_outcome_date,
+    participant_declaration_id AS outcome_declaration_id,
+    (
+      ROW_NUMBER() OVER (
+        PARTITION BY participant_declaration_id,
+        participant_outcome_id
+        ORDER BY
+          updated_at DESC
+      )
+    ) AS rn_lo
+  FROM
+    `ecf-bq.npq_participant_outcomes.npq_participant_outcomes_production`
+),
+npqcountoffails AS (
+  SELECT
+    participant_declaration_id,
+    (
+      COUNT(DISTINCT participant_outcome_id) OVER (
+        PARTITION BY participant_declaration_id,
+        participant_outcome_id
+      )
+    ) AS count_of_fails
+  FROM
+    `ecf-bq.npq_participant_outcomes.npq_participant_outcomes_production`
+  WHERE
+    state = 'failed'
+),
+rownumber AS (
+  SELECT
+    DISTINCT npqra.*
+  except
+    (cohort),
+    if(
+      (
+        npqra.cohort != npqe.cohort
+        and npqe.cohort is not null
+      ),
+      npqe.cohort,
+      npqra.cohort
+    ) as cohort,
+    npqd.course_identifier,
+    npqd.state,
+    npqd.declaration_type,
+    npqd.cpd_lead_provider_name,
+    npqd.declaration_updated_at,
+    npqd.participant_profile_id,
+    npqe.status,
+    npqe.updated_at,
+    npqe.employer_name,
+    npqe.employment_role,
+    npqe.rn1,
+    npqd.user_id AS declaration_user_id,
+    npqpp.user_id as profile_user_id,
+    npqpp.training_status,
+    npqpp.schedule_identifier,
+    npqpp.updated_at AS profile_updated_at,
+    (
+      ROW_NUMBER() OVER (
+        PARTITION BY npqe.application_ecf_id
+        ORDER BY
+          npqd.declaration_updated_at DESC
+      )
+    ) AS rn2,
+    npqsd.started_declaration_id,
+    npqsd.state AS start_declaration_state,
+    CASE
+      WHEN npqsd.state = 'paid' THEN TRUE
+      WHEN npqsd.state = 'eligible' THEN TRUE
+      WHEN npqsd.state = 'payable' THEN TRUE
+      ELSE FALSE
+    END AS funded_start_declaration,
+    npqr1d.retained1_declaration_id,
+    npqr1d.retained1_declaration_state,
+    CASE
+      WHEN npqr1d.retained1_declaration_state = 'paid' THEN TRUE
+      WHEN npqr1d.retained1_declaration_state = 'eligible' THEN TRUE
+      WHEN npqr1d.retained1_declaration_state = 'payable' THEN TRUE
+      ELSE FALSE
+    END AS funded_retained1_declaration,
+    npqr2d.retained2_declaration_id,
+    npqr2d.retained2_declaration_state,
+    CASE
+      WHEN npqr2d.retained2_declaration_state = 'paid' THEN TRUE
+      WHEN npqr2d.retained2_declaration_state = 'eligible' THEN TRUE
+      WHEN npqr2d.retained2_declaration_state = 'payable' THEN TRUE
+      ELSE FALSE
+    END AS funded_retained2_declaration,
+    npqcd.completed_declaration_id,
+    npqcd.completed_declaration_state,
+    CASE
+      WHEN npqcd.completed_declaration_state = 'paid' THEN TRUE
+      WHEN npqcd.completed_declaration_state = 'eligible' THEN TRUE
+      WHEN npqcd.completed_declaration_state = 'payable' THEN TRUE
+      ELSE FALSE
+    END AS funded_completed_declaration,
+    npqlo.latest_outcome_state,
+    npqlo.latest_outcome_date,
+    CASE
+      WHEN npqcof.count_of_fails IS NULL THEN 0
+      ELSE npqcof.count_of_fails
+    END AS count_of_fails
+  FROM
+    npqapplications npqra
+    LEFT JOIN npqenrollments npqe ON npqra.application_ecf_id = npqe.application_ecf_id
+    LEFT JOIN npqdeclarations npqd ON npqra.application_ecf_id = npqd.participant_profile_id
+    AND declaration_course_identifier = npqd.course_identifier
+    LEFT JOIN npqprofiles npqpp ON npqra.application_ecf_id = npqpp.application_ecf_id
+    LEFT JOIN npqstartdec npqsd ON npqra.application_ecf_id = npqsd.participant_profile_id
+    AND declaration_course_identifier = npqsd.course_identifier
+    LEFT JOIN npqretained1dec npqr1d ON npqra.application_ecf_id = npqr1d.participant_profile_id
+    AND declaration_course_identifier = npqr1d.course_identifier
+    LEFT JOIN npqretained2dec npqr2d ON npqra.application_ecf_id = npqr2d.participant_profile_id
+    AND declaration_course_identifier = npqr2d.course_identifier
+    LEFT JOIN npqcompleteddec npqcd ON npqra.application_ecf_id = npqcd.participant_profile_id
+    AND declaration_course_identifier = npqcd.course_identifier
+    LEFT JOIN npqlatestoutcome npqlo ON npqcd.completed_declaration_id = npqlo.outcome_declaration_id
+    LEFT JOIN npqcountoffails npqcof ON npqcd.completed_declaration_id = npqcof.participant_declaration_id
+  WHERE
+    (
+      rn3 = 1
+      OR rn3 IS NULL
+    )
+    AND (
+      rn4 = 1
+      OR rn4 IS NULL
+    )
+    AND (
+      rn1 = 1
+      OR rn1 IS NULL
+    )
+    AND (
+      npqd.course_identifier = npqpp.course_identifier
+      OR npqd.course_identifier IS NULL
+    )
+    AND (
+      rn99 = 1
+      OR rn99 IS NULL
+    )
+    AND (
+      rn = 1
+      OR rn IS NULL
+    )
+    AND (
+      rn_cd = 1
+      OR rn_cd IS NULL
+    )
+    AND (
+      rn_r1 = 1
+      OR rn_r1 IS NULL
+    )
+    AND (
+      rn_r2 = 1
+      OR rn_r2 IS NULL
+    )
+    AND (
+      rn_lo = 1
+      OR rn_lo IS NULL
+    )
+)
+SELECT
+  *
+EXCEPT
+  (rn1, rn2, rn99),
+  Case
+    when profile_user_id is not null then profile_user_id
+    when declaration_user_id is not null then declaration_user_id
+    else ecf_user_id
+  end as latest_user_id
+FROM
+  rownumber
+WHERE
+  (
+    rn2 = 1
+    OR rn2 IS NULL
+  )
