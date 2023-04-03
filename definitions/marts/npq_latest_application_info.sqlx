@@ -91,7 +91,7 @@ npqapplications AS (
         npqra.application_created_at
     ) AS rn99
   FROM
-    ${ref("applications")} npqra
+    ${ref("npq_applications")} npqra
 ),
 npqenrollments AS (
   SELECT
