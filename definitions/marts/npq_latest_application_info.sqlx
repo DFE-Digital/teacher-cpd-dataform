@@ -37,7 +37,7 @@ WITH npqdeclarations AS (
       )
     ) AS rn4,
   FROM
-    ${ref("declarations")}
+    ${ref("participant_declarations_production")}
   WHERE
     course_identifier LIKE 'npq%'
 ),
@@ -109,7 +109,7 @@ npqenrollments AS (
       )
     ) AS rn1
   FROM
-    `ecf-bq.npq_registration.enrollments_production` npqre
+    ${ref("enrollments_production")} npqre
 ),
 npqprofiles AS (
   SELECT
@@ -128,7 +128,7 @@ npqprofiles AS (
       )
     ) AS rn3
   FROM
-    `ecf-bq.npq_registration.profiles_production`
+    ${ref("profiles_production")}
 ),
 npqstartdec AS (
   SELECT
@@ -146,7 +146,7 @@ npqstartdec AS (
     ) AS rn,
     state
   FROM
-    ${ref("declarations")}
+    ${ref("participant_declarations_production")}
   WHERE
     declaration_type = 'started'
     AND course_identifier LIKE 'npq%'
@@ -167,7 +167,7 @@ npqretained1dec AS (
     ) AS rn_r1,
     state AS retained1_declaration_state,
   FROM
-    ${ref("declarations")}
+    ${ref("participant_declarations_production")}
   WHERE
     declaration_type = 'retained-1'
     AND course_identifier LIKE 'npq%'
@@ -188,7 +188,7 @@ npqretained2dec AS (
     ) AS rn_r2,
     state AS retained2_declaration_state,
   FROM
-    ${ref("declarations")}
+    ${ref("participant_declarations_production")}
   WHERE
     declaration_type = 'retained-2'
     AND course_identifier LIKE 'npq%'
@@ -209,7 +209,7 @@ npqcompleteddec AS (
     ) AS rn_cd,
     state AS completed_declaration_state
   FROM
-    ${ref("declarations")}
+    ${ref("participant_declarations_production")}
   WHERE
     declaration_type = 'completed'
     AND course_identifier LIKE 'npq%'
@@ -228,7 +228,7 @@ npqlatestoutcome AS (
       )
     ) AS rn_lo
   FROM
-    `ecf-bq.npq_participant_outcomes.npq_participant_outcomes_production`
+    ${ref("npq_participant_outcomes_production")}
 ),
 npqcountoffails AS (
   SELECT
@@ -240,7 +240,7 @@ npqcountoffails AS (
       )
     ) AS count_of_fails
   FROM
-    `ecf-bq.npq_participant_outcomes.npq_participant_outcomes_production`
+    ${ref("npq_participant_outcomes_production")}
   WHERE
     state = 'failed'
 ),

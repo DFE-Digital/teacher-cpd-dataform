@@ -1,0 +1,5 @@
+config {
+  type: "declaration",
+  schema: "npq_participant_outcomes",
+  name: "npq_participant_outcomes_production"
+}
