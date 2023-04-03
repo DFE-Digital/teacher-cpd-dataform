@@ -1,0 +1,5 @@
+config {
+  type: "declaration",
+  schema: "provider_declarations",
+  name: "participant_declarations_production"
+}

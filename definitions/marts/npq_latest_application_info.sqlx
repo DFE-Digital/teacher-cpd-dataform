@@ -37,7 +37,7 @@ WITH npqdeclarations AS (
       )
     ) AS rn4,
   FROM
-    `ecf-bq.provider_declarations.participant_declarations_production`
+    ${ref("declarations")}
   WHERE
     course_identifier LIKE 'npq%'
 ),
@@ -146,7 +146,7 @@ npqstartdec AS (
     ) AS rn,
     state
   FROM
-    `ecf-bq.provider_declarations.participant_declarations_production`
+    ${ref("declarations")}
   WHERE
     declaration_type = 'started'
     AND course_identifier LIKE 'npq%'
@@ -167,7 +167,7 @@ npqretained1dec AS (
     ) AS rn_r1,
     state AS retained1_declaration_state,
   FROM
-    `ecf-bq.provider_declarations.participant_declarations_production`
+    ${ref("declarations")}
   WHERE
     declaration_type = 'retained-1'
     AND course_identifier LIKE 'npq%'
@@ -188,7 +188,7 @@ npqretained2dec AS (
     ) AS rn_r2,
     state AS retained2_declaration_state,
   FROM
-    `ecf-bq.provider_declarations.participant_declarations_production`
+    ${ref("declarations")}
   WHERE
     declaration_type = 'retained-2'
     AND course_identifier LIKE 'npq%'
@@ -209,7 +209,7 @@ npqcompleteddec AS (
     ) AS rn_cd,
     state AS completed_declaration_state
   FROM
-    `ecf-bq.provider_declarations.participant_declarations_production`
+    ${ref("declarations")}
   WHERE
     declaration_type = 'completed'
     AND course_identifier LIKE 'npq%'
