@@ -82,7 +82,7 @@ npqapplications AS (
     npqra.targeted_delivery_funding_eligibility,
     npqra.works_in_childcare,
     npqra.kind_of_nursery,
-    npqra.cohort,
+    --npqra.cohort,
     npqra.private_childcare_provider_urn,
     npqra.funding_eligiblity_status_code,
     ROW_NUMBER() OVER(
@@ -246,17 +246,8 @@ npqcountoffails AS (
 ),
 rownumber AS (
   SELECT
-    DISTINCT npqra.*
-  except
-    (cohort),
-    if(
-      (
-        npqra.cohort != npqe.cohort
-        and npqe.cohort is not null
-      ),
-      npqe.cohort,
-      npqra.cohort
-    ) as cohort,
+    DISTINCT npqra.*,
+    npqe.cohort,
     npqd.course_identifier,
     npqd.state,
     npqd.declaration_type,
