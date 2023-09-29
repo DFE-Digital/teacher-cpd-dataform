@@ -637,6 +637,10 @@ dfeAnalyticsDataform({
       keyName: "school_urn",
       dataType: "string",
       description: ""
+    }, {
+      keyName: "school_id",
+      dataType: "string",
+      description: ""
     }]
   },
   {
