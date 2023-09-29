@@ -574,10 +574,6 @@ dfeAnalyticsDataform({
       dataType: "date",
       description: ""
     }, {
-      keyName: "mentor_profile_id",
-      dataType: "string",
-      description: ""
-    }, {
       keyName: "notes",
       dataType: "string",
       description: ""
@@ -599,10 +595,6 @@ dfeAnalyticsDataform({
       description: ""
     }, {
       keyName: "schedule_id",
-      dataType: "string",
-      description: ""
-    }, {
-      keyName: "school_cohort_id",
       dataType: "string",
       description: ""
     }, {
@@ -635,10 +627,6 @@ dfeAnalyticsDataform({
       description: ""
     }, {
       keyName: "school_urn",
-      dataType: "string",
-      description: ""
-    }, {
-      keyName: "school_id",
       dataType: "string",
       description: ""
     }]
