@@ -65,7 +65,7 @@ WITH
     participant_identity_id AS external_id,
     induction_completion_date AS completion_date,
     type AS participant_type,
-    `ecf-bq.dataform.teacher_profiles_latest_cpd`.user_id AS user_id,
+    teacher_profiles.user_id AS user_id,
     trn AS TRN
   FROM
      ${ref("participant_profiles_latest_cpd")} as participant_profiles
