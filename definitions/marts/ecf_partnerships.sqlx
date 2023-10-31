@@ -1,0 +1,87 @@
+config {
+  type: "table",
+  assertions: {
+    uniqueKey: ["partnership_id"]
+  },
+  bigquery: {
+    partitionBy: "DATE(created_at)",
+    clusterBy: ["cohort"]
+  },
+  description: "",
+  columns: {
+    partnership_id: "ID of school partnership record"
+  }
+}
+
+WITH
+ ecf_partnerships_core as (
+  SELECT
+    id as partnership_id,
+    challenge_deadline,
+    challenge_reason,
+    challenged_at,
+    cohort_id,
+    created_at,
+    delivery_partner_id,
+    lead_provider_id,
+    pending,
+    relationship,
+    report_id,
+    school_id,
+    updated_at
+  FROM ${ref(`partnerships_latest_cpd`)} 
+ ),
+ ecf_cohorts as(
+  SELECT
+    id as ecf_cohort_id,
+    start_year  as cohort
+  FROM ${ref(`cohorts_latest_cpd`)} 
+ ),
+ ecf_delivery_partners as (
+  SELECT
+    id as ecf_delivery_partner_id,
+    name as delivery_partner_name
+  FROM ${ref(`delivery_partners_latest_cpd`)} 
+ ),
+ ecf_lead_providers as (
+  SELECT
+    id as ecf_lead_provider_id,
+    name as lead_provider_name
+  FROM ${ref(`lead_providers_latest_cpd`)} 
+ ),
+ ecf_schools as(
+  SELECT
+    id as ecf_school_id,
+    name as school_name,
+    urn as school_urn
+  FROM ${ref(`schools_latest_cpd`)}
+ ),
+ ecf_partnerships_full as (
+  SELECT
+    * except(
+      ecf_cohort_id,
+      ecf_delivery_partner_id,
+      ecf_lead_provider_id,
+      ecf_school_id)
+  FROM ecf_partnerships_core
+  LEFT JOIN
+    ecf_cohorts
+  ON
+  ecf_partnerships_core.cohort_id=ecf_cohorts.ecf_cohort_id
+  LEFT JOIN
+    ecf_delivery_partners
+  ON
+  ecf_partnerships_core.delivery_partner_id=ecf_delivery_partners.ecf_delivery_partner_id
+  LEFT JOIN
+    ecf_lead_providers
+  ON
+  ecf_partnerships_core.lead_provider_id=ecf_lead_providers.ecf_lead_provider_id
+  LEFT JOIN
+    ecf_schools
+  ON
+  ecf_partnerships_core.school_id=ecf_schools.ecf_school_id)
+
+SELECT 
+ *
+FROM
+  ecf_partnerships_full
