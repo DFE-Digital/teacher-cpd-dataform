@@ -39,6 +39,13 @@ WITH
     urn AS school_urn
   FROM
     ${ref(`schools_latest_cpd`)}),
+  ecf_app_bodies as (
+    SELECT  
+      id as source_appropriate_body_id,
+      name as appropriate_body_name
+    FROM
+      ${ref(`appropriate_bodies_latest_cpd`)}
+  )
   ecf_full_schools AS(
   SELECT
     * EXCEPT(ecf_cohort_id,
@@ -52,8 +59,23 @@ WITH
   LEFT JOIN
     ecf_schools_latest
   ON
-    ecf_school_cohorts.school_id=ecf_schools_latest.ecf_school_id)
+    ecf_school_cohorts.school_id=ecf_schools_latest.ecf_school_id
+  LEFT JOIN
+    ecf_app_bodies
+  ON
+    ecf_school_cohorts.appropriate_body_id=ecf_app_bodies.source_appropriate_body_id)
 SELECT
-  *
+  school_cohort_id,
+  school_id,
+  school_name,
+  school_urn,
+  cohort_id,
+  cohort,
+  induction_programme_choice,
+  default_induction_programme_id,
+  created_at,
+  updated_at,
+  appropriate_body_id,
+  appropriate_body_name
 FROM
   ecf_full_schools
