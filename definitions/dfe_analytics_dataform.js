@@ -118,6 +118,19 @@ dfeAnalyticsDataform({
     }]
   },
   {
+    entityTableName: "induction_coordinator_profiles_schools",
+    description: "",
+    keys: [{
+      keyName: "induction_coordinator_profile_id",
+      dataType: "string",
+      description: ""
+    }, {
+      keyName: "school_id",
+      dataType: "string",
+      description: ""
+    }]
+  },
+  {
     entityTableName: "induction_programmes",
     description: "",
     keys: [{
@@ -218,6 +231,43 @@ dfeAnalyticsDataform({
     }, {
       keyName: "name",
       dataType: "string",
+      description: ""
+    }]
+  },
+  {
+    entityTableName: "nomination_emails",
+    description: "",
+    keys: [{
+      keyName: "notify_status",
+      dataType: "string",
+      description: ""
+    }, {
+      keyName: "sent_to",
+      dataType: "string",
+      description: ""
+    }, {
+      keyName: "sent_at",
+      dataType: "timestamp",
+      description: ""
+    }, {
+      keyName: "opened_at",
+      dataType: "timestamp",
+      description: ""
+    }, {
+      keyName: "school_id",
+      dataType: "string",
+      description: ""
+    }, {
+      keyName: "partnership_notification_email_id",
+      dataType: "string",
+      description: ""
+    }, {
+      keyName: "notify_id",
+      dataType: "string",
+      description: ""
+    }, {
+      keyName: "delivered_at",
+      dataType: "timestamp",
       description: ""
     }]
   },
@@ -715,6 +765,31 @@ dfeAnalyticsDataform({
     }, {
       keyName: "start_year",
       dataType: "integer",
+      description: ""
+    }]
+  },
+  {
+    entityTableName: "schedules",
+    description: "",
+    keys: [{
+      keyName: "name",
+      dataType: "string",
+      description: ""
+    }, {
+      keyName: "schedule_identifier",
+      dataType: "string",
+      description: ""
+    }, {
+      keyName: "type",
+      dataType: "string",
+      description: ""
+    }, {
+      keyName: "cohort_id",
+      dataType: "string",
+      description: ""
+    }, {
+      keyName: "identifier_alias",
+      dataType: "string",
       description: ""
     }]
   },
