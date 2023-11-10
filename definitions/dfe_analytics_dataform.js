@@ -247,11 +247,11 @@ dfeAnalyticsDataform({
       description: ""
     }, {
       keyName: "sent_at",
-      dataType: "date",
+      dataType: "timestamp",
       description: ""
     }, {
       keyName: "opened_at",
-      dataType: "date",
+      dataType: "timestamp",
       description: ""
     }, {
       keyName: "school_id",
@@ -267,7 +267,7 @@ dfeAnalyticsDataform({
       description: ""
     }, {
       keyName: "delivered_at",
-      dataType: "date",
+      dataType: "timestamp",
       description: ""
     }]
   },
