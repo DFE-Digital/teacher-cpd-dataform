@@ -45,7 +45,7 @@ WITH
       name as appropriate_body_name
     FROM
       ${ref(`appropriate_bodies_latest_cpd`)}
-  )
+  ),
   ecf_full_schools AS(
   SELECT
     * EXCEPT(ecf_cohort_id,
