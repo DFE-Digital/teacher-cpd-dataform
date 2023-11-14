@@ -36,7 +36,7 @@ SELECT
   *,
   CASE
     WHEN user_id = '22727fdc-816a-4a3c-9675-030e724bbf89' THEN 'Ambition'
-    WHEN user_id = '24cdd065-4eb9-455a-8107-2ffb125f399f' THEN 'Teacher Development Trust'
+    WHEN user_id = '24cdd065-4eb9-455a-8107-2ffb125f399f' THEN 'TDT'
     WHEN user_id = '3b3fab47-231f-43fe-bcec-98960a60acae' THEN 'CoE'
     WHEN user_id = '3dad03a0-08a5-4bf3-a9c9-082b7f4e78d4' THEN 'School-Led Network'
     WHEN user_id = '51ff9a95-3f48-4117-8466-4cd5b91fcd5c' THEN 'NiOT'
