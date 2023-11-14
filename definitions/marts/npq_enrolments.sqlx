@@ -1,0 +1,465 @@
+config {
+    type: "table",
+    assertions: {
+        uniqueKey: ["application_ecf_id"]
+    },
+    bigquery: {
+        partitionBy: "DATE(application_created_at)",
+        clusterBy: ["cohort"]
+    },
+    description: "",
+    columns: {}
+}
+
+WITH
+  npq_app AS(
+  SELECT
+    id AS application_ecf_id,
+    teacher_reference_number AS application_trn,
+    teacher_reference_number_verified AS trn_auto_verified,
+    created_at AS application_created_at,
+    updated_at,
+    headteacher_status,
+    eligible_for_funding,
+    funding_choice,
+    school_urn,
+    targeted_delivery_funding_eligibility,
+    works_in_nursery,
+    works_in_school,
+    works_in_childcare,
+    kind_of_nursery,
+    private_childcare_provider_urn,
+    funding_eligiblity_status_code,
+    employer_name,
+    employment_role,
+    employment_type,
+    npq_course_id,
+    npq_lead_provider_id,
+    cohort_id,
+    lead_provider_approval_status AS status,
+    itt_provider,
+    lead_mentor,
+    participant_identity_id,
+    primary_establishment,
+    teacher_catchment,
+    teacher_catchment_country,
+    teacher_catchment_iso_country_code,
+    tsf_primary_eligibility,
+    tsf_primary_plus_eligibility,
+    school_ukprn
+  FROM
+    ${ref(`npq_applications_latest_cpd`)}),
+  npq_part AS(
+  SELECT
+    id AS profile_user_id,
+    participant_identity_id AS source_participant_identity_id,
+    teacher_profile_id,
+    npq_course_id AS source_npq_course_id,
+    updated_at AS profile_updated_at,
+    school_urn AS part_school_urn,
+    schedule_id,
+    training_status,
+    type,
+    (ROW_NUMBER() OVER (PARTITION BY participant_identity_id, npq_course_id ORDER BY created_at DESC)) AS rn2
+  FROM
+   ${ref(`participant_profiles_latest_cpd`)}
+  WHERE
+    participant_identity_id IS NOT NULL QUALIFY rn2=1),
+  npq_cohorts AS (
+  SELECT
+    id AS source_cohort_id,
+    start_year AS cohort
+  FROM
+    ${ref(`cohorts_latest_cpd`)} ),
+  npq_cpdlp AS (
+  SELECT
+    id AS source_cpd_lead_provider_id,
+    name AS cpd_lead_provider_name
+  FROM
+    ${ref(`cpd_lead_providers_latest_cpd`)}),
+  npq_sla AS (
+  SELECT
+    sla.id AS sla_id,
+    school_id AS source_school_id,
+    start_year AS source_start_year,
+    la.id AS local_authority_id,
+    name AS la_name,
+    (ROW_NUMBER() OVER (PARTITION BY sla.school_id
+    /*, sla.start_year */
+    ORDER BY sla.updated_at DESC)) AS rn0
+  FROM
+    ${ref(`school_local_authorities_latest_cpd`)} sla
+  INNER JOIN
+    ${ref(`local_authorities_latest_cpd`)} la
+  ON
+    sla.local_authority_id=la.id QUALIFY rn0=1),
+  npq_courses AS (
+  SELECT
+    id AS source_course_id,
+    name AS course_name,
+    CASE
+      WHEN npq_cl.name = 'NPQ for Headship (NPQH)' THEN 'npq-headship'
+      WHEN npq_cl.name = 'NPQ Leading Teaching (NPQLT)' THEN 'npq-leading-teaching'
+      WHEN npq_cl.name = 'NPQ for Senior Leadership (NPQSL)' THEN 'npq-senior-leadership'
+      WHEN npq_cl.name = 'NPQ Leading Teacher Development (NPQLTD)' THEN 'npq-leading-teaching-development'
+      WHEN npq_cl.name = 'NPQ Leading Behaviour and Culture (NPQLBC)' THEN 'npq-leading-behaviour-culture'
+      WHEN npq_cl.name = 'NPQ for Executive Leadership (NPQEL)' THEN 'npq-executive-leadership'
+      WHEN npq_cl.name = 'NPQ Early Years Leadership (NPQEYL)' THEN 'npq-early-years-leadership'
+      WHEN npq_cl.name = 'NPQ Leading Literacy (NPQLL)' THEN 'npq-leading-literacy'
+      WHEN npq_cl.name = 'Additional Support Offer for new headteachers' THEN 'npq-additional-support-offer'
+      WHEN npq_cl.name = 'The Early Headship Coaching Offer' THEN 'npq-early-headship-coaching-offer'
+    ELSE
+    npq_cl.name
+  END
+    AS declaration_course_identifier
+  FROM
+    ${ref(`npq_courses_latest_cpd`)} npq_cl ),
+  npq_lp AS (
+  SELECT
+    id AS source_npq_lead_provider_id,
+    CASE
+      WHEN name = 'Best Practice Network (home of Outstanding Leaders Partnership)' THEN 'Best Practice Network'
+      WHEN name = 'Leadership Learning South East (LLSE)' THEN 'Leadership Learning South East'
+    ELSE
+    name
+  END
+    AS provider_name
+  FROM
+    ${ref(`npq_lead_providers_latest_cpd`)}),
+  npq_pp AS (
+  SELECT
+    school_id AS source_school_id,
+    start_year AS source_start_year,
+    pupil_premium_incentive AS high_pupil_premium,
+    (ROW_NUMBER() OVER (PARTITION BY school_id, start_year ORDER BY updated_at DESC)) AS rn1
+  FROM
+    ${ref(`pupil_premiums_latest_cpd`)} QUALIFY rn1 = 1),
+  npq_teachers AS (
+  SELECT
+    id AS source_teacher_profile_id,
+    user_id AS ecf_user_id,
+    trn AS trn_verified
+  FROM
+    ${ref(`teacher_profiles_latest_cpd`)}),
+  npq_schools AS (
+  SELECT
+    id AS school_id,
+    name AS school_name,
+    postcode AS school_postcode,
+    CAST(urn AS string) AS source_school_urn
+  FROM
+    ${ref(`schools_latest_cpd`)}
+  WHERE
+    urn IS NOT NULL ),
+  npq_dec_latest AS (
+  SELECT
+    user_id AS declaration_user_id,
+    participant_profile_id,
+    course_identifier,
+    state,
+    declaration_type,
+    cpd_lead_provider_id,
+    updated_at AS declaration_updated_at,
+    (ROW_NUMBER() OVER (PARTITION BY participant_profile_id, course_identifier ORDER BY updated_at DESC)) AS rn2
+  FROM
+    ${ref(`participant_declarations_latest_cpd`)}
+  WHERE
+    course_identifier LIKE 'npq%' QUALIFY rn2 = 1),
+  npq_dec_start AS(
+  SELECT
+    id AS started_declaration_id,
+    participant_profile_id AS started_participant_profile_id,
+    course_identifier AS started_course_identifier,
+    declaration_type AS started_declaration_type,
+    state AS start_declaration_state,
+    CASE
+      WHEN npq_dec_0.state = 'paid' THEN TRUE
+      WHEN npq_dec_0.state = 'eligible' THEN TRUE
+      WHEN npq_dec_0.state = 'payable' THEN TRUE
+    ELSE
+    FALSE
+  END
+    AS funded_start_declaration,
+    (ROW_NUMBER() OVER (PARTITION BY participant_profile_id, cpd_lead_provider_id, course_identifier, declaration_type ORDER BY updated_at DESC)) AS rn5
+  FROM
+    ${ref(`participant_declarations_latest_cpd`)} npq_dec_0
+  WHERE
+    declaration_type = 'started'
+    AND course_identifier LIKE 'npq%' QUALIFY rn5=1),
+  npq_dec_ret1 AS(
+  SELECT
+    id AS retained1_declaration_id,
+    participant_profile_id AS ret1_participant_profile_id,
+    course_identifier AS ret1_course_identifier,
+    declaration_type AS ret1_declaration_type,
+    state AS retained1_declaration_state,
+    CASE
+      WHEN npq_dec_1.state = 'paid' THEN TRUE
+      WHEN npq_dec_1.state = 'eligible' THEN TRUE
+      WHEN npq_dec_1.state = 'payable' THEN TRUE
+    ELSE
+    FALSE
+  END
+    AS funded_retained1_declaration,
+    (ROW_NUMBER() OVER (PARTITION BY participant_profile_id, cpd_lead_provider_id, course_identifier, declaration_type ORDER BY updated_at DESC)) AS rn6
+  FROM
+    ${ref(`participant_declarations_latest_cpd`)} npq_dec_1
+  WHERE
+    declaration_type = 'retained-1'
+    AND course_identifier LIKE 'npq%' QUALIFY rn6=1),
+  npq_dec_ret2 AS(
+  SELECT
+    id AS retained2_declaration_id,
+    participant_profile_id AS ret2_participant_profile_id,
+    course_identifier AS ret2_course_identifier,
+    declaration_type AS ret2_declaration_type,
+    state AS retained2_declaration_state,
+    CASE
+      WHEN npq_dec_2.state = 'paid' THEN TRUE
+      WHEN npq_dec_2.state = 'eligible' THEN TRUE
+      WHEN npq_dec_2.state = 'payable' THEN TRUE
+    ELSE
+    FALSE
+  END
+    AS funded_retained2_declaration,
+    (ROW_NUMBER() OVER (PARTITION BY participant_profile_id, cpd_lead_provider_id, course_identifier, declaration_type ORDER BY updated_at DESC)) AS rn7
+  FROM
+   ${ref(`participant_declarations_latest_cpd`)} npq_dec_2
+  WHERE
+    declaration_type = 'retained-2'
+    AND course_identifier LIKE 'npq%' QUALIFY rn7=1),
+  npq_dec_comp AS(
+  SELECT
+    id AS completed_declaration_id,
+    participant_profile_id AS completed_participant_profile_id,
+    course_identifier AS completed_course_identifier,
+    declaration_type AS completed_declaration_type,
+    state AS completed_declaration_state,
+    CASE
+      WHEN npq_dec_fin.state = 'paid' THEN TRUE
+      WHEN npq_dec_fin.state = 'eligible' THEN TRUE
+      WHEN npq_dec_fin.state = 'payable' THEN TRUE
+    ELSE
+    FALSE
+  END
+    AS funded_completed_declaration,
+    (ROW_NUMBER() OVER (PARTITION BY participant_profile_id, cpd_lead_provider_id, course_identifier, declaration_type ORDER BY updated_at DESC)) AS rn8
+  FROM
+    ${ref(`participant_declarations_latest_cpd`)} npq_dec_fin
+  WHERE
+    declaration_type = 'completed'
+    AND course_identifier LIKE 'npq%' QUALIFY rn8=1),
+  npq_outcome AS (
+  SELECT
+    state AS latest_outcome_state,
+    completion_date AS latest_outcome_date,
+    participant_declaration_id AS outcome_declaration_id,
+    (ROW_NUMBER() OVER (PARTITION BY participant_declaration_id ORDER BY created_at DESC)) AS rn3
+  FROM
+    ${ref(`participant_outcomes_latest_cpd`)} QUALIFY rn3=1),
+  npqcountoffails AS (
+  SELECT
+    participant_declaration_id AS source_participant_declaration_id,
+    (COUNT(DISTINCT id) OVER (PARTITION BY participant_declaration_id, id)) AS count_of_fails
+  FROM
+    ${ref(`participant_outcomes_latest_cpd`)}
+  WHERE
+    state = 'failed'),
+  npq_sched AS (
+  SELECT
+    id AS source_schedule_id,
+    schedule_identifier
+  FROM
+    ${ref(`schedules_latest_cpd`)}),
+  npq_app_exp AS (
+  SELECT
+    * EXCEPT (source_cohort_id,
+      source_course_id,
+      source_npq_lead_provider_id)
+  FROM
+    npq_app
+  LEFT JOIN
+    npq_cohorts AS npqch
+  ON
+    npq_app.cohort_id = npqch.source_cohort_id
+  LEFT JOIN
+    npq_courses AS npqco
+  ON
+    npq_app.npq_course_id = npqco.source_course_id
+  LEFT JOIN
+    npq_lp AS npqlp
+  ON
+    npq_app.npq_lead_provider_id = npqlp.source_npq_lead_provider_id
+  LEFT JOIN
+    npq_schools AS npqsc
+  ON
+    npq_app.school_urn = npqsc.source_school_urn),
+  npq_part_exp AS (
+  SELECT
+    * EXCEPT (source_teacher_profile_id,
+      source_schedule_id)
+  FROM
+    npq_part
+  LEFT JOIN
+    npq_teachers AS npqt
+  ON
+    npq_part.teacher_profile_id = npqt.source_teacher_profile_id
+  LEFT JOIN
+    npq_sched AS npqsh
+  ON
+    npq_part.schedule_id = npqsh.source_schedule_id),
+  npq_full_dec AS (
+  SELECT
+    *
+  FROM
+    npq_dec_latest
+  LEFT JOIN
+    npq_dec_start
+  ON
+    npq_dec_latest.participant_profile_id = npq_dec_start.started_participant_profile_id
+    AND npq_dec_latest.course_identifier = npq_dec_start.started_course_identifier
+  LEFT JOIN
+    npq_dec_ret1
+  ON
+    npq_dec_latest.participant_profile_id = npq_dec_ret1.ret1_participant_profile_id
+    AND npq_dec_latest.course_identifier = npq_dec_ret1.ret1_course_identifier
+  LEFT JOIN
+    npq_dec_ret2
+  ON
+    npq_dec_latest.participant_profile_id = npq_dec_ret2.ret2_participant_profile_id
+    AND npq_dec_latest.course_identifier = npq_dec_ret2.ret2_course_identifier
+  LEFT JOIN
+    npq_dec_comp
+  ON
+    npq_dec_latest.participant_profile_id = npq_dec_comp.completed_participant_profile_id
+    AND npq_dec_latest.course_identifier = npq_dec_comp.completed_course_identifier),
+  npq_full_outcomes AS (
+  SELECT
+    * EXCEPT (source_participant_declaration_id,
+      source_cpd_lead_provider_id)
+  FROM
+    npq_full_dec
+  LEFT JOIN
+    npq_outcome AS npqout
+  ON
+    npq_full_dec.completed_declaration_id = npqout.outcome_declaration_id
+  LEFT JOIN
+    npqcountoffails AS npqf
+  ON
+    npq_full_dec.completed_declaration_id = npqf.source_participant_declaration_id
+  LEFT JOIN
+    npq_cpdlp AS npqcpd
+  ON
+    npq_full_dec.cpd_lead_provider_id = npqcpd.source_cpd_lead_provider_id),
+  npq_comb_enrolment AS (
+  SELECT
+    * EXCEPT (source_participant_identity_id,
+      source_npq_course_id)
+  FROM
+    npq_app_exp
+  LEFT JOIN
+    npq_part_exp AS npqpart
+  ON
+    npq_app_exp.participant_identity_id = npqpart.source_participant_identity_id
+    AND npq_app_exp.npq_course_id =npqpart.source_npq_course_id),
+  npq_gold_thread AS (
+  SELECT
+    DISTINCT application_ecf_id,
+    trn_verified,
+    trn_auto_verified,
+    application_created_at,
+    headteacher_status,
+    eligible_for_funding,
+    funding_choice,
+    school_urn,
+    school_name,
+    high_pupil_premium,
+    la_name,
+    school_postcode,
+    course_name,
+    declaration_course_identifier,
+    provider_name,
+    ecf_user_id,
+    targeted_delivery_funding_eligibility,
+    works_in_childcare,
+    kind_of_nursery,
+    private_childcare_provider_urn,
+    funding_eligiblity_status_code,
+    cohort,
+    course_identifier,
+    state,
+    declaration_type,
+    cpd_lead_provider_name,
+    declaration_updated_at,
+    participant_profile_id,
+    status,
+    updated_at,
+    employer_name,
+    employment_role,
+    declaration_user_id,
+    profile_user_id,
+    training_status,
+    schedule_identifier,
+    profile_updated_at,
+    started_declaration_id,
+    start_declaration_state,
+    funded_start_declaration,
+    retained1_declaration_id,
+    retained1_declaration_state,
+    funded_retained1_declaration,
+    retained2_declaration_id,
+    retained2_declaration_state,
+    funded_retained2_declaration,
+    completed_declaration_id,
+    completed_declaration_state,
+    funded_completed_declaration,
+    latest_outcome_state,
+    latest_outcome_date,
+    CASE
+      WHEN count_of_fails IS NULL THEN 0
+    ELSE
+    count_of_fails
+  END
+    AS count_of_fails,
+    cohort_id,
+    npq_lead_provider_id,
+    participant_identity_id,
+    primary_establishment,
+    school_ukprn,
+    teacher_catchment,
+    teacher_catchment_country,
+    teacher_catchment_iso_country_code,
+    tsf_primary_eligibility,
+    tsf_primary_plus_eligibility,
+    works_in_nursery,
+    works_in_school,
+    CASE
+      WHEN profile_user_id IS NOT NULL THEN profile_user_id
+      WHEN declaration_user_id IS NOT NULL THEN declaration_user_id
+    ELSE
+    ecf_user_id
+  END
+    AS latest_user_id,
+    (ROW_NUMBER() OVER (PARTITION BY application_ecf_id ORDER BY declaration_updated_at DESC)) AS rn10
+  FROM
+    npq_comb_enrolment
+  LEFT JOIN
+    npq_pp
+  ON
+    npq_comb_enrolment.cohort = npq_pp.source_start_year
+    AND npq_comb_enrolment.school_id = npq_pp.source_school_id
+  LEFT JOIN
+    npq_sla
+  ON
+    npq_comb_enrolment.school_id = npq_sla.source_school_id
+    /* AND npq_comb_enrolment.cohort = npq_sla.source_start_year */
+  LEFT JOIN
+    npq_full_outcomes
+  ON
+    npq_comb_enrolment.application_ecf_id = npq_full_outcomes.participant_profile_id
+    AND npq_comb_enrolment.declaration_course_identifier = npq_full_outcomes.course_identifier QUALIFY rn10=1)
+
+SELECT
+  * EXCEPT(rn10)
+FROM
+  npq_gold_thread
