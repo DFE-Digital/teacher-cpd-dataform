@@ -1,0 +1,54 @@
+config {
+    type: "table",
+    assertions: {
+        uniqueKey: ["request_uuid"]
+    },
+    bigquery: {
+        partitionBy: "DATE(occurred_at)",
+        clusterBy: ["user_id"]
+    },
+    description: "",
+    columns: {
+        request_uuid: "ID of individual request"
+    }
+}
+
+WITH
+  data_cut AS (
+  SELECT
+    * EXCEPT (anonymised_user_agent_and_ip,
+      DATA,
+      entity_table_name,
+      environment,
+      event_tags,
+      event_type,
+      namespace,
+      request_referer,
+      request_user_agent,
+      response_content_type)
+  FROM
+    `ecf-bq.ecf_events_production.events`
+  WHERE
+    event_type = 'web_request'
+    AND request_path LIKE '/api/v%'
+    AND request_path NOT LIKE '/api/v1/users%')
+SELECT
+  *,
+  CASE
+    WHEN user_id = '22727fdc-816a-4a3c-9675-030e724bbf89' THEN 'Ambition'
+    WHEN user_id = '24cdd065-4eb9-455a-8107-2ffb125f399f' THEN 'TDT'
+    WHEN user_id = '3b3fab47-231f-43fe-bcec-98960a60acae' THEN 'CoE'
+    WHEN user_id = '3dad03a0-08a5-4bf3-a9c9-082b7f4e78d4' THEN 'School-Led Network'
+    WHEN user_id = '51ff9a95-3f48-4117-8466-4cd5b91fcd5c' THEN 'NiOT'
+    WHEN user_id = '522a0342-e8d2-46fc-aaa3-716fa6e35751' THEN 'LLSE'
+    WHEN user_id = '9ad41410-677f-4da3-86a1-cda62b42e176' THEN 'Capita'
+    WHEN user_id = 'af89cf02-bbe0-423b-b2f6-bb2dbb97d141' THEN 'EDT'
+    WHEN user_id = 'bd152c5a-5ef4-4584-9c63-c32877dbba07' THEN 'Teach First'
+    WHEN user_id = 'dfad2a9c-527d-4d71-ae9a-492ab307e6c3' THEN 'BPN'
+    WHEN user_id = 'fb9c56b2-252b-41fe-b6b2-ebf208999df9' THEN 'UCL'
+  ELSE
+  user_id
+END
+  AS lp_name
+FROM
+  data_cut
