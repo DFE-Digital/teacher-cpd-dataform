@@ -1,0 +1,103 @@
+config {
+    type: "table",
+    assertions: {
+        uniqueKey: ["partnership_id"]
+    },
+    bigquery: {
+        partitionBy: "DATE(created_at)",
+        clusterBy: ["cohort"]
+    },
+    description: "",
+    columns: {
+        partnership_id: "ID of school partnership record"
+    }
+}
+
+WITH
+  ecf_partnerships_core AS (
+  SELECT
+    id AS partnership_id,
+    challenge_deadline,
+    challenge_reason,
+    challenged_at,
+    cohort_id,
+    created_at,
+    delivery_partner_id,
+    lead_provider_id,
+    pending,
+    relationship,
+    report_id,
+    school_id,
+    updated_at
+  FROM
+    ${ref(`partnerships_latest_cpd`)} ),
+  ecf_cohorts AS(
+  SELECT
+    id AS ecf_cohort_id,
+    start_year AS cohort
+  FROM
+    ${ref(`cohorts_latest_cpd`)} ),
+  ecf_delivery_partners AS (
+  SELECT
+    id AS ecf_delivery_partner_id,
+    name AS delivery_partner_name
+  FROM
+    ${ref(`delivery_partners_latest_cpd`)} ),
+  ecf_lead_providers AS (
+  SELECT
+    id AS ecf_lead_provider_id,
+    name AS lead_provider_name
+  FROM
+    ${ref(`lead_providers_latest_cpd`)} ),
+  ecf_schools AS(
+  SELECT
+    id AS ecf_school_id,
+    name AS school_name,
+    urn AS school_urn
+  FROM
+    ${ref(`schools_latest_cpd`)} ),
+  ecf_partnerships_full AS (
+  SELECT
+    * EXCEPT( ecf_cohort_id,
+      ecf_delivery_partner_id,
+      ecf_lead_provider_id,
+      ecf_school_id)
+  FROM
+    ecf_partnerships_core
+  LEFT JOIN
+    ecf_cohorts
+  ON
+    ecf_partnerships_core.cohort_id=ecf_cohorts.ecf_cohort_id
+  LEFT JOIN
+    ecf_delivery_partners
+  ON
+    ecf_partnerships_core.delivery_partner_id=ecf_delivery_partners.ecf_delivery_partner_id
+  LEFT JOIN
+    ecf_lead_providers
+  ON
+    ecf_partnerships_core.lead_provider_id=ecf_lead_providers.ecf_lead_provider_id
+  LEFT JOIN
+    ecf_schools
+  ON
+    ecf_partnerships_core.school_id=ecf_schools.ecf_school_id)
+SELECT
+  partnership_id,
+  school_id,
+  school_name,
+  school_urn,
+  lead_provider_id,
+  lead_provider_name,
+  delivery_partner_id,
+  delivery_partner_name,
+  cohort_id,
+  cohort,
+  challenged_at,
+  challenge_reason,
+  challenge_deadline,
+  pending,
+  report_id,
+  relationship,
+  created_at,
+  updated_at
+FROM
+  ecf_partnerships_full

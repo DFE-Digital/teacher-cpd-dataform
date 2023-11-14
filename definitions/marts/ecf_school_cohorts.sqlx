@@ -1,0 +1,81 @@
+config {
+    type: "table",
+    assertions: {
+        uniqueKey: ["school_cohort_id"]
+    },
+    bigquery: {
+        partitionBy: "DATE(created_at)",
+        clusterBy: ["cohort"]
+    },
+    description: "",
+    columns: {
+        school_cohort_id: "ID of school cohort record"
+    }
+}
+
+WITH
+  ecf_school_cohorts AS (
+  SELECT
+    id AS school_cohort_id,
+    school_id,
+    cohort_id,
+    induction_programme_choice,
+    default_induction_programme_id,
+    created_at,
+    updated_at,
+    appropriate_body_id
+  FROM
+    ${ref(`school_cohorts_latest_cpd`)}),
+  ecf_cohorts AS (
+  SELECT
+    id AS ecf_cohort_id,
+    start_year AS cohort
+  FROM
+    ${ref(`cohorts_latest_cpd`)}),
+  ecf_schools_latest AS (
+  SELECT
+    id AS ecf_school_id,
+    name AS school_name,
+    urn AS school_urn
+  FROM
+    ${ref(`schools_latest_cpd`)}),
+  ecf_app_bodies as (
+    SELECT  
+      id as source_appropriate_body_id,
+      name as appropriate_body_name
+    FROM
+      ${ref(`appropriate_bodies_latest_cpd`)}
+  ),
+  ecf_full_schools AS(
+  SELECT
+    * EXCEPT(ecf_cohort_id,
+      ecf_school_id)
+  FROM
+    ecf_school_cohorts
+  LEFT JOIN
+    ecf_cohorts
+  ON
+    ecf_school_cohorts.cohort_id=ecf_cohorts.ecf_cohort_id
+  LEFT JOIN
+    ecf_schools_latest
+  ON
+    ecf_school_cohorts.school_id=ecf_schools_latest.ecf_school_id
+  LEFT JOIN
+    ecf_app_bodies
+  ON
+    ecf_school_cohorts.appropriate_body_id=ecf_app_bodies.source_appropriate_body_id)
+SELECT
+  school_cohort_id,
+  school_id,
+  school_name,
+  school_urn,
+  cohort_id,
+  cohort,
+  induction_programme_choice,
+  default_induction_programme_id,
+  created_at,
+  updated_at,
+  appropriate_body_id,
+  appropriate_body_name
+FROM
+  ecf_full_schools
