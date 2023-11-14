@@ -11,6 +11,17 @@ config {
     columns: {}
 }
 
+/* Table Logic:
+   Pulled relevant fields from appropriate tables
+   Created an expanded applications table and an expanded participant profile table, before joining these together as
+   a combined enrolments table
+   Created a full declarations table joining each stage of declarations merging on to a table containing the latest records 
+   for a participant + course, taking the latest updated combination of the two.
+   Then joined this new full declarations table onto the outcomes to create a full outcomes tables.
+   The final table is then created by joining the combined enrolments table with the full outcomes, joining in any additional 
+   tables that require joins on fields contained separately on applications and the participant profiles.
+     */
+
 WITH
   npq_app AS(
   SELECT
