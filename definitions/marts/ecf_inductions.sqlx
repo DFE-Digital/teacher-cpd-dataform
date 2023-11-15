@@ -48,7 +48,8 @@ WITH
     start_year,
     urn AS school_urn,
     cohort_id,
-    start_year AS cohort
+    start_year AS cohort,
+    school_id
   FROM
      ${ref("school_cohorts_latest_cpd")} school_cohort
   LEFT JOIN
@@ -80,6 +81,15 @@ WITH
     name AS appropriate_body_name
   FROM
     ${ref("appropriate_bodies_latest_cpd")} as appropriate_bodies),
+  pupil_premiums AS (
+  SELECT
+    school_id AS source_school_id,
+    start_year AS source_start_year,
+    pupil_premium_incentive AS high_pupil_premium,
+    sparsity_incentive,
+    (ROW_NUMBER() OVER (PARTITION BY school_id, start_year ORDER BY updated_at DESC)) AS rn1
+  FROM
+    ${ref("pupil_premiums_latest_cpd")} QUALIFY rn1 = 1),
   induction_programme_details AS (
   SELECT
     *
@@ -116,7 +126,10 @@ WITH
     induction_record_created_at,
     partnership_id,
     TRN,
-    cohort
+    cohort,
+    school_id,
+    high_pupil_premium,
+    sparsity_incentive
   FROM
     ecf_induction_records
   LEFT JOIN
@@ -130,7 +143,12 @@ WITH
   LEFT JOIN
     appropriate_bodies
   ON
-    ecf_induction_records.appropriate_body_id=appropriate_bodies.appropriate_body_id)
+    ecf_induction_records.appropriate_body_id=appropriate_bodies.appropriate_body_id
+  LEFT JOIN
+    pupil_premiums
+  ON
+    cohort = pupil_premiums.source_start_year
+    AND school_id = pupil_premiums.source_school_id)
 SELECT
   *
 FROM
