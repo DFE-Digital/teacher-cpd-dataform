@@ -271,9 +271,9 @@ WITH
     participant_declaration_id AS source_participant_declaration_id,
     COUNT(id) AS count_of_fails
   FROM
-    ${ref(`participant_outcomes_latest_cpd`)} ``
+    ${ref(`participant_outcomes_latest_cpd`)}
   WHERE
-    state = 'failed'
+    state='failed'
   GROUP BY
     participant_declaration_id),
   npq_sched AS (
@@ -361,7 +361,7 @@ WITH
   LEFT JOIN
     npq_cpdlp AS npqcpd
   ON
-    npq_full_dec.cpd_lead_provider_id = npqcpd.source_cpd_lead_provider_id),
+    npq_full_dec.latest_cpd_lead_provider_id = npqcpd.source_cpd_lead_provider_id),
   npq_comb_enrolment AS (
   SELECT
     * EXCEPT (source_participant_identity_id,
@@ -400,7 +400,7 @@ WITH
     course_identifier,
     latest_state,
     latest_declaration_type,
-    latest_cpd_lead_provider_name,
+    cpd_lead_provider_name as latest_cpd_lead_provider_name,
     latest_declaration_updated_at,
     participant_profile_id,
     status as application_status,
@@ -451,7 +451,7 @@ WITH
     ecf_user_id
   END
     AS latest_user_id,
-    (ROW_NUMBER() OVER (PARTITION BY application_ecf_id ORDER BY declaration_updated_at DESC)) AS rn10
+    (ROW_NUMBER() OVER (PARTITION BY application_ecf_id ORDER BY latest_declaration_updated_at DESC)) AS rn10
   FROM
     npq_comb_enrolment
   LEFT JOIN
