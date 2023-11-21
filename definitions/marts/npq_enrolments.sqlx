@@ -20,6 +20,7 @@ config {
    Then joined this new full declarations table onto the outcomes to create a full outcomes tables.
    The final table is then created by joining the combined enrolments table with the full outcomes, joining in any additional 
    tables that require joins on fields contained separately on applications and the participant profiles.
+    test check 
     test check */
 
 WITH
