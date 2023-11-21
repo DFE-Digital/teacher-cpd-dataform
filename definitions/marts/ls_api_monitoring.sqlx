@@ -31,7 +31,7 @@ WITH
   WHERE
     event_type = 'web_request'
     AND request_path LIKE '/api/v%'
-    AND request_path NOT LIKE '/api/v1/users%')
+    AND request_path NOT LIKE ANY ('/api/v1/users%', '/api/v1/ecf-users%'))
 SELECT
   *,
   CASE
