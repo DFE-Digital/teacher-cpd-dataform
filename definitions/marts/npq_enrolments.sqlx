@@ -11,18 +11,15 @@ config {
     columns: {}
 }
 
-/* Table Logic:
-   Pulled relevant fields from appropriate tables
-   Created an expanded applications table and an expanded participant profile table, before joining these together as
-   a combined enrolments table
-   Created a full declarations table joining each stage of declarations merging on to a table containing the latest records 
-   for a participant + course, taking the latest updated combination of the two.
-   Then joined this new full declarations table onto the outcomes to create a full outcomes tables.
-   The final table is then created by joining the combined enrolments table with the full outcomes, joining in any additional 
-   tables that require joins on fields contained separately on applications and the participant profiles.
-    test check 
-    test check */
-
+  /* Table Logic:
+  Pulled relevant fields from appropriate tables
+  Created an expanded applications table and an expanded participant profile table, before joining these together as
+  a combined enrolments table
+  Created a full declarations table joining each stage of declarations merging on to a table containing the latest records
+  for a participant + course, taking the latest updated combination of the two.
+  Then joined this new full declarations table onto the outcomes to create a full outcomes tables.
+  The final table is then created by joining the combined enrolments table with the full outcomes, joining in any additional
+  tables that require joins on fields contained separately on applications and the participant profiles. */
 WITH
   npq_app AS(
   SELECT
@@ -74,7 +71,7 @@ WITH
     type,
     (ROW_NUMBER() OVER (PARTITION BY participant_identity_id, npq_course_id ORDER BY created_at DESC)) AS rn2
   FROM
-   ${ref(`participant_profiles_latest_cpd`)}
+    ${ref(`participant_profiles_latest_cpd`)}
   WHERE
     participant_identity_id IS NOT NULL QUALIFY rn2=1),
   npq_cohorts AS (
@@ -168,10 +165,10 @@ WITH
     user_id AS declaration_user_id,
     participant_profile_id,
     course_identifier,
-    state,
-    declaration_type,
-    cpd_lead_provider_id,
-    updated_at AS declaration_updated_at,
+    state AS latest_state,
+    declaration_type as latest_declaration_type,
+    cpd_lead_provider_id as latest_cpd_lead_provider_id,
+    updated_at AS latest_declaration_updated_at,
     (ROW_NUMBER() OVER (PARTITION BY participant_profile_id, course_identifier ORDER BY updated_at DESC)) AS rn2
   FROM
     ${ref(`participant_declarations_latest_cpd`)}
@@ -236,7 +233,7 @@ WITH
     AS funded_retained2_declaration,
     (ROW_NUMBER() OVER (PARTITION BY participant_profile_id, cpd_lead_provider_id, course_identifier, declaration_type ORDER BY updated_at DESC)) AS rn7
   FROM
-   ${ref(`participant_declarations_latest_cpd`)} npq_dec_2
+    ${ref(`participant_declarations_latest_cpd`)} npq_dec_2
   WHERE
     declaration_type = 'retained-2'
     AND course_identifier LIKE 'npq%' QUALIFY rn7=1),
@@ -272,11 +269,13 @@ WITH
   npqcountoffails AS (
   SELECT
     participant_declaration_id AS source_participant_declaration_id,
-    (COUNT(DISTINCT id) OVER (PARTITION BY participant_declaration_id, id)) AS count_of_fails
+    COUNT(id) AS count_of_fails
   FROM
-    ${ref(`participant_outcomes_latest_cpd`)}
+    ${ref(`participant_outcomes_latest_cpd`)} ``
   WHERE
-    state = 'failed'),
+    state = 'failed'
+  GROUP BY
+    participant_declaration_id),
   npq_sched AS (
   SELECT
     id AS source_schedule_id,
@@ -399,12 +398,12 @@ WITH
     funding_eligiblity_status_code,
     cohort,
     course_identifier,
-    state,
-    declaration_type,
-    cpd_lead_provider_name,
-    declaration_updated_at,
+    latest_state,
+    latest_declaration_type,
+    latest_cpd_lead_provider_name,
+    latest_declaration_updated_at,
     participant_profile_id,
-    status,
+    status as application_status,
     updated_at,
     employer_name,
     employment_role,
@@ -470,7 +469,6 @@ WITH
   ON
     npq_comb_enrolment.application_ecf_id = npq_full_outcomes.participant_profile_id
     AND npq_comb_enrolment.declaration_course_identifier = npq_full_outcomes.course_identifier QUALIFY rn10=1)
-
 SELECT
   * EXCEPT(rn10)
 FROM
