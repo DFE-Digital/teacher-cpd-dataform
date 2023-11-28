@@ -33,7 +33,7 @@ WITH
     response_body,
     updated_at,
     created_at,
-    (ROW_NUMBER() OVER (PARTITION BY participant_outcome_id ORDER BY created_at DESC)) AS rn2,
+    (ROW_NUMBER() OVER (PARTITION BY participant_outcome_id ORDER BY created_at DESC)) AS rn2
   FROM
     `ecf-bq.dataform.participant_outcome_api_requests_latest_cpd`
   QUALIFY rn2=1 and status_code NOT IN (200,
