@@ -1,0 +1,62 @@
+config {
+    type: "table",
+    assertions: {
+        uniqueKey: ["participant_outcome_id"]
+    },
+    bigquery: {
+        partitionBy: "latest_outcome_sent",
+        clusterBy: ["latest_state"]
+    },
+    description: "",
+    columns: {
+        participant_outcome_id: "ID of each participant's outcome"
+    }
+}
+
+WITH
+  npqoutcomes AS (
+  SELECT
+    id,
+    participant_declaration_id,
+    updated_at,
+    created_at,
+    state
+  FROM
+    `ecf-bq.dataform.participant_outcomes_latest_cpd`
+  WHERE
+    sent_to_qualified_teachers_api_at IS NOT NULL),
+  npqapirequests AS (
+  SELECT
+    id,
+    participant_outcome_id,
+    status_code,
+    response_body,
+    updated_at,
+    created_at,
+    (ROW_NUMBER() OVER (PARTITION BY participant_outcome_id ORDER BY created_at DESC)) AS rn2
+  FROM
+    `ecf-bq.dataform.participant_outcome_api_requests_latest_cpd`
+  QUALIFY rn2=1 and status_code NOT IN (200,
+    204))
+SELECT
+  npqo.id as participant_outcome_id,
+  npqo.created_at AS latest_outcome_sent,
+  npqo.state AS latest_state,
+  dec.id AS declaration_id,
+  dec.user_id,
+  CASE WHEN status_code=400 THEN 'Error 400: Add TRN - Participant profile is missing a TRN'
+  WHEN status_code=404 THEN 'Error 404: Check TRN - TRA did not recognise TRN currently linked to participant profile'
+  ELSE JSON_EXTRACT_SCALAR(npqar.response_body,'$.errors.trn[0]')
+  END AS error_message,
+  (TIMESTAMP_DIFF(CURRENT_TIMESTAMP,npqar.created_at,day)) as days_error_open
+FROM
+  npqoutcomes npqo
+INNER JOIN
+  npqapirequests npqar
+ON
+  npqo.id = npqar.participant_outcome_id
+INNER JOIN
+  `ecf-bq.dataform.participant_declarations_latest_cpd` dec
+ON
+  npqo.participant_declaration_id = dec.id
+ORDER BY days_error_open DESC

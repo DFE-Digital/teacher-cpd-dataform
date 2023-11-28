@@ -512,6 +512,23 @@ dfeAnalyticsDataform({
     }]
   },
   {
+    entityTableName: "participant_id_changes",
+    description: "",
+    keys: [{
+      keyName: "from_participant_id",
+      dataType: "string",
+      description: ""
+    }, {
+      keyName: "to_participant_id",
+      dataType: "string",
+      description: ""
+    }, {
+      keyName: "user_id",
+      dataType: "string",
+      description: ""
+    }]
+  },
+  {
     entityTableName: "participant_outcome_api_requests",
     description: "",
     keys: [{
