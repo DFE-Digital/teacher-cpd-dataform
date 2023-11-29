@@ -59,4 +59,3 @@ INNER JOIN
   `ecf-bq.dataform.participant_declarations_latest_cpd` dec
 ON
   npqo.participant_declaration_id = dec.id
-ORDER BY days_error_open DESC
