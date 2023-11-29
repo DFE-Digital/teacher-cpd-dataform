@@ -4,7 +4,7 @@ config {
         uniqueKey: ["participant_outcome_id"]
     },
     bigquery: {
-        partitionBy: "latest_outcome_sent",
+        partitionBy: "DATE(latest_outcome_sent)",
         clusterBy: ["latest_state"]
     },
     description: "",
