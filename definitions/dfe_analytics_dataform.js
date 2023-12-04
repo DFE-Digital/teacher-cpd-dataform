@@ -7,6 +7,49 @@ dfeAnalyticsDataform({
   bqDatasetName: 'ecf_events_production',
   urlRegex: 'manage-training-for-early-career-teachers.education.gov.uk',
   dataSchema: [{
+    entityTableName: "api_requests",
+    description: "",
+    keys: [{
+      keyName: "cpd_lead_provider_id",
+      dataType: "string",
+      description: ""
+    }, {
+      keyName: "request_body",
+      dataType: "string",
+      description: ""
+    }, {
+      keyName: "request_headers",
+      dataType: "string",
+      description: ""
+    }, {
+      keyName: "request_method",
+      alias: "api_request_method",
+      dataType: "string",
+      description: ""
+    }, {
+      keyName: "request_path",
+      alias: "api_request_path",
+      dataType: "string",
+      description: ""
+    }, {
+      keyName: "response_body",
+      dataType: "string",
+      description: ""
+    }, {
+      keyName: "response_headers",
+      dataType: "string",
+      description: ""
+    }, {
+      keyName: "status_code",
+      dataType: "integer",
+      description: ""
+    }, {
+      keyName: "user_description",
+      dataType: "string",
+      description: ""
+    }]
+  },
+  {
     entityTableName: "appropriate_bodies",
     description: "",
     keys: [{
