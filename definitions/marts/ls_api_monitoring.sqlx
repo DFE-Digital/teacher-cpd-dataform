@@ -32,7 +32,7 @@ WITH
     event_type = 'web_request'
     AND request_path LIKE '/api/v%'
     AND request_path NOT LIKE ANY ('/api/v1/users%',
-      '/api/v1/ecf-users%')),
+      '/api/v1/ecf-users%','/api/v1/npq-applications.csv')),
   request_response_fields AS (
   SELECT
     eep.request_uuid,
