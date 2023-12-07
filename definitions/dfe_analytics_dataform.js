@@ -1063,6 +1063,23 @@ dfeAnalyticsDataform({
     }]
   },
   {
+    entityTableName: "support_queries",
+    description: "",
+    keys: [{
+      keyName: "subject",
+      dataType: "string",
+      description: "the subject of the ticket selected by the user from pre-provided options"
+    }, {
+      keyName: "user_id",
+      dataType: "string",
+      description: "foreign key to the user within ECF"
+    }, {
+      keyName: "zendesk_ticket_id",
+      dataType: "string",
+      description: "foreign key to the Zendesk ticket within Zendesk"
+    }]
+  },
+  {
     entityTableName: "teacher_profiles",
     description: "",
     keys: [{
