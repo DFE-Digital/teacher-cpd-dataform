@@ -8,7 +8,8 @@ config {
     },
     description: "",
     columns: {
-        school_id: "ID of school"
+        school_id: "ID of school",
+        relationship: "when false, the partnership is the default partnership for the school, when it's true it's a relationship, which means it only applies to some teachers at the school"
     }
 }
 
@@ -30,26 +31,26 @@ WITH
     created_at
   FROM
     ${ref(`schools_latest_cpd`)}),
-  induction_coordinator_profiles AS (
-  SELECT
-    id AS induction_tutor_id,
-    school_id,
-    user_id AS induction_tutor_user_id,
-    created_at AS induction_tutor_nominated,
-    updated_at AS induction_tutor_signed_in,
-    reminder_email_sent_at AS nomination_email_sent_at,
-    discarded_at AS induction_tutor_discarded
-  FROM
-    ${ref(`induction_coordinator_profiles_latest_cpd`)} icp_df
-  LEFT JOIN (
-    SELECT
-      induction_coordinator_profile_id,
-      school_id,
-      (ROW_NUMBER() OVER (PARTITION BY school_id ORDER BY created_at DESC)) AS rn0
-    FROM
-      ${ref(`induction_coordinator_profiles_schools_latest_cpd`)} QUALIFY rn0=1) AS scp
-  ON
-    icp_df.id=scp.induction_coordinator_profile_id),
+--   induction_coordinator_profiles AS (
+--   SELECT
+--     id AS induction_tutor_id,
+--     school_id,
+--     user_id AS induction_tutor_user_id,
+--     created_at AS induction_tutor_nominated,
+--     updated_at AS induction_tutor_signed_in,
+--     reminder_email_sent_at AS nomination_email_sent_at,
+--     discarded_at AS induction_tutor_discarded
+--   FROM
+--     ${ref(`induction_coordinator_profiles_latest_cpd`)} icp_df
+--   LEFT JOIN (
+--     SELECT
+--       induction_coordinator_profile_id,
+--       school_id,
+--       (ROW_NUMBER() OVER (PARTITION BY school_id ORDER BY created_at DESC)) AS rn0
+--     FROM
+--       ${ref(`induction_coordinator_profiles_schools_latest_cpd`)} QUALIFY rn0=1) AS scp
+--   ON
+--     icp_df.id=scp.induction_coordinator_profile_id),
   schools_partnerships AS (
   SELECT
     school_id,
@@ -72,7 +73,7 @@ WITH
   ON
     sp_latest.lead_provider_id=lp_latest.id
   WHERE
-    relationship = TRUE QUALIFY rn1=1),
+    relationship = False QUALIFY rn1=1),
   school_induction_programmes AS (
   SELECT
     school_id,
@@ -94,8 +95,8 @@ SELECT
   id AS school_id,
   name,
   urn,
-  induction_tutor_nominated,
-  induction_tutor_signed_in,
+--   induction_tutor_nominated,
+--   induction_tutor_signed_in,
   CASE
     WHEN sp.school_id IS NOT NULL THEN induction_programme_choice
   ELSE
@@ -123,15 +124,15 @@ END
   administrative_district_name,
   pupil_premium_incentive as pupil_premium,
   sparsity_incentive as sparsity,
-  nomination_email_sent_at,
-  induction_tutor_discarded,
+--   nomination_email_sent_at,
+--   induction_tutor_discarded,
   created_at
 FROM
   schools_latest
-LEFT JOIN
-  induction_coordinator_profiles icp
-ON
-  schools_latest.id=icp.school_id
+-- LEFT JOIN
+--   induction_coordinator_profiles icp
+-- ON
+--   schools_latest.id=icp.school_id
 LEFT JOIN
   schools_partnerships sp
 ON
