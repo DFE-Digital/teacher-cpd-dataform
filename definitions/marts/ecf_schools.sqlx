@@ -1,0 +1,147 @@
+config {
+    type: "table",
+    assertions: {
+        uniqueKey: ["school_id"]
+    },
+    bigquery: {
+        partitionBy: "DATE(created_at)"
+    },
+    description: "",
+    columns: {
+        school_id: "ID of school",
+        relationship: "when false, the partnership is the default partnership for the school, when it's true it's a relationship, which means it only applies to some teachers at the school"
+    }
+}
+
+WITH
+  schools_latest AS (
+  SELECT
+    id,
+    name,
+    urn,
+    postcode,
+    administrative_district_code,
+    administrative_district_name,
+    school_phase_name,
+    school_phase_type,
+    school_status_code,
+    school_status_name,
+    school_type_code,
+    school_type_name,
+    created_at
+  FROM
+    ${ref(`schools_latest_cpd`)}),
+--   induction_coordinator_profiles AS (
+--   SELECT
+--     id AS induction_tutor_id,
+--     school_id,
+--     user_id AS induction_tutor_user_id,
+--     created_at AS induction_tutor_nominated,
+--     updated_at AS induction_tutor_signed_in,
+--     reminder_email_sent_at AS nomination_email_sent_at,
+--     discarded_at AS induction_tutor_discarded
+--   FROM
+--     ${ref(`induction_coordinator_profiles_latest_cpd`)} icp_df
+--   LEFT JOIN (
+--     SELECT
+--       induction_coordinator_profile_id,
+--       school_id,
+--       (ROW_NUMBER() OVER (PARTITION BY school_id ORDER BY created_at DESC)) AS rn0
+--     FROM
+--       ${ref(`induction_coordinator_profiles_schools_latest_cpd`)} QUALIFY rn0=1) AS scp
+--   ON
+--     icp_df.id=scp.induction_coordinator_profile_id),
+  schools_partnerships AS (
+  SELECT
+    school_id,
+    delivery_partner_id,
+    dp_latest.name AS delivery_partner,
+    lead_provider_id,
+    lp_latest.name AS lead_provider,
+    challenge_reason AS partnership_challenge_reason,
+    challenged_at AS partnership_challenge_time,
+    sp_latest.created_at AS partnership_time,
+    (ROW_NUMBER() OVER (PARTITION BY school_id ORDER BY sp_latest.created_at DESC)) AS rn1
+  FROM
+    ${ref(`partnerships_latest_cpd`)} AS sp_latest
+  LEFT JOIN
+    ${ref(`delivery_partners_latest_cpd`)} AS dp_latest
+  ON
+    sp_latest.delivery_partner_id=dp_latest.id
+  LEFT JOIN
+    ${ref(`lead_providers_latest_cpd`)} AS lp_latest
+  ON
+    sp_latest.lead_provider_id=lp_latest.id
+  WHERE
+    relationship = False QUALIFY rn1=1),
+  school_induction_programmes AS (
+  SELECT
+    school_id,
+    induction_programme_choice,
+    core_induction_programme_id AS chosen_cip,
+    (ROW_NUMBER() OVER (PARTITION BY school_id ORDER BY created_at DESC)) AS rn2
+  FROM
+    ${ref(`school_cohorts_latest_cpd`)} QUALIFY rn2=1),
+  pupil_premiums AS (
+  SELECT
+    school_id,
+    pupil_premium_incentive,
+    sparsity_incentive,
+    (ROW_NUMBER() OVER (PARTITION BY school_id ORDER BY created_at DESC)) AS rn3
+  FROM
+    ${ref(`pupil_premiums_latest_cpd`)} QUALIFY rn3=1)
+
+SELECT
+  id AS school_id,
+  name,
+  urn,
+--   induction_tutor_nominated,
+--   induction_tutor_signed_in,
+  CASE
+    WHEN sp.school_id IS NOT NULL THEN induction_programme_choice
+  ELSE
+  NULL
+END
+  AS induction_programme_choice,
+  CASE
+    WHEN sp.school_id IS NOT NULL THEN TRUE
+  ELSE
+  FALSE
+END
+  AS in_partnership,
+  partnership_time,
+  partnership_challenge_reason,
+  partnership_challenge_time,
+  lead_provider,
+  delivery_partner,
+  chosen_cip school_type_name,
+  school_phase_type,
+  school_phase_name,
+  school_status_code,
+  school_status_name,
+  postcode,
+  administrative_district_code,
+  administrative_district_name,
+  pupil_premium_incentive as pupil_premium,
+  sparsity_incentive as sparsity,
+--   nomination_email_sent_at,
+--   induction_tutor_discarded,
+  created_at
+FROM
+  schools_latest
+-- LEFT JOIN
+--   induction_coordinator_profiles icp
+-- ON
+--   schools_latest.id=icp.school_id
+LEFT JOIN
+  schools_partnerships sp
+ON
+  schools_latest.id=sp.school_id
+LEFT JOIN
+  school_induction_programmes sip
+ON
+  schools_latest.id=sip.school_id
+LEFT JOIN
+  pupil_premiums pp
+ON
+  schools_latest.id=pp.school_id
