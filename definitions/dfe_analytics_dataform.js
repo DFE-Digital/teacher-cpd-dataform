@@ -1078,24 +1078,24 @@ dfeAnalyticsDataform({
       dataType: "string",
       description: "foreign key to the Zendesk ticket within Zendesk"
     }]
+  },
+  {
+    entityTableName: "teacher_profiles",
+    description: "",
+    keys: [{
+      keyName: "school_id",
+      dataType: "string",
+      description: ""
+    }, {
+      keyName: "trn",
+      dataType: "integer",
+      description: ""
+    }, {
+      keyName: "user_id",
+      dataType: "string",
+      description: ""
+    }]
   }/*,
-  // {
-  //   entityTableName: "teacher_profiles",
-  //   description: "",
-  //   keys: [{
-  //     keyName: "school_id",
-  //     dataType: "string",
-  //     description: ""
-  //   }, {
-  //     keyName: "trn",
-  //     dataType: "integer",
-  //     description: ""
-  //   }, {
-  //     keyName: "user_id",
-  //     dataType: "string",
-  //     description: ""
-  //   }]
-  // },
   // {
   //   entityTableName: "analytics_ecf_inductions",
   //   description: "",
