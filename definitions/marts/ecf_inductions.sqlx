@@ -108,7 +108,7 @@ WITH
     induction_programme_type,
     school_name,
     school_urn,
-    schedule_id,
+    schedule_identifier,
     mentor_id,
     appropriate_bodies.appropriate_body_id,
     appropriate_body_name,
@@ -117,10 +117,10 @@ WITH
     induction_status,
     training_status,
     school_transfer,
-    created_at,
-    updated_at,
+    ecf_induction_records.created_at,
+    ecf_induction_records.updated_at,
     completion_date,
-    cohort_id,
+    induction_programme_details.cohort_id,
     user_id,
     participant_type,
     induction_record_created_at,
@@ -148,7 +148,9 @@ WITH
     pupil_premiums
   ON
     cohort = pupil_premiums.source_start_year
-    AND school_id = pupil_premiums.source_school_id)
+    AND school_id = pupil_premiums.source_school_id
+  LEFT JOIN `dataform.schedules_latest_cpd` schedules
+  ON ecf_induction_records.schedule_id = schedules.id)
 SELECT
   *
 FROM
