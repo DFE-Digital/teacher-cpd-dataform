@@ -1100,10 +1100,18 @@ dfeAnalyticsDataform({
     entityTableName: "analytics_inductions",
     description: "",
     keys: [{
-      keyName: "appropriate_body_id",
+      keyName: "induction_record_id",
       dataType: "string",
       description: ""
     }, {
+      keyName: "induction_record_created_at",
+      dataType: "string",
+      description: ""
+    },{
+      keyName: "appropriate_body_id",
+      dataType: "string",
+      description: ""
+    },{
       keyName: "appropriate_body_name",
       dataType: "string",
       description: ""
@@ -1362,7 +1370,7 @@ dfeAnalyticsDataform({
       dataType: "string",
       description: ""
     }, {
-      keyName: "default_induction_programme_tr",
+      keyName: "default_induction_programme_training_choice",
       dataType: "string",
       description: ""
     }, {
