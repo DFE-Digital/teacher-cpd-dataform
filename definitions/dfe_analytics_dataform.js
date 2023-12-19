@@ -1132,7 +1132,7 @@ dfeAnalyticsDataform({
       dataType: "timestamp",
       description: ""
     }, {
-      keyName: "induction_programme_id",
+      keyName: "analytics_induction_programme_id",
       dataType: "string",
       description: ""
     }, {
