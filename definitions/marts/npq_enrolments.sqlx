@@ -8,7 +8,9 @@ config {
         clusterBy: ["cohort"]
     },
     description: "",
-    columns: {}
+    columns: {
+        latest_declaration_type: "Latest declaration is determined using the field declaration_date as this is the date when the evidence for the declaration is provided"
+    }
 }
 
   /* Table Logic:
@@ -169,7 +171,7 @@ WITH
     declaration_type as latest_declaration_type,
     cpd_lead_provider_id as latest_cpd_lead_provider_id,
     updated_at AS latest_declaration_updated_at,
-    (ROW_NUMBER() OVER (PARTITION BY participant_profile_id, course_identifier ORDER BY updated_at DESC)) AS rn2
+    (ROW_NUMBER() OVER (PARTITION BY participant_profile_id, course_identifier ORDER BY declaration_date DESC)) AS rn2
   FROM
     ${ref(`participant_declarations_latest_cpd`)}
   WHERE

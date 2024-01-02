@@ -9,7 +9,8 @@ config {
   },
   description: "",
   columns: {
-    induction_record_id: "ID of individual induction record"
+    induction_record_id: "ID of individual induction record",
+    participant_profile_id: "The table participant_declarations_latest needs to be joined to ecf_inductions using participant_profile_id. Deduplication of user_ids has turned some of them into “ghost” IDs but the participant_profile_id still links correctly. "
   }
 }
 
