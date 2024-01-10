@@ -33,7 +33,8 @@ WITH
     AND request_path LIKE '/api/v%'
     AND request_uuid NOT IN ('5743acd834e004bea704e1c4a0065943',
       'c1fdb72bd593d9eda54f8e95e9724884',
-      'edc376f322a4dc273b62997804695fb5')),
+      'edc376f322a4dc273b62997804695fb5',
+      '3b0872b43cd564d2133dbbff6fa1a4cf')),
   request_response_fields AS (
   SELECT
     eep.request_uuid,
