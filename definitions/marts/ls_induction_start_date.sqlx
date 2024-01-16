@@ -17,12 +17,7 @@ WITH
   induction_start_date_table AS (
   SELECT
     ppl.id AS participant_profile_id,
-    CASE
-      WHEN ppl.type = 'ParticipantProfile::ECT' THEN 'ECT'
-    ELSE
-    ppl.type
-  END
-    AS type,
+    'ECT' AS participant_type,
     esc.cohort,
     slc.name AS schedule_name,
     ppl.training_status,
