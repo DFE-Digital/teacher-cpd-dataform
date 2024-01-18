@@ -1,0 +1,46 @@
+config {
+    type: "table",
+    assertions: {
+        uniqueKey: ["id"],
+        rowConditions: [
+            'programme<>"Other"'
+        ]
+
+    },
+    bigquery: {
+        partitionBy: "DATE(declaration_date)",
+        clusterBy: ["programme", "cpd_lp_name", "course_identifier", "type"]
+    },
+    description: "",
+    columns: {
+        id: "ID of declaration",
+        cpd_lp_name: "Name of Lead Provider for NPQ or ECF course",
+        cpd_dp_name: "Name of Delivery Partner for ECF course"
+    }
+}
+
+SELECT
+  dec.*,
+  COALESCE(lpl.name,npqlpl.name) AS cpd_lp_name,
+  dpl.name AS cpd_dp_name,
+  CASE
+    WHEN course_identifier LIKE 'npq%' THEN 'NPQ'
+    WHEN course_identifier LIKE 'ecf%' THEN 'ECF'
+  ELSE
+  'Other'
+END
+  AS programme
+FROM
+  ${ref("participant_declarations_latest_cpd")} dec
+LEFT JOIN
+  ${ref("lead_providers_latest_cpd")} lpl
+USING
+  (cpd_lead_provider_id)
+LEFT JOIN
+  ${ref("npq_lead_providers_latest_cpd")} npqlpl
+USING
+  (cpd_lead_provider_id)
+LEFT JOIN
+  ${ref("delivery_partners_latest_cpd")} dpl
+ON
+  dec.delivery_partner_id = dpl.id
