@@ -5,7 +5,7 @@ config {
     },
     bigquery: {
         partitionBy: "DATE(application_created_at)",
-        clusterBy: ["cohort"]
+        clusterBy: ["cohort","lead_provider_name","course_name","application_status"]
     },
     description: "",
     columns: {

@@ -11,7 +11,7 @@ config {
         partitionBy: "DATE(declaration_date)",
         clusterBy: ["programme", "cpd_lp_name", "course_identifier", "type"]
     },
-    description: "",
+    description: "This mart produces a report showing the most recent 'state' for each declaration across ECF and NPQ and links it to the names of the Lead Providers. The final report feeds into the CPD - Self-Serve Data dashboard",
     columns: {
         id: "ID of declaration",
         cpd_lp_name: "Name of Lead Provider for NPQ or ECF course",
