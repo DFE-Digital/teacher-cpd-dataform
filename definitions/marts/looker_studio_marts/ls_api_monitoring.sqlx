@@ -5,7 +5,7 @@ config {
     },
     bigquery: {
         partitionBy: "DATE(occurred_at)",
-        clusterBy: ["request_method","user_id","reponse_status"]
+        clusterBy: ["request_method","user_id","response_status"]
     },
     description: "This mart produces a table outlining all API calls that have been made by Lead Providers and internal users. It outlines the response statuses of those calls to help the LPDOB team identify Providers who are causing a large number of errors. The final output feeds into the CPD- API Monitoring dashboard.",
     columns: {
