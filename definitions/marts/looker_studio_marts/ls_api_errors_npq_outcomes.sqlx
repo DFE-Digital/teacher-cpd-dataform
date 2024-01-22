@@ -5,9 +5,9 @@ config {
     },
     bigquery: {
         partitionBy: "DATE(latest_outcome_sent)",
-        clusterBy: ["latest_state"]
+        clusterBy: ["latest_state","error_message"]
     },
-    description: "",
+    description: "This mart creates a table that outlines the number of NPQ Outcomes that have been sent to the TRA but have failed to be verified. It sits in the CPD - API Monitoring dashboard.",
     columns: {
         participant_outcome_id: "ID of each participant's outcome"
     }

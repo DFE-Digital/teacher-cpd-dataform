@@ -5,7 +5,7 @@ config {
   },
   bigquery: {
     partitionBy: "DATE(induction_record_created_at)",
-    clusterBy: ["cohort"]
+    clusterBy: ["cohort","participant_type","induction_status","training_status"]
   },
   description: "",
   columns: {

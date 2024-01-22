@@ -1,0 +1,48 @@
+config {
+    type: "table",
+    assertions: {
+        uniqueKey: ["id"]
+    },
+    bigquery: {
+        partitionBy: "DATE(created_at)",
+        clusterBy: ["state", "reason", "programme","cpd_lp_name"]
+    },
+    description: "This mart provides a report that gives the withdrawal/deferall reasons for all participants across NPQ and ECF. This information is provided to users in the CPD Self-Serve Dashboard.",
+    columns: {
+        participant_profile_id: "ID of each ECT's profile"
+    }
+}
+
+SELECT
+  ppsl.*,
+  COALESCE(lpl.name,npqlpl.name) AS cpd_lp_name,
+  CASE
+    WHEN ppl.type LIKE '%NPQ' THEN 'NPQ'
+    WHEN ppl.type LIKE '%ECT' THEN 'ECT'
+    WHEN ppl.type LIKE '%Mentor' THEN 'Mentor'
+  ELSE
+  'Other'
+END
+  AS participant_type,
+  CASE
+    WHEN ppl.type LIKE '%NPQ' THEN 'NPQ'
+    WHEN ppl.type LIKE ANY ('%ECT',
+    '%Mentor') THEN 'ECF'
+  ELSE
+  'Other'
+END
+  AS programme
+FROM
+  ${ref("participant_profile_states_latest_cpd")} ppsl
+LEFT JOIN
+  ${ref("lead_providers_latest_cpd")} lpl
+USING
+  (cpd_lead_provider_id)
+LEFT JOIN
+  ${ref("npq_lead_providers_latest_cpd")} npqlpl
+USING
+  (cpd_lead_provider_id)
+LEFT JOIN
+  ${ref("participant_profiles_latest_cpd")} ppl
+ON
+  ppsl.participant_profile_id = ppl.id
