@@ -5,7 +5,7 @@ config {
     },
     bigquery: {
         partitionBy: "",
-        clusterBy: ["kind_of_nursery", "provider_name", "course_name", "application_status"]
+        clusterBy: ["kind_of_nursery", "provider_name", "cohort", "application_status"]
     },
     description: "This mart provides a report of all Early Years Leadership NPQs (NPQEYL). The table links to fields from GIAS and Ofsted establishments and feeds into the NPQEYL dashboard.",
     columns: {
