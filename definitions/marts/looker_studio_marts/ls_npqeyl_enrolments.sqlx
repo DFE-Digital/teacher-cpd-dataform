@@ -1,0 +1,64 @@
+config {
+    type: "table",
+    assertions: {
+        uniqueKey: ["application_ecf_id"]
+    },
+    bigquery: {
+        partitionBy: "",
+        clusterBy: ["kind_of_nursery", "provider_name", "cohort", "application_status"]
+    },
+    description: "This mart provides a report of all Early Years Leadership NPQs (NPQEYL). The table links to fields from GIAS and Ofsted establishments and feeds into the NPQEYL dashboard.",
+    columns: {
+        application_ecf_id: "ID of each unique application"
+    }
+}
+
+WITH
+  final_table AS (
+  WITH
+    early_years_settings AS (
+    SELECT
+      establishment_urn,
+      phase_of_education,
+      establishment_type,
+      establishment_subtype,
+      la_name,
+      gor_name
+    FROM
+      `static_tables.all_gias_ofsted_establishments`
+    WHERE
+      data_source LIKE 'Ofsted%'),
+    gias_settings AS (
+    SELECT
+      establishment_urn,
+      phase_of_education,
+      establishment_type,
+      establishment_subtype,
+      la_name,
+      gor_name
+    FROM
+      `static_tables.all_gias_ofsted_establishments`
+    WHERE
+      data_source LIKE 'GIAS%')
+  SELECT
+    npq_e.*,
+    COALESCE(eys.phase_of_education,gias.phase_of_education) AS phase_of_education,
+    COALESCE(eys.establishment_type, gias.establishment_type) AS establishment_type,
+    COALESCE(eys.establishment_subtype,gias.establishment_subtype) AS establishment_subtype,
+    COALESCE(eys.la_name,gias.la_name) AS gias_ofsted_la_name,
+  FROM
+    ${ref("npq_enrolments")} npq_e
+  LEFT JOIN
+    early_years_settings eys
+  ON
+    npq_e.private_childcare_provider_urn = eys.establishment_urn
+  LEFT JOIN
+    gias_settings gias
+  ON
+    npq_e.school_urn = gias.establishment_urn
+  WHERE
+    npq_e.course_name = 'NPQ Early Years Leadership (NPQEYL)')
+SELECT
+  *
+FROM
+  final_table
