@@ -20,12 +20,21 @@ WITH
     ecfid.*,
     ppl.induction_start_date,
     ppl.induction_completion_date,
+    CASE
+      WHEN participant_type LIKE 'ParticipantProfile::ECT' THEN 'ECT'
+      WHEN participant_type LIKE 'ParticipantProfile::Mentor' THEN 'Mentor'
+    ELSE
+    NULL
+  END
+    AS participant_course
   FROM
-    `dataform.ecf_inductions_dedupe` ecfid
+    `dataform.ecf_inductions_dedupe` AS ecfid
   LEFT JOIN
     `dataform.participant_profiles_latest_cpd` ppl
   ON
-    ecfid.participant_profile_id = ppl.id ),
+    ecfid.participant_profile_id = ppl.id
+  WHERE
+    participant_type IS NOT NULL),
   ecf_declarations_expanded AS (
   SELECT
     dec_cpd.*,
@@ -42,15 +51,22 @@ WITH
     ELSE
     0
   END
-    AS state_heirarchy
+    AS state_heirarchy,
+    CASE
+      WHEN course_identifier LIKE 'ecf-induction' THEN 'ECT'
+      WHEN course_identifier LIKE 'ecf-mentor' THEN 'Mentor'
+    ELSE
+    NULL
+  END
+    AS participant_course
   FROM
-    `ecf-bq.dataform.participant_declarations_latest_cpd` dec_cpd
+    ${ref(`participant_declarations_latest_cpd`)} AS dec_cpd
   LEFT JOIN
-    `ecf-bq.dataform.cpd_lead_providers_latest_cpd` cpd_lead_providers
+    ${ref(`cpd_lead_providers_latest_cpd`)} AS cpd_lead_providers
   ON
     dec_cpd.cpd_lead_provider_id=cpd_lead_providers.id
   LEFT JOIN
-    `ecf-bq.dataform.delivery_partners_latest_cpd` delivery_partners
+    ${ref(`delivery_partners_latest_cpd`)} AS delivery_partners
   ON
     dec_cpd.delivery_partner_id=delivery_partners.id
   WHERE
@@ -67,12 +83,14 @@ WITH
     cpd_lead_provider_name AS latest_cpd_lead_provider_name,
     delivery_partner_name AS latest_delivery_partner_name,
     declaration_date AS latest_declaration_date,
+    participant_course AS latest_participant_course,
     (ROW_NUMBER() OVER (PARTITION BY participant_profile_id, course_identifier ORDER BY declaration_date DESC)) AS rn2
   FROM
     ecf_declarations_expanded QUALIFY rn2 = 1),
   ecf_dec_start AS(
   SELECT
     id AS started_declaration_id,
+    user_id AS started_declaration_user_id,
     participant_profile_id AS started_participant_profile_id,
     course_identifier AS started_course_identifier,
     declaration_type AS started_declaration_type,
@@ -98,6 +116,7 @@ WITH
   ecf_dec_ret1 AS(
   SELECT
     id AS retained1_declaration_id,
+    user_id AS retained1_declaration_user_id,
     participant_profile_id AS ret1_participant_profile_id,
     course_identifier AS ret1_course_identifier,
     declaration_type AS ret1_declaration_type,
@@ -123,6 +142,7 @@ WITH
   ecf_dec_ret2 AS(
   SELECT
     id AS retained2_declaration_id,
+    user_id AS retained2_declaration_user_id,
     participant_profile_id AS ret2_participant_profile_id,
     course_identifier AS ret2_course_identifier,
     declaration_type AS ret2_declaration_type,
@@ -148,6 +168,7 @@ WITH
   ecf_dec_ret3 AS(
   SELECT
     id AS retained3_declaration_id,
+    user_id AS retained3_declaration_user_id,
     participant_profile_id AS ret3_participant_profile_id,
     course_identifier AS ret3_course_identifier,
     declaration_type AS ret3_declaration_type,
@@ -173,6 +194,7 @@ WITH
   ecf_dec_ret4 AS(
   SELECT
     id AS retained4_declaration_id,
+    user_id AS retained4_declaration_user_id,
     participant_profile_id AS ret4_participant_profile_id,
     course_identifier AS ret4_course_identifier,
     declaration_type AS ret4_declaration_type,
@@ -198,6 +220,7 @@ WITH
   ecf_dec_comp AS(
   SELECT
     id AS completed_declaration_id,
+    user_id AS completed_declaration_user_id,
     participant_profile_id AS completed_participant_profile_id,
     course_identifier AS completed_course_identifier,
     declaration_type AS completed_declaration_type,
@@ -263,13 +286,14 @@ WITH
     AND ecf_dec_latest.course_identifier = ecf_dec_comp.completed_course_identifier),
   ecf_golden_thread AS (
   SELECT
-    *
+    * EXCEPT(latest_participant_course)
   FROM
     ecf_inductions_expanded
   LEFT JOIN
     ecf_full_dec
   ON
-    ecf_inductions_expanded.participant_profile_id=ecf_full_dec.declaration_participant_profile_id )
+    ecf_inductions_expanded.participant_profile_id=ecf_full_dec.declaration_participant_profile_id
+    AND ecf_inductions_expanded.participant_course=ecf_full_dec.latest_participant_course)
 SELECT
   *
 FROM
