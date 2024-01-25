@@ -102,7 +102,7 @@ WITH
     participant_profile_id AS started_part_profile_id,
     course_identifier AS started_course_identifier,
     declaration_type AS started_dec_type,
-    state AS start_dec_state,
+    state AS started_dec_state,
     funded_declaration AS funded_start_dec,
     declaration_date AS started_dec_date,
     cpd_lead_provider_name AS started_cpd_lp_name,
