@@ -53,18 +53,18 @@ WITH
   END
     AS state_heirarchy,
     CASE
-      WHEN state LIKE 'completed' THEN 12
-      WHEN state LIKE 'extended-6' THEN 11
-      WHEN state LIKE 'extended-5' THEN 10
-      WHEN state LIKE 'extended-4' THEN 9
-      WHEN state LIKE 'extended-3' THEN 8
-      WHEN state LIKE 'extended-2' THEN 7
-      WHEN state LIKE 'extended-1' THEN 6
-      WHEN state LIKE 'retained-4' THEN 5
-      WHEN state LIKE 'retained-3' THEN 4
-      WHEN state LIKE 'retained-2' THEN 3
-      WHEN state LIKE 'retained-1' THEN 2
-      WHEN state LIKE 'started' THEN 1
+      WHEN declaration_type LIKE 'completed' THEN 12
+      WHEN declaration_type LIKE 'extended-6' THEN 11
+      WHEN declaration_type LIKE 'extended-5' THEN 10
+      WHEN declaration_type LIKE 'extended-4' THEN 9
+      WHEN declaration_type LIKE 'extended-3' THEN 8
+      WHEN declaration_type LIKE 'extended-2' THEN 7
+      WHEN declaration_type LIKE 'extended-1' THEN 6
+      WHEN declaration_type LIKE 'retained-4' THEN 5
+      WHEN declaration_type LIKE 'retained-3' THEN 4
+      WHEN declaration_type LIKE 'retained-2' THEN 3
+      WHEN declaration_type LIKE 'retained-1' THEN 2
+      WHEN declaration_type LIKE 'started' THEN 1
     ELSE
     0
   END
