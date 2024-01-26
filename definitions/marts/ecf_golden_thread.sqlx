@@ -109,7 +109,7 @@ WITH
     delivery_partner_name AS latest_dp_name,
     declaration_date AS latest_dec_date,
     participant_course AS latest_part_course,
-    (ROW_NUMBER() OVER (PARTITION BY participant_profile_id, course_identifier ORDER BY declaration_date desc, type_heirarchy DESC)) AS rn2
+    (ROW_NUMBER() OVER (PARTITION BY participant_profile_id, course_identifier ORDER BY type_heirarchy desc, state_heirarchy DESC)) AS rn2
   FROM
     ecf_declarations_expanded QUALIFY rn2 = 1),
   ecf_dec_start AS(
