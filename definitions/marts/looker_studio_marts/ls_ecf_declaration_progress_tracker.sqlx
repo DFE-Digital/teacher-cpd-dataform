@@ -16,10 +16,9 @@ config {
 SELECT
   induction_record_id,
   participant_profile_id,
-  induction_programme_type,
   school_urn,
   cohort,
-  participant_type,
+  participant_course,
   schedule_identifier,
   training_status,
   induction_status,
