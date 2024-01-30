@@ -5,7 +5,7 @@ config {
     },
     bigquery: {
         partitionBy: "",
-        clusterBy: ["cohort","lead_provider_name","delivery_partner_name","participant_type"]
+        clusterBy: ["cohort","lead_provider_name","delivery_partner_name","participant_course"]
     },
     description: "This mart provides a report that tracks declarations for a given ecf participant by combining induction records with a thread of declarations and their related statuses. This has been pulled from the more extensive ecf_golden_thread mart and the columns trimmed down to meet the requirements for a looker studio dashboard showing ECF engagement",
     columns: {
@@ -16,10 +16,9 @@ config {
 SELECT
   induction_record_id,
   participant_profile_id,
-  induction_programme_type,
   school_urn,
   cohort,
-  participant_type,
+  participant_course,
   schedule_identifier,
   training_status,
   induction_status,
