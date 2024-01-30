@@ -1,7 +1,7 @@
 config {
     type: "table",
     assertions: {
-        uniqueKey: ["induction_record_id"]
+        uniqueKey: ["declaration_id"]
     },
     bigquery: {
         partitionBy: "",
@@ -108,6 +108,7 @@ WITH
     induction_start_date,
     induction_completion_date,
     e_ind.participant_course,
+    e_dec.id as declaration_id,
     declaration_type,
     declaration_date,
     e_dec.state,
@@ -117,7 +118,7 @@ WITH
   (ROW_NUMBER() OVER (PARTITION BY e_dec.participant_profile_id, e_dec.course_identifier, e_dec.declaration_type ORDER BY e_dec.state_heirarchy DESC, e_dec.declaration_date desc)) AS rn1 
   FROM
     ecf_inductions_expanded e_ind
-  LEFT JOIN
+  Inner join
    ecf_declarations_expanded e_dec
   ON
     e_ind.participant_profile_id=e_dec.participant_profile_id
