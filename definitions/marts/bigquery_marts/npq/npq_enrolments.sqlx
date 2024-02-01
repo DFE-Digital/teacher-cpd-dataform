@@ -378,6 +378,7 @@ WITH
   npq_gold_thread AS (
   SELECT
     DISTINCT application_ecf_id,
+    application_trn,
     trn_verified,
     trn_auto_verified,
     application_created_at,
