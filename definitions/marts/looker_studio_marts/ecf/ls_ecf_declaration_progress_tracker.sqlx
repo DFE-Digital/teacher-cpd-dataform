@@ -16,6 +16,7 @@ config {
 SELECT
   induction_record_id,
   participant_profile_id,
+  user_id,
   school_urn,
   cohort,
   participant_course,
