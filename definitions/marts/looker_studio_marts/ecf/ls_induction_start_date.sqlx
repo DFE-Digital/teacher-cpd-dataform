@@ -16,6 +16,7 @@ config {
 WITH
   induction_start_date_table AS (
   SELECT
+    ecfid.user_id,
     ecfid.participant_profile_id,
     'ECT' AS participant_type_short,
     ecfid.cohort,
