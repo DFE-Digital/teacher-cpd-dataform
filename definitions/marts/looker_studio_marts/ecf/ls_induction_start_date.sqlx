@@ -23,6 +23,7 @@ WITH
     ecfid.schedule_identifier,
     ecfid.training_status,
     ecfid.induction_status,
+    ppl.created_at as participant_created_at,
     ppl.induction_start_date,
     ppl.induction_completion_date,
     ecfid.school_urn,
