@@ -18,6 +18,7 @@ WITH
   SELECT
     ecfid.user_id,
     ecfid.participant_profile_id,
+    ecfid.trn,
     'ECT' AS participant_type_short,
     ecfid.cohort,
     ecfid.schedule_identifier,
