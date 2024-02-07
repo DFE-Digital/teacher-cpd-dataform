@@ -1,11 +1,11 @@
 config {
     type: "table",
     assertions: {
-        uniqueKey: ["induction_record_id"]
+        uniqueKey: ["declaration_id"]
     },
     bigquery: {
-        partitionBy: "DATE(induction_record_created_at)",
-        clusterBy: ["cohort", "participant_type", "induction_status", "training_status"]
+        partitionBy: "DATE(created_at)",
+        clusterBy: ["type","course_identifier","lead_provider_name","state"]
     },
     description: "",
     columns: {
@@ -24,7 +24,7 @@ config {
 
   /* Table Logic: This table contains all declaration records for both NPQ and ECF participants*/
 SELECT
-  id,
+  id as declaration_id,
   created_at,
   updated_at,
   course_identifier,
