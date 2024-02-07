@@ -9,7 +9,7 @@ config {
     },
     description: "",
     columns: {
-        id: "UID",
+        declaration_id: "UID",
         created_at: "Date this entity was created, according to the latest version of the data received from the database.",
         updated_at: "Date this entity was last updated something in the database, according to the latest version of the data received from the database.",
         course_identifier: "Use this field to join to NPQ enrolments (declaration_course_identifier)",
