@@ -25,8 +25,8 @@ config {
   /* Table Logic: This table contains all declaration records for both NPQ and ECF participants*/
 SELECT
   dec_cpd.id as declaration_id,
-  created_at,
-  updated_at,
+  dec_cpd.created_at,
+  dec_cpd.updated_at,
   course_identifier,
   cpd_lead_provider_id,
   cpd_lead_provider_name AS lead_provider_name,
@@ -37,8 +37,8 @@ SELECT
   participant_profile_id,
   state,
   type,
-  last_streamed_event_occurred_at,
-  last_streamed_event_type
+  dec_cpd.last_streamed_event_occurred_at,
+  dec_cpd.last_streamed_event_type
 FROM
   ${ref(`participant_declarations_latest_cpd`)} AS dec_cpd
 LEFT JOIN
