@@ -4,7 +4,7 @@ config {
         uniqueKey: ["induction_record_id"]
     },
     bigquery: {
-        partitionBy: "DATE(induction_record_created_at)",
+        partitionBy: "DATE(created_at)",
         clusterBy: ["cohort", "participant_type", "induction_status", "training_status"]
     },
     description: "",

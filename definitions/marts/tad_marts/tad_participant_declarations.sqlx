@@ -24,7 +24,7 @@ config {
 
   /* Table Logic: This table contains all declaration records for both NPQ and ECF participants*/
 SELECT
-  id as declaration_id,
+  dec_pd.id as declaration_id,
   created_at,
   updated_at,
   course_identifier,
