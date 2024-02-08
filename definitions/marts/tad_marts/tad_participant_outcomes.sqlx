@@ -1,0 +1,29 @@
+config {
+    type: "table",
+    assertions: {
+        uniqueKey: ["outcome_id"]
+    },
+    bigquery: {
+        partitionBy: "DATE(created_at)",
+        clusterBy: ["state"]
+    },
+    description: "This table contains all course outcomes and is relevant for NPQ participants only",
+    columns: {
+        outcome_id: "UID",
+        created_at: "Date this entity was created according to the latest version of the data received from the database.",
+        updated_at: "Date this entity was last updated something in the database, according to the latest version of the data received from the database.",
+        participant_declaration_id: "Field used to join with relevant declarations"
+
+    }
+}
+
+
+SELECT
+  id as outcome_id,
+  created_at,
+  updated_at,
+  completion_date,
+  participant_declaration_id,
+  state
+FROM
+  ${ref(`participant_outcomes_latest_cpd`)}

@@ -1,0 +1,21 @@
+config {
+    type: "table",
+    assertions: {
+        uniqueKey: ["teacher_profile_id"]
+    },
+    bigquery: {
+        partitionBy: "DATE(created_at)"
+    },
+    description: "This table contains the mapping of user_id to TRN. There is not a perfect 1-to-1 relationship between user_id and TRN, there are cases of multiple records of user ids for a single TRN. There are no recorded cases of multiple TRNs for a single urn.",
+    columns: {
+    }
+}
+
+SELECT
+  id as teacher_profile_id,
+  trn,
+  user_id,
+  created_at,
+  updated_at
+FROM
+  ${ref(`teacher_profiles_latest_cpd`)}
