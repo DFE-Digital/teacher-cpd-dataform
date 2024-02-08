@@ -7,7 +7,7 @@ config {
         partitionBy: "DATE(created_at)",
         clusterBy: ["type","course_identifier","lead_provider_name","state"]
     },
-    description: "",
+    description: "This table contains all declaration records for both NPQ and ECF participants",
     columns: {
         declaration_id: "UID",
         created_at: "Date this entity was created, according to the latest version of the data received from the database.",
@@ -22,7 +22,7 @@ config {
     }
 }
 
-  /* Table Logic: This table contains all declaration records for both NPQ and ECF participants*/
+
 SELECT
   dec_cpd.id as declaration_id,
   dec_cpd.created_at,
