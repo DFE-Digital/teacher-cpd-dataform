@@ -5,7 +5,7 @@ config {
     },
     bigquery: {
         partitionBy: "DATE(created_at)",
-        clusterBy: ["state", "reason", "programme","cpd_lp_name"]
+        clusterBy: ["state", "reason", "programme", "cpd_lp_name"]
     },
     description: "This mart provides a report that gives the withdrawal/deferall reasons for all participants across NPQ and ECF. This information is provided to users in the CPD Self-Serve Dashboard.",
     columns: {
@@ -31,7 +31,8 @@ END
   ELSE
   'Other'
 END
-  AS programme
+  AS programme,
+  (ROW_NUMBER() OVER (PARTITION BY ppsl.participant_profile_id ORDER BY ppsl.created_at DESC)) AS rn1
 FROM
   ${ref("participant_profile_states_latest_cpd")} ppsl
 LEFT JOIN
@@ -45,4 +46,4 @@ USING
 LEFT JOIN
   ${ref("participant_profiles_latest_cpd")} ppl
 ON
-  ppsl.participant_profile_id = ppl.id
+  ppsl.participant_profile_id = ppl.id QUALIFY rn1=1
