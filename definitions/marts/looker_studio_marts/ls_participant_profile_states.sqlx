@@ -14,18 +14,22 @@ config {
 }
 
 WITH
-  npq_profile_information AS (
+  final_table_output AS (
   SELECT
     ppsl.*,
-    npqe.cohort,
-    npqe.schedule_identifier,
-    npqlpl.name AS cpd_lp_name,
+    COALESCE (npqe.cohort, ecfid.cohort) AS cohort,
+    COALESCE (npqe.schedule_identifier, ecfid.schedule_identifier) AS schedule_identifier,
+    COALESCE (npqlpl.name, lpl.name, npqe.provider_name, ecfid.lead_provider_name) AS cpd_lp_name,
     CASE
-      WHEN ppl.type LIKE '%NPQ' THEN 'NPQ'
+      WHEN npqe.participant_profile_id IS NOT NULL THEN 'NPQ'
+      WHEN ecfid.participant_type LIKE '%ECT' THEN 'ECT'
+      WHEN ecfid.participant_type LIKE '%Mentor' THEN 'Mentor'
   END
     AS participant_type,
     CASE
-      WHEN ppl.type LIKE '%NPQ' THEN 'NPQ'
+      WHEN npqe.participant_profile_id IS NOT NULL THEN 'NPQ'
+      WHEN ecfid.participant_type LIKE ANY ('%ECT',
+      '%Mentor') THEN 'ECF'
   END
     AS programme,
     (ROW_NUMBER() OVER (PARTITION BY ppsl.participant_profile_id ORDER BY ppsl.created_at DESC)) AS rn1
@@ -36,55 +40,18 @@ WITH
   USING
     (cpd_lead_provider_id)
   LEFT JOIN
-    ${ref(`participant_profiles_latest_cpd`)} ppl
-  ON
-    ppsl.participant_profile_id = ppl.id
-  LEFT JOIN
-    ${ref(`npq_enrolments`)} npqe
-  USING
-    (participant_profile_id) QUALIFY rn1=1),
-  ecf_profile_information AS (
-  SELECT
-    ppsl.*,
-    ecfid.cohort,
-    ecfid.schedule_identifier,
-    lpl.name AS cpd_lp_name,
-    CASE
-      WHEN ppl.type LIKE '%ECT' THEN 'ECT'
-      WHEN ppl.type LIKE '%Mentor' THEN 'Mentor'
-  END
-    AS participant_type,
-    CASE
-      WHEN ppl.type LIKE ANY ('%ECT', '%Mentor') THEN 'ECF'
-  END
-    AS programme,
-    (ROW_NUMBER() OVER (PARTITION BY ppsl.participant_profile_id ORDER BY ppsl.created_at DESC)) AS rn1
-  FROM
-    ${ref(`participant_profile_states_latest_cpd`)} ppsl
-  LEFT JOIN
     ${ref(`lead_providers_latest_cpd`)} lpl
   USING
     (cpd_lead_provider_id)
   LEFT JOIN
-    ${ref(`participant_profiles_latest_cpd`)} ppl
-  ON
-    ppsl.participant_profile_id = ppl.id
+    ${ref(`npq_enrolments`)} npqe
+  USING
+    (participant_profile_id)
   LEFT JOIN
     `dataform.ecf_inductions_dedupe` ecfid
   USING
-    (participant_profile_id) QUALIFY rn1=1 )
+    (participant_profile_id) QUALIFY rn1=1)
 SELECT
   *
 FROM
-  npq_profile_information
-WHERE
-  programme = 'NPQ'
-  AND state <> 'active'
-UNION ALL
-SELECT
-  *
-FROM
-  ecf_profile_information
-WHERE
-  programme = 'ECF'
-  AND state <> 'active'
+  final_table_output
