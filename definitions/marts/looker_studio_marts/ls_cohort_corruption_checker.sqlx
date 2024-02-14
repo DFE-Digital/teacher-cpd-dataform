@@ -30,22 +30,22 @@ WHERE
           'paid')
         AND ret1_dec_date< '2024-01-01')))
   OR (cohort = 2022
-    AND (started_dec_state IN ('submitted',
-        'eligible',
-        'payable',
-        'paid')
-      AND ((started_dec_date < '2022-06-01')
-        OR (schedule_identifier = 'ecf-standard-september'
-          AND started_dec_date > '2022-12-31')
-        OR (schedule_identifier = 'ecf-standard-january'
-          AND started_dec_date > '2023-03-31')
-        OR (schedule_identifier = 'ecf-standard-april'
-          AND started_dec_date > '2023-07-31')
-        OR (ret1_dec_state IN ('submitted',
-            'eligible',
-            'payable',
-            'paid')
-          AND (ret1_dec_date < '2023-01-01')
+    AND ((started_dec_state IN ('submitted',
+          'eligible',
+          'payable',
+          'paid')
+        AND ((started_dec_date < '2022-06-01')
+          OR (schedule_identifier = 'ecf-standard-september'
+            AND started_dec_date > '2022-12-31')
+          OR (schedule_identifier = 'ecf-standard-january'
+            AND started_dec_date > '2023-03-31')
+          OR (schedule_identifier = 'ecf-standard-april'
+            AND started_dec_date > '2023-07-31')))
+      OR (ret1_dec_state IN ('submitted',
+          'eligible',
+          'payable',
+          'paid')
+        AND ((ret1_dec_date < '2023-01-01')
           OR (schedule_identifier = 'ecf-standard-september'
             AND ret1_dec_date > '2023-03-31')
           OR (schedule_identifier = 'ecf-standard-january'
