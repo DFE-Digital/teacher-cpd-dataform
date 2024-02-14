@@ -1,0 +1,60 @@
+config {
+    type: "table",
+    assertions: {
+        uniqueKey: ["induction_record_id"]
+    },
+    bigquery: {
+        partitionBy: "DATE(induction_record_created_at)",
+        clusterBy: ["cohort", "participant_type", "latest_cpd_lp_name", "latest_dp_name"]
+    },
+    description: "This mart filters the ecf_golden_thread mart to produce a list of all participants where their cohort doesn't align with the declarations submitted against them. The logic in this table may have to be extended as/when more declarations come through.",
+    columns: {
+        induction_record_id: "ID of individual induction record"
+    }
+}
+
+SELECT
+  *
+FROM
+  ${ref(`ecf_golden_thread`)}
+WHERE
+  (cohort = 2023
+    AND ((started_dec_state IN ('submitted',
+          'eligible',
+          'payable',
+          'paid')
+        AND started_dec_date < '2023-06-01')
+      OR (ret1_dec_state IN ('submitted',
+          'eligible',
+          'payable',
+          'paid')
+        AND ret1_dec_date< '2024-01-01')))
+  OR (cohort = 2022
+    AND ((started_dec_state IN ('submitted',
+          'eligible',
+          'payable',
+          'paid')
+        AND ((started_dec_date < '2022-06-01')
+          OR (schedule_identifier = 'ecf-standard-september'
+            AND started_dec_date > '2022-12-31')
+          OR (schedule_identifier = 'ecf-standard-january'
+            AND started_dec_date > '2023-03-31')
+          OR (schedule_identifier = 'ecf-standard-april'
+            AND started_dec_date > '2023-07-31')))
+      OR (ret1_dec_state IN ('submitted',
+          'eligible',
+          'payable',
+          'paid')
+        AND ((ret1_dec_date < '2023-01-01')
+          OR (schedule_identifier = 'ecf-standard-september'
+            AND ret1_dec_date > '2023-03-31')
+          OR (schedule_identifier = 'ecf-standard-january'
+            AND ret1_dec_date > '2023-07-31')
+          OR (schedule_identifier = 'ecf-standard-april'
+            AND ret1_dec_date > '2023-12-31')))))
+  OR (cohort = 2021
+    AND started_dec_state IN ('submitted',
+      'eligible',
+      'payable',
+      'paid')
+    AND started_dec_date > '2022-04-30')
