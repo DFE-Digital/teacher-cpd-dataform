@@ -14,7 +14,14 @@ Steps for setting up a BigQuery account and access to Looker Studio: [How to get
 
 ### Where users can get help with your project 
 
-For help understanding dfe-analytics and dfe-analytics-dataform, please reach out to Steven Legg. 
+For help understanding dfe-analytics and dfe-analytics-dataform, please reach out to Steven Legg or check the [DfE Analytics dataform package ReadMe](https://github.com/DFE-Digital/dfe-analytics-dataform/blob/master/README.md)
+
+For help understanding the tables and data model streamed into BigQuery, please reach out to Emma Harvey and Emilio Campa 
+
+
+### Who maintains and contributes to the project 
+
+Emma Harvey and Emilio Campa 
 
 ## Best Practice
 ### Mart Creation
@@ -23,11 +30,3 @@ For help understanding dfe-analytics and dfe-analytics-dataform, please reach ou
 ### Mart Creation
 ### PAT Creation
 ### Service Account Creation
-
-
-For help understanding the tables and data model streamed into BigQuery, please reach out to Emma Harvey and Emilio Campa 
-
-
-### Who maintains and contributes to the project 
-
-Emma Harvey and Emilio Campa 
