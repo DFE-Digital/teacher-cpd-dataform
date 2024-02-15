@@ -1,4 +1,8 @@
 config {
+
+    schema: "TAD",
+    database: "ecf-bq",
+    name: "ecf_induction",
     type: "table",
     assertions: {
         uniqueKey: ["induction_record_id"]
@@ -29,7 +33,6 @@ config {
 
     }
 }
-
 
 SELECT
   induction_record_id,
