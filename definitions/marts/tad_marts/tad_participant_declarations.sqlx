@@ -1,4 +1,7 @@
 config {
+    schema: "TAD",
+    database: "ecf-bq",
+    name: "participant_declarations",
     type: "table",
     assertions: {
         uniqueKey: ["declaration_id"]
