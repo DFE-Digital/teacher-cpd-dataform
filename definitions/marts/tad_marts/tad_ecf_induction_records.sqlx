@@ -2,7 +2,7 @@ config {
 
     schema: "TAD",
     database: "ecf-bq",
-    name: "ecf_induction",
+    name: "ecf_induction_records",
     type: "table",
     assertions: {
         uniqueKey: ["induction_record_id"]
