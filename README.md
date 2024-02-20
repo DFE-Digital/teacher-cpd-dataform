@@ -25,8 +25,11 @@ Emma Harvey and Emilio Campa
 
 ## Best Practice
 ### Mart Creation
+https://github.com/DFE-Digital/teacher-cpd-dataform/blob/master/best_practice/best_practice_mart.md
+
 
 ## How-To Guides
 ### Mart Creation
+https://github.com/DFE-Digital/teacher-cpd-dataform/blob/master/how_to_guides/how_to_guide_mart.md
 ### PAT Creation
 ### Service Account Creation
