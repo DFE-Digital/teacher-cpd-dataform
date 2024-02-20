@@ -27,7 +27,9 @@ Emma Harvey and Emilio Campa
 #### Mart Creation
 https://github.com/DFE-Digital/teacher-cpd-dataform/blob/master/how_to_guides/how_to_guide_mart.md
 #### PAT Creation
+https://github.com/DFE-Digital/teacher-cpd-dataform/blob/master/how_to_guides/how_to_guide_pat_creation.md
 #### Service Account Creation
+https://educationgovuk.sharepoint.com/:w:/r/sites/TeacherServices/Shared%20Documents/Teacher%20Services%20Analysts/1.%20Good%20practices/1.%20How%20to%20guides/Managing%20Service%20Account%20access%20to%20BigQuery%20Projects.docx?d=we76b498881ce5784c877c4f179a3301b&csf=1&web=1&e=8zyUUM
 
 ## Reference
 ### Best Practice
