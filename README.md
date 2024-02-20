@@ -23,13 +23,19 @@ For help understanding the tables and data model streamed into BigQuery, please 
 
 Emma Harvey and Emilio Campa 
 
-## Best Practice
-### Mart Creation
-https://github.com/DFE-Digital/teacher-cpd-dataform/blob/master/best_practice/best_practice_mart.md
-
-
 ## How-To Guides
-### Mart Creation
+#### Mart Creation
 https://github.com/DFE-Digital/teacher-cpd-dataform/blob/master/how_to_guides/how_to_guide_mart.md
-### PAT Creation
-### Service Account Creation
+#### PAT Creation
+#### Service Account Creation
+
+## Reference
+### Best Practice
+#### Mart Creation
+https://github.com/DFE-Digital/teacher-cpd-dataform/blob/master/reference/best_practice/best_practice_mart.md
+### Data Models
+#### CPD Service Data Model
+https://github.com/DFE-Digital/teacher-cpd-dataform/blob/master/Explanation/data_models/cpd_service_data_model.md
+#### CPD Data Team Structural Logic Heirarchy
+https://github.com/DFE-Digital/teacher-cpd-dataform/blob/master/Explanation/data_models/cpd_data_data_heirarchy.md
+
