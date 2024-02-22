@@ -38,9 +38,15 @@ WITH
     DISTINCT id AS induction_programme_id,
     partnership_id,
     school_cohort_id,
-    training_programme AS induction_programme_type
+    training_programme AS induction_programme_type,
+    induction_prog.core_induction_programme_id,
+    core_induction_materials_provider
   FROM
-     ${ref("induction_programmes_latest_cpd")}),
+     ${ref("induction_programmes_latest_cpd")} induction_prog
+   LEFT JOIN
+    `ecf-bq.static_tables.core_induction_materials_providers` cip_materials_providers
+   ON
+   induction_prog.core_induction_programme_id=cip_materials_providers.core_induction_programme_id),
   cohort_records AS(
   SELECT
     school_cohort.id AS school_cohort_id,
@@ -130,7 +136,9 @@ WITH
     cohort,
     school_id,
     high_pupil_premium,
-    sparsity_incentive
+    sparsity_incentive,
+    core_induction_programme_id,
+    core_induction_materials_provider
   FROM
     ecf_induction_records
   LEFT JOIN
