@@ -1,0 +1,204 @@
+config {
+    type: "table",
+    assertions: {
+        uniqueKey: ["induction_record_id"]
+    },
+    bigquery: {
+        partitionBy: "DATE(induction_record_created_at)",
+        clusterBy: ["cohort", "participant_type", "induction_status", "training_status"]
+    },
+    description: "",
+    columns: {
+        induction_record_id: "ID of individual induction record",
+        participant_profile_id: "The table participant_declarations_latest needs to be joined to ecf_inductions using participant_profile_id. Deduplication of user_ids has turned some of them into “ghost” IDs but the participant_profile_id still links correctly. "
+    }
+}
+
+  /*
+  Due to the possibility of one individual having both an ECT and Mentor profile, the induction records are split into ECTs and Mentors and then joined together using UNION. The methodlogy for ECTs and Mentors is the same:
+  First, we keep only the records with completed induction_status if there any, and if no completed records for an individual then all active induction_status rcords if there are any, and if no active records for an individual then all non-active records. We
+  This is done in the max_active_induction CTE.
+
+  From this, we then select the records with the most recent start_date.
+  This is done in the induction_start CTE.
+
+  From induction_start, we then select the most recently created induction record as it's possible for induction records to share the same start_date.
+  This is done in the induction_created CTE.
+
+  This is then joined together in deduped_ecf_inductions to get the most recent induction record, with Lead Provider and Delivery Partner information being added on at. the end
+  */
+WITH
+  max_active_induction AS (
+  SELECT
+    DISTINCT ei.*
+  FROM (
+    SELECT
+      user_id,
+      MAX(active) AS max_active
+    FROM (
+      SELECT
+        *,
+        CASE
+          WHEN induction_status = 'completed' THEN 2
+          WHEN induction_status = 'active' THEN 1
+        ELSE
+        0
+      END
+        AS active
+      FROM
+        `ecf-bq.dataform.ecf_inductions` ei ) x
+    WHERE
+      participant_type = 'ParticipantProfile::ECT'
+    GROUP BY
+      user_id ) a
+  LEFT JOIN (
+    SELECT
+      *,
+      CASE
+        WHEN induction_status = 'completed' THEN 2
+        WHEN induction_status = 'active' THEN 1
+      ELSE
+      0
+    END
+      AS active
+    FROM
+      `ecf-bq.dataform.ecf_inductions`
+    WHERE
+      participant_type = 'ParticipantProfile::ECT') ei
+  ON
+    a.user_id=ei.user_id
+    AND a.max_active=ei.active
+  ORDER BY
+    user_id),
+  induction_start AS (
+  SELECT
+    mai.*
+  FROM (
+    SELECT
+      user_id,
+      MAX(start_date) AS latest_start
+    FROM
+      max_active_induction
+    GROUP BY
+      user_id) a
+  LEFT JOIN
+    max_active_induction mai
+  ON
+    a.user_id = mai.user_id
+    AND a.latest_start = mai.start_date),
+  induction_created AS (
+  SELECT
+    user_id,
+    MAX(created_at) AS latest_created
+  FROM
+    induction_start
+  GROUP BY
+    user_id),
+  deduped_ecf_inductions AS (
+  SELECT
+    lsd.*
+  FROM
+    induction_created a
+  LEFT JOIN
+    induction_start lsd
+  ON
+    a.user_id = lsd.user_id
+    AND a.latest_created = lsd.created_at)
+SELECT
+  DISTINCT dei.*,
+  ep.lead_provider_name,
+  ep.delivery_partner_name
+FROM
+  deduped_ecf_inductions dei
+LEFT JOIN
+  `ecf-bq.dataform.ecf_partnerships` ep
+ON
+  dei.partnership_id = ep.partnership_id
+UNION ALL (
+  WITH
+    max_active_induction AS (
+    SELECT
+      DISTINCT ei.*
+    FROM (
+      SELECT
+        user_id,
+        MAX(active) AS max_active
+      FROM (
+        SELECT
+          *,
+          CASE
+            WHEN induction_status = 'completed' THEN 2
+            WHEN induction_status = 'active' THEN 1
+          ELSE
+          0
+        END
+          AS active
+        FROM
+          `ecf-bq.dataform.ecf_inductions` ei ) x
+      WHERE
+        participant_type = 'ParticipantProfile::Mentor'
+      GROUP BY
+        user_id ) a
+    LEFT JOIN (
+      SELECT
+        *,
+        CASE
+          WHEN induction_status = 'completed' THEN 2
+          WHEN induction_status = 'active' THEN 1
+        ELSE
+        0
+      END
+        AS active
+      FROM
+        `ecf-bq.dataform.ecf_inductions`
+      WHERE
+        participant_type = 'ParticipantProfile::Mentor') ei
+    ON
+      a.user_id=ei.user_id
+      AND a.max_active=ei.active
+    ORDER BY
+      user_id),
+    induction_start AS (
+    SELECT
+      mai.*
+    FROM (
+      SELECT
+        user_id,
+        MAX(start_date) AS latest_start
+      FROM
+        max_active_induction
+      GROUP BY
+        user_id) a
+    LEFT JOIN
+      max_active_induction mai
+    ON
+      a.user_id = mai.user_id
+      AND a.latest_start = mai.start_date),
+    induction_created AS (
+    SELECT
+      user_id,
+      MAX(created_at) AS latest_created
+    FROM
+      induction_start
+    GROUP BY
+      user_id),
+    deduped_ecf_inductions AS (
+    SELECT
+      lsd.*
+    FROM
+      induction_created a
+    LEFT JOIN
+      induction_start lsd
+    ON
+      a.user_id = lsd.user_id
+      AND a.latest_created = lsd.created_at)
+  SELECT
+    DISTINCT dei.*,
+    ep.lead_provider_name,
+    ep.delivery_partner_name
+  FROM
+    deduped_ecf_inductions dei
+  LEFT JOIN
+    `ecf-bq.dataform.ecf_partnerships` ep
+  ON
+    dei.partnership_id = ep.partnership_id)
