@@ -7,7 +7,7 @@ config {
         partitionBy: "DATE(induction_record_created_at)",
         clusterBy: ["cohort", "participant_type", "induction_status", "training_status"]
     },
-    description: "",
+    description: "This mart shows the latest induction record for a given ECF participant by running the following logic to pull the relevant latest record from the ECF_inductions mart.",
     columns: {
         induction_record_id: "ID of individual induction record",
         participant_profile_id: "The table participant_declarations_latest needs to be joined to ecf_inductions using participant_profile_id. Deduplication of user_ids has turned some of them into “ghost” IDs but the participant_profile_id still links correctly. "
