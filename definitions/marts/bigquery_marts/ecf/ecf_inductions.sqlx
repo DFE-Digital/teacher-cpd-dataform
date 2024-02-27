@@ -74,14 +74,22 @@ WITH
     induction_completion_date AS completion_date,
     type AS participant_type,
     teacher_profiles.user_id AS user_id,
-    trn AS TRN
+    trn AS TRN,
+    trn_validated,
+    trn_validated_reason,
+    manual_validation_required,
+    eligible_for_funding
   FROM
      ${ref("participant_profiles_latest_cpd")} as participant_profiles
     /* No duplicates for this combination of data at moment, there are duplicates across participant id so could cause problems down the line*/
   LEFT JOIN
      ${ref("teacher_profiles_latest_cpd")} as teacher_profiles
   ON
-    participant_profiles.teacher_profile_id=teacher_profiles.id ),
+    participant_profiles.teacher_profile_id=teacher_profiles.id
+  LEFT JOIN
+    `ecf-bq.static_tables.ecf_eligibility_statuses_20_02_24` eligibility_statuses
+  ON
+  participant_profiles.id=eligibility_statuses.participant_profile_id),
   appropriate_bodies AS (
   SELECT
     id AS appropriate_body_id,
@@ -138,7 +146,11 @@ WITH
     high_pupil_premium,
     sparsity_incentive,
     core_induction_programme_id,
-    core_induction_materials_provider
+    core_induction_materials_provider,
+    trn_validated,
+    trn_validated_reason,
+    manual_validation_required,
+    eligible_for_funding
   FROM
     ecf_induction_records
   LEFT JOIN
