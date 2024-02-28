@@ -61,6 +61,14 @@ dfeAnalyticsDataform({
                 dataType: "integer",
                 description: ""
             }, {
+                keyName: "listed",
+                dataType: "boolean",
+                description: ""
+            }, {
+                keyName: "listed_for_school_type_codes",
+                dataType: "string",
+                description: ""
+            }, {
                 keyName: "name",
                 dataType: "string",
                 description: ""
