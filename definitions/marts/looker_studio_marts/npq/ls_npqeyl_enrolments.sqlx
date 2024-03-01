@@ -5,7 +5,7 @@ config {
     },
     bigquery: {
         partitionBy: "",
-        clusterBy: ["kind_of_nursery", "provider_name", "cohort", "application_status"]
+        clusterBy: ["setting_type", "final_la_name", "schedule_and_cohort", "funding_source"]
     },
     description: "This mart provides a report of all Early Years Leadership NPQs (NPQEYL). The table links to fields from GIAS and Ofsted establishments and feeds into the NPQEYL dashboard.",
     columns: {
@@ -42,10 +42,22 @@ WITH
       data_source LIKE 'GIAS%')
   SELECT
     npq_e.*,
+    CASE
+      WHEN schedule_identifier IS NULL THEN CONCAT(cohort,' - Pending/Rejected')
+    ELSE
+    CONCAT (cohort, ' - ', RIGHT(schedule_identifier, 6))
+  END
+    AS schedule_and_cohort,
+    CASE
+      WHEN funding_choice IS NULL THEN 'DfE'
+    ELSE
+    funding_choice
+  END
+    AS funding_source,
     COALESCE(eys.phase_of_education,gias.phase_of_education) AS phase_of_education,
-    COALESCE(eys.establishment_type, gias.establishment_type) AS establishment_type,
+    COALESCE(npq_e.kind_of_nursery, eys.establishment_type, gias.establishment_type) AS setting_type,
     COALESCE(eys.establishment_subtype,gias.establishment_subtype) AS establishment_subtype,
-    COALESCE(eys.la_name,gias.la_name) AS gias_ofsted_la_name,
+    COALESCE(npq_e.la_name,eys.la_name,gias.la_name) AS final_la_name,
   FROM
     ${ref("npq_enrolments")} npq_e
   LEFT JOIN
