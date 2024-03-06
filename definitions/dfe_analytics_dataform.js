@@ -61,6 +61,14 @@ dfeAnalyticsDataform({
                 dataType: "integer",
                 description: ""
             }, {
+                keyName: "listed",
+                dataType: "boolean",
+                description: ""
+            }, {
+                keyName: "listed_for_school_type_codes",
+                dataType: "string",
+                description: ""
+            }, {
                 keyName: "name",
                 dataType: "string",
                 description: ""
@@ -1105,102 +1113,6 @@ dfeAnalyticsDataform({
             }]
         },
         {
-            entityTableName: "analytics_inductions",
-            description: "",
-            keys: [{
-                keyName: "induction_record_id",
-                dataType: "string",
-                description: ""
-            }, {
-                keyName: "induction_record_created_at",
-                dataType: "string",
-                description: ""
-            }, {
-                keyName: "appropriate_body_id",
-                dataType: "string",
-                description: ""
-            }, {
-                keyName: "appropriate_body_name",
-                dataType: "string",
-                description: ""
-            }, {
-                keyName: "cohort_id",
-                dataType: "string",
-                description: ""
-            }, {
-                keyName: "end_date",
-                dataType: "date",
-                description: ""
-            }, {
-                keyName: "external_id",
-                dataType: "string",
-                description: ""
-            }, {
-                keyName: "induction_programme_id",
-                dataType: "string",
-                description: ""
-            }, {
-                keyName: "induction_programme_type",
-                dataType: "string",
-                description: ""
-            }, {
-                keyName: "induction_programme_created_at",
-                dataType: "timestamp",
-                description: ""
-            }, {
-                keyName: "analytics_induction_programme_id",
-                dataType: "string",
-                description: ""
-            }, {
-                keyName: "induction_status",
-                dataType: "string",
-                description: ""
-            }, {
-                keyName: "mentor_id",
-                dataType: "string",
-                description: ""
-            }, {
-                keyName: "participant_profile_id",
-                dataType: "string",
-                description: ""
-            }, {
-                keyName: "participant_type",
-                dataType: "string",
-                description: ""
-            }, {
-                keyName: "partnership_id",
-                dataType: "string",
-                description: ""
-            }, {
-                keyName: "schedule_id",
-                dataType: "string",
-                description: ""
-            }, {
-                keyName: "school_name",
-                dataType: "string",
-                description: ""
-            }, {
-                keyName: "school_transfer",
-                dataType: "boolean",
-                description: ""
-            }, {
-                keyName: "school_urn",
-                dataType: "string",
-                description: ""
-            }, {
-                keyName: "start_date",
-                dataType: "date",
-                description: ""
-            }, {
-                keyName: "training_status",
-                dataType: "string",
-                description: ""
-            }, {
-                keyName: "user_id",
-                dataType: "string",
-                description: ""
-            }]
-        }, {
             entityTableName: "analytics_participants",
             description: "",
             keys: [{
@@ -1290,116 +1202,6 @@ dfeAnalyticsDataform({
             }, {
                 keyName: "validation_submitted_at",
                 dataType: "timestamp",
-                description: ""
-            }]
-        },
-        {
-            entityTableName: "analytics_partnerships",
-            description: "",
-            keys: [{
-                keyName: "challenge_deadline",
-                dataType: "date",
-                description: ""
-            }, {
-                keyName: "challenge_reason",
-                dataType: "string",
-                description: ""
-            }, {
-                keyName: "challenged_at",
-                dataType: "timestamp",
-                description: ""
-            }, {
-                keyName: "cohort",
-                dataType: "integer",
-                description: ""
-            }, {
-                keyName: "cohort_id",
-                dataType: "string",
-                description: ""
-            }, {
-                keyName: "delivery_partner_id",
-                dataType: "string",
-                description: ""
-            }, {
-                keyName: "delivery_partner_name",
-                dataType: "string",
-                description: ""
-            }, {
-                keyName: "lead_provider_id",
-                dataType: "string",
-                description: ""
-            }, {
-                keyName: "lead_provider_name",
-                dataType: "string",
-                description: ""
-            }, {
-                keyName: "partnership_id",
-                dataType: "string",
-                description: ""
-            }, {
-                keyName: "pending",
-                dataType: "boolean",
-                description: ""
-            }, {
-                keyName: "relationship",
-                dataType: "string",
-                description: ""
-            }, {
-                keyName: "report_id",
-                dataType: "string",
-                description: ""
-            }, {
-                keyName: "school_id",
-                dataType: "string",
-                description: ""
-            }, {
-                keyName: "school_name",
-                dataType: "string",
-                description: ""
-            }, {
-                keyName: "school_urn",
-                dataType: "string",
-                description: ""
-            }]
-        },
-        {
-            entityTableName: "analytics_school_cohorts",
-            description: "",
-            keys: [{
-                keyName: "appropriate_body_id",
-                dataType: "string",
-                description: ""
-            }, {
-                keyName: "cohort",
-                dataType: "integer",
-                description: ""
-            }, {
-                keyName: "cohort_id",
-                dataType: "string",
-                description: ""
-            }, {
-                keyName: "default_induction_programme_training_choice",
-                dataType: "string",
-                description: ""
-            }, {
-                keyName: "induction_programme_choice",
-                dataType: "string",
-                description: ""
-            }, {
-                keyName: "school_cohort_id",
-                dataType: "string",
-                description: ""
-            }, {
-                keyName: "school_id",
-                dataType: "string",
-                description: ""
-            }, {
-                keyName: "school_name",
-                dataType: "string",
-                description: ""
-            }, {
-                keyName: "school_urn",
-                dataType: "string",
                 description: ""
             }]
         }

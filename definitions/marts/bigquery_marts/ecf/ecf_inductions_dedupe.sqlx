@@ -106,8 +106,18 @@ WITH
     AND a.latest_created = lsd.created_at)
 SELECT
   DISTINCT dei.*,
-  ep.lead_provider_name,
+  CASE
+    WHEN challenged_at IS NOT NULL THEN 'No lead provider'
+  ELSE
+  ep.lead_provider_name
+END
+  AS lead_provider_name,
+  CASE
+    WHEN challenged_at IS NOT NULL THEN 'No delivery partner'
+  ELSE
   ep.delivery_partner_name
+END
+  AS delivery_partner_name
 FROM
   deduped_ecf_inductions dei
 LEFT JOIN
@@ -194,8 +204,18 @@ UNION ALL (
       AND a.latest_created = lsd.created_at)
   SELECT
     DISTINCT dei.*,
-    ep.lead_provider_name,
+    CASE
+      WHEN challenged_at IS NOT NULL THEN 'No lead provider'
+    ELSE
+    ep.lead_provider_name
+  END
+    AS lead_provider_name,
+    CASE
+      WHEN challenged_at IS NOT NULL THEN 'No delivery partner'
+    ELSE
     ep.delivery_partner_name
+  END
+    AS delivery_partner_name
   FROM
     deduped_ecf_inductions dei
   LEFT JOIN
