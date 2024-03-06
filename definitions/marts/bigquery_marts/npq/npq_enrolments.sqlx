@@ -5,7 +5,7 @@ config {
     },
     bigquery: {
         partitionBy: "DATE(application_created_at)",
-        clusterBy: ["cohort","provider_name","course_name","application_status"]
+        clusterBy: ["cohort", "provider_name", "course_name", "application_status"]
     },
     description: "",
     columns: {
@@ -34,6 +34,7 @@ WITH
     eligible_for_funding,
     funding_choice,
     school_urn,
+    number_of_pupils,
     targeted_delivery_funding_eligibility,
     works_in_nursery,
     works_in_school,
@@ -168,9 +169,9 @@ WITH
     participant_profile_id,
     course_identifier,
     state AS latest_state,
-    declaration_type as latest_declaration_type,
-    cpd_lead_provider_id as latest_cpd_lead_provider_id,
-    declaration_date as latest_declaration_date,
+    declaration_type AS latest_declaration_type,
+    cpd_lead_provider_id AS latest_cpd_lead_provider_id,
+    declaration_date AS latest_declaration_date,
     updated_at AS latest_declaration_updated_at,
     (ROW_NUMBER() OVER (PARTITION BY participant_profile_id, course_identifier ORDER BY declaration_date DESC)) AS rn2
   FROM
@@ -184,7 +185,7 @@ WITH
     course_identifier AS started_course_identifier,
     declaration_type AS started_declaration_type,
     state AS started_declaration_state,
-    declaration_date as started_declaration_date,
+    declaration_date AS started_declaration_date,
     CASE
       WHEN npq_dec_0.state = 'paid' THEN TRUE
       WHEN npq_dec_0.state = 'eligible' THEN TRUE
@@ -206,7 +207,7 @@ WITH
     course_identifier AS ret1_course_identifier,
     declaration_type AS ret1_declaration_type,
     state AS retained1_declaration_state,
-    declaration_date as retained1_declaration_date,
+    declaration_date AS retained1_declaration_date,
     CASE
       WHEN npq_dec_1.state = 'paid' THEN TRUE
       WHEN npq_dec_1.state = 'eligible' THEN TRUE
@@ -228,7 +229,7 @@ WITH
     course_identifier AS ret2_course_identifier,
     declaration_type AS ret2_declaration_type,
     state AS retained2_declaration_state,
-    declaration_date as retained2_declaration_date,
+    declaration_date AS retained2_declaration_date,
     CASE
       WHEN npq_dec_2.state = 'paid' THEN TRUE
       WHEN npq_dec_2.state = 'eligible' THEN TRUE
@@ -250,7 +251,7 @@ WITH
     course_identifier AS completed_course_identifier,
     declaration_type AS completed_declaration_type,
     state AS completed_declaration_state,
-    declaration_date as completed_declaration_date,
+    declaration_date AS completed_declaration_date,
     CASE
       WHEN npq_dec_fin.state = 'paid' THEN TRUE
       WHEN npq_dec_fin.state = 'eligible' THEN TRUE
@@ -400,6 +401,7 @@ WITH
     provider_name,
     ecf_user_id,
     targeted_delivery_funding_eligibility,
+    number_of_pupils,
     works_in_childcare,
     kind_of_nursery,
     private_childcare_provider_urn,
@@ -408,11 +410,11 @@ WITH
     course_identifier,
     latest_state,
     latest_declaration_type,
-    cpd_lead_provider_name as latest_cpd_lead_provider_name,
+    cpd_lead_provider_name AS latest_cpd_lead_provider_name,
     latest_declaration_date,
     latest_declaration_updated_at,
     participant_profile_id,
-    status as application_status,
+    status AS application_status,
     updated_at,
     employer_name,
     employment_role,
