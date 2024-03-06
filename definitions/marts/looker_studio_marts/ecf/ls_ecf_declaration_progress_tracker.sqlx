@@ -66,6 +66,8 @@ SELECT
   completed_dec_state,
   funded_completed_dec,
   completed_cpd_lp_name,
-  completed_dec_date
+  completed_dec_date,
+  mentor_completion_date,
+  mentor_completion_reason
 FROM
   ${ref(`ecf_golden_thread`)}
