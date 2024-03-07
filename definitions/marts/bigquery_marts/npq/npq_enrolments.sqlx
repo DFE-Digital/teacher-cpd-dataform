@@ -109,21 +109,7 @@ WITH
   SELECT
     id AS source_course_id,
     name AS course_name,
-    CASE
-      WHEN npq_cl.name = 'NPQ for Headship (NPQH)' THEN 'npq-headship'
-      WHEN npq_cl.name = 'NPQ Leading Teaching (NPQLT)' THEN 'npq-leading-teaching'
-      WHEN npq_cl.name = 'NPQ for Senior Leadership (NPQSL)' THEN 'npq-senior-leadership'
-      WHEN npq_cl.name = 'NPQ Leading Teacher Development (NPQLTD)' THEN 'npq-leading-teaching-development'
-      WHEN npq_cl.name = 'NPQ Leading Behaviour and Culture (NPQLBC)' THEN 'npq-leading-behaviour-culture'
-      WHEN npq_cl.name = 'NPQ for Executive Leadership (NPQEL)' THEN 'npq-executive-leadership'
-      WHEN npq_cl.name = 'NPQ Early Years Leadership (NPQEYL)' THEN 'npq-early-years-leadership'
-      WHEN npq_cl.name = 'NPQ Leading Literacy (NPQLL)' THEN 'npq-leading-literacy'
-      WHEN npq_cl.name = 'Additional Support Offer for new headteachers' THEN 'npq-additional-support-offer'
-      WHEN npq_cl.name = 'The Early Headship Coaching Offer' THEN 'npq-early-headship-coaching-offer'
-    ELSE
-    npq_cl.name
-  END
-    AS declaration_course_identifier
+    identifier AS declaration_course_identifier
   FROM
     ${ref(`npq_courses_latest_cpd`)} npq_cl ),
   npq_lp AS (
