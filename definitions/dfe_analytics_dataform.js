@@ -1113,6 +1113,56 @@ dfeAnalyticsDataform({
             }]
         },
         {
+            entityTableName: "statement_line_items",
+            description: "",
+            keys: [{
+                keyName: "participant_declaration_id",
+                dataType: "string",
+                description: ""
+            },  {
+                keyName: "statement_id",
+                dataType: "string",
+                description: ""
+            }, {
+                keyName: "state",
+                dataType: "string",
+                description: ""
+            }]
+        },
+        {
+            entityTableName: "statements",
+            description: "",
+            keys: [{
+                keyName: "name",
+                dataType: "string",
+                description: ""
+            }, {
+                keyName: "type",
+                dataType: "string",
+                description: ""
+            }, {
+                keyName: "output_fee",
+                dataType: "date",
+                description: ""
+            }, {
+                keyName: "cpd_lead_provider_id",
+                dataType: "string",
+                description: ""
+            }, {
+                keyName: "cohort_id",
+                dataType: "string",
+                description: ""
+            }, {
+                keyName: "deadline_date",
+                dataType: "timestamp",
+                description: ""
+            }, {
+                keyName: "payment_date",
+                dataType: "timestamp",
+                description: ""
+            }]
+        },
+        {
             entityTableName: "analytics_participants",
             description: "",
             keys: [{
