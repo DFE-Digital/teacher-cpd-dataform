@@ -1116,8 +1116,8 @@ dfeAnalyticsDataform({
             entityTableName: "statement_line_items",
             description: "",
             keys: [{
-                keyName: "participation_declaration_id",
-                dataType: "integer",
+                keyName: "participant_declaration_id",
+                dataType: "string",
                 description: ""
             },  {
                 keyName: "statement_id",
@@ -1157,8 +1157,8 @@ dfeAnalyticsDataform({
                 dataType: "timestamp",
                 description: ""
             }, {
-                keyName: "payement_date",
-                dataType: "date",
+                keyName: "payment_date",
+                dataType: "timestamp",
                 description: ""
             }]
         },
