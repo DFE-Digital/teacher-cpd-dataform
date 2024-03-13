@@ -30,6 +30,7 @@ WITH
     `ecf-bq.ecf_events_production.events`
   WHERE
     event_type = 'web_request'
+    AND user_id IS NOT NULL
     AND request_path LIKE '/api/v%'
     AND request_uuid NOT IN ('5743acd834e004bea704e1c4a0065943',
       'c1fdb72bd593d9eda54f8e95e9724884',
