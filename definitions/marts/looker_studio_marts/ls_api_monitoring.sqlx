@@ -7,7 +7,7 @@ config {
         partitionBy: "DATE(occurred_at)",
         clusterBy: ["request_method", "user_id", "response_status"]
     },
-    description: "This mart produces a table outlining all API calls that have been made by Lead Providers and internal users. It outlines the response statuses of those calls to help the LPDOB team identify Providers who are causing a large number of errors. The final output feeds into the CPD- API Monitoring dashboard.",
+    description: "This mart produces a table outlining all API calls that have been made by Lead Providers. It excludes internal users (identified as those with a NULL user_id) to ensure the focus is more on LP usage. The table outlines the response statuses of those calls to help the LPDOB team identify Providers who are causing a large number of errors. The final output feeds into the CPD- API Monitoring dashboard.",
     columns: {
         request_uuid: "ID of individual request"
     }
