@@ -7,7 +7,7 @@ config {
         partitionBy: "DATE(occurred_at)",
         clusterBy: ["request_method", "user_id", "response_status"]
     },
-    description: "This mart produces a table outlining all API calls that have been made by Lead Providers and internal users. It outlines the response statuses of those calls to help the LPDOB team identify Providers who are causing a large number of errors. The final output feeds into the CPD- API Monitoring dashboard.",
+    description: "This mart produces a table outlining all API calls that have been made by Lead Providers. It excludes internal users (identified as those with a NULL user_id) to ensure the focus is more on LP usage. The table outlines the response statuses of those calls to help the LPDOB team identify Providers who are causing a large number of errors. The final output feeds into the CPD- API Monitoring dashboard.",
     columns: {
         request_uuid: "ID of individual request"
     }
@@ -30,6 +30,7 @@ WITH
     `ecf-bq.ecf_events_production.events`
   WHERE
     event_type = 'web_request'
+    AND user_id IS NOT NULL
     AND request_path LIKE '/api/v%'
     AND request_uuid NOT IN ('5743acd834e004bea704e1c4a0065943',
       'c1fdb72bd593d9eda54f8e95e9724884',
