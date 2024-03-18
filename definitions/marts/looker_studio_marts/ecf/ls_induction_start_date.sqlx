@@ -9,7 +9,21 @@ config {
     },
     description: "This mart provides a report that gives the induction start/completion date for each FIP ECT participant ID. Currently only the induction completion date is exposed to Lead Providers over the API. This report will help Lead Providers determine where schedule changes are required.",
     columns: {
-        participant_profile_id: "ID of each ECT's profile"
+        user_id: "User ID of the ECT.",
+        participant_profile_id: "ID of each ECT's profile.",
+        trn: "TRN associated with the ECT's profile.",
+        participant_type_short: "Shows the participant as an ECT.",
+        cohort: "Cohort of the ECT.",
+        schedule_identifier: "Schedule of the ECT.",
+        training_status: "Training status as taken from the ECT's most recent/current induction record.",
+        induction_status: "Induction status as taken from the ECT's most recent/current induction record.",
+        participant_created_at: "Timestamp of when the ECT's participant profile was created.",
+        induction_start_date: "Date when the ECT started induction, as stored in the Database of Qualified Teachers (DQT).",
+        induction_completion_date: "Date when the ECT completed induction, as stored in the Database of Qualified Teachers (DQT).",
+        school_urn: "URN from the ECT's most recent/current induction record.",
+        lead_provider_name: "Lead Provider that is partnered with the ECT's school.",
+        delivery_partner_name: "Delivery Partner that is partnered with the ECT's school.",
+        appropriate_body_name: "Appropriate Body that is associated with the ECT's school."
     }
 }
 
