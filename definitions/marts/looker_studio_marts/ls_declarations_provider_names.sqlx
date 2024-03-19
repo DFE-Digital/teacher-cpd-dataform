@@ -18,7 +18,7 @@ config {
         updated_at: "Timestamp of when any updates occured to the declaration.",
         course_identifier: "Identifier for ECF or NPQ course declaration is associated with.",
         cpd_lead_provider_id: "ID of Lead Provider that has made the declaration.",
-        declaration_date: "NEED PROPER DEFINITION",
+        declaration_date: "Date evidence was received.",
         declaration_type: "The name of the stage the declaration has been made against.",
         delivery_partner_id: "ID of the ECF Delivery Partner associated with the Lead Provider-participant combo.",
         evidence_held: "Details any evidence provided with the declaration.",
