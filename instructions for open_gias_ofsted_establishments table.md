@@ -34,6 +34,7 @@ The relevant GOR Codes Table is given below. For the Ofsted data, some records h
 ## Once the data has been transferred...
 ... you then need to keep only those records that meet the following criteria:
 - `establishment_status IN ('Open', 'Open, but proposed to close')`
+  - **If using these instructions to create the table all_gias_ofsted_establishments, skip this establishment_status step**
 - `gor_code NOT IN ('W', 'Z')`
 
 This will give you the final table.
