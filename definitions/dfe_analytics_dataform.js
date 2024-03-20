@@ -1164,11 +1164,13 @@ dfeAnalyticsDataform({
             },  {
                 keyName: "from",
                 dataType: "string",
-                description: ""
+                description: "",
+                alias: "from_email"
             }, {
                 keyName: "to",
                 dataType: "string",
-                description: ""
+                description: "",
+                alias: "to_email"
             }, {
                 keyName: "personalisation",
                 dataType: "string",
