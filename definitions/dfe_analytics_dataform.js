@@ -1141,6 +1141,10 @@ dfeAnalyticsDataform({
                 dataType: "string",
                 description: ""
             }, {
+                keyName: "name",
+                dataType: "string",
+                description: ""
+            }, {
                 keyName: "object_id",
                 dataType: "string",
                 description: ""
