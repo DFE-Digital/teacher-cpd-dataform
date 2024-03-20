@@ -7,7 +7,7 @@ config {
         partitionBy: "DATE(participant_created_at)",
         clusterBy: ["cohort", "lead_provider_name", "schedule_identifier"]
     },
-    description: "This mart provides a report that gives the induction start/completion date for each FIP ECT participant ID. Currently only the induction completion date is exposed to Lead Providers over the API. This report will help Lead Providers determine where schedule changes are required.",
+    description: "This mart provides a report that gives the induction start/completion date for each FIP ECT participant. It pulls the Lead Provider from the ecf_inductions_dedupe table. Currently only the induction completion date is exposed to Lead Providers over the API. This report will help Lead Providers determine where schedule changes are required.",
     columns: {
         user_id: "User ID of the ECT.",
         participant_profile_id: "ID of each ECT's profile.",

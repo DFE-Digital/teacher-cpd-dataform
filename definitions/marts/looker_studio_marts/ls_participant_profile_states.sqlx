@@ -7,13 +7,13 @@ config {
         partitionBy: "DATE(created_at)",
         clusterBy: ["state", "reason", "programme", "cpd_lp_name"]
     },
-    description: "This mart provides a report that gives the current training_status for all participants across NPQ and ECF. This information is provided to users in the CPD Self-Serve Dashboard where it is filtered to show only withdrawn or deferred participants and the reason for their withdrawal/deferall.",
+    description: "This mart provides a report that gives the current training_status for all participants across NPQ and ECF. This information is provided to users in the CPD Self-Serve Dashboard where it is filtered to show only withdrawn or deferred participants and the reason for their withdrawal/deferall. The primary users are the ECF schools team and NPQ Contract Managers.",
     columns: {
         id: "Unique ID of the record being pulled from the participant_profile_states table.",
         created_at: "Timestamp of when the record being pulled from participant_profile_states was created. Since participants can go through different training statuses, only the most recently created record for each participant is pulled.",
         updated_at: "Timestamp of when the record being pulled from participant_profile_states was updated.",
         cpd_lead_provider_id: "ID of the Lead Provider linked to the participant in participant_profile_states.",
-        participant_profile_id: "ID of each ECT's profile",
+        participant_profile_id: "ID of each participant's profile",
         reason: "Explains why a participant is in a certain state.",
         state: "This is the participant's training_status. It can be active, deferred, or withdrawn.",
         last_streamed_event_occurred_at: "Timestamp of when the record  from participant_profile_states was most recently imported or updated",
@@ -23,7 +23,6 @@ config {
         cpd_lp_name: "Name of the Lead Provider linked to the participant in participant_profile_states.",
         participant_type: "Details if a participant is an ECT, Mentor, or NPQ.",
         programme: "Details if a participant is associated with the ECF or NPQ programmes",
-        rn1: "Row number ensuring that we're pulling through the most recently created record for each participant from participant_profile_states."
     }
 }
 
@@ -66,6 +65,6 @@ WITH
   USING
     (participant_profile_id) QUALIFY rn1=1)
 SELECT
-  *
+  * EXCEPT(rn1)
 FROM
   final_table_output
