@@ -7,10 +7,41 @@ config {
     partitionBy: "DATE(induction_record_created_at)",
     clusterBy: ["cohort","participant_type","induction_status","training_status"]
   },
-  description: "",
+  description: "This table is designed around ECF induction records with each induction constituting a single record. Participant changes, like changing schools or mentor, can cause new induction records to be created for a participant. If the latest induction record is required, please use ecf_inductions_dedupe. Participants will also have different induction records for ECT/Mentor programmes. Participant details have been joined into the induction records.",
   columns: {
     induction_record_id: "ID of individual induction record",
-    participant_profile_id: "The table participant_declarations_latest needs to be joined to ecf_inductions using participant_profile_id. Deduplication of user_ids has turned some of them into “ghost” IDs but the participant_profile_id still links correctly. "
+    external_id: "",
+    participant_profile_id: "The table participant_declarations_latest needs to be joined to ecf_inductions using participant_profile_id. Deduplication of user_ids has turned some of them into “ghost” IDs but the participant_profile_id still links correctly. Participant profiles are automatically generated for ECTs/Mentors when induction tutors register the ECT/Mentor details. Meaning a participant_profile_id (and full participant_profile) should be available for each ECF participant with an induction record. ECF participants have one participant_profile for each type of participation (ECT or Mentor).",
+    induction_programme_id: "ID of the induction programme specific to the school offering it.",
+    induction_programme_type: "The induction programme the school offers (FIP / CIP / DIY) : potential values: full_induction_programme core_induction_programme, design_our_own, school_funded_fip.",
+    school_name: "Name of the participant's school.",
+    school_urn: "URN of the participant's school.",
+    schedule_identifier: "This indicates which sub-cohort or tranche the participant commenced training within an annual cohort. For ECF, the schedule identifier also indicates if a participant is following a non-standard training route at any point (e.g. extended or reduced).",
+    mentor_id: "The participant_profile_id of an ECT's mentor. This field is always NULL for mentors.",
+    appropriate_body_id: "The ID of the appropriate body associated with the school.",
+    appropriate_body_name: "The name of the appropriate body associated with the school.",
+    start_date: "Start date for this induction record",
+    end_date: "End date for this induction record. This is not the completion date for a participant's full induction.",
+    induction_status: "A status value used to manage the state of an induction record. It can indicate that a record is the active record or that something has changed and the record is not the active record (or will not be in the future). Potential values: active, changed, leaving, withdrawn ",
+    training_status: "This is managed on the lead provider side and indicates whether the participant is being trained by a provider or not. Potential Values: active, deferred, withdrawn",
+    school_transfer: "TRUE if a participant has transferred out of/in to the school in that induction record.",
+    created_at: "When this induction record was generated.",
+    updated_at: "When this induction record was updated.",
+    completion_date: "The date an ECT completed their induction. This field is always NULL for mentors",
+    cohort_id: "The ID of the participant's cohort.",
+    user_id: "This comes from the teacher profile associated with the participant profile.",
+    participant_type: "Either ECT or Mentor",
+    induction_record_created_at: "When this induction record was generated.",
+    partnership_id: "ID for the Lead Provider-School partnership for a given cohort.",
+    TRN: "This comes from a participant's teacher profile.",
+    cohort: "The cohort/academic year corresponding to when the participant started their course. Possible fields: 2021 onwards.",
+    school_id: "ID of the participant's school.",
+    high_pupil_premium: "This indicates whether the uplift payment for X is applicable to this participant's started declaration",
+    sparsity_incentive: "This indicates whether the uplift payment for X is applicable to this participant's started declaration",
+    core_induction_programme_id: "If a school offers CIP, this will be filled with the ID of their CIP programme.",
+    core_induction_materials_provider: "If a school offers CIP, this shows which Lead Provider they are getting their CIP materials from.",
+    mentor_completion_date: "The date a mentor completed training.",
+    mentor_completion_reason: "The reason the mentor_completion_date field is filled.Possible values: completed_during_early_roll_out, completed_declaration_received."
   }
 }
 

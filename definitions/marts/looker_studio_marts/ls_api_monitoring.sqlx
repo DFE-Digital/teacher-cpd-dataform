@@ -9,7 +9,16 @@ config {
     },
     description: "This mart produces a table outlining all API calls that have been made by Lead Providers. It excludes internal users (identified as those with a NULL user_id) to ensure the focus is more on LP usage. The table outlines the response statuses of those calls to help the LPDOB team identify Providers who are causing a large number of errors. The final output feeds into the CPD- API Monitoring dashboard.",
     columns: {
-        request_uuid: "ID of individual request"
+        occurred_at: "Timestamp of when the API call was made.",
+        user_id: "User ID of the Lead Provider making the API call. NULL user_ids are excluded as they are internal users.",
+        request_uuid: "ID of individual request.",
+        request_method: "Method for calling the API. Can be GET, POST, or PUT.",
+        request_path: "The endpoint that is being accessed.",
+        request_query: "Populated by any filters used when making a GET call.",
+        response_status: "The code associated with the API call. Any non-200 response status is an error.",
+        lp_name: "Name of the Lead Provider making the API call.",
+        request_body: "Details the call made by the Lead Provider.",
+        response_body: "Details the API response. Usually populated if there are any errors with the API call being made."
     }
 }
 

@@ -9,7 +9,13 @@ config {
     },
     description: "This mart creates a table that outlines the number of NPQ Outcomes that have been sent to the TRA but have failed to be verified. It sits in the CPD - API Monitoring dashboard.",
     columns: {
-        participant_outcome_id: "ID of each participant's outcome"
+        participant_outcome_id: "ID of each participant's outcome",
+        latest_outcome_sent: "Timestamp of when a participant's most recent outcome was sent over the API.",
+        latest_state: "The state of a participant's most recent outcome. In this table, all states should be 'passed'",
+        declaration_id: "ID of the 'completed' declaration associated with the participant's outcome.",
+        user_id: "The participant's user_id stored against their 'completed' declaration",
+        error_message: "The error code and reason why the outcome couldn't be processed.",
+        days_error_open: "How long since the error was raised. Calculated by finding the difference between the current timestamp and the created_at field from participant_outcome_api_requests_latest_cpd"
     }
 }
 
@@ -20,6 +26,7 @@ WITH
     participant_declaration_id,
     updated_at,
     created_at,
+    sent_to_qualified_teachers_api_at,
     state
   FROM
     `ecf-bq.dataform.participant_outcomes_latest_cpd`
@@ -40,7 +47,7 @@ WITH
       204))
 SELECT
   npqo.id AS participant_outcome_id,
-  npqo.created_at AS latest_outcome_sent,
+  npqo.sent_to_qualified_teachers_api_at AS latest_outcome_sent,
   npqo.state AS latest_state,
   dec.id AS declaration_id,
   dec.user_id,
