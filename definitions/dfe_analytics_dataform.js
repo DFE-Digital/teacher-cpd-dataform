@@ -1130,6 +1130,74 @@ dfeAnalyticsDataform({
             }]
         },
         {
+            entityTableName: "email_associations",
+            description: "",
+            keys: [{
+                keyName: "email_id",
+                dataType: "string",
+                description: ""
+            },  {
+                keyName: "name_id",
+                dataType: "string",
+                description: ""
+            }, {
+                keyName: "name",
+                dataType: "string",
+                description: ""
+            }, {
+                keyName: "object_id",
+                dataType: "string",
+                description: ""
+            }, {
+                keyName: "object_type",
+                dataType: "string",
+                description: ""
+            }]
+        },
+        {
+            entityTableName: "emails",
+            description: "",
+            keys: [{
+                keyName: "delivered_at",
+                dataType: "timestamp",
+                description: ""
+            },  {
+                keyName: "from",
+                dataType: "string",
+                description: "",
+                alias: "from_email"
+            }, {
+                keyName: "to",
+                dataType: "string",
+                description: "",
+                alias: "to_email"
+            }, {
+                keyName: "personalisation",
+                dataType: "string",
+                description: ""
+            }, {
+                keyName: "status",
+                dataType: "string",
+                description: ""
+            }, {
+                keyName: "tags",
+                dataType: "string",
+                description: ""
+            }, {
+                keyName: "template_id",
+                dataType: "string",
+                description: ""
+            }, {
+                keyName: "template_version",
+                dataType: "string",
+                description: ""
+            }, {
+                keyName: "uri",
+                dataType: "string",
+                description: ""
+            }]
+        },
+        {
             entityTableName: "statements",
             description: "",
             keys: [{
