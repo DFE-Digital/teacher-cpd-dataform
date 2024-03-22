@@ -13,9 +13,28 @@ config {
     },
     description: "This mart produces a report showing the most recent 'state' for each declaration across ECF and NPQ and links it to the names of the Lead Providers. The final report feeds into the CPD - Self-Serve Data dashboard",
     columns: {
-        id: "ID of declaration",
+        id: "ID of declaration.",
+        created_at: "Timestamp when the declaration was created.",
+        updated_at: "Timestamp of when any updates occured to the declaration.",
+        course_identifier: "Identifier for ECF or NPQ course declaration is associated with.",
+        cpd_lead_provider_id: "ID of Lead Provider that has made the declaration.",
+        declaration_date: "Date evidence was received.",
+        declaration_type: "The name of the stage the declaration has been made against.",
+        delivery_partner_id: "ID of the ECF Delivery Partner associated with the Lead Provider-participant combo.",
+        evidence_held: "Details any evidence provided with the declaration.",
+        mentor_user_id: "User ID of the mentor associated with the declared-against ECT",
+        participant_profile_id: "ID of the participant's profile.",
+        pupil_premium: "Boolean for pupil premium eligibility.",
+        sparsity_uplift: "Boolean for sparsity uplift eligibility.",
+        state: "State of the declaration. Can be submitted, eligible, payable, paid, ineligible, voided, awaiting_clawback, and clawed_back.",
+        superseded_by_id: "NEED PROPER DEFINITION",
+        type: "Says if it belongs to either the ECF or NPQ programme.",
+        user_id: "Used ID of the participant being declared against.",
+        last_streamed_event_occurred_at: "Timestamp of when this record was most recently imported or updated.",
+        last_streamed_event_type: "Whether the most recent event was this entity being imported or updated.",
         cpd_lp_name: "Name of Lead Provider for NPQ or ECF course",
-        cpd_dp_name: "Name of Delivery Partner for ECF course"
+        cpd_dp_name: "Name of Delivery Partner for ECF course",
+        programme: "Shortening of 'type'. Says if it belongs to either the ECF or NPQ programme."
     }
 }
 
