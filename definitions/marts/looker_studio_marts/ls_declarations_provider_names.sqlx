@@ -32,6 +32,8 @@ config {
         user_id: "Used ID of the participant being declared against.",
         last_streamed_event_occurred_at: "Timestamp of when this record was most recently imported or updated.",
         last_streamed_event_type: "Whether the most recent event was this entity being imported or updated.",
+        cohort: "Participant's cohort from either npq_enrolments or ecf_indcutions_dedupe.",
+        schedule_identifier: "Participant's schedule from either npq_enrolments or ecf_indcutions_dedupe.",
         cpd_lp_name: "Name of Lead Provider for NPQ or ECF course",
         cpd_dp_name: "Name of Delivery Partner for ECF course",
         programme: "Shortening of 'type'. Says if it belongs to either the ECF or NPQ programme."
@@ -40,17 +42,27 @@ config {
 
 SELECT
   dec.*,
+  COALESCE(ecfid.cohort,npqe.cohort) AS cohort,
+  COALESCE(ecfid.schedule_identifier,npqe.schedule_identifier) AS schedule_identifier,
   COALESCE(lpl.name,npqlpl.name) AS cpd_lp_name,
   dpl.name AS cpd_dp_name,
   CASE
-    WHEN course_identifier LIKE 'npq%' THEN 'NPQ'
-    WHEN course_identifier LIKE 'ecf%' THEN 'ECF'
+    WHEN dec.course_identifier LIKE 'npq%' THEN 'NPQ'
+    WHEN dec.course_identifier LIKE 'ecf%' THEN 'ECF'
   ELSE
   'Other'
 END
   AS programme
 FROM
   ${ref("participant_declarations_latest_cpd")} dec
+LEFT JOIN
+  ${ref("ecf_inductions_dedupe")} ecfid
+USING
+  (participant_profile_id)
+LEFT JOIN
+  ${ref("npq_enrolments")} npqe
+USING
+  (participant_profile_id)
 LEFT JOIN
   ${ref("lead_providers_latest_cpd")} lpl
 USING
