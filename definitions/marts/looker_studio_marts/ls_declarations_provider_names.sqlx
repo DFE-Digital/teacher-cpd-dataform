@@ -61,8 +61,8 @@ USING
   (participant_profile_id)
 LEFT JOIN
   ${ref("npq_enrolments")} npqe
-USING
-  (participant_profile_id)
+ON
+  dec.participant_profile_id = npqe.application_ecf_id
 LEFT JOIN
   ${ref("lead_providers_latest_cpd")} lpl
 USING
