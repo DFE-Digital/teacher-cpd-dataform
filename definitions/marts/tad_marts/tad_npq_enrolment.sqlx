@@ -14,7 +14,7 @@ config {
     columns: {
         application_id: "This is the unique id for an NPQ application. We join this field on the participant_profile_id field in the declarations table to identify declarations paired with this application",
         teacher_profile_trn: "This TRN is sourced through participant profiles which are dependent on the application having been accepted by a Lead Provider. If the application has been made but has yet to be accepted the TRN field will be blank despite a valid TRN verified field. ",
-        participant_user_id: "User ID is sourced through participant profiles which are dependent on the application having been accepted by a Lead Provider. If the application has been made but has yet to be accepted the User ID field will be blank. ",
+        participant_user_id: "This User ID is sourced through teacher profiles which are dependent on the application having been accepted by a Lead Provider. If the application has been made but has yet to be accepted the User ID field will be blank. ",
         application_trn: "This is the TRN provided at the point of application",
         trn_auto_verified: "This refers to whether the TRN provided in the application process was verified",
         headteacher_status: "Indicates whether the participant is a headteacher in their first five years.",
@@ -35,7 +35,7 @@ config {
         employer_name: "Shows the entered employer name of non-school users. Text field.",
         employment_role: "Shows the employment role of non-school users. Text field.",
         employment_type: "For non-school users, shows the type of institution they are employed in. Possible fields: Local authority supply teachers, Local authority virtual school, Young offender institute, Hospital school, Other",
-        profile_user_id: "Participant profiles are generated for NPQ applications when the application has been accepted by a lead provider. This is not used to join to declarations but indicates the application has been accepted. A blank field can explain why we don't have linked TRN information.",
+        profile_user_id: "Primary id from participant profiles. These profiles are generated for NPQ applications when the application has been accepted by a lead provider. This is not used to join to declarations but indicates the application has been accepted. A blank field can explain why we don't have linked TRN information.",
         training_status: "Pulled from participant profile which is created when application is accepted by lead provider ",
         schedule_identifier: "This indicates which sub-cohort or tranche the participant commenced training within an annual cohort. For NPQ, the schedule identifier also distinguishes between the leadership and specialist NPQ types. Pulled from participant profile which is created when application is accepted by lead provider",
         profile_updated_at: "Refers to the latest updated date for the participant profile",
