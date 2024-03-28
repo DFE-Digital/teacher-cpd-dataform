@@ -31,7 +31,7 @@ SELECT
   latest_state,
   latest_cpd_lp_name,
   latest_dec_date,
-  started_dec_created_at 
+  started_dec_created_at,
   started_dec_state,
   funded_start_dec,
   started_cpd_lp_name,
