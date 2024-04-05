@@ -1,3 +1,6 @@
+## Overview
+This outlines instructions for creating the static tables all_gias_ofsted_establishments and open_gias_ofsted_establishments.
+
 ## Data sources
 There are three data sources for this table:
 - GIAS - Establishment downloads - All establishment data - Establishment fields CSV (available [here](https://www.get-information-schools.service.gov.uk/Downloads))
@@ -33,19 +36,23 @@ The relevant GOR Codes Table is given below. For the Ofsted data, some records h
 
 ## Once the data has been transferred...
 ... you then need to keep only those records that meet the following criteria:
-- `establishment_status IN ('Open', 'Open, but proposed to close')`
-  - **If using these instructions to create the table all_gias_ofsted_establishments, skip this establishment_status step**
 - `gor_code NOT IN ('W', 'Z')`
 
-This will give you the final table.
+This creates your all_gias_ofsted_establishments table.
+
+**In order to create the table open_gias_ofsted_establishments, save a copy of your all_gias_ofsted_establishments table and perform this additional check**
+- `establishment_status IN ('Open', 'Open, but proposed to close')`
+
+This will give you both of the final tables.
 
 ## The final step...
-... is to upload it to BigQuery in the `static_tables` dataset. To do this:
-1) Delete the existing `open_gias_ofsted_establishments` table
-2) Click on the dots next to `static_tables` and click "Create table"
-3) Upload the file you have created and enter all the field names in the "Schema" section
-4) Click "Create table" at the bottom
+... is to upload the tables to BigQuery in the `static_tables` dataset. To do this:
+1) Click on the dots next to `static_tables` and click "Create table".`
+2) Upload the file you have created, ensure the "File format" is 'CSV' and enter the name of the table you're replacing (either open_gias_ofsted_establishments or all_gias_ofsted_establishments).`
+3) Add all the field names in the "Schema" section. **NB:** Make sure the date_accessed field is in a YYYY-MM-DD format in the Excel and you have selected 'DATE' in the "Type" dropdown.
+4) Scroll down to "Advanced settings", select 'Overwrite table' in the "Write preference" dropdown and put '1' in "Header rows to skip".`
+5) Click "Create table" at the bottom`.
 
-Once created, you'll have to go to the Looker Studio dashboards the table is being used and reconnect the table through the "Manage added data sources" section.
+That should have replaced the existing table with all the new data without disrupting links to any Looker dashboards. Well done!
 
 Any questions on these steps or any suggestions to improve the instructions, please reach out to Emilio Campa.
