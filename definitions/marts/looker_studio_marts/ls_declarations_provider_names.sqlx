@@ -34,16 +34,34 @@ config {
         last_streamed_event_type: "Whether the most recent event was this entity being imported or updated.",
         cohort: "Participant's cohort from either npq_enrolments or ecf_indcutions_dedupe.",
         schedule_identifier: "Participant's schedule from either npq_enrolments or ecf_indcutions_dedupe.",
+        statement_cohort: "Cohort from the financial statement a declaration is stored against.",
         cpd_lp_name: "Name of Lead Provider for NPQ or ECF course",
         cpd_dp_name: "Name of Delivery Partner for ECF course",
         programme: "Shortening of 'type'. Says if it belongs to either the ECF or NPQ programme."
     }
 }
 
+WITH
+  statement_information AS (
+  /*This section pulls together statement info for all declarations from the tables statement_line_items and statements and gives the cohort associated with the statement that each declaration was made against*/
+  SELECT
+    DISTINCT stat_li.participant_declaration_id,
+    cohort.start_year AS statement_cohort
+  FROM
+    `dataform.statement_line_items_latest_cpd` stat_li
+  LEFT JOIN
+    `dataform.statements_latest_cpd` stat
+  ON
+    stat_li.statement_id=stat.id
+  LEFT JOIN
+    `dataform.cohorts_latest_cpd` cohort
+  ON
+    stat.cohort_id=cohort.id)
 SELECT
   dec.*,
   COALESCE(ecfid.cohort,npqe.cohort) AS cohort,
   COALESCE(ecfid.schedule_identifier,npqe.schedule_identifier) AS schedule_identifier,
+  state_info.statement_cohort,
   COALESCE(lpl.name,npqlpl.name) AS cpd_lp_name,
   dpl.name AS cpd_dp_name,
   CASE
@@ -63,6 +81,10 @@ LEFT JOIN
   ${ref("npq_enrolments")} npqe
 ON
   dec.participant_profile_id = npqe.application_ecf_id
+LEFT JOIN
+  statement_information state_info
+ON
+  dec.id=state_info.participant_declaration_id
 LEFT JOIN
   ${ref("lead_providers_latest_cpd")} lpl
 USING
