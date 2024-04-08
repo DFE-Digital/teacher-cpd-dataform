@@ -41,11 +41,11 @@ WITH
     event_type = 'web_request'
     AND user_id IS NOT NULL
     AND request_path LIKE '/api/v%'
-    AND request_uuid NOT IN ('5743acd834e004bea704e1c4a0065943',
-      'c1fdb72bd593d9eda54f8e95e9724884',
-      'edc376f322a4dc273b62997804695fb5',
+    AND request_uuid NOT IN ('edc376f322a4dc273b62997804695fb5',
+      '13f9f767fabfcb2cafc16f366b72660e',
       '3b0872b43cd564d2133dbbff6fa1a4cf',
-      '13f9f767fabfcb2cafc16f366b72660e')),
+      'ad6a40fda446b96f3212cdb57d2e98e6',
+      'c1fdb72bd593d9eda54f8e95e972')),
   request_response_fields AS (
   SELECT
     eep.request_uuid,
