@@ -7,101 +7,93 @@ config {
         partitionBy: "",
         clusterBy: ["provider_name", "short_course_name"]
     },
-    description: "This mart creates a table that outlines the number of NPQ Outcomes that have been sent to the TRA but have failed to be verified. It sits in the CPD - API Monitoring dashboard.",
+    description: "THIS IS CURRENTLY A PROOF OF CONCEPT. This mart is made to help out NPQ Contract Managers with Lead Provider conversations. It creates a table that outlines the number DfE-funded applications, acceptance rates, starts, and targets for each Lead Provider and their courses.",
     columns: {
-        participant_outcome_id: "ID of each participant's outcome",
-        latest_outcome_sent: "Timestamp of when a participant's most recent outcome was sent over the API.",
-        latest_state: "The state of a participant's most recent outcome. In this table, all states should be 'passed'",
-        declaration_id: "ID of the 'completed' declaration associated with the participant's outcome.",
-        user_id: "The participant's user_id stored against their 'completed' declaration",
-        error_message: "The error code and reason why the outcome couldn't be processed.",
-        days_error_open: "How long since the error was raised. Calculated by finding the difference between the current timestamp and the created_at field from participant_outcome_api_requests_latest_cpd"
+        row_number_id: "ID of row number"
     }
 }
 
 WITH
-  full_course_counts_and_targets AS (
-  WITH
-    lead_provider_targets AS (
-    SELECT
-      lead_provider,
-      course,
-      TARGET
-    FROM
-      `ecf-bq.static_tables.npq_lead_provider_course_targets`
-    WHERE
-      academic_year = 'AY23-24'
-    ORDER BY
-      lead_provider ASC,
-      course ASC),
-    lead_provider_intake AS (
-    SELECT
-      provider_name,
-      CASE
-        WHEN course_name = 'NPQ Leading Literacy (NPQLL)' THEN 'NPQLL'
-        WHEN course_name = 'NPQ for Headship (NPQH)' THEN 'NPQH'
-        WHEN course_name = 'NPQ Early Years Leadership (NPQEYL)' THEN 'NPQEYL'
-        WHEN course_name = 'NPQ Leading Teacher Development (NPQLTD)' THEN 'NPQLTD'
-        WHEN course_name = 'NPQ Leading Primary Mathematics (NPQLPM)' THEN 'NPQLPM'
-        WHEN course_name = 'Additional Support Offer for new headteachers' THEN 'EHCO'
-        WHEN course_name = 'NPQ for Senior Leadership (NPQSL)' THEN 'NPQSL'
-        WHEN course_name = 'NPQ Leading Behaviour and Culture (NPQLBC)' THEN 'NPQLBC'
-        WHEN course_name = 'The Early Headship Coaching Offer' THEN 'EHCO'
-        WHEN course_name = 'NPQ Leading Teaching (NPQLT)' THEN 'NPQLT'
-        WHEN course_name = 'NPQ for Executive Leadership (NPQEL)' THEN 'NPQEL'
-      ELSE
-      course_name
-    END
-      AS short_course_name,
-      COUNT(DISTINCT application_ecf_id) AS registrations,
-      COUNT( DISTINCT
-        CASE
-          WHEN application_status = 'accepted' THEN application_ecf_id
-        ELSE
-        NULL
-      END
-        ) / COUNT(DISTINCT application_ecf_id) AS acceptance_rate,
-        COUNT( DISTINCT
-        CASE
-          WHEN application_status = 'pending' THEN application_ecf_id
-        ELSE
-        NULL
-      END
-        ) / COUNT(DISTINCT application_ecf_id) AS pending_rate,
-        COUNT( DISTINCT
-        CASE
-          WHEN application_status = 'rejected' THEN application_ecf_id
-        ELSE
-        NULL
-      END
-        ) / COUNT(DISTINCT application_ecf_id) AS rejected_rate,
-      COUNT(funded_start_declaration) AS starts
-    FROM
-      ${ref("npq_enrolments")}
-    WHERE cohort = 2023
-    GROUP BY
-      provider_name,
-      short_course_name
-    ORDER BY
-      provider_name ASC,
-      short_course_name ASC)
+  lead_provider_targets AS (
   SELECT
-    intake.*,
-    targets.target,
-    targets.target-intake.registrations AS registration_remainder,
-    targets.target-intake.starts AS start_remainder
+    lead_provider,
+    course,
+    TARGET
   FROM
-    lead_provider_intake intake
-  LEFT JOIN
-    lead_provider_targets targets
-  ON
-    intake.provider_name = targets.lead_provider
-    AND intake.short_course_name = targets.course
+    `ecf-bq.static_tables.npq_lead_provider_course_targets`
+  WHERE
+    academic_year = 'AY23-24'
+  ORDER BY
+    lead_provider ASC,
+    course ASC),
+  lead_provider_intake AS (
+  SELECT
+    provider_name,
+    CASE
+      WHEN course_name = 'NPQ Leading Literacy (NPQLL)' THEN 'NPQLL'
+      WHEN course_name = 'NPQ for Headship (NPQH)' THEN 'NPQH'
+      WHEN course_name = 'NPQ Early Years Leadership (NPQEYL)' THEN 'NPQEYL'
+      WHEN course_name = 'NPQ Leading Teacher Development (NPQLTD)' THEN 'NPQLTD'
+      WHEN course_name = 'NPQ Leading Primary Mathematics (NPQLPM)' THEN 'NPQLPM'
+      WHEN course_name = 'Additional Support Offer for new headteachers' THEN 'EHCO'
+      WHEN course_name = 'NPQ for Senior Leadership (NPQSL)' THEN 'NPQSL'
+      WHEN course_name = 'NPQ Leading Behaviour and Culture (NPQLBC)' THEN 'NPQLBC'
+      WHEN course_name = 'The Early Headship Coaching Offer' THEN 'EHCO'
+      WHEN course_name = 'NPQ Leading Teaching (NPQLT)' THEN 'NPQLT'
+      WHEN course_name = 'NPQ for Executive Leadership (NPQEL)' THEN 'NPQEL'
+    ELSE
+    course_name
+  END
+    AS short_course_name,
+    COUNT(DISTINCT
+      CASE
+        WHEN funding_choice IS NULL THEN application_ecf_id
+      ELSE
+      NULL
+    END
+      ) AS applications,
+    COUNT(DISTINCT
+      CASE
+        WHEN funding_choice IS NULL AND application_status = 'accepted' THEN application_ecf_id
+      ELSE
+      NULL
+    END
+      ) AS acceptanced_applications,
+    COUNT(DISTINCT
+      CASE
+        WHEN funding_choice IS NULL AND application_status = 'pending' THEN application_ecf_id
+      ELSE
+      NULL
+    END
+      ) AS pending_applications,
+    COUNT(DISTINCT
+      CASE
+        WHEN funding_choice IS NULL AND application_status = 'rejected' THEN application_ecf_id
+      ELSE
+      NULL
+    END
+      ) AS rejected_applications,
+    COUNT(funded_start_declaration) AS starts
+  FROM
+    ${ref("npq_enrolments")}
+  WHERE
+    cohort = 2023
+  GROUP BY
+    provider_name,
+    short_course_name
   ORDER BY
     provider_name ASC,
     short_course_name ASC)
 SELECT
-  (ROW_NUMBER() OVER()) AS row_number_id,
-  *
+  intake.*,
+  targets.target,
+  targets.target-intake.applications AS applications_remainder,
+  targets.target-intake.starts AS starts_remainder,
+  (ROW_NUMBER() OVER()) AS row_number_id
 FROM
-  full_course_counts_and_targets
+  lead_provider_intake intake
+LEFT JOIN
+  lead_provider_targets targets
+ON
+  intake.provider_name = targets.lead_provider
+  AND intake.short_course_name = targets.course
