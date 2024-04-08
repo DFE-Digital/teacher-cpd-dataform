@@ -139,25 +139,9 @@ WITH
     a.user_id = lsd.user_id
     AND a.latest_created = lsd.created_at)
 SELECT
-  DISTINCT dei.*,
-  CASE
-    WHEN challenged_at IS NOT NULL THEN 'No lead provider'
-  ELSE
-  ep.lead_provider_name
-END
-  AS lead_provider_name,
-  CASE
-    WHEN challenged_at IS NOT NULL THEN 'No delivery partner'
-  ELSE
-  ep.delivery_partner_name
-END
-  AS delivery_partner_name
+  DISTINCT *
 FROM
-  deduped_ecf_inductions dei
-LEFT JOIN
-  `ecf-bq.dataform.ecf_partnerships` ep
-ON
-  dei.partnership_id = ep.partnership_id
+  deduped_ecf_inductions 
 UNION ALL (
   WITH
     max_active_induction AS (
@@ -237,22 +221,6 @@ UNION ALL (
       a.user_id = lsd.user_id
       AND a.latest_created = lsd.created_at)
   SELECT
-    DISTINCT dei.*,
-    CASE
-      WHEN challenged_at IS NOT NULL THEN 'No lead provider'
-    ELSE
-    ep.lead_provider_name
-  END
-    AS lead_provider_name,
-    CASE
-      WHEN challenged_at IS NOT NULL THEN 'No delivery partner'
-    ELSE
-    ep.delivery_partner_name
-  END
-    AS delivery_partner_name
+    DISTINCT *
   FROM
-    deduped_ecf_inductions dei
-  LEFT JOIN
-    `ecf-bq.dataform.ecf_partnerships` ep
-  ON
-    dei.partnership_id = ep.partnership_id)
+    deduped_ecf_inductions)
