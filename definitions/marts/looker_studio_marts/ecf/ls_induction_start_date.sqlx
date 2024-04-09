@@ -46,9 +46,9 @@ WITH
     ecfid.delivery_partner_name,
     ecfid.appropriate_body_name
   FROM
-    `dataform.ecf_inductions_dedupe` ecfid
+    ${ref(`ecf_inductions_dedupe`)} ecfid
   LEFT JOIN
-    `dataform.participant_profiles_latest_cpd` ppl
+    ${ref(`participant_profiles_latest_cpd`)} ppl
   ON
     ecfid.participant_profile_id = ppl.id
   WHERE
