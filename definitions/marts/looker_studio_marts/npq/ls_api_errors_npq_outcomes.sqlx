@@ -29,7 +29,7 @@ WITH
     sent_to_qualified_teachers_api_at,
     state
   FROM
-    `ecf-bq.dataform.participant_outcomes_latest_cpd`
+    ${ref(`participant_outcomes_latest_cpd`)}
   WHERE
     sent_to_qualified_teachers_api_at IS NOT NULL),
   npqapirequests AS (
@@ -42,7 +42,7 @@ WITH
     created_at,
     (ROW_NUMBER() OVER (PARTITION BY participant_outcome_id ORDER BY created_at DESC)) AS rn2
   FROM
-    `ecf-bq.dataform.participant_outcome_api_requests_latest_cpd` QUALIFY rn2=1
+    ${ref(`participant_outcome_api_requests_latest_cpd`)} QUALIFY rn2=1
     AND status_code NOT IN (200,
       204))
 SELECT
@@ -66,6 +66,6 @@ INNER JOIN
 ON
   npqo.id = npqar.participant_outcome_id
 INNER JOIN
-  `ecf-bq.dataform.participant_declarations_latest_cpd` dec
+  ${ref(`participant_declarations_latest_cpd`)} dec
 ON
   npqo.participant_declaration_id = dec.id

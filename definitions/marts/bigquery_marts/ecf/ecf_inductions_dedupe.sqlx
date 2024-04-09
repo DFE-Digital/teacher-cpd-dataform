@@ -80,7 +80,7 @@ WITH
       END
         AS active
       FROM
-        `ecf-bq.dataform.ecf_inductions` ei ) x
+        ${ref(`ecf_inductions`)} ei ) x
     WHERE
       participant_type = 'ParticipantProfile::ECT'
     GROUP BY
@@ -96,7 +96,7 @@ WITH
     END
       AS active
     FROM
-      `ecf-bq.dataform.ecf_inductions`
+      ${ref(`ecf_inductions`)}
     WHERE
       participant_type = 'ParticipantProfile::ECT') ei
   ON
@@ -141,7 +141,7 @@ WITH
 SELECT
   DISTINCT *
 FROM
-  deduped_ecf_inductions 
+  deduped_ecf_inductions
 UNION ALL (
   WITH
     max_active_induction AS (
@@ -162,7 +162,7 @@ UNION ALL (
         END
           AS active
         FROM
-          `ecf-bq.dataform.ecf_inductions` ei ) x
+          ${ref(`ecf_inductions`)} ei ) x
       WHERE
         participant_type = 'ParticipantProfile::Mentor'
       GROUP BY
@@ -178,7 +178,7 @@ UNION ALL (
       END
         AS active
       FROM
-        `ecf-bq.dataform.ecf_inductions`
+        ${ref(`ecf_inductions`)}
       WHERE
         participant_type = 'ParticipantProfile::Mentor') ei
     ON

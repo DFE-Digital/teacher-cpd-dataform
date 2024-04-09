@@ -29,22 +29,7 @@ WITH
   lead_provider_intake AS (
   SELECT
     provider_name,
-    CASE
-      WHEN course_name = 'NPQ Leading Literacy (NPQLL)' THEN 'NPQLL'
-      WHEN course_name = 'NPQ for Headship (NPQH)' THEN 'NPQH'
-      WHEN course_name = 'NPQ Early Years Leadership (NPQEYL)' THEN 'NPQEYL'
-      WHEN course_name = 'NPQ Leading Teacher Development (NPQLTD)' THEN 'NPQLTD'
-      WHEN course_name = 'NPQ Leading Primary Mathematics (NPQLPM)' THEN 'NPQLPM'
-      WHEN course_name = 'Additional Support Offer for new headteachers' THEN 'EHCO'
-      WHEN course_name = 'NPQ for Senior Leadership (NPQSL)' THEN 'NPQSL'
-      WHEN course_name = 'NPQ Leading Behaviour and Culture (NPQLBC)' THEN 'NPQLBC'
-      WHEN course_name = 'The Early Headship Coaching Offer' THEN 'EHCO'
-      WHEN course_name = 'NPQ Leading Teaching (NPQLT)' THEN 'NPQLT'
-      WHEN course_name = 'NPQ for Executive Leadership (NPQEL)' THEN 'NPQEL'
-    ELSE
-    course_name
-  END
-    AS short_course_name,
+    short_course_name,
     COUNT(DISTINCT
       CASE
         WHEN funding_choice IS NULL THEN application_ecf_id

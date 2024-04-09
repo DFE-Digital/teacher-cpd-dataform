@@ -48,13 +48,13 @@ WITH
     DISTINCT stat_li.participant_declaration_id,
     cohort.start_year AS statement_cohort
   FROM
-    `dataform.statement_line_items_latest_cpd` stat_li
+    ${ref(`statement_line_items_latest_cpd`)} stat_li
   LEFT JOIN
-    `dataform.statements_latest_cpd` stat
+    ${ref(`statements_latest_cpd`)} stat
   ON
     stat_li.statement_id=stat.id
   LEFT JOIN
-    `dataform.cohorts_latest_cpd` cohort
+    ${ref(`cohorts_latest_cpd`)} cohort
   ON
     stat.cohort_id=cohort.id)
 SELECT

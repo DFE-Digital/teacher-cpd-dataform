@@ -61,7 +61,7 @@ WITH
   USING
     (participant_profile_id)
   LEFT JOIN
-    `dataform.ecf_inductions_dedupe` ecfid
+    ${ref(`ecf_inductions_dedupe`)} ecfid
   USING
     (participant_profile_id) QUALIFY rn1=1)
 SELECT
