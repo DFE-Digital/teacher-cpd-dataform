@@ -58,7 +58,7 @@ WITH
       ELSE
       NULL
     END
-      ) AS acceptanced_applications,
+      ) AS accepted_applications,
     COUNT(DISTINCT
       CASE
         WHEN funding_choice IS NULL AND application_status = 'pending' THEN application_ecf_id
