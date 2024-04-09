@@ -455,6 +455,14 @@ WITH
     la_name,
     school_postcode,
     course_name,
+    CASE
+      WHEN course_name = 'Additional Support Offer for new headteachers' THEN 'EHCO'
+      WHEN course_name = 'The Early Headship Coaching Offer' THEN 'EHCO'
+      WHEN REGEXP_CONTAINS(course_name, r'\(.*\)') THEN REGEXP_EXTRACT(course_name, r'\((.*?)\)')
+    ELSE
+    course_name
+  END
+    AS short_course_name,
     declaration_course_identifier,
     provider_name,
     ecf_user_id,

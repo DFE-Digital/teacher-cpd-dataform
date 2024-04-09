@@ -1,48 +1,48 @@
 config {
-  type: "table",
-  assertions: {
-    uniqueKey: ["induction_record_id"]
-  },
-  bigquery: {
-    partitionBy: "DATE(induction_record_created_at)",
-    clusterBy: ["cohort","participant_type","induction_status","training_status"]
-  },
-  description: "This table is designed around ECF induction records with each induction constituting a single record. Participant changes, like changing schools or mentor, can cause new induction records to be created for a participant. If the latest induction record is required, please use ecf_inductions_dedupe. Participants will also have different induction records for ECT/Mentor programmes. Participant details have been joined into the induction records.",
-  columns: {
-    induction_record_id: "ID of individual induction record",
-    external_id: "",
-    participant_profile_id: "The table participant_declarations_latest needs to be joined to ecf_inductions using participant_profile_id. Deduplication of user_ids has turned some of them into “ghost” IDs but the participant_profile_id still links correctly. Participant profiles are automatically generated for ECTs/Mentors when induction tutors register the ECT/Mentor details. Meaning a participant_profile_id (and full participant_profile) should be available for each ECF participant with an induction record. ECF participants have one participant_profile for each type of participation (ECT or Mentor).",
-    induction_programme_id: "ID of the induction programme specific to the school offering it.",
-    induction_programme_type: "The induction programme the school offers (FIP / CIP / DIY) : potential values: full_induction_programme core_induction_programme, design_our_own, school_funded_fip.",
-    school_name: "Name of the participant's school.",
-    school_urn: "URN of the participant's school.",
-    schedule_identifier: "This indicates which sub-cohort or tranche the participant commenced training within an annual cohort. For ECF, the schedule identifier also indicates if a participant is following a non-standard training route at any point (e.g. extended or reduced).",
-    mentor_id: "The participant_profile_id of an ECT's mentor. This field is always NULL for mentors.",
-    appropriate_body_id: "The ID of the appropriate body associated with the school.",
-    appropriate_body_name: "The name of the appropriate body associated with the school.",
-    start_date: "Start date for this induction record",
-    end_date: "End date for this induction record. This is not the completion date for a participant's full induction.",
-    induction_status: "A status value used to manage the state of an induction record. It can indicate that a record is the active record or that something has changed and the record is not the active record (or will not be in the future). Potential values: active, changed, leaving, withdrawn ",
-    training_status: "This is managed on the lead provider side and indicates whether the participant is being trained by a provider or not. Potential Values: active, deferred, withdrawn",
-    school_transfer: "TRUE if a participant has transferred out of/in to the school in that induction record.",
-    created_at: "When this induction record was generated.",
-    updated_at: "When this induction record was updated.",
-    completion_date: "The date an ECT completed their induction. This field is always NULL for mentors",
-    cohort_id: "The ID of the participant's cohort.",
-    user_id: "This comes from the teacher profile associated with the participant profile.",
-    participant_type: "Either ECT or Mentor",
-    induction_record_created_at: "When this induction record was generated.",
-    partnership_id: "ID for the Lead Provider-School partnership for a given cohort.",
-    TRN: "This comes from a participant's teacher profile.",
-    cohort: "The cohort/academic year corresponding to when the participant started their course. Possible fields: 2021 onwards.",
-    school_id: "ID of the participant's school.",
-    high_pupil_premium: "This indicates whether the uplift payment for X is applicable to this participant's started declaration",
-    sparsity_incentive: "This indicates whether the uplift payment for X is applicable to this participant's started declaration",
-    core_induction_programme_id: "If a school offers CIP, this will be filled with the ID of their CIP programme.",
-    core_induction_materials_provider: "If a school offers CIP, this shows which Lead Provider they are getting their CIP materials from.",
-    mentor_completion_date: "The date a mentor completed training.",
-    mentor_completion_reason: "The reason the mentor_completion_date field is filled.Possible values: completed_during_early_roll_out, completed_declaration_received."
-  }
+    type: "table",
+    assertions: {
+        uniqueKey: ["induction_record_id"]
+    },
+    bigquery: {
+        partitionBy: "DATE(induction_record_created_at)",
+        clusterBy: ["cohort", "participant_type", "induction_status", "training_status"]
+    },
+    description: "This table is designed around ECF induction records with each induction constituting a single record. Participant changes, like changing schools or mentor, can cause new induction records to be created for a participant. If the latest induction record is required, please use ecf_inductions_dedupe. Participants will also have different induction records for ECT/Mentor programmes. Participant details have been joined into the induction records.",
+    columns: {
+        induction_record_id: "ID of individual induction record",
+        external_id: "",
+        participant_profile_id: "The table participant_declarations_latest needs to be joined to ecf_inductions using participant_profile_id. Deduplication of user_ids has turned some of them into “ghost” IDs but the participant_profile_id still links correctly. Participant profiles are automatically generated for ECTs/Mentors when induction tutors register the ECT/Mentor details. Meaning a participant_profile_id (and full participant_profile) should be available for each ECF participant with an induction record. ECF participants have one participant_profile for each type of participation (ECT or Mentor).",
+        induction_programme_id: "ID of the induction programme specific to the school offering it.",
+        induction_programme_type: "The induction programme the school offers (FIP / CIP / DIY) : potential values: full_induction_programme core_induction_programme, design_our_own, school_funded_fip.",
+        school_name: "Name of the participant's school.",
+        school_urn: "URN of the participant's school.",
+        schedule_identifier: "This indicates which sub-cohort or tranche the participant commenced training within an annual cohort. For ECF, the schedule identifier also indicates if a participant is following a non-standard training route at any point (e.g. extended or reduced).",
+        mentor_id: "The participant_profile_id of an ECT's mentor. This field is always NULL for mentors.",
+        appropriate_body_id: "The ID of the appropriate body associated with the school.",
+        appropriate_body_name: "The name of the appropriate body associated with the school.",
+        start_date: "Start date for this induction record",
+        end_date: "End date for this induction record. This is not the completion date for a participant's full induction.",
+        induction_status: "A status value used to manage the state of an induction record. It can indicate that a record is the active record or that something has changed and the record is not the active record (or will not be in the future). Potential values: active, changed, leaving, withdrawn ",
+        training_status: "This is managed on the lead provider side and indicates whether the participant is being trained by a provider or not. Potential Values: active, deferred, withdrawn",
+        school_transfer: "TRUE if a participant has transferred out of/in to the school in that induction record.",
+        created_at: "When this induction record was generated.",
+        updated_at: "When this induction record was updated.",
+        completion_date: "The date an ECT completed their induction. This field is always NULL for mentors",
+        cohort_id: "The ID of the participant's cohort.",
+        user_id: "This comes from the teacher profile associated with the participant profile.",
+        participant_type: "Either ECT or Mentor",
+        induction_record_created_at: "When this induction record was generated.",
+        partnership_id: "ID for the Lead Provider-School partnership for a given cohort.",
+        TRN: "This comes from a participant's teacher profile.",
+        cohort: "The cohort/academic year corresponding to when the participant started their course. Possible fields: 2021 onwards.",
+        school_id: "ID of the participant's school.",
+        high_pupil_premium: "This indicates whether the uplift payment for X is applicable to this participant's started declaration",
+        sparsity_incentive: "This indicates whether the uplift payment for X is applicable to this participant's started declaration",
+        core_induction_programme_id: "If a school offers CIP, this will be filled with the ID of their CIP programme.",
+        core_induction_materials_provider: "If a school offers CIP, this shows which Lead Provider they are getting their CIP materials from.",
+        mentor_completion_date: "The date a mentor completed training.",
+        mentor_completion_reason: "The reason the mentor_completion_date field is filled.Possible values: completed_during_early_roll_out, completed_declaration_received."
+    }
 }
 
 WITH
@@ -73,11 +73,11 @@ WITH
     induction_prog.core_induction_programme_id,
     core_induction_materials_provider
   FROM
-     ${ref("induction_programmes_latest_cpd")} induction_prog
-   LEFT JOIN
+    ${ref("induction_programmes_latest_cpd")} induction_prog
+  LEFT JOIN
     `ecf-bq.static_tables.core_induction_materials_providers` cip_materials_providers
-   ON
-   induction_prog.core_induction_programme_id=cip_materials_providers.core_induction_programme_id),
+  ON
+    induction_prog.core_induction_programme_id=cip_materials_providers.core_induction_programme_id),
   cohort_records AS(
   SELECT
     school_cohort.id AS school_cohort_id,
@@ -89,13 +89,13 @@ WITH
     start_year AS cohort,
     school_id
   FROM
-     ${ref("school_cohorts_latest_cpd")} school_cohort
+    ${ref("school_cohorts_latest_cpd")} school_cohort
   LEFT JOIN
-     ${ref("schools_latest_cpd")} as schools
+    ${ref("schools_latest_cpd")} AS schools
   ON
     school_cohort.school_id=schools.id
   LEFT JOIN
-     ${ref("cohorts_latest_cpd")} as cohort
+    ${ref("cohorts_latest_cpd")} AS cohort
   ON
     school_cohort.cohort_id=cohort.id),
   ecf_participant_profiles AS (
@@ -113,10 +113,10 @@ WITH
     -- manual_validation_required,
     -- eligible_for_funding
   FROM
-     ${ref("participant_profiles_latest_cpd")} as participant_profiles
+    ${ref("participant_profiles_latest_cpd")} AS participant_profiles
     /* No duplicates for this combination of data at moment, there are duplicates across participant id so could cause problems down the line*/
   LEFT JOIN
-     ${ref("teacher_profiles_latest_cpd")} as teacher_profiles
+    ${ref("teacher_profiles_latest_cpd")} AS teacher_profiles
   ON
     participant_profiles.teacher_profile_id=teacher_profiles.id),
   -- LEFT JOIN
@@ -124,11 +124,11 @@ WITH
   -- ON
   -- participant_profiles.id=eligibility_statuses.participant_profile_id),
   appropriate_bodies AS (
-  SELECT
-    id AS appropriate_body_id,
-    name AS appropriate_body_name
-  FROM
-    ${ref("appropriate_bodies_latest_cpd")} as appropriate_bodies),
+SELECT
+  id AS appropriate_body_id,
+  name AS appropriate_body_name
+FROM
+  ${ref("appropriate_bodies_latest_cpd")} AS appropriate_bodies),
   pupil_premiums AS (
   SELECT
     school_id AS source_school_id,
@@ -154,8 +154,8 @@ WITH
     ecf_participant_profiles.participant_profile_id,
     ecf_induction_records.induction_programme_id,
     induction_programme_type,
-    school_name,
-    school_urn,
+    induction_programme_details.school_name,
+    induction_programme_details.school_urn,
     schedule_identifier,
     mentor_id,
     appropriate_bodies.appropriate_body_id,
@@ -172,16 +172,28 @@ WITH
     user_id,
     participant_type,
     induction_record_created_at,
-    partnership_id,
+    induction_programme_details.partnership_id,
     TRN,
-    cohort,
-    school_id,
+    induction_programme_details.cohort,
+    induction_programme_details.school_id,
     high_pupil_premium,
     sparsity_incentive,
     core_induction_programme_id,
     core_induction_materials_provider,
     mentor_completion_date,
     mentor_completion_reason,
+    CASE
+      WHEN challenged_at IS NOT NULL THEN 'No lead provider'
+    ELSE
+    ecf_partners.lead_provider_name
+  END
+    AS lead_provider_name,
+    CASE
+      WHEN challenged_at IS NOT NULL THEN 'No delivery partner'
+    ELSE
+    ecf_partners.delivery_partner_name
+  END
+    AS delivery_partner_name
     -- trn_validated,
     -- trn_validated_reason,
     -- manual_validation_required,
@@ -205,8 +217,14 @@ WITH
   ON
     cohort = pupil_premiums.source_start_year
     AND school_id = pupil_premiums.source_school_id
-  LEFT JOIN `dataform.schedules_latest_cpd` schedules
-  ON ecf_induction_records.schedule_id = schedules.id)
+  LEFT JOIN
+    `dataform.schedules_latest_cpd` schedules
+  ON
+    ecf_induction_records.schedule_id = schedules.id
+  LEFT JOIN
+    `ecf-bq.dataform.ecf_partnerships` ecf_partners
+  ON
+    induction_programme_details.partnership_id = ecf_partners.partnership_id)
 SELECT
   *
 FROM
