@@ -74,6 +74,12 @@ SELECT
   targets.target,
   targets.target-intake.applications AS applications_remainder,
   targets.target-intake.starts AS starts_remainder,
+  CASE
+    WHEN targets.target <> 0 THEN intake.starts/targets.target
+  ELSE
+  NULL
+END
+  AS target_percentage,
   (ROW_NUMBER() OVER()) AS row_number_id
 FROM
   lead_provider_intake intake

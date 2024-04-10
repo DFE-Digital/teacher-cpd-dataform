@@ -46,7 +46,7 @@ WITH
   /*This section pulls together statement info for all declarations from the tables statement_line_items and statements and gives the cohort associated with the statement that each declaration was made against*/
   SELECT
     DISTINCT stat_li.participant_declaration_id,
-    cohort.start_year AS statement_cohort
+    MIN(cohort.start_year) AS statement_cohort
   FROM
     ${ref(`statement_line_items_latest_cpd`)} stat_li
   LEFT JOIN
@@ -56,7 +56,9 @@ WITH
   LEFT JOIN
     ${ref(`cohorts_latest_cpd`)} cohort
   ON
-    stat.cohort_id=cohort.id)
+    stat.cohort_id=cohort.id
+  GROUP BY
+    stat_li.participant_declaration_id)
 SELECT
   dec.*,
   COALESCE(ecfid.cohort,npqe.cohort) AS cohort,
