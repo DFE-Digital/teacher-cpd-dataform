@@ -144,14 +144,20 @@ WITH
     AND ecf_dec_latest.course_identifier = ecf_dec_start.started_course_identifier),
   lp_ecf_golden_thread AS (
   SELECT
-    * EXCEPT(latest_participant_course)
+    ecf_inductions_expanded.*,
+    ecf_full_dec.* EXCEPT(latest_participant_course),
+    static_elig.eligible_for_funding
   FROM
     ecf_inductions_expanded
   LEFT JOIN
     ecf_full_dec
   ON
     ecf_inductions_expanded.participant_profile_id=ecf_full_dec.declaration_participant_profile_id
-    AND ecf_inductions_expanded.participant_course=ecf_full_dec.latest_participant_course)
+    AND ecf_inductions_expanded.participant_course=ecf_full_dec.latest_participant_course
+  LEFT JOIN
+   `static_tables.ecf_eligibility_statuses_20_02_24` static_elig
+  ON
+   ecf_inductions_expanded.participant_profile_id=static_elig.participant_profile_id)
 SELECT
   *,
   CASE
