@@ -1,0 +1,191 @@
+config {
+    type: "table",
+    assertions: {
+        uniqueKey: ["induction_record_id"]
+    },
+    bigquery: {
+        partitionBy: "DATE(induction_record_created_at)",
+        clusterBy: ["cohort", "participant_type", "induction_status", "training_status"]
+    },
+    description: "This mart is used for the ECF Contract Managers dashboard. This dedupes ECF Inductions at the lead provider level (as well as user_id and participant_type) and joins in the latest and start declaration info for those records.",
+    columns: {
+        induction_record_id: "ID of individual induction record",
+        external_id: ""
+    }
+}
+
+WITH
+  lp_inductions_dedupe AS (
+  SELECT
+    *,
+    (ROW_NUMBER() OVER (PARTITION BY lead_provider_name, participant_type, user_id ORDER BY active DESC, start_date DESC, created_at DESC)) AS rn0
+  FROM (
+    SELECT
+      *,
+      CASE
+        WHEN induction_status = 'completed' THEN 2
+        WHEN induction_status = 'active' THEN 1
+      ELSE
+      0
+    END
+      AS active
+    FROM
+      ${ref("ecf_inductions")} ) T1 QUALIFY rn0=1),
+  ecf_inductions_expanded AS (
+  SELECT
+    ecfid.*,
+    ppl.induction_start_date,
+    ppl.induction_completion_date,
+    CASE
+      WHEN participant_type LIKE 'ParticipantProfile::ECT' THEN 'ECT'
+      WHEN participant_type LIKE 'ParticipantProfile::Mentor' THEN 'Mentor'
+    ELSE
+    NULL
+  END
+    AS participant_course
+  FROM
+    lp_inductions_dedupe AS ecfid
+  LEFT JOIN
+    ${ref(`participant_profiles_latest_cpd`)} ppl
+  ON
+    ecfid.participant_profile_id = ppl.id
+  WHERE
+    participant_type IS NOT NULL),
+  ecf_declarations_expanded AS (
+  SELECT
+    dec_cpd.*,
+    cpd_lead_providers.name AS cpd_lead_provider_name,
+    delivery_partners.name AS delivery_partner_name,
+    CASE
+      WHEN state LIKE 'paid' THEN 7
+      WHEN state LIKE 'payable' THEN 6
+      WHEN state LIKE 'eligible' THEN 5
+      WHEN state LIKE 'submitted' THEN 4
+      WHEN state LIKE 'clawed_back' THEN 3
+      WHEN state LIKE 'awaiting_clawback' THEN 2
+      WHEN state LIKE 'voided' THEN 1
+    ELSE
+    0
+  END
+    AS state_heirarchy,
+    CASE
+      WHEN state = 'paid' THEN TRUE
+      WHEN state = 'eligible' THEN TRUE
+      WHEN state = 'payable' THEN TRUE
+    ELSE
+    FALSE
+  END
+    AS funded_declaration,
+    CASE
+      WHEN course_identifier LIKE 'ecf-induction' THEN 'ECT'
+      WHEN course_identifier LIKE 'ecf-mentor' THEN 'Mentor'
+    ELSE
+    NULL
+  END
+    AS participant_course
+  FROM
+    ${ref(`participant_declarations_latest_cpd`)} AS dec_cpd
+  LEFT JOIN
+    ${ref(`cpd_lead_providers_latest_cpd`)} AS cpd_lead_providers
+  ON
+    dec_cpd.cpd_lead_provider_id=cpd_lead_providers.id
+  LEFT JOIN
+    ${ref(`delivery_partners_latest_cpd`)} AS delivery_partners
+  ON
+    dec_cpd.delivery_partner_id=delivery_partners.id
+  WHERE
+    course_identifier LIKE 'ecf%'),
+  ecf_dec_latest AS (
+  SELECT
+    user_id AS declaration_user_id,
+    participant_profile_id AS declaration_participant_profile_id,
+    course_identifier,
+    state AS latest_state,
+    declaration_type AS latest_declaration_type,
+    cpd_lead_provider_id AS latest_cpd_lead_provider_id,
+    delivery_partner_id AS latest_cpd_delivery_partner_id,
+    cpd_lead_provider_name AS latest_cpd_lead_provider_name,
+    delivery_partner_name AS latest_delivery_partner_name,
+    declaration_date AS latest_declaration_date,
+    participant_course AS latest_participant_course,
+    (ROW_NUMBER() OVER (PARTITION BY participant_profile_id, course_identifier ORDER BY declaration_date DESC)) AS rn2
+  FROM
+    ecf_declarations_expanded QUALIFY rn2 = 1),
+  ecf_dec_start AS(
+  SELECT
+    id AS started_declaration_id,
+    user_id AS started_declaration_user_id,
+    participant_profile_id AS started_participant_profile_id,
+    course_identifier AS started_course_identifier,
+    declaration_type AS started_declaration_type,
+    state AS start_declaration_state,
+    funded_declaration AS funded_start_declaration,
+    declaration_date AS started_declaration_date,
+    cpd_lead_provider_name AS started_cpd_lead_provider_name,
+    delivery_partner_name AS started_delivery_partner_name,
+    (ROW_NUMBER() OVER (PARTITION BY participant_profile_id,
+    /*cpd_lead_provider_id,*/
+    course_identifier, declaration_type ORDER BY state_heirarchy DESC)) AS rn5
+  FROM
+    ecf_declarations_expanded ecf_dec_0
+  WHERE
+    declaration_type = 'started' QUALIFY rn5=1),
+  ecf_full_dec AS (
+  SELECT
+    * EXCEPT (rn2,
+      rn5)
+  FROM
+    ecf_dec_latest
+  LEFT JOIN
+    ecf_dec_start
+  ON
+    ecf_dec_latest.declaration_participant_profile_id = ecf_dec_start.started_participant_profile_id
+    AND ecf_dec_latest.course_identifier = ecf_dec_start.started_course_identifier),
+  lp_ecf_golden_thread AS (
+  SELECT
+    * EXCEPT(latest_participant_course)
+  FROM
+    ecf_inductions_expanded
+  LEFT JOIN
+    ecf_full_dec
+  ON
+    ecf_inductions_expanded.participant_profile_id=ecf_full_dec.declaration_participant_profile_id
+    AND ecf_inductions_expanded.participant_course=ecf_full_dec.latest_participant_course)
+SELECT
+  *,
+  CASE
+    WHEN lead_provider_name = 'Ambition Institute' THEN 'Ambition'
+    WHEN lead_provider_name = 'Best Practice Network' THEN 'BPN'
+    WHEN lead_provider_name = 'Church of England' THEN 'CofE'
+    WHEN lead_provider_name = 'Education Development Trust' THEN 'EDT'
+    WHEN lead_provider_name = 'LLSE' THEN 'LLSE'
+    WHEN lead_provider_name = 'National Institute of Teaching' THEN 'NIoT'
+    WHEN lead_provider_name = 'School-Led Network' THEN 'School-Led'
+    WHEN lead_provider_name = 'Teach First' THEN 'TF'
+    WHEN lead_provider_name = 'Teacher Development Trust' THEN 'TDT'
+    WHEN lead_provider_name = 'UCL Institute of Education' THEN 'UCL'
+  ELSE
+  lead_provider_name
+END
+  AS lead_provider_short_name,
+  CONCAT("AY",(cohort-2000),"-",(cohort-2000+1)) AS academic_year,
+  start_declaration_state IN ('payable',
+    'paid') AS paid_start_declaration,
+  UPPER(SUBSTR(REGEXP_EXTRACT(schedule_identifier, r'[^-]+-[^-]+-(.*)'), 1, 1)) || LOWER(SUBSTR(REGEXP_EXTRACT(schedule_identifier, r'[^-]+-[^-]+-(.*)'), 2)) AS schedule_intake_month,
+  CASE
+    WHEN started_cpd_lead_provider_name = 'Ambition Institute' THEN 'Ambition'
+    WHEN started_cpd_lead_provider_name = 'Best Practice Network' THEN 'BPN'
+    WHEN started_cpd_lead_provider_name = 'Church of England' THEN 'CofE'
+    WHEN started_cpd_lead_provider_name = 'Education Development Trust' THEN 'EDT'
+    WHEN started_cpd_lead_provider_name = 'LLSE' THEN 'LLSE'
+    WHEN started_cpd_lead_provider_name = 'National Institute of Teaching' THEN 'NIoT'
+    WHEN started_cpd_lead_provider_name = 'School-Led Network' THEN 'School-Led'
+    WHEN started_cpd_lead_provider_name = 'Teach First' THEN 'TF'
+    WHEN started_cpd_lead_provider_name = 'Teacher Development Trust' THEN 'TDT'
+    WHEN started_cpd_lead_provider_name = 'UCL Institute of Education' THEN 'UCL'
+  ELSE
+  started_cpd_lead_provider_name
+END
+  AS started_lead_provider_short_name
+FROM
+  lp_ecf_golden_thread
