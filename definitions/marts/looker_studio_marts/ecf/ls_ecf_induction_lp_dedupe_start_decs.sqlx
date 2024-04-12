@@ -118,6 +118,7 @@ WITH
     participant_profile_id AS started_participant_profile_id,
     course_identifier AS started_course_identifier,
     declaration_type AS started_declaration_type,
+    created_at as started_declaration_created_at,
     state AS start_declaration_state,
     funded_declaration AS funded_start_declaration,
     declaration_date AS started_declaration_date,
