@@ -145,8 +145,7 @@ WITH
   lp_ecf_golden_thread AS (
   SELECT
     ecf_inductions_expanded.*,
-    ecf_full_dec.* EXCEPT(latest_participant_course),
-    static_elig.eligible_for_funding
+    ecf_full_dec.* EXCEPT(latest_participant_course)
   FROM
     ecf_inductions_expanded
   LEFT JOIN
