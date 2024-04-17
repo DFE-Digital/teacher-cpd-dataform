@@ -1,0 +1,86 @@
+config {
+    type: "table",
+    assertions: {
+        uniqueKey: ["application_ecf_id"]
+    },
+    bigquery: {
+        partitionBy: "",
+        clusterBy: ["school_urn", "establishment_type", "tsf_primary_eligibility", "tsf_primary_plus_eligibility"]
+    },
+    description: "THIS IS CURRENTLY A WORK IN PROGRESS. This mart is made to help out NPQ Funding Team with payments for the targeted support fund. It creates a table that outlines the number DfE-funded applications, acceptance rates, starts, and targets for each Lead Provider and their courses.",
+    columns: {
+        application_ecf_id: "ID of each unique application. Declarations are joined to the application using this id and it is also the participant_profile_id in the declarations table"
+    }
+}
+
+WITH
+  valid_start_npq_apps AS (
+  SELECT
+    ecf_user_id,
+    cohort,
+    application_ecf_id,
+    course_identifier,
+    school_urn,
+    school_name,
+    number_of_pupils,
+    primary_establishment,
+    targeted_delivery_funding_eligibility,
+    tsf_primary_eligibility,
+    CASE
+      WHEN tsf_primary_eligibility IS TRUE THEN 1
+    ELSE
+    0
+  END
+    AS tsf_primary_count,
+    tsf_primary_plus_eligibility,
+    CASE
+      WHEN tsf_primary_plus_eligibility IS TRUE THEN 1
+    ELSE
+    0
+  END
+    AS tsf_primary_plus_count
+  FROM
+    ${ref("npq_enrolments")}
+  WHERE
+    targeted_delivery_funding_eligibility IS TRUE
+    AND started_declaration_state IN ('submitted',
+      'eligible',
+      'payable',
+      'paid')
+    AND started_declaration_date >= '2023-10-01'),
+  gias_information AS (
+  SELECT
+    *,
+    CAST(URN AS STRING) AS string_urn
+  FROM
+    `static_tables.all_gias_01_02_2024_` )
+SELECT
+  npq.ecf_user_id,
+  npq.application_ecf_id,
+  npq.course_identifier,
+  npq.cohort,
+  npq.school_urn,
+  npq.school_name,
+  gias.LA__name_ AS LA,
+  npq.primary_establishment,
+  gias.TypeOfEstablishment__name_ AS establishment_type,
+  gias.PhaseOfEducation__name_,
+  npq.number_of_pupils,
+  gias.NumberOfPupils AS GIAS_NumberOfPupils,
+  npq.tsf_primary_eligibility,
+  npq.tsf_primary_count,
+  npq.tsf_primary_plus_eligibility,
+  npq.tsf_primary_plus_count,
+  CASE
+    WHEN gias.CloseDate IS NULL THEN 1
+    WHEN gias.CloseDate IS NOT NULL THEN 0
+END
+  AS sch_open
+FROM
+  valid_start_npq_apps npq
+LEFT JOIN
+  gias_information gias
+ON
+  npq.school_urn = gias.string_urn
+WHERE
+  school_urn <> ''

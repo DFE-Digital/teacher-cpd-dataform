@@ -85,39 +85,38 @@ config {
         schedule_and_cohort: "Calculated field combining the cohort and schedule_identifier fields into one field. ",
         funding_source: "Calculated field that replaces all NULL values in funding_choice with 'DfE'.",
         phase_of_education: "Phase of education of an establishment as stored in GIAS/Ofsted.",
-        setting_type: "Calculated field that coalesces the kind_of_nursery field from the application with the establishment_type fields from GIAS and Ofsted.",
+        setting_type: "Calculated field that uses a combination of the kind_of_nursery field from the application with the establishment_type and establishment_subtype fields from GIAS and Ofsted.",
         establishment_subtype: "Establishment subtype as stored in GIAS/Ofsted.",
         final_la_name: "Calculated field that coalesces the la_name fields from the application, GIAS, and Ofsted."
     }
 }
 
 WITH
+  early_years_settings AS (
+  SELECT
+    establishment_urn,
+    phase_of_education,
+    establishment_type,
+    establishment_subtype,
+    la_name,
+    gor_name
+  FROM
+    `static_tables.all_gias_ofsted_establishments`
+  WHERE
+    data_source LIKE 'Ofsted%'),
+  gias_settings AS (
+  SELECT
+    establishment_urn,
+    phase_of_education,
+    establishment_type,
+    establishment_subtype,
+    la_name,
+    gor_name
+  FROM
+    `static_tables.all_gias_ofsted_establishments`
+  WHERE
+    data_source LIKE 'GIAS%'),
   final_table AS (
-  WITH
-    early_years_settings AS (
-    SELECT
-      establishment_urn,
-      phase_of_education,
-      establishment_type,
-      establishment_subtype,
-      la_name,
-      gor_name
-    FROM
-      `static_tables.all_gias_ofsted_establishments`
-    WHERE
-      data_source LIKE 'Ofsted%'),
-    gias_settings AS (
-    SELECT
-      establishment_urn,
-      phase_of_education,
-      establishment_type,
-      establishment_subtype,
-      la_name,
-      gor_name
-    FROM
-      `static_tables.all_gias_ofsted_establishments`
-    WHERE
-      data_source LIKE 'GIAS%')
   SELECT
     npq_e.*,
     CASE
@@ -133,7 +132,7 @@ WITH
   END
     AS funding_source,
     COALESCE(eys.phase_of_education,gias.phase_of_education) AS phase_of_education,
-    COALESCE(npq_e.kind_of_nursery, eys.establishment_type, gias.establishment_type) AS setting_type,
+    COALESCE(eys.establishment_type, gias.establishment_type) AS establishment_type,
     COALESCE(eys.establishment_subtype,gias.establishment_subtype) AS establishment_subtype,
     COALESCE(npq_e.la_name,eys.la_name,gias.la_name) AS final_la_name,
   FROM
@@ -149,6 +148,26 @@ WITH
   WHERE
     npq_e.course_name = 'NPQ Early Years Leadership (NPQEYL)')
 SELECT
-  *
+  *,
+  CASE
+    WHEN kind_of_nursery = 'another_early_years_setting' THEN COALESCE(establishment_type,'Another Early Years setting')
+    WHEN kind_of_nursery = 'local_authority_maintained_nursery'
+  AND establishment_type ='Academies' THEN 'School setting'
+    WHEN kind_of_nursery = 'local_authority_maintained_nursery' AND establishment_type LIKE 'Child%' THEN establishment_type
+    WHEN kind_of_nursery = 'local_authority_maintained_nursery'
+  AND establishment_subtype = 'Local authority nursery school' THEN 'Local authority maintained nursery'
+    WHEN kind_of_nursery = 'local_authority_maintained_nursery' AND establishment_type = 'Local authority maintained schools' THEN 'School setting'
+    WHEN kind_of_nursery = 'local_authority_maintained_nursery'
+  AND establishment_type IS NULL THEN 'Local authority maintained nursery'
+    WHEN kind_of_nursery = 'preschool_class_as_part_of_school' THEN 'School setting - Preschool class as part of school'
+    WHEN kind_of_nursery = 'private_nursery' THEN COALESCE(establishment_type,'Private nursery')
+    WHEN kind_of_nursery IS NULL AND establishment_type LIKE 'Child%' THEN establishment_type
+    WHEN kind_of_nursery IS NULL
+  AND establishment_subtype = 'Local authority nursery school' THEN 'Local authority maintained nursery'
+    WHEN kind_of_nursery IS NULL AND establishment_type IS NOT NULL THEN 'School setting'
+  ELSE
+  COALESCE(kind_of_nursery,establishment_type)
+END
+  AS setting_type
 FROM
   final_table
