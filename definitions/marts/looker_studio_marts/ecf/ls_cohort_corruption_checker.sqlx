@@ -7,7 +7,7 @@ config {
         partitionBy: "DATE(declaration_date)",
         clusterBy: ["cohort", "statement_cohort", "suggested_cohort_from_declaration", "check_source"]
     },
-    description: "THIS MART IS CURRENTLY A WIP UNTIL THE DASHBOARD USER NEEDS ARE MORE FULLY DEFINED. This mart creates a list of all declarations for a participant where one of the participant's declarations doesn't align with the participant's cohort.",
+    description: "This mart creates a list of all declarations for a participant where one of the participant's declarations doesn't align with the participant's cohort.",
     columns: {
         id: "ID of declaration"
     }
