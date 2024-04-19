@@ -189,6 +189,7 @@ END
   started_cpd_lead_provider_name
 END
   AS started_lead_provider_short_name,
-  CASE WHEN regexp_contains(schedule_identifier,'replacement') then True else False end as replacement_mentor_check
+  CASE WHEN regexp_contains(schedule_identifier,'replacement') then True else False end as replacement_mentor_check,
+  CASE WHEN lead_provider_name = started_cpd_lead_provider_name then True else False end as induction_start_dec_same_lp
 FROM
   lp_ecf_golden_thread
