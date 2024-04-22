@@ -83,4 +83,4 @@ LEFT JOIN
 ON
   npq.school_urn = gias.string_urn
 WHERE
-  school_urn <> ''
+  school_urn is not null

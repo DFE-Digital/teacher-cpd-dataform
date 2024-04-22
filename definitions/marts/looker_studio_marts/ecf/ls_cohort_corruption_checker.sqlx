@@ -17,7 +17,7 @@ WITH
   full_cohort_checker_output AS (
   WITH
     full_declaration_milestone_table AS (
-    /*This section creates a list of all s/e/p/p declarations for a participant, pulls in details from their current induction record, and then joins on the two static tables ecf_schedule_milestone_mapping and ecf_schedule_milestone_mapping_condensed to later make comparisons against the declaration_date of each participant*/
+    /*This section creates a list of all submitted/eligible/payable/paid declarations for a participant, pulls in details from their current induction record, and then joins on the two static tables ecf_schedule_milestone_mapping and ecf_schedule_milestone_mapping_condensed to later make comparisons against the declaration_date of each participant*/
     SELECT
       dec_cpd.id AS declaration_id,
       dec_cpd.user_id,
@@ -136,8 +136,42 @@ WITH
       fdmt.declaration_id=si.participant_declaration_id)
   SELECT
     *,
-    CASE
-      WHEN statement_cohort <> cohort AND (suggested_cohort_from_declaration <> cohort AND ( (schedule_identifier LIKE 'ecf-standard%' AND ((declaration_type = 'started' AND (dec_date_short NOT BETWEEN started_dec_start_date AND started_dec_milestone_date)) OR (declaration_type = 'retained-1' AND (dec_date_short NOT BETWEEN ret1_dec_start_date AND ret1_dec_milestone_date)) OR (declaration_type = 'retained-2' AND (dec_date_short NOT BETWEEN ret2_dec_start_date AND ret2_dec_milestone_date)) OR (declaration_type = 'retained-3' AND (dec_date_short NOT BETWEEN ret3_dec_start_date AND ret3_dec_milestone_date)) OR (declaration_type = 'retained-4' AND (dec_date_short NOT BETWEEN ret4_dec_start_date AND ret4_dec_milestone_date)) OR (declaration_type = 'completed' AND (dec_date_short NOT BETWEEN completed_dec_start_date AND completed_dec_milestone_date)))) OR (schedule_identifier LIKE ANY ('ecf-extended%', 'ecf-reduced%', 'ecf-replacement%') AND ((declaration_type = 'started' AND dec_date_short < started_dec_start_date) OR (declaration_type = 'retained-1' AND dec_date_short < ret1_dec_start_date) OR (declaration_type = 'retained-2' AND dec_date_short < ret2_dec_start_date) OR (declaration_type = 'retained-3' AND dec_date_short < ret3_dec_start_date) OR (declaration_type = 'retained-4' AND dec_date_short < ret4_dec_start_date) OR (declaration_type = 'completed' AND dec_date_short < completed_dec_start_date))))) THEN "in both checks"
+    CASE /*This CASE statement works out which (if any) of the checks a declaration belongs to, either the financial statement cohort check or comparing declaration date check. Declarations can belong to one or both of the checks, and we're also pulling together all of a participant's declarations, hence the need for the NULL ending.*/
+      WHEN statement_cohort <> cohort AND (suggested_cohort_from_declaration <> cohort 
+    AND ((schedule_identifier LIKE 'ecf-standard%'
+        AND ((declaration_type = 'started'
+            AND (dec_date_short NOT BETWEEN started_dec_start_date
+              AND started_dec_milestone_date))
+          OR (declaration_type = 'retained-1'
+            AND (dec_date_short NOT BETWEEN ret1_dec_start_date
+              AND ret1_dec_milestone_date))
+          OR (declaration_type = 'retained-2'
+            AND (dec_date_short NOT BETWEEN ret2_dec_start_date
+              AND ret2_dec_milestone_date))
+          OR (declaration_type = 'retained-3'
+            AND (dec_date_short NOT BETWEEN ret3_dec_start_date
+              AND ret3_dec_milestone_date))
+          OR (declaration_type = 'retained-4'
+            AND (dec_date_short NOT BETWEEN ret4_dec_start_date
+              AND ret4_dec_milestone_date))
+          OR (declaration_type = 'completed'
+            AND (dec_date_short NOT BETWEEN completed_dec_start_date
+              AND completed_dec_milestone_date))))
+      OR (schedule_identifier LIKE ANY ('ecf-extended%',
+          'ecf-reduced%',
+          'ecf-replacement%')
+        AND ((declaration_type = 'started'
+            AND dec_date_short < started_dec_start_date)
+          OR (declaration_type = 'retained-1'
+            AND dec_date_short < ret1_dec_start_date)
+          OR (declaration_type = 'retained-2'
+            AND dec_date_short < ret2_dec_start_date)
+          OR (declaration_type = 'retained-3'
+            AND dec_date_short < ret3_dec_start_date)
+          OR (declaration_type = 'retained-4'
+            AND dec_date_short < ret4_dec_start_date)
+          OR (declaration_type = 'completed'
+            AND dec_date_short < completed_dec_start_date))))) THEN "in both checks"
       WHEN suggested_cohort_from_declaration <> cohort
     AND ((schedule_identifier LIKE 'ecf-standard%'
         AND ((declaration_type = 'started'
