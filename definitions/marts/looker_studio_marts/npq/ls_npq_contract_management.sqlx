@@ -9,6 +9,16 @@ config {
     },
     description: "THIS IS CURRENTLY A PROOF OF CONCEPT. This mart is made to help out NPQ Contract Managers with Lead Provider conversations. It creates a table that outlines the number DfE-funded applications, acceptance rates, starts, and targets for each Lead Provider and their courses.",
     columns: {
+        provider_name: "Name of the provider.",
+        short_course_name: "Shortened name of the course.",
+        applications: "Number of DfE-funded applications for that provider-course combo.",
+        accepted_applications: "Number of accepted DfE-funded applications for that provider-course combo.",
+        pending_applications: "Number of pending DfE-funded applications for that provider-course combo.",
+        rejected_applications: "Number of rejected DfE-funded applications for that provider-course combo.",
+        starts: "Number of DfE-funded starts for that provider-course combo.",
+        target: "The provider's target for that course.",
+        applications_remainder: "The remaining spaces when subtracting the applications from the target.",
+        starts_remainder: "The remaining space when subtracting the starts from the target.",
         row_number_id: "ID of row number"
     }
 }

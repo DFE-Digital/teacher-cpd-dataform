@@ -9,7 +9,23 @@ config {
     },
     description: "THIS IS CURRENTLY A WORK IN PROGRESS. This mart is made to help out NPQ Funding Team with payments for the targeted support fund. It creates a table that outlines the number DfE-funded applications, acceptance rates, starts, and targets for each Lead Provider and their courses.",
     columns: {
-        application_ecf_id: "ID of each unique application. Declarations are joined to the application using this id and it is also the participant_profile_id in the declarations table"
+        ecf_user_id: "This comes from the teacher profile associated with the participant profile. User ID also exists independently in other tables.",
+        application_ecf_id: "ID of each unique application. Declarations are joined to the application using this id and it is also the participant_profile_id in the declarations table",
+        course_identifier: "Shorthand of NPQ course. This comes from the participant's latest declaration.",
+        cohort: "The cohort/academic year corresponding to when the participant started their course.",
+        school_urn: "The unique reference number of the participant's school.",
+        school_name: "Name of participant's school.",
+        LA: "Name of local authority.",
+        primary_establishment: "Records whether the user's establishment at time of registration was a primary establishment or not. Based on GIAS data.",
+        establishment_type: "Establishment type as stored in GIAS.",
+        PhaseOfEducation__name_: "Establishment's phase of education as stored in GIAS.",
+        number_of_pupils: "Number of pupils at the establishment as recorded on GIAS at time of registration.",
+        GIAS_NumberOfPupils: "Number of pupils at the establishment as recorded on GIAS at time of registration.",
+        tsf_primary_eligibility: "TRUE/FALSE for whether a school is eligible for TSF (£200) owing to it being a primary establishment.",
+        tsf_primary_count: "1 if tsf_primary_eligibility is TRUE, 0 otherwise.",
+        tsf_primary_plus_eligibility: "TRUE/ FALSE for whether a school is eligible for the base £200 as well as the additional £600 based on whether they are a primary school and have fewer than 150 pupils. Pupil count based on GIAS data at time of registration.",
+        tsf_primary_plus_count: "1 if tsf_primary_plus_eligibility is TRUE, 0 otherwise.",
+        sch_open: "1 if the establishment is open, 0 otherwise."
     }
 }
 
@@ -53,7 +69,7 @@ WITH
     *,
     CAST(URN AS STRING) AS string_urn
   FROM
-    `static_tables.all_gias_01_02_2024_` )
+    `static_tables.all_gias_04_04_2024_` )
 SELECT
   npq.ecf_user_id,
   npq.application_ecf_id,
@@ -83,4 +99,4 @@ LEFT JOIN
 ON
   npq.school_urn = gias.string_urn
 WHERE
-  school_urn is not null
+  school_urn IS NOT NULL
