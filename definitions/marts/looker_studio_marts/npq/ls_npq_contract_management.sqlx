@@ -9,6 +9,16 @@ config {
     },
     description: "THIS IS CURRENTLY A PROOF OF CONCEPT. This mart is made to help out NPQ Contract Managers with Lead Provider conversations. It creates a table that outlines the number DfE-funded applications, acceptance rates, starts, and targets for each Lead Provider and their courses.",
     columns: {
+        provider_name: "Name of the provider.",
+        short_course_name: "Shortened name of the course.",
+        applications: "Number of DfE-funded applications for that provider-course combo.",
+        accepted_applications: "Number of accepted DfE-funded applications for that provider-course combo.",
+        pending_applications: "Number of pending DfE-funded applications for that provider-course combo.",
+        rejected_applications: "Number of rejected DfE-funded applications for that provider-course combo.",
+        starts: "Number of DfE-funded starts for that provider-course combo.",
+        target: "The provider's target for that course.",
+        applications_remainder: "The remaining spaces when subtracting the applications from the target.",
+        starts_remainder: "The remaining space when subtracting the starts from the target.",
         row_number_id: "ID of row number"
     }
 }
@@ -30,39 +40,40 @@ WITH
   SELECT
     provider_name,
     short_course_name,
+    COUNT(DISTINCT application_ecf_id) AS applications,
     COUNT(DISTINCT
       CASE
-        WHEN funding_choice IS NULL THEN application_ecf_id
-      ELSE
-      NULL
-    END
-      ) AS applications,
-    COUNT(DISTINCT
-      CASE
-        WHEN funding_choice IS NULL AND application_status = 'accepted' THEN application_ecf_id
+        WHEN application_status = 'accepted' THEN application_ecf_id
       ELSE
       NULL
     END
       ) AS accepted_applications,
     COUNT(DISTINCT
       CASE
-        WHEN funding_choice IS NULL AND application_status = 'pending' THEN application_ecf_id
+        WHEN application_status = 'pending' THEN application_ecf_id
       ELSE
       NULL
     END
       ) AS pending_applications,
     COUNT(DISTINCT
       CASE
-        WHEN funding_choice IS NULL AND application_status = 'rejected' THEN application_ecf_id
+        WHEN application_status = 'rejected' THEN application_ecf_id
       ELSE
       NULL
     END
       ) AS rejected_applications,
-    COUNT(funded_start_declaration) AS starts
+    COUNT(DISTINCT
+      CASE
+        WHEN funded_start_declaration IS TRUE THEN application_ecf_id
+      ELSE
+      NULL
+    END
+      ) AS starts
   FROM
     ${ref("npq_enrolments")}
   WHERE
     cohort = 2023
+    AND funding_choice IS NULL
   GROUP BY
     provider_name,
     short_course_name

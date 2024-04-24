@@ -1,0 +1,107 @@
+config {
+    type: "table",
+    assertions: {
+        uniqueKey: ["application_ecf_id"]
+    },
+    bigquery: {
+        partitionBy: "",
+        clusterBy: ["school_urn", "establishment_type", "tsf_primary_eligibility", "tsf_primary_plus_eligibility"]
+    },
+    description: "This mart is made to help out NPQ Funding Team with payments for the targeted support fund. It pulls together all NPQ applications with a started declaration after October 1st 2023 who are eligible for targeted delivery funding and provides details of their school.",
+    columns: {
+        ecf_user_id: "This comes from the teacher profile associated with the participant profile. User ID also exists independently in other tables.",
+        application_ecf_id: "ID of each unique application. Declarations are joined to the application using this id and it is also the participant_profile_id in the declarations table",
+        course_identifier: "Shorthand of NPQ course. This comes from the participant's latest declaration.",
+        cohort: "The cohort/academic year corresponding to when the participant started their course.",
+        school_urn: "The unique reference number of the participant's school.",
+        school_name: "Name of participant's school.",
+        LA: "Name of local authority.",
+        primary_establishment: "Records whether the user's establishment at time of registration was a primary establishment or not. Based on GIAS data.",
+        establishment_type: "Establishment type as stored in GIAS.",
+        PhaseOfEducation__name_: "Establishment's phase of education as stored in GIAS.",
+        number_of_pupils: "Number of pupils at the establishment as recorded on GIAS at time of registration.",
+        GIAS_NumberOfPupils: "Number of pupils at the establishment as recorded on GIAS at time of registration.",
+        tsf_primary_eligibility: "TRUE/FALSE for whether a school is eligible for TSF (£200) owing to it being a primary establishment.",
+        tsf_primary_count: "1 if tsf_primary_eligibility is TRUE, 0 otherwise.",
+        tsf_primary_plus_eligibility: "TRUE/ FALSE for whether a school is eligible for the base £200 as well as the additional £600 based on whether they are a primary school and have fewer than 150 pupils. Pupil count based on GIAS data at time of registration.",
+        tsf_primary_plus_count: "1 if tsf_primary_plus_eligibility is TRUE, 0 otherwise.",
+        sch_open: "1 if the establishment is open, 0 otherwise."
+    }
+}
+/* 
+TSF Policy rules:
+  state-funded secondary schools and state-funded 16 to 19 educational settings with 1 to 600 pupils will receive a grant payment of £200
+  state-funded primary schools with more than 150 pupils will receive a grant payment of £200
+  state-funded primary schools with 1 to 150 pupils will receive a grant payment of £800
+*/
+WITH
+  valid_start_npq_apps AS (
+  SELECT
+    ecf_user_id,
+    cohort,
+    application_ecf_id,
+    course_identifier,
+    school_urn,
+    school_name,
+    number_of_pupils,
+    primary_establishment,
+    targeted_delivery_funding_eligibility,
+    tsf_primary_eligibility,
+    CASE
+      WHEN tsf_primary_eligibility IS TRUE THEN 1
+    ELSE
+    0
+  END
+    AS tsf_primary_count,
+    tsf_primary_plus_eligibility,
+    CASE
+      WHEN tsf_primary_plus_eligibility IS TRUE THEN 1
+    ELSE
+    0
+  END
+    AS tsf_primary_plus_count
+  FROM
+    ${ref("npq_enrolments")}
+  WHERE
+    targeted_delivery_funding_eligibility IS TRUE
+    AND started_declaration_state IN ('submitted',
+      'eligible',
+      'payable',
+      'paid')
+    AND started_declaration_date >= '2023-10-01'),
+  gias_information AS (
+  SELECT
+    *,
+    CAST(URN AS STRING) AS string_urn
+  FROM
+    `static_tables.all_gias_04_04_2024_` )
+SELECT
+  npq.ecf_user_id,
+  npq.application_ecf_id,
+  npq.course_identifier,
+  npq.cohort,
+  npq.school_urn,
+  npq.school_name,
+  gias.LA__name_ AS LA,
+  npq.primary_establishment,
+  gias.TypeOfEstablishment__name_ AS establishment_type,
+  gias.PhaseOfEducation__name_,
+  npq.number_of_pupils,
+  gias.NumberOfPupils AS GIAS_NumberOfPupils,
+  npq.tsf_primary_eligibility,
+  npq.tsf_primary_count,
+  npq.tsf_primary_plus_eligibility,
+  npq.tsf_primary_plus_count,
+  CASE
+    WHEN gias.CloseDate IS NULL THEN 1
+    WHEN gias.CloseDate IS NOT NULL THEN 0
+END
+  AS sch_open
+FROM
+  valid_start_npq_apps npq
+LEFT JOIN
+  gias_information gias
+ON
+  npq.school_urn = gias.string_urn
+WHERE
+  school_urn IS NOT NULL

@@ -358,6 +358,10 @@ dfeAnalyticsDataform({
                 dataType: "string",
                 description: ""
             }, {
+                keyName: "funded_place",
+                dataType: "string",
+                description: ""
+            }, {
                 keyName: "funding_choice",
                 dataType: "string",
                 description: ""
