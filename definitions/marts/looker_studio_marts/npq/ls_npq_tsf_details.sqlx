@@ -7,7 +7,7 @@ config {
         partitionBy: "",
         clusterBy: ["school_urn", "establishment_type", "tsf_primary_eligibility", "tsf_primary_plus_eligibility"]
     },
-    description: "THIS IS CURRENTLY A WORK IN PROGRESS. This mart is made to help out NPQ Funding Team with payments for the targeted support fund. It creates a table that outlines the number DfE-funded applications, acceptance rates, starts, and targets for each Lead Provider and their courses.",
+    description: "This mart is made to help out NPQ Funding Team with payments for the targeted support fund. It pulls together all NPQ applications with a started declaration after October 1st 2023 who are eligible for targeted delivery funding and provides details of their school.",
     columns: {
         ecf_user_id: "This comes from the teacher profile associated with the participant profile. User ID also exists independently in other tables.",
         application_ecf_id: "ID of each unique application. Declarations are joined to the application using this id and it is also the participant_profile_id in the declarations table",
@@ -28,7 +28,12 @@ config {
         sch_open: "1 if the establishment is open, 0 otherwise."
     }
 }
-
+/* 
+TSF Policy rules:
+  state-funded secondary schools and state-funded 16 to 19 educational settings with 1 to 600 pupils will receive a grant payment of £200
+  state-funded primary schools with more than 150 pupils will receive a grant payment of £200
+  state-funded primary schools with 1 to 150 pupils will receive a grant payment of £800
+*/
 WITH
   valid_start_npq_apps AS (
   SELECT
