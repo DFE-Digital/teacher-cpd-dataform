@@ -9,7 +9,33 @@ config {
     },
     description: "This mart creates a list of all declarations for a participant where one of the participant's declarations doesn't align with the participant's cohort.",
     columns: {
-        id: "ID of declaration"
+        id: "ID of declaration",
+        created_at: "Timestamp when the declaration was created.",
+        updated_at: "Timestamp of when any updates occured to the declaration.",
+        course_identifier: "Identifier for ECF or NPQ course declaration is associated with.",
+        cpd_lead_provider_id: "ID of Lead Provider that has made the declaration.",
+        declaration_date: "Date evidence was received.",
+        declaration_type: "The name of the stage the declaration has been made against.",
+        delivery_partner_id: "ID of the ECF Delivery Partner associated with the Lead Provider-participant combo.",
+        evidence_held: "Details any evidence provided with the declaration.",
+        mentor_user_id: "User ID of the mentor associated with the declared-against ECT",
+        participant_profile_id: "ID of the participant's profile.",
+        pupil_premium: "Boolean for pupil premium eligibility.",
+        sparsity_uplift: "Boolean for sparsity uplift eligibility.",
+        state: "State of the declaration. Can be submitted, eligible, payable, paid, ineligible, voided, awaiting_clawback, and clawed_back.",
+        superseded_by_id: "NEED PROPER DEFINITION",
+        type: "Says if it belongs to either the ECF or NPQ programme.",
+        user_id: "Used ID of the participant being declared against.",
+        last_streamed_event_occurred_at: "Timestamp of when this record was most recently imported or updated.",
+        last_streamed_event_type: "Whether the most recent event was this entity being imported or updated.",
+        cohort: "Participant's cohort from either npq_enrolments or ecf_indcutions_dedupe.",
+        schedule_identifier: "Participant's schedule from either npq_enrolments or ecf_indcutions_dedupe.",
+        statement_cohort: "Cohort from the financial statement a declaration is stored against.",
+        cpd_lp_name: "Name of Lead Provider for NPQ or ECF course",
+        cpd_dp_name: "Name of Delivery Partner for ECF course",
+        programme: "Shortening of 'type'. Says if it belongs to either the ECF or NPQ programme.",
+        suggested_cohort_from_declaration: "Calculates where a declaration date falls in the declaration milestone window across an entire cohor and therefore the suggested cohort.",
+        check_source: "Details which (if any) of the checks a declaration belongs to."
     }
 }
 
@@ -58,9 +84,9 @@ WITH
       sched_mile_cond.start_date_2023,
       sched_mile_cond.milestone_date_2023,
     FROM
-      `dataform.ls_declarations_provider_names` AS dec_cpd
+      ${ref(`ls_declarations_provider_names`)} AS dec_cpd
     LEFT JOIN
-      `dataform.ecf_inductions_dedupe` AS ecf_id
+      ${ref(`ecf_inductions_dedupe`)} AS ecf_id
     ON
       dec_cpd.participant_profile_id=ecf_id.participant_profile_id
     LEFT JOIN
@@ -88,17 +114,17 @@ WITH
       cpd_lp.name AS statement_cpd_lp_name,
       cohort.start_year AS statement_cohort
     FROM
-      `dataform.statement_line_items_latest_cpd` stat_li
+      ${ref(`statement_line_items_latest_cpd`)} stat_li
     LEFT JOIN
-      `dataform.statements_latest_cpd` stat
+      ${ref(`statements_latest_cpd`)} stat
     ON
       stat_li.statement_id=stat.id
     LEFT JOIN
-      `dataform.cpd_lead_providers_latest_cpd` cpd_lp
+      ${ref(`cpd_lead_providers_latest_cpd`)} cpd_lp
     ON
       stat.cpd_lead_provider_id=cpd_lp.id
     LEFT JOIN
-      `dataform.cohorts_latest_cpd` cohort
+      ${ref(`cohorts_latest_cpd`)} cohort
     ON
       stat.cohort_id=cohort.id
     WHERE
