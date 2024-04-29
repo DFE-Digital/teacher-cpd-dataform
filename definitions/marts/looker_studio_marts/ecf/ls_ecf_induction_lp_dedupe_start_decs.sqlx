@@ -152,7 +152,8 @@ WITH
   SELECT
     lp_inductions_dedupe.*,
     ecf_dec_start.* EXCEPT(started_declaration_user_id,
-      started_course_identifier)
+      started_course_identifier,
+      participant_course)
   FROM
     lp_inductions_dedupe
   LEFT JOIN
