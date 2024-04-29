@@ -142,6 +142,7 @@ WITH
     declaration_date AS started_declaration_date,
     cpd_lead_provider_name AS started_cpd_lead_provider_name,
     delivery_partner_name AS started_delivery_partner_name,
+    participant_course,
     (ROW_NUMBER() OVER (PARTITION BY participant_profile_id, course_identifier, declaration_type ORDER BY state_heirarchy DESC)) AS rn5
   FROM
     ecf_declarations_expanded ecf_dec_0
@@ -151,14 +152,15 @@ WITH
   SELECT
     lp_inductions_dedupe.*,
     ecf_dec_start.* EXCEPT(started_declaration_user_id,
-      started_course_identifier)
+      started_course_identifier,
+      participant_course)
   FROM
     lp_inductions_dedupe
   LEFT JOIN
     ecf_dec_start
   ON
     lp_inductions_dedupe.participant_profile_id=ecf_dec_start.started_participant_profile_id
-    AND lp_inductions_dedupe.participant_course=ecf_dec_start.started_course_identifier)
+    AND lp_inductions_dedupe.participant_course=ecf_dec_start.participant_course)
 SELECT
   *,
   CASE
