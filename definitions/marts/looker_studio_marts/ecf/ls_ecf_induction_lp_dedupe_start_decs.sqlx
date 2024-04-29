@@ -1,0 +1,211 @@
+config {
+    type: "table",
+    assertions: {
+        uniqueKey: ["induction_record_id"]
+    },
+    bigquery: {
+        partitionBy: "DATE(induction_record_created_at)",
+        clusterBy: ["cohort", "participant_type", "induction_status", "training_status"]
+    },
+    description: "This mart is used for the ECF Contract Managers dashboard. This dedupes ECF Inductions at the lead provider level (as well as user_id and participant_type) and joins in start declaration info for those records.In order to determine the preferred declaration for each declaration type we've determined a preferred state_heirarchy:paid>payable>eligible>submitted>clawed_back>awaiting_clawback>voided.",
+    columns: {
+        induction_record_id: "ID of individual induction record",
+        external_id: "",
+        participant_profile_id: "The table participant_declarations_latest needs to be joined to ecf_inductions using participant_profile_id. Deduplication of user_ids has turned some of them into “ghost” IDs but the participant_profile_id still links correctly. Participant profiles are automatically generated for ECTs/Mentors when induction tutors register the ECT/Mentor details. Meaning a participant_profile_id (and full participant_profile) should be available for each ECF participant with an induction record. ECF participants have one participant_profile for each type of participation (ECT or Mentor).",
+        induction_programme_id: "ID of the induction programme specific to the school offering it.",
+        induction_programme_type: "The induction programme the school offers (FIP / CIP / DIY) : potential values: full_induction_programme core_induction_programme, design_our_own, school_funded_fip.",
+        school_name: "Name of the participant's school.",
+        school_urn: "URN of the participant's school.",
+        schedule_identifier: "This indicates which sub-cohort or tranche the participant commenced training within an annual cohort. For ECF, the schedule identifier also indicates if a participant is following a non-standard training route at any point (e.g. extended or reduced).",
+        mentor_id: "The participant_profile_id of an ECT's mentor. This field is always NULL for mentors.",
+        appropriate_body_id: "The ID of the appropriate body associated with the school.",
+        appropriate_body_name: "The name of the appropriate body associated with the school.",
+        start_date: "Start date for this induction record",
+        end_date: "End date for this induction record. This is not the completion date for a participant's full induction.",
+        induction_status: "A status value used to manage the state of an induction record. It can indicate that a record is the active record or that something has changed and the record is not the active record (or will not be in the future). Potential values: active, changed, leaving, withdrawn ",
+        training_status: "This is managed on the lead provider side and indicates whether the participant is being trained by a provider or not. Potential Values: active, deferred, withdrawn",
+        school_transfer: "TRUE if a participant has transferred out of/in to the school in that induction record.",
+        created_at: "When this induction record was generated.",
+        updated_at: "When this induction record was updated.",
+        completion_date: "The date an ECT completed their induction. This field is always NULL for mentors",
+        cohort_id: "The ID of the participant's cohort.",
+        user_id: "This comes from the teacher profile associated with the participant profile.",
+        participant_type: "Longform version of either ECT or Mentor",
+        induction_record_created_at: "When this induction record was generated.",
+        partnership_id: "ID for the Lead Provider-School partnership for a given cohort.",
+        TRN: "This comes from a participant's teacher profile.",
+        cohort: "The cohort/academic year corresponding to when the participant started their course. Possible fields: 2021 onwards.",
+        school_id: "ID of the participant's school.",
+        high_pupil_premium: "This indicates whether the uplift payment for X is applicable to this participant's started declaration",
+        sparsity_incentive: "This indicates whether the uplift payment for X is applicable to this participant's started declaration",
+        core_induction_programme_id: "If a school offers CIP, this will be filled with the ID of their CIP programme.",
+        core_induction_materials_provider: "If a school offers CIP, this shows which Lead Provider they are getting their CIP materials from.",
+        mentor_completion_date: "The date a mentor completed training.",
+        mentor_completion_reason: "The reason the mentor_completion_date field is filled.Possible values: completed_during_early_roll_out, completed_declaration_received.",
+        participant_course: "This is the shortened version of participant_type to show whether the participant is an ECT or Mentor ",
+        start_declaration_state: "state of start declaration",
+        started_cpd_lead_provider_id: "ID of start declaration's lead provider",
+        started_cpd_lead_provider_name: "Name of start declaration's lead provider",
+        started_cpd_delivery_partner_id: "ID of start declaration's delivery partner",
+        started_delivery_partner_name: "Name of start declaration's delivery partner",
+        started_declaration_date: "Date evidence received for latest declaration",
+        funded_start_declaration: "Declaration state is in eligible, payable, paid",
+        lead_provider_short_name: "Abbreviated version of the lead provider name on the induction record",
+        academic_year: "Calculated field that transforms cohort into an academic year form in order to join on targets table",
+        paid_start_declaration: "Declaration state is in payable or paid (note, not eligible, to meet SRM requirements)",
+        schedule_intake_month: "Extracts the month contained in the schedule identifier",
+        started_lead_provider_short_name: "Abbreviated version of the lead provider name on the start declaration",
+        replacement_mentor_check: "Checks if the schedule identifier is for a replacement mentor",
+        induction_start_dec_same_lp: "This checks that the lead provider on the induction record matches the start declaration lead provider"
+
+    }
+}
+
+WITH
+  lp_inductions_dedupe AS (
+  SELECT
+    *,
+    CASE
+      WHEN participant_type LIKE 'ParticipantProfile::ECT' THEN 'ECT'
+      WHEN participant_type LIKE 'ParticipantProfile::Mentor' THEN 'Mentor'
+    ELSE
+    NULL
+  END
+    AS participant_course,
+    (ROW_NUMBER() OVER (PARTITION BY lead_provider_name, participant_type, user_id ORDER BY active DESC, start_date DESC, created_at DESC)) AS rn0
+  FROM (
+    SELECT
+      *,
+      CASE
+        WHEN induction_status = 'completed' THEN 2
+        WHEN induction_status = 'active' THEN 1
+      ELSE
+      0
+    END
+      AS active
+    FROM
+      ${ref("ecf_inductions")} ) T1 QUALIFY rn0=1),
+  ecf_declarations_expanded AS (
+  SELECT
+    dec_cpd.*,
+    cpd_lead_providers.name AS cpd_lead_provider_name,
+    delivery_partners.name AS delivery_partner_name,
+    CASE
+      WHEN state LIKE 'paid' THEN 7
+      WHEN state LIKE 'payable' THEN 6
+      WHEN state LIKE 'eligible' THEN 5
+      WHEN state LIKE 'submitted' THEN 4
+      WHEN state LIKE 'clawed_back' THEN 3
+      WHEN state LIKE 'awaiting_clawback' THEN 2
+      WHEN state LIKE 'voided' THEN 1
+    ELSE
+    0
+  END
+    AS state_heirarchy,
+    CASE
+      WHEN state = 'paid' THEN TRUE
+      WHEN state = 'eligible' THEN TRUE
+      WHEN state = 'payable' THEN TRUE
+    ELSE
+    FALSE
+  END
+    AS funded_declaration,
+    CASE
+      WHEN course_identifier LIKE 'ecf-induction' THEN 'ECT'
+      WHEN course_identifier LIKE 'ecf-mentor' THEN 'Mentor'
+    ELSE
+    NULL
+  END
+    AS participant_course
+  FROM
+    ${ref(`participant_declarations_latest_cpd`)} AS dec_cpd
+  LEFT JOIN
+    ${ref(`cpd_lead_providers_latest_cpd`)} AS cpd_lead_providers
+  ON
+    dec_cpd.cpd_lead_provider_id=cpd_lead_providers.id
+  LEFT JOIN
+    ${ref(`delivery_partners_latest_cpd`)} AS delivery_partners
+  ON
+    dec_cpd.delivery_partner_id=delivery_partners.id
+  WHERE
+    course_identifier LIKE 'ecf%'),
+  ecf_dec_start AS(
+  SELECT
+    id AS started_declaration_id,
+    user_id AS started_declaration_user_id,
+    participant_profile_id AS started_participant_profile_id,
+    course_identifier AS started_course_identifier,
+    declaration_type AS started_declaration_type,
+    created_at AS started_declaration_created_at,
+    state AS start_declaration_state,
+    funded_declaration AS funded_start_declaration,
+    declaration_date AS started_declaration_date,
+    cpd_lead_provider_name AS started_cpd_lead_provider_name,
+    delivery_partner_name AS started_delivery_partner_name,
+    (ROW_NUMBER() OVER (PARTITION BY participant_profile_id, course_identifier, declaration_type ORDER BY state_heirarchy DESC)) AS rn5
+  FROM
+    ecf_declarations_expanded ecf_dec_0
+  WHERE
+    declaration_type = 'started' QUALIFY rn5=1),
+  lp_ecf_golden_thread AS (
+  SELECT
+    lp_inductions_dedupe.*,
+    ecf_dec_start.* EXCEPT(started_declaration_user_id,
+      started_course_identifier)
+  FROM
+    lp_inductions_dedupe
+  LEFT JOIN
+    ecf_dec_start
+  ON
+    lp_inductions_dedupe.participant_profile_id=ecf_dec_start.started_participant_profile_id
+    AND lp_inductions_dedupe.participant_course=ecf_dec_start.started_course_identifier)
+SELECT
+  *,
+  CASE
+    WHEN lead_provider_name = 'Ambition Institute' THEN 'Ambition'
+    WHEN lead_provider_name = 'Best Practice Network' THEN 'BPN'
+    WHEN lead_provider_name = 'Church of England' THEN 'CofE'
+    WHEN lead_provider_name = 'Education Development Trust' THEN 'EDT'
+    WHEN lead_provider_name = 'LLSE' THEN 'LLSE'
+    WHEN lead_provider_name = 'National Institute of Teaching' THEN 'NIoT'
+    WHEN lead_provider_name = 'School-Led Network' THEN 'School-Led'
+    WHEN lead_provider_name = 'Teach First' THEN 'TF'
+    WHEN lead_provider_name = 'Teacher Development Trust' THEN 'TDT'
+    WHEN lead_provider_name = 'UCL Institute of Education' THEN 'UCL'
+  ELSE
+  lead_provider_name
+END
+  AS lead_provider_short_name,
+  CONCAT("AY",(cohort-2000),"-",(cohort-2000+1)) AS academic_year,
+  start_declaration_state IN ('payable',
+    'paid') AS paid_start_declaration,
+  UPPER(SUBSTR(REGEXP_EXTRACT(schedule_identifier, r'[^-]+-[^-]+-(.*)'), 1, 1)) || LOWER(SUBSTR(REGEXP_EXTRACT(schedule_identifier, r'[^-]+-[^-]+-(.*)'), 2)) AS schedule_intake_month,
+  CASE
+    WHEN started_cpd_lead_provider_name = 'Ambition Institute' THEN 'Ambition'
+    WHEN started_cpd_lead_provider_name = 'Best Practice Network' THEN 'BPN'
+    WHEN started_cpd_lead_provider_name = 'Church of England' THEN 'CofE'
+    WHEN started_cpd_lead_provider_name = 'Education Development Trust' THEN 'EDT'
+    WHEN started_cpd_lead_provider_name = 'LLSE' THEN 'LLSE'
+    WHEN started_cpd_lead_provider_name = 'National Institute of Teaching' THEN 'NIoT'
+    WHEN started_cpd_lead_provider_name = 'School-Led Network' THEN 'School-Led'
+    WHEN started_cpd_lead_provider_name = 'Teach First' THEN 'TF'
+    WHEN started_cpd_lead_provider_name = 'Teacher Development Trust' THEN 'TDT'
+    WHEN started_cpd_lead_provider_name = 'UCL Institute of Education' THEN 'UCL'
+  ELSE
+  started_cpd_lead_provider_name
+END
+  AS started_lead_provider_short_name,
+  CASE
+    WHEN REGEXP_CONTAINS(schedule_identifier,'replacement') THEN TRUE
+  ELSE
+  FALSE
+END
+  AS replacement_mentor_check,
+  CASE
+    WHEN lead_provider_name = started_cpd_lead_provider_name THEN TRUE
+  ELSE
+  FALSE
+END
+  AS induction_start_dec_same_lp
+FROM
+  lp_ecf_golden_thread
