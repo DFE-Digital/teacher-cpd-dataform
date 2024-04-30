@@ -40,4 +40,4 @@ LEFT JOIN
 USING
   (participant_profile_id)
 WHERE
-  latest_eligibility.participant_profile_id IS null
+  latest_eligibility.participant_profile_id IS NULL
