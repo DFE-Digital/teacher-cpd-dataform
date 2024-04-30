@@ -1,0 +1,43 @@
+config {
+    type: "table",
+    assertions: {
+        uniqueKey: ["participant_profile_id"]
+    },
+    bigquery: {
+        partitionBy: "eligible_for_funding"
+    },
+    description: "This mart is a union of the participant eligibility information streamed through nightly into the analytics_participants table (which provide all new eligibility data as of the beginning of 2024) with a static table containing eligibility information for those participants whose eligibility pre-dates the analytics participants table. The query below first checks if we have an eligibility status streaming through in the analytics participants table and then is joined with a UNION to the static file which is filtered only to participants not already in the analytics participants table. This gives a comprehensive picture of all participants",
+    columns: {
+        participant_profile_id: "Participant's ID coming from their central profile",
+        eligible_for_funding: "Boolean output of checks to determine this given participant's funding eligibility. If true, this boolean confirms the participant's eligibility at the time the checks were run",
+        trn_validated: "TRN provided has been automatically verified participant as being eligible for funding",
+        manual_validation_required: "Manual validation was required to confirm funding eligibility"
+    }
+}
+
+WITH
+  latest_eligibility AS (
+  SELECT
+    participant_profile_id,
+    eligible_for_funding,
+    trn_verified AS trn_validated,
+    manually_validated AS manual_validation_required,
+    (ROW_NUMBER() OVER (PARTITION BY participant_profile_id ORDER BY updated_at DESC)) AS rn0
+  FROM
+    ${ref("analytics_participants_latest_cpd")} QUALIFY rn0=1)
+SELECT
+  * EXCEPT(rn0)
+FROM
+  latest_eligibility
+UNION ALL
+SELECT
+  static_eligibility.* EXCEPT(user_id,
+    trn_validated_reason)
+FROM
+  `ecf-bq.static_tables.ecf_eligibility_statuses_20_02_24` static_eligibility
+LEFT JOIN
+  latest_eligibility
+USING
+  (participant_profile_id)
+WHERE
+  latest_eligibility.participant_profile_id IS null
