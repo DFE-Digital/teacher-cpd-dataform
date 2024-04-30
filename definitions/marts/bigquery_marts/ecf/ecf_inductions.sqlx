@@ -227,7 +227,7 @@ FROM
   ON
     induction_programme_details.partnership_id = ecf_partners.partnership_id
   LEFT JOIN
-    `ecf-bq.static_tables.ecf_eligibility_statuses_20_02_24` ecf_eligibility
+    ${ref("ecf_eligibility")} ecf_eligibility
   ON
     ecf_induction_records.participant_profile_id = ecf_eligibility.participant_profile_id)
 SELECT
