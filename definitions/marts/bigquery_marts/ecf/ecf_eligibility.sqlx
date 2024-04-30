@@ -4,7 +4,7 @@ config {
         uniqueKey: ["participant_profile_id"]
     },
     bigquery: {
-        partitionBy: "eligible_for_funding"
+        partitionBy: ""
     },
     description: "This mart is a union of the participant eligibility information streamed through nightly into the analytics_participants table (which provide all new eligibility data as of the beginning of 2024) with a static table containing eligibility information for those participants whose eligibility pre-dates the analytics participants table. The query below first checks if we have an eligibility status streaming through in the analytics participants table and then is joined with a UNION to the static file which is filtered only to participants not already in the analytics participants table. This gives a comprehensive picture of all participants",
     columns: {
