@@ -132,12 +132,12 @@ WITH
       fdmt.*,
       /*This CASE statement finds how far away a declaration is from its relevant declaration milestone window, as defined in the table ecf_schedule_milestone_mapping. Since a declaration can be on either side of the declaration window, the CASE statement calculates the greatest difference.*/
       CASE
-        WHEN declaration_type = 'started' THEN GREATEST(ABS(DATE_DIFF(started_dec_start_date,dec_date_short,DAY)),ABS(DATE_DIFF(started_dec_milestone_date,dec_date_short,DAY)))
-        WHEN declaration_type = 'retained-1' THEN GREATEST(ABS(DATE_DIFF(ret1_dec_start_date,dec_date_short,DAY)),ABS(DATE_DIFF(ret1_dec_milestone_date,dec_date_short,DAY)))
-        WHEN declaration_type = 'retained-2' THEN GREATEST(ABS(DATE_DIFF(ret2_dec_start_date,dec_date_short,DAY)),ABS(DATE_DIFF(ret2_dec_milestone_date,dec_date_short,DAY)))
-        WHEN declaration_type = 'retained-3' THEN GREATEST(ABS(DATE_DIFF(ret3_dec_start_date,dec_date_short,DAY)),ABS(DATE_DIFF(ret3_dec_milestone_date,dec_date_short,DAY)))
-        WHEN declaration_type = 'retained-4' THEN GREATEST(ABS(DATE_DIFF(ret4_dec_start_date,dec_date_short,DAY)),ABS(DATE_DIFF(ret4_dec_milestone_date,dec_date_short,DAY)))
-        WHEN declaration_type = 'completed' THEN GREATEST(ABS(DATE_DIFF(completed_dec_start_date,dec_date_short,DAY)),ABS(DATE_DIFF(completed_dec_milestone_date,dec_date_short,DAY)))
+        WHEN fdmt.declaration_type = 'started' THEN GREATEST(ABS(DATE_DIFF(started_dec_start_date,dec_date_short,DAY)),ABS(DATE_DIFF(started_dec_milestone_date,dec_date_short,DAY)))
+        WHEN fdmt.declaration_type = 'retained-1' THEN GREATEST(ABS(DATE_DIFF(ret1_dec_start_date,dec_date_short,DAY)),ABS(DATE_DIFF(ret1_dec_milestone_date,dec_date_short,DAY)))
+        WHEN fdmt.declaration_type = 'retained-2' THEN GREATEST(ABS(DATE_DIFF(ret2_dec_start_date,dec_date_short,DAY)),ABS(DATE_DIFF(ret2_dec_milestone_date,dec_date_short,DAY)))
+        WHEN fdmt.declaration_type = 'retained-3' THEN GREATEST(ABS(DATE_DIFF(ret3_dec_start_date,dec_date_short,DAY)),ABS(DATE_DIFF(ret3_dec_milestone_date,dec_date_short,DAY)))
+        WHEN fdmt.declaration_type = 'retained-4' THEN GREATEST(ABS(DATE_DIFF(ret4_dec_start_date,dec_date_short,DAY)),ABS(DATE_DIFF(ret4_dec_milestone_date,dec_date_short,DAY)))
+        WHEN fdmt.declaration_type = 'completed' THEN GREATEST(ABS(DATE_DIFF(completed_dec_start_date,dec_date_short,DAY)),ABS(DATE_DIFF(completed_dec_milestone_date,dec_date_short,DAY)))
     END
       AS declaration_out_by_x_days,
       si.statement_cpd_lp_name,
@@ -158,54 +158,12 @@ WITH
       statement_information si
     ON
       fdmt.declaration_id=si.participant_declaration_id
+    LEFT JOIN
+      `ecf-bq.static_tables.statement_cohort_known_mismatches` sckm
+    ON
+      fdmt.declaration_id=sckm.id
     WHERE /*This excludes declarations we already know do not align with the statement cohort but the financial statements have been closed so there is no action to be taken.*/
-      declaration_id NOT IN ('59e5d04c-0741-4e1d-b1c3-8467cafc3ead',
-      'bcf10833-cbce-470b-8afb-6fdea087347b',
-      '0c643297-378e-4fc7-9a82-4bf882369bab',
-      '45d8c5c4-d76e-494a-9570-3c1fa2e26b08',
-      '069fe4b1-3e3f-4b73-a095-20454717f3e1',
-      '3115cd3a-08b1-4afd-a50b-9b595efef6e8',
-      '58f73d2a-c5eb-4034-b131-5e9394705bbe',
-      'dde9d124-cb67-4037-a84a-ef8bc2d4e5a9',
-      '3d74e41b-4647-4f93-b4a1-cbdae4ea03ca',
-      '98f30bf7-c3e6-4794-b3f3-1469e441b6a2',
-      'dff40840-0c86-48d4-bbb2-75cf9c1393dd',
-      '5e9497a8-fbcd-41c9-9c91-902d6f8d1a13',
-      '21e63f72-93ab-449e-ae16-2645150a0c55',
-      '3136548a-cd8b-4240-8577-71ca130897a7',
-      '6b5e82a7-58a5-4904-9375-26eec27ad16f',
-      '8d27404d-e82b-45cc-97e5-77bb83b4be8f',
-      '68c45337-61f1-4f77-aad5-dd8baca851f6',
-      '76ba686a-64b6-45f1-aacc-8f247897b4b7',
-      '041c32ae-04ec-4bac-aad2-5baf204c9703',
-      'b9a9b61f-c9da-407e-a8e1-a190471f7928',
-      '0fe70258-8c92-4fa8-8abd-9bfa47bde443',
-      '7c216ac7-6ff5-4b1b-accb-9d87721f937a',
-      '98b051f7-6b96-4731-9419-830c8bf98efb',
-      '350a8988-e306-490f-824b-87ce2351a789',
-      '2fdd1ea2-d706-421d-b30c-27a1192a0ea9',
-      'db492412-53a6-429c-9480-1629e54aed2f',
-      '0301f4eb-a19b-474b-a1da-e5cc0cfa8352',
-      'e5d83740-9b26-4817-b2ac-257a9f3c3a26',
-      '3695bced-a280-4e3c-b15f-1430c271e7a1',
-      'bbcb45eb-48d2-40d5-a637-fc7b5b27ede3',
-      'c651aeed-3f6b-4aed-b915-d8324a757af2',
-      'a2348288-bfd2-42fb-ba2a-fdfbd6067ee1',
-      'd7ca9990-cb63-4f47-8ae6-606218ffbca5',
-      'df0fa656-0446-4bf1-ba05-90052fa4d146',
-      'b79474b6-7635-46f1-b9e3-5a7f47582930',
-      '98206908-b175-43af-9faa-f025d46e612c',
-      '02fdeecf-b9e6-4de8-914c-7fecd0e47557',
-      '6fc17638-1838-403d-9abb-a95ee6732d5d',
-      '014d61aa-c0b0-486e-ad30-097f241ca0cc',
-      '64f403a4-4c94-4763-8f36-46906ef37000',
-      'bf545cb3-a513-4bd4-8038-fad655959010',
-      '97c28880-6d00-4331-a6e4-622667e1521a',
-      '7ad36b2b-b926-467b-8902-fcee2dd8046d',
-      'bfdcb633-5d62-49ae-8d64-457587d9d279',
-      'c47b1e46-0162-4932-949e-41bb149f2e1b',
-      'b6dc508e-790f-4df3-a92c-c7705cfcc236',
-      '1dbedd79-15b8-4833-9667-26a8d38ae50b')),
+      sckm.id IS NULL),
   full_cohort_checker_output AS (
     SELECT
       *,
