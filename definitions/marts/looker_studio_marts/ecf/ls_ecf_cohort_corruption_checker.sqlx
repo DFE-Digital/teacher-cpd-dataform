@@ -329,7 +329,7 @@ SELECT
   c.suggested_cohort_from_declaration,
   c.check_source
 FROM
-  `dataform.ls_declarations_provider_names` a
+  ${ref(`ls_declarations_provider_names`)} a
 INNER JOIN
   full_cohort_checker_output b
 ON
