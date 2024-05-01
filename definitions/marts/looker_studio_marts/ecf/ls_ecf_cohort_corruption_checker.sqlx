@@ -7,7 +7,7 @@ config {
         partitionBy: "DATE(declaration_date)",
         clusterBy: ["cohort", "statement_cohort", "suggested_cohort_from_declaration", "check_source"]
     },
-    description: "This mart creates a list of all declarations for a participant where one of the participant's declarations doesn't align with the participant's cohort.",
+    description: "This mart creates a list of all declarations for a participant where one of the participant's declarations doesn't align with the participant's cohort. The mart includes a static file that we use to exclude declarations where a statement cohort mismatch is known but the statements are closed so no action will be taken.",
     columns: {
         id: "ID of declaration",
         created_at: "Timestamp when the declaration was created.",
@@ -40,9 +40,7 @@ config {
 }
 
 WITH
-  full_cohort_checker_output AS (
-  WITH
-    full_declaration_milestone_table AS (
+  full_declaration_milestone_table AS (
     /*This section creates a list of all submitted/eligible/payable/paid declarations for a participant, pulls in details from their current induction record, and then joins on the two static tables ecf_schedule_milestone_mapping and ecf_schedule_milestone_mapping_condensed to later make comparisons against the declaration_date of each participant*/
     SELECT
       dec_cpd.id AS declaration_id,
@@ -104,7 +102,7 @@ WITH
         'eligible',
         'payable',
         'paid')),
-    statement_information AS (
+  statement_information AS (
     /*This section pulls together statement info for all declarations from the tables statement_line_items and statements and gives the cohort associated with the statement that each declaration was made against*/
     SELECT
       stat_li.participant_declaration_id,
@@ -129,17 +127,17 @@ WITH
       stat.cohort_id=cohort.id
     WHERE
       stat.type LIKE '%ECF%'),
-    statement_cohort_checks AS (
+  statement_cohort_checks AS (
     SELECT
       fdmt.*,
       /*This CASE statement finds how far away a declaration is from its relevant declaration milestone window, as defined in the table ecf_schedule_milestone_mapping. Since a declaration can be on either side of the declaration window, the CASE statement calculates the greatest difference.*/
       CASE
-        WHEN declaration_type = 'started' THEN GREATEST(ABS(DATE_DIFF(started_dec_start_date,dec_date_short,DAY)),ABS(DATE_DIFF(started_dec_milestone_date,dec_date_short,DAY)))
-        WHEN declaration_type = 'retained-1' THEN GREATEST(ABS(DATE_DIFF(ret1_dec_start_date,dec_date_short,DAY)),ABS(DATE_DIFF(ret1_dec_milestone_date,dec_date_short,DAY)))
-        WHEN declaration_type = 'retained-2' THEN GREATEST(ABS(DATE_DIFF(ret2_dec_start_date,dec_date_short,DAY)),ABS(DATE_DIFF(ret2_dec_milestone_date,dec_date_short,DAY)))
-        WHEN declaration_type = 'retained-3' THEN GREATEST(ABS(DATE_DIFF(ret3_dec_start_date,dec_date_short,DAY)),ABS(DATE_DIFF(ret3_dec_milestone_date,dec_date_short,DAY)))
-        WHEN declaration_type = 'retained-4' THEN GREATEST(ABS(DATE_DIFF(ret4_dec_start_date,dec_date_short,DAY)),ABS(DATE_DIFF(ret4_dec_milestone_date,dec_date_short,DAY)))
-        WHEN declaration_type = 'completed' THEN GREATEST(ABS(DATE_DIFF(completed_dec_start_date,dec_date_short,DAY)),ABS(DATE_DIFF(completed_dec_milestone_date,dec_date_short,DAY)))
+        WHEN fdmt.declaration_type = 'started' THEN GREATEST(ABS(DATE_DIFF(started_dec_start_date,dec_date_short,DAY)),ABS(DATE_DIFF(started_dec_milestone_date,dec_date_short,DAY)))
+        WHEN fdmt.declaration_type = 'retained-1' THEN GREATEST(ABS(DATE_DIFF(ret1_dec_start_date,dec_date_short,DAY)),ABS(DATE_DIFF(ret1_dec_milestone_date,dec_date_short,DAY)))
+        WHEN fdmt.declaration_type = 'retained-2' THEN GREATEST(ABS(DATE_DIFF(ret2_dec_start_date,dec_date_short,DAY)),ABS(DATE_DIFF(ret2_dec_milestone_date,dec_date_short,DAY)))
+        WHEN fdmt.declaration_type = 'retained-3' THEN GREATEST(ABS(DATE_DIFF(ret3_dec_start_date,dec_date_short,DAY)),ABS(DATE_DIFF(ret3_dec_milestone_date,dec_date_short,DAY)))
+        WHEN fdmt.declaration_type = 'retained-4' THEN GREATEST(ABS(DATE_DIFF(ret4_dec_start_date,dec_date_short,DAY)),ABS(DATE_DIFF(ret4_dec_milestone_date,dec_date_short,DAY)))
+        WHEN fdmt.declaration_type = 'completed' THEN GREATEST(ABS(DATE_DIFF(completed_dec_start_date,dec_date_short,DAY)),ABS(DATE_DIFF(completed_dec_milestone_date,dec_date_short,DAY)))
     END
       AS declaration_out_by_x_days,
       si.statement_cpd_lp_name,
@@ -159,90 +157,18 @@ WITH
     LEFT JOIN
       statement_information si
     ON
-      fdmt.declaration_id=si.participant_declaration_id)
-  SELECT
-    *,
-    CASE /*This CASE statement works out which (if any) of the checks a declaration belongs to, either the financial statement cohort check or comparing declaration date check. Declarations can belong to one or both of the checks, and we're also pulling together all of a participant's declarations, hence the need for the NULL ending.*/
-      WHEN statement_cohort <> cohort AND (suggested_cohort_from_declaration <> cohort 
-    AND ((schedule_identifier LIKE 'ecf-standard%'
-        AND ((declaration_type = 'started'
-            AND (dec_date_short NOT BETWEEN started_dec_start_date
-              AND started_dec_milestone_date))
-          OR (declaration_type = 'retained-1'
-            AND (dec_date_short NOT BETWEEN ret1_dec_start_date
-              AND ret1_dec_milestone_date))
-          OR (declaration_type = 'retained-2'
-            AND (dec_date_short NOT BETWEEN ret2_dec_start_date
-              AND ret2_dec_milestone_date))
-          OR (declaration_type = 'retained-3'
-            AND (dec_date_short NOT BETWEEN ret3_dec_start_date
-              AND ret3_dec_milestone_date))
-          OR (declaration_type = 'retained-4'
-            AND (dec_date_short NOT BETWEEN ret4_dec_start_date
-              AND ret4_dec_milestone_date))
-          OR (declaration_type = 'completed'
-            AND (dec_date_short NOT BETWEEN completed_dec_start_date
-              AND completed_dec_milestone_date))))
-      OR (schedule_identifier LIKE ANY ('ecf-extended%',
-          'ecf-reduced%',
-          'ecf-replacement%')
-        AND ((declaration_type = 'started'
-            AND dec_date_short < started_dec_start_date)
-          OR (declaration_type = 'retained-1'
-            AND dec_date_short < ret1_dec_start_date)
-          OR (declaration_type = 'retained-2'
-            AND dec_date_short < ret2_dec_start_date)
-          OR (declaration_type = 'retained-3'
-            AND dec_date_short < ret3_dec_start_date)
-          OR (declaration_type = 'retained-4'
-            AND dec_date_short < ret4_dec_start_date)
-          OR (declaration_type = 'completed'
-            AND dec_date_short < completed_dec_start_date))))) THEN "in both checks"
-      WHEN suggested_cohort_from_declaration <> cohort
-    AND ((schedule_identifier LIKE 'ecf-standard%'
-        AND ((declaration_type = 'started'
-            AND (dec_date_short NOT BETWEEN started_dec_start_date
-              AND started_dec_milestone_date))
-          OR (declaration_type = 'retained-1'
-            AND (dec_date_short NOT BETWEEN ret1_dec_start_date
-              AND ret1_dec_milestone_date))
-          OR (declaration_type = 'retained-2'
-            AND (dec_date_short NOT BETWEEN ret2_dec_start_date
-              AND ret2_dec_milestone_date))
-          OR (declaration_type = 'retained-3'
-            AND (dec_date_short NOT BETWEEN ret3_dec_start_date
-              AND ret3_dec_milestone_date))
-          OR (declaration_type = 'retained-4'
-            AND (dec_date_short NOT BETWEEN ret4_dec_start_date
-              AND ret4_dec_milestone_date))
-          OR (declaration_type = 'completed'
-            AND (dec_date_short NOT BETWEEN completed_dec_start_date
-              AND completed_dec_milestone_date))))
-      OR (schedule_identifier LIKE ANY ('ecf-extended%',
-          'ecf-reduced%',
-          'ecf-replacement%')
-        AND ((declaration_type = 'started'
-            AND dec_date_short < started_dec_start_date)
-          OR (declaration_type = 'retained-1'
-            AND dec_date_short < ret1_dec_start_date)
-          OR (declaration_type = 'retained-2'
-            AND dec_date_short < ret2_dec_start_date)
-          OR (declaration_type = 'retained-3'
-            AND dec_date_short < ret3_dec_start_date)
-          OR (declaration_type = 'retained-4'
-            AND dec_date_short < ret4_dec_start_date)
-          OR (declaration_type = 'completed'
-            AND dec_date_short < completed_dec_start_date)))) THEN "declaration date check"
-      WHEN statement_cohort <> cohort THEN "statement check"
-    ELSE
-    NULL
-  END
-    AS check_source
-  FROM
-    statement_cohort_checks
-  WHERE
-    statement_cohort <> cohort
-    OR (suggested_cohort_from_declaration <> cohort
+      fdmt.declaration_id=si.participant_declaration_id
+    LEFT JOIN
+      `ecf-bq.static_tables.statement_cohort_known_mismatches` sckm
+    ON
+      fdmt.declaration_id=sckm.id
+    WHERE /*This excludes declarations we already know do not align with the statement cohort but the financial statements have been closed so there is no action to be taken.*/
+      sckm.id IS NULL),
+  full_cohort_checker_output AS (
+    SELECT
+      *,
+      CASE /*This CASE statement works out which (if any) of the checks a declaration belongs to, either the financial statement cohort check or comparing declaration date check. Declarations can belong to one or both of the checks, and we're also pulling together all of a participant's declarations, hence the need for the NULL ending.*/
+        WHEN statement_cohort <> cohort AND (suggested_cohort_from_declaration <> cohort 
       AND ((schedule_identifier LIKE 'ecf-standard%'
           AND ((declaration_type = 'started'
               AND (dec_date_short NOT BETWEEN started_dec_start_date
@@ -276,13 +202,92 @@ WITH
             OR (declaration_type = 'retained-4'
               AND dec_date_short < ret4_dec_start_date)
             OR (declaration_type = 'completed'
-              AND dec_date_short < completed_dec_start_date))))))
+              AND dec_date_short < completed_dec_start_date))))) THEN "in both checks"
+        WHEN suggested_cohort_from_declaration <> cohort
+      AND ((schedule_identifier LIKE 'ecf-standard%'
+          AND ((declaration_type = 'started'
+              AND (dec_date_short NOT BETWEEN started_dec_start_date
+                AND started_dec_milestone_date))
+            OR (declaration_type = 'retained-1'
+              AND (dec_date_short NOT BETWEEN ret1_dec_start_date
+                AND ret1_dec_milestone_date))
+            OR (declaration_type = 'retained-2'
+              AND (dec_date_short NOT BETWEEN ret2_dec_start_date
+                AND ret2_dec_milestone_date))
+            OR (declaration_type = 'retained-3'
+              AND (dec_date_short NOT BETWEEN ret3_dec_start_date
+                AND ret3_dec_milestone_date))
+            OR (declaration_type = 'retained-4'
+              AND (dec_date_short NOT BETWEEN ret4_dec_start_date
+                AND ret4_dec_milestone_date))
+            OR (declaration_type = 'completed'
+              AND (dec_date_short NOT BETWEEN completed_dec_start_date
+                AND completed_dec_milestone_date))))
+        OR (schedule_identifier LIKE ANY ('ecf-extended%',
+            'ecf-reduced%',
+            'ecf-replacement%')
+          AND ((declaration_type = 'started'
+              AND dec_date_short < started_dec_start_date)
+            OR (declaration_type = 'retained-1'
+              AND dec_date_short < ret1_dec_start_date)
+            OR (declaration_type = 'retained-2'
+              AND dec_date_short < ret2_dec_start_date)
+            OR (declaration_type = 'retained-3'
+              AND dec_date_short < ret3_dec_start_date)
+            OR (declaration_type = 'retained-4'
+              AND dec_date_short < ret4_dec_start_date)
+            OR (declaration_type = 'completed'
+              AND dec_date_short < completed_dec_start_date)))) THEN "declaration date check"
+        WHEN statement_cohort <> cohort THEN "statement check"
+      ELSE
+      NULL
+    END
+      AS check_source
+    FROM
+      statement_cohort_checks
+    WHERE
+      statement_cohort <> cohort
+      OR (suggested_cohort_from_declaration <> cohort
+        AND ((schedule_identifier LIKE 'ecf-standard%'
+            AND ((declaration_type = 'started'
+                AND (dec_date_short NOT BETWEEN started_dec_start_date
+                  AND started_dec_milestone_date))
+              OR (declaration_type = 'retained-1'
+                AND (dec_date_short NOT BETWEEN ret1_dec_start_date
+                  AND ret1_dec_milestone_date))
+              OR (declaration_type = 'retained-2'
+                AND (dec_date_short NOT BETWEEN ret2_dec_start_date
+                  AND ret2_dec_milestone_date))
+              OR (declaration_type = 'retained-3'
+                AND (dec_date_short NOT BETWEEN ret3_dec_start_date
+                  AND ret3_dec_milestone_date))
+              OR (declaration_type = 'retained-4'
+                AND (dec_date_short NOT BETWEEN ret4_dec_start_date
+                  AND ret4_dec_milestone_date))
+              OR (declaration_type = 'completed'
+                AND (dec_date_short NOT BETWEEN completed_dec_start_date
+                  AND completed_dec_milestone_date))))
+          OR (schedule_identifier LIKE ANY ('ecf-extended%',
+              'ecf-reduced%',
+              'ecf-replacement%')
+            AND ((declaration_type = 'started'
+                AND dec_date_short < started_dec_start_date)
+              OR (declaration_type = 'retained-1'
+                AND dec_date_short < ret1_dec_start_date)
+              OR (declaration_type = 'retained-2'
+                AND dec_date_short < ret2_dec_start_date)
+              OR (declaration_type = 'retained-3'
+                AND dec_date_short < ret3_dec_start_date)
+              OR (declaration_type = 'retained-4'
+                AND dec_date_short < ret4_dec_start_date)
+              OR (declaration_type = 'completed'
+                AND dec_date_short < completed_dec_start_date))))))
 SELECT
   DISTINCT a.*,
   c.suggested_cohort_from_declaration,
   c.check_source
 FROM
-  `dataform.ls_declarations_provider_names` a
+  ${ref(`ls_declarations_provider_names`)} a
 INNER JOIN
   full_cohort_checker_output b
 ON
