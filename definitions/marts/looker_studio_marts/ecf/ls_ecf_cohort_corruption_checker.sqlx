@@ -7,7 +7,7 @@ config {
         partitionBy: "DATE(declaration_date)",
         clusterBy: ["cohort", "statement_cohort", "suggested_cohort_from_declaration", "check_source"]
     },
-    description: "This mart creates a list of all declarations for a participant where one of the participant's declarations doesn't align with the participant's cohort.",
+    description: "This mart creates a list of all declarations for a participant where one of the participant's declarations doesn't align with the participant's cohort. The mart includes a static file that we use to exclude declarations where a statement cohort mismatch is known but the statements are closed so no action will be taken.",
     columns: {
         id: "ID of declaration",
         created_at: "Timestamp when the declaration was created.",
