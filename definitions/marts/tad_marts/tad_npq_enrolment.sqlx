@@ -78,7 +78,7 @@ SELECT
   employer_name,
   employment_role,
   employment_type,
-  profile_user_id,
+  participant_profile_id as profile_user_id,
   training_status,
   schedule_identifier,
   profile_updated_at,

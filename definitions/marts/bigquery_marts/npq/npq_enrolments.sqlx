@@ -7,9 +7,9 @@ config {
         partitionBy: "DATE(application_created_at)",
         clusterBy: ["cohort", "provider_name", "course_name", "application_status"]
     },
-    description: "This table is designed around NPQ Applications with each application constituting a single record. Participant details have been joined into the application record. Since participant profiles are only generated when an application is accepted by a lead provider, gaps in key fields (like schedule) can be the result of a pending application. We also join in participant declarations to create a 'golden thread' of NPQ participation for each application, splitting out declarations across the different declaration types.",
+    description: "This table is designed around NPQ Applications with each application constituting a single record. Participant details have been joined into the application record. Since participant profiles are only generated when an application is accepted by a lead provider, gaps in key fields (like schedule) can be the result of a pending application. We also join in participant declarations to create a 'golden thread' of NPQ participation for each application, splitting out declarations across the different declaration types. In the rare cases that multiple declarations exist for the same type of declaration, we've determined a preferred state_heirarchy:paid>payable>eligible>submitted>clawed_back>awaiting_clawback>voided. For the latest declaration we've also incorporated a type heirarchy, prioritising declarations from further along in the golden thread ",
     columns: {
-        application_ecf_id: "ID of each unique application. Declarations are joined to the application using this id and it is also the participant_profile_id in the declarations table",
+        application_ecf_id: "ID of each unique application. It matches both the participant_profile_id coming from the CPD service's participant profile and the participant_profile_id in declarations_latest that comes from lead providers. Declarations are joined to the application using this id, it is the participant_profile_id in the declarations table",
         application_trn: "This is the TRN provided at the point of application.",
         trn_verified: "This is the TRN sourced from the teacher's profile via participant profiles",
         trn_auto_verified: "This refers to whether the TRN provided in the application process was verified.",
@@ -23,9 +23,9 @@ config {
         la_name: "Name of local authority.",
         school_postcode: "Postcode of participant's school",
         course_name: "Text name of NPQ course.",
-        declaration_course_identifier: "Shorthand of NPQ course. This is sourced from npq_courses_latest table (not declarations) but it is used to match against declarations along with the application_ecf_id",
+        declaration_course_identifier: "Shorthand of NPQ course. This is sourced from npq_courses_latest table (not declarations) but it is used to match against declarations along with the application_ecf_id.",
         provider_name: "Name of lead provider. There is a text modification in the mart code for Best Practice Network and Leadership Learning South East.",
-        ecf_user_id: "This comes from the teacher profile associated with the participant profile. User ID also exists independently in other tables.",
+        ecf_user_id: "This comes from the teacher profile associated with the participant profile. User ID also exists independently in other tables. This or trn_verified is the preferred representation of a single user as it transcends programme. ecf_user_id is not PII",
         targeted_delivery_funding_eligibility: "Indicates whether this NPQ participant is eligible for targeted delivery uplift payment. This following establishments are eligible: 1)state-funded secondary schools and state-funded 16 to 19 educational settings with 1 to 600 pupils will receive a grant payment of £200; 2) state-funded primary schools with more than 150 pupils will receive a grant payment of £200; 3) state-funded primary schools with 1 to 150 pupils will receive a grant payment of £800.",
         number_of_pupils: "Pupil count based on GIAS data at time of registration.",
         works_in_childcare: "Indicates whether the participant works in childcare.",
@@ -39,14 +39,13 @@ config {
         latest_cpd_lead_provider_name: "Name of Lead Provider associated with participant's latest declaration.",
         latest_declaration_date: "Date evidence was submitted for participant's latest declaration.",
         latest_declaration_updated_at: "Date participant's latest declaration was updated",
-        participant_profile_id: "The participant profile ID provided with a participant's declaration(s).",
         application_status: "Indicates whether the application has been approved by the lead provider.Possible fields: Pending, Accepted, Rejected.",
         updated_at: "Refers to the latest updated date for the application record.",
         employer_name: "Shows the entered employer name of non-school users. Text field.",
         employment_role: "Shows the employment role of non-school users. Text field.",
         employment_type: "For non-school users, shows the type of institution they are employed in. Possible fields: Local authority supply teachers, Local authority virtual school, Young offender institute, Hospital school, Other.",
         declaration_user_id: "This is the user ID provided with a participant's declaration(s). User ID also exists independently in other tables.",
-        profile_user_id: "The ID from a participant's profile. Participant profiles are only generated when an application is accepted by a lead provider.",
+        participant_profile_id: "The ID from a participant's profile in the CPD service. Participant profiles are only generated when an application is accepted by a lead provider. There is one profile per accepted application. An NPQ participant will have a different participant_profile_id for each accepted NPQ. Their participant_profile_id should match the application_id and should match the participant_profile_id available in the declarations_latest table. While their participant_profile_id changes across NPQs, their participant_identity_id will remain the same across their participant profiles so long as they have signed up with the same email.",
         training_status: "Pulled from participant profile which is created when application is accepted by lead provider.",
         schedule_identifier: "This indicates which sub-cohort or tranche the participant commenced training within an annual cohort. For NPQ, the schedule identifier also distinguishes between the leadership and specialist NPQ types. Pulled from participant profile which is created when application is accepted by lead provider.",
         profile_updated_at: "Refers to the latest updated date for the participant profile.",
@@ -71,7 +70,7 @@ config {
         count_of_fails: "Counts the number of Failed outcome states for a participant.",
         cohort_id: "ID of cohort.",
         npq_lead_provider_id: "ID of Lead Provider.",
-        participant_identity_id: "This is the ID associated with the email a participant uses to sign up. As a participant can have multiple emails, this doesn't accurately represent a single profile.",
+        participant_identity_id: "This is the ID associated with the email a participant uses to sign up. This id will remain the same across a participant's NPQ applications and NPQ participant profile so long as they have signed up with the same emai. As a participant can have multiple emails, this isn't the most accurate representation of a single user. ecf_user_id (or trn_verified) is a much better representaiton of a single user .",
         primary_establishment: "Records whether the user's establishment at time of registration was a primary establishment or not. Based on GIAS data.",
         school_ukprn: "UKPRN of the participant's establishment ",
         teacher_catchment: "The catchment zone the participant works in within the UK i.e. England, Wales, Northern Ireland etc. International applicants recorded as 'another'.",
@@ -81,7 +80,7 @@ config {
         tsf_primary_plus_eligibility: "TRUE/ FALSE for whether a school is eligible for the base £200 as well as the additional £600 based on whether they are a primary school and have fewer than 150 pupils. Pupil count based on GIAS data at time of registration.",
         works_in_nursery: "Indicates whether the participant works in a nursery.",
         works_in_school: "Indicates whether the participant works in a school. ",
-        latest_user_id: "This field pulls the first non-NULL field from profile_user_id, declaration_user_id, and ecf_user_id."
+        funded_place: "This indicates if the accepted NPQ application is being funded by the DfE as one of the capped funded places. Being eligible for funding does not guarantee the application will be funded."
     }
 }
 
@@ -130,7 +129,8 @@ WITH
     teacher_catchment_iso_country_code,
     tsf_primary_eligibility,
     tsf_primary_plus_eligibility,
-    school_ukprn
+    school_ukprn,
+    funded_place
   FROM
     ${ref(`npq_applications_latest_cpd`)}),
   npq_part AS(
@@ -221,6 +221,50 @@ WITH
     ${ref(`schools_latest_cpd`)}
   WHERE
     urn IS NOT NULL ),
+  npq_dec_base_heirarchy AS(
+  SELECT
+    *,
+    CASE
+      WHEN state LIKE 'paid' THEN 7
+      WHEN state LIKE 'payable' THEN 6
+      WHEN state LIKE 'eligible' THEN 5
+      WHEN state LIKE 'submitted' THEN 4
+      WHEN state LIKE 'clawed_back' THEN 3
+      WHEN state LIKE 'awaiting_clawback' THEN 2
+      WHEN state LIKE 'voided' THEN 1
+    ELSE
+    0
+  END
+    AS state_heirarchy,
+    CASE
+      WHEN declaration_type LIKE 'completed' THEN 12
+      WHEN declaration_type LIKE 'extended-6' THEN 11
+      WHEN declaration_type LIKE 'extended-5' THEN 10
+      WHEN declaration_type LIKE 'extended-4' THEN 9
+      WHEN declaration_type LIKE 'extended-3' THEN 8
+      WHEN declaration_type LIKE 'extended-2' THEN 7
+      WHEN declaration_type LIKE 'extended-1' THEN 6
+      WHEN declaration_type LIKE 'retained-4' THEN 5
+      WHEN declaration_type LIKE 'retained-3' THEN 4
+      WHEN declaration_type LIKE 'retained-2' THEN 3
+      WHEN declaration_type LIKE 'retained-1' THEN 2
+      WHEN declaration_type LIKE 'started' THEN 1
+    ELSE
+    0
+  END
+    AS type_heirarchy,
+    CASE
+      WHEN state = 'paid' THEN TRUE
+      WHEN state = 'eligible' THEN TRUE
+      WHEN state = 'payable' THEN TRUE
+    ELSE
+    FALSE
+  END
+    AS funded_declaration
+  FROM
+    ${ref(`participant_declarations_latest_cpd`)}
+  WHERE
+    course_identifier LIKE 'npq%' ),
   npq_dec_latest AS (
   SELECT
     user_id AS declaration_user_id,
@@ -231,11 +275,9 @@ WITH
     cpd_lead_provider_id AS latest_cpd_lead_provider_id,
     declaration_date AS latest_declaration_date,
     updated_at AS latest_declaration_updated_at,
-    (ROW_NUMBER() OVER (PARTITION BY participant_profile_id, course_identifier ORDER BY declaration_date DESC)) AS rn2
+    (ROW_NUMBER() OVER (PARTITION BY participant_profile_id, course_identifier ORDER BY type_heirarchy DESC, state_heirarchy DESC, declaration_date DESC)) AS rn2
   FROM
-    ${ref(`participant_declarations_latest_cpd`)}
-  WHERE
-    course_identifier LIKE 'npq%' QUALIFY rn2 = 1),
+    npq_dec_base_heirarchy QUALIFY rn2 = 1),
   npq_dec_start AS(
   SELECT
     id AS started_declaration_id,
@@ -244,20 +286,12 @@ WITH
     declaration_type AS started_declaration_type,
     state AS started_declaration_state,
     declaration_date AS started_declaration_date,
-    CASE
-      WHEN npq_dec_0.state = 'paid' THEN TRUE
-      WHEN npq_dec_0.state = 'eligible' THEN TRUE
-      WHEN npq_dec_0.state = 'payable' THEN TRUE
-    ELSE
-    FALSE
-  END
-    AS funded_start_declaration,
-    (ROW_NUMBER() OVER (PARTITION BY participant_profile_id, cpd_lead_provider_id, course_identifier, declaration_type ORDER BY updated_at DESC)) AS rn5
+    funded_declaration AS funded_start_declaration,
+    (ROW_NUMBER() OVER (PARTITION BY participant_profile_id, cpd_lead_provider_id, course_identifier, declaration_type ORDER BY state_heirarchy DESC, updated_at DESC)) AS rn5
   FROM
-    ${ref(`participant_declarations_latest_cpd`)} npq_dec_0
+    npq_dec_base_heirarchy
   WHERE
-    declaration_type = 'started'
-    AND course_identifier LIKE 'npq%' QUALIFY rn5=1),
+    declaration_type = 'started' QUALIFY rn5=1),
   npq_dec_ret1 AS(
   SELECT
     id AS retained1_declaration_id,
@@ -266,20 +300,12 @@ WITH
     declaration_type AS ret1_declaration_type,
     state AS retained1_declaration_state,
     declaration_date AS retained1_declaration_date,
-    CASE
-      WHEN npq_dec_1.state = 'paid' THEN TRUE
-      WHEN npq_dec_1.state = 'eligible' THEN TRUE
-      WHEN npq_dec_1.state = 'payable' THEN TRUE
-    ELSE
-    FALSE
-  END
-    AS funded_retained1_declaration,
-    (ROW_NUMBER() OVER (PARTITION BY participant_profile_id, cpd_lead_provider_id, course_identifier, declaration_type ORDER BY updated_at DESC)) AS rn6
+    funded_declaration AS funded_retained1_declaration,
+    (ROW_NUMBER() OVER (PARTITION BY participant_profile_id, cpd_lead_provider_id, course_identifier, declaration_type ORDER BY state_heirarchy DESC, updated_at DESC)) AS rn6
   FROM
-    ${ref(`participant_declarations_latest_cpd`)} npq_dec_1
+    npq_dec_base_heirarchy
   WHERE
-    declaration_type = 'retained-1'
-    AND course_identifier LIKE 'npq%' QUALIFY rn6=1),
+    declaration_type = 'retained-1' QUALIFY rn6=1),
   npq_dec_ret2 AS(
   SELECT
     id AS retained2_declaration_id,
@@ -288,20 +314,12 @@ WITH
     declaration_type AS ret2_declaration_type,
     state AS retained2_declaration_state,
     declaration_date AS retained2_declaration_date,
-    CASE
-      WHEN npq_dec_2.state = 'paid' THEN TRUE
-      WHEN npq_dec_2.state = 'eligible' THEN TRUE
-      WHEN npq_dec_2.state = 'payable' THEN TRUE
-    ELSE
-    FALSE
-  END
-    AS funded_retained2_declaration,
-    (ROW_NUMBER() OVER (PARTITION BY participant_profile_id, cpd_lead_provider_id, course_identifier, declaration_type ORDER BY updated_at DESC)) AS rn7
+    funded_declaration AS funded_retained2_declaration,
+    (ROW_NUMBER() OVER (PARTITION BY participant_profile_id, cpd_lead_provider_id, course_identifier, declaration_type ORDER BY state_heirarchy DESC, updated_at DESC)) AS rn7
   FROM
-    ${ref(`participant_declarations_latest_cpd`)} npq_dec_2
+    npq_dec_base_heirarchy
   WHERE
-    declaration_type = 'retained-2'
-    AND course_identifier LIKE 'npq%' QUALIFY rn7=1),
+    declaration_type = 'retained-2' QUALIFY rn7=1),
   npq_dec_comp AS(
   SELECT
     id AS completed_declaration_id,
@@ -310,20 +328,12 @@ WITH
     declaration_type AS completed_declaration_type,
     state AS completed_declaration_state,
     declaration_date AS completed_declaration_date,
-    CASE
-      WHEN npq_dec_fin.state = 'paid' THEN TRUE
-      WHEN npq_dec_fin.state = 'eligible' THEN TRUE
-      WHEN npq_dec_fin.state = 'payable' THEN TRUE
-    ELSE
-    FALSE
-  END
-    AS funded_completed_declaration,
-    (ROW_NUMBER() OVER (PARTITION BY participant_profile_id, cpd_lead_provider_id, course_identifier, declaration_type ORDER BY updated_at DESC)) AS rn8
+    funded_declaration AS funded_completed_declaration,
+    (ROW_NUMBER() OVER (PARTITION BY participant_profile_id, cpd_lead_provider_id, course_identifier, declaration_type ORDER BY state_heirarchy DESC, updated_at DESC)) AS rn8
   FROM
-    ${ref(`participant_declarations_latest_cpd`)} npq_dec_fin
+    npq_dec_base_heirarchy
   WHERE
-    declaration_type = 'completed'
-    AND course_identifier LIKE 'npq%' QUALIFY rn8=1),
+    declaration_type = 'completed' QUALIFY rn8=1),
   npq_outcome AS (
   SELECT
     state AS latest_outcome_state,
@@ -479,14 +489,13 @@ WITH
     cpd_lead_provider_name AS latest_cpd_lead_provider_name,
     latest_declaration_date,
     latest_declaration_updated_at,
-    participant_profile_id,
     status AS application_status,
     updated_at,
     employer_name,
     employment_role,
     employment_type,
     declaration_user_id,
-    profile_user_id,
+    profile_user_id AS participant_profile_id,
     training_status,
     schedule_identifier,
     profile_updated_at,
@@ -526,13 +535,7 @@ WITH
     tsf_primary_plus_eligibility,
     works_in_nursery,
     works_in_school,
-    CASE
-      WHEN profile_user_id IS NOT NULL THEN profile_user_id
-      WHEN declaration_user_id IS NOT NULL THEN declaration_user_id
-    ELSE
-    ecf_user_id
-  END
-    AS latest_user_id,
+    funded_place,
     (ROW_NUMBER() OVER (PARTITION BY application_ecf_id ORDER BY latest_declaration_updated_at DESC)) AS rn10
   FROM
     npq_comb_enrolment
