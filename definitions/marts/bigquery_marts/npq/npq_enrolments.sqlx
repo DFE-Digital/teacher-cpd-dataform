@@ -130,7 +130,8 @@ WITH
     teacher_catchment_iso_country_code,
     tsf_primary_eligibility,
     tsf_primary_plus_eligibility,
-    school_ukprn
+    school_ukprn,
+    funded_place
   FROM
     ${ref(`npq_applications_latest_cpd`)}),
   npq_part AS(
@@ -479,14 +480,13 @@ WITH
     cpd_lead_provider_name AS latest_cpd_lead_provider_name,
     latest_declaration_date,
     latest_declaration_updated_at,
-    participant_profile_id,
     status AS application_status,
     updated_at,
     employer_name,
     employment_role,
     employment_type,
     declaration_user_id,
-    profile_user_id,
+    profile_user_id as participant_profile_id,
     training_status,
     schedule_identifier,
     profile_updated_at,
@@ -526,13 +526,7 @@ WITH
     tsf_primary_plus_eligibility,
     works_in_nursery,
     works_in_school,
-    CASE
-      WHEN profile_user_id IS NOT NULL THEN profile_user_id
-      WHEN declaration_user_id IS NOT NULL THEN declaration_user_id
-    ELSE
-    ecf_user_id
-  END
-    AS latest_user_id,
+    funded_place,
     (ROW_NUMBER() OVER (PARTITION BY application_ecf_id ORDER BY latest_declaration_updated_at DESC)) AS rn10
   FROM
     npq_comb_enrolment
