@@ -39,14 +39,13 @@ config {
         latest_cpd_lead_provider_name: "Name of Lead Provider associated with participant's latest declaration.",
         latest_declaration_date: "Date evidence was submitted for participant's latest declaration.",
         latest_declaration_updated_at: "Date participant's latest declaration was updated",
-        participant_profile_id: "The participant profile ID provided with a participant's declaration(s).",
         application_status: "Indicates whether the application has been approved by the lead provider.Possible fields: Pending, Accepted, Rejected.",
         updated_at: "Refers to the latest updated date for the application record.",
         employer_name: "Shows the entered employer name of non-school users. Text field.",
         employment_role: "Shows the employment role of non-school users. Text field.",
         employment_type: "For non-school users, shows the type of institution they are employed in. Possible fields: Local authority supply teachers, Local authority virtual school, Young offender institute, Hospital school, Other.",
         declaration_user_id: "This is the user ID provided with a participant's declaration(s). User ID also exists independently in other tables.",
-        profile_user_id: "The ID from a participant's profile. Participant profiles are only generated when an application is accepted by a lead provider.",
+        participant_profile_id: "The ID from a participant's profile. Participant profiles are only generated when an application is accepted by a lead provider. THIS IS NOT the participant_profile_id that is available in participant_declarations_latest, that id contains the same values as the application_ecf_id for the NPQ programme. If that value is required, look at the application_ecf_id field",
         training_status: "Pulled from participant profile which is created when application is accepted by lead provider.",
         schedule_identifier: "This indicates which sub-cohort or tranche the participant commenced training within an annual cohort. For NPQ, the schedule identifier also distinguishes between the leadership and specialist NPQ types. Pulled from participant profile which is created when application is accepted by lead provider.",
         profile_updated_at: "Refers to the latest updated date for the participant profile.",
@@ -81,7 +80,7 @@ config {
         tsf_primary_plus_eligibility: "TRUE/ FALSE for whether a school is eligible for the base £200 as well as the additional £600 based on whether they are a primary school and have fewer than 150 pupils. Pupil count based on GIAS data at time of registration.",
         works_in_nursery: "Indicates whether the participant works in a nursery.",
         works_in_school: "Indicates whether the participant works in a school. ",
-        latest_user_id: "This field pulls the first non-NULL field from profile_user_id, declaration_user_id, and ecf_user_id."
+        funded_place: "This indicates if the accepted NPQ application is being funded by the DfE as one of the capped funded places. Being eligible for funding does not guarantee the application will be funded."
     }
 }
 
