@@ -507,7 +507,7 @@ dfeAnalyticsDataform({
         },
         {
             entityTableName: "participant_declarations",
-            description: "",
+            description: "This comes from reporting from lead providers",
             keys: [{
                 keyName: "course_identifier",
                 dataType: "string",
@@ -539,7 +539,7 @@ dfeAnalyticsDataform({
             }, {
                 keyName: "participant_profile_id",
                 dataType: "string",
-                description: ""
+                description: "This field matches the participant profile id of participant profiles within the CPD service. It also matches the application id for NPQ participants which is used as their participant profile id for that NPQ."
             }, {
                 keyName: "pupil_premium_uplift",
                 dataType: "boolean",
@@ -678,7 +678,7 @@ dfeAnalyticsDataform({
         },
         {
             entityTableName: "participant_profiles",
-            description: "",
+            description: "These profiles are generated simultaneously to a first induction record for an ECF participant. They are generated for an NPQ participant when a lead provider accepts their NPQ application, the NPQ application id is used as the primary key (id) for this table when an NPQ profile is created. This table's primary key (id) matches the participant_profile_id found in declaration reporting from lead_providers",
             keys: [{
                 keyName: "cohort_id",
                 dataType: "string",
