@@ -7,7 +7,7 @@ config {
         partitionBy: "DATE(application_created_at)",
         clusterBy: ["cohort", "provider_name", "course_name", "application_status"]
     },
-    description: "This table is designed around NPQ Applications with each application constituting a single record. Participant details have been joined into the application record. Since participant profiles are only generated when an application is accepted by a lead provider, gaps in key fields (like schedule) can be the result of a pending application. We also join in participant declarations to create a 'golden thread' of NPQ participation for each application, splitting out declarations across the different declaration types.",
+    description: "This table is designed around NPQ Applications with each application constituting a single record. Participant details have been joined into the application record. Since participant profiles are only generated when an application is accepted by a lead provider, gaps in key fields (like schedule) can be the result of a pending application. We also join in participant declarations to create a 'golden thread' of NPQ participation for each application, splitting out declarations across the different declaration types. In the rare cases that multiple declarations exist for the same type of declaration, we've determined a preferred state_heirarchy:paid>payable>eligible>submitted>clawed_back>awaiting_clawback>voided. For the latest declaration we've also incorporated a type heirarchy, prioritising declarations from further along in the golden thread ",
     columns: {
         application_ecf_id: "ID of each unique application. Declarations are joined to the application using this id and it is also the participant_profile_id in the declarations table",
         application_trn: "This is the TRN provided at the point of application.",
@@ -221,6 +221,50 @@ WITH
     ${ref(`schools_latest_cpd`)}
   WHERE
     urn IS NOT NULL ),
+  npq_dec_base_heirarchy AS(
+  SELECT
+    *
+    CASE
+      WHEN state LIKE 'paid' THEN 7
+      WHEN state LIKE 'payable' THEN 6
+      WHEN state LIKE 'eligible' THEN 5
+      WHEN state LIKE 'submitted' THEN 4
+      WHEN state LIKE 'clawed_back' THEN 3
+      WHEN state LIKE 'awaiting_clawback' THEN 2
+      WHEN state LIKE 'voided' THEN 1
+    ELSE
+    0
+  END
+    AS state_heirarchy,
+    CASE
+      WHEN declaration_type LIKE 'completed' THEN 12
+      WHEN declaration_type LIKE 'extended-6' THEN 11
+      WHEN declaration_type LIKE 'extended-5' THEN 10
+      WHEN declaration_type LIKE 'extended-4' THEN 9
+      WHEN declaration_type LIKE 'extended-3' THEN 8
+      WHEN declaration_type LIKE 'extended-2' THEN 7
+      WHEN declaration_type LIKE 'extended-1' THEN 6
+      WHEN declaration_type LIKE 'retained-4' THEN 5
+      WHEN declaration_type LIKE 'retained-3' THEN 4
+      WHEN declaration_type LIKE 'retained-2' THEN 3
+      WHEN declaration_type LIKE 'retained-1' THEN 2
+      WHEN declaration_type LIKE 'started' THEN 1
+    ELSE
+    0
+  END
+    AS type_heirarchy,
+    CASE
+      WHEN state = 'paid' THEN TRUE
+      WHEN state = 'eligible' THEN TRUE
+      WHEN state = 'payable' THEN TRUE
+    ELSE
+    FALSE
+  END
+    AS funded_declaration,
+  FROM
+    ${ref(`participant_declarations_latest_cpd`)}
+  WHERE
+    course_identifier LIKE 'npq%' ),
   npq_dec_latest AS (
   SELECT
     user_id AS declaration_user_id,
@@ -231,11 +275,9 @@ WITH
     cpd_lead_provider_id AS latest_cpd_lead_provider_id,
     declaration_date AS latest_declaration_date,
     updated_at AS latest_declaration_updated_at,
-    (ROW_NUMBER() OVER (PARTITION BY participant_profile_id, course_identifier ORDER BY declaration_date DESC)) AS rn2
+    (ROW_NUMBER() OVER (PARTITION BY participant_profile_id, course_identifier ORDER BY type_heirarchy DESC, state_heirarchy DESC, declaration_date DESC)) AS rn2
   FROM
-    ${ref(`participant_declarations_latest_cpd`)}
-  WHERE
-    course_identifier LIKE 'npq%' QUALIFY rn2 = 1),
+    npq_dec_base_heirarchy QUALIFY rn2 = 1),
   npq_dec_start AS(
   SELECT
     id AS started_declaration_id,
@@ -244,20 +286,12 @@ WITH
     declaration_type AS started_declaration_type,
     state AS started_declaration_state,
     declaration_date AS started_declaration_date,
-    CASE
-      WHEN npq_dec_0.state = 'paid' THEN TRUE
-      WHEN npq_dec_0.state = 'eligible' THEN TRUE
-      WHEN npq_dec_0.state = 'payable' THEN TRUE
-    ELSE
-    FALSE
-  END
-    AS funded_start_declaration,
-    (ROW_NUMBER() OVER (PARTITION BY participant_profile_id, cpd_lead_provider_id, course_identifier, declaration_type ORDER BY updated_at DESC)) AS rn5
+    funded_declaration AS funded_start_declaration,
+    (ROW_NUMBER() OVER (PARTITION BY participant_profile_id, cpd_lead_provider_id, course_identifier, declaration_type ORDER BY state_heirarchy DESC, updated_at DESC)) AS rn5
   FROM
-    ${ref(`participant_declarations_latest_cpd`)} npq_dec_0
+    npq_dec_base_heirarchy
   WHERE
-    declaration_type = 'started'
-    AND course_identifier LIKE 'npq%' QUALIFY rn5=1),
+    declaration_type = 'started' QUALIFY rn5=1),
   npq_dec_ret1 AS(
   SELECT
     id AS retained1_declaration_id,
@@ -266,20 +300,12 @@ WITH
     declaration_type AS ret1_declaration_type,
     state AS retained1_declaration_state,
     declaration_date AS retained1_declaration_date,
-    CASE
-      WHEN npq_dec_1.state = 'paid' THEN TRUE
-      WHEN npq_dec_1.state = 'eligible' THEN TRUE
-      WHEN npq_dec_1.state = 'payable' THEN TRUE
-    ELSE
-    FALSE
-  END
-    AS funded_retained1_declaration,
-    (ROW_NUMBER() OVER (PARTITION BY participant_profile_id, cpd_lead_provider_id, course_identifier, declaration_type ORDER BY updated_at DESC)) AS rn6
+    funded_declaration AS funded_retained1_declaration,
+    (ROW_NUMBER() OVER (PARTITION BY participant_profile_id, cpd_lead_provider_id, course_identifier, declaration_type ORDER BY state_heirarchy DESC, updated_at DESC)) AS rn6
   FROM
-    ${ref(`participant_declarations_latest_cpd`)} npq_dec_1
+    npq_dec_base_heirarchy
   WHERE
-    declaration_type = 'retained-1'
-    AND course_identifier LIKE 'npq%' QUALIFY rn6=1),
+    declaration_type = 'retained-1' QUALIFY rn6=1),
   npq_dec_ret2 AS(
   SELECT
     id AS retained2_declaration_id,
@@ -288,20 +314,12 @@ WITH
     declaration_type AS ret2_declaration_type,
     state AS retained2_declaration_state,
     declaration_date AS retained2_declaration_date,
-    CASE
-      WHEN npq_dec_2.state = 'paid' THEN TRUE
-      WHEN npq_dec_2.state = 'eligible' THEN TRUE
-      WHEN npq_dec_2.state = 'payable' THEN TRUE
-    ELSE
-    FALSE
-  END
-    AS funded_retained2_declaration,
-    (ROW_NUMBER() OVER (PARTITION BY participant_profile_id, cpd_lead_provider_id, course_identifier, declaration_type ORDER BY updated_at DESC)) AS rn7
+    funded_declaration AS funded_retained2_declaration,
+    (ROW_NUMBER() OVER (PARTITION BY participant_profile_id, cpd_lead_provider_id, course_identifier, declaration_type ORDER BY state_heirarchy DESC, updated_at DESC)) AS rn7
   FROM
-    ${ref(`participant_declarations_latest_cpd`)} npq_dec_2
+    npq_dec_base_heirarchy
   WHERE
-    declaration_type = 'retained-2'
-    AND course_identifier LIKE 'npq%' QUALIFY rn7=1),
+    declaration_type = 'retained-2' QUALIFY rn7=1),
   npq_dec_comp AS(
   SELECT
     id AS completed_declaration_id,
@@ -310,20 +328,12 @@ WITH
     declaration_type AS completed_declaration_type,
     state AS completed_declaration_state,
     declaration_date AS completed_declaration_date,
-    CASE
-      WHEN npq_dec_fin.state = 'paid' THEN TRUE
-      WHEN npq_dec_fin.state = 'eligible' THEN TRUE
-      WHEN npq_dec_fin.state = 'payable' THEN TRUE
-    ELSE
-    FALSE
-  END
-    AS funded_completed_declaration,
-    (ROW_NUMBER() OVER (PARTITION BY participant_profile_id, cpd_lead_provider_id, course_identifier, declaration_type ORDER BY updated_at DESC)) AS rn8
+    funded_declaration AS funded_completed_declaration,
+    (ROW_NUMBER() OVER (PARTITION BY participant_profile_id, cpd_lead_provider_id, course_identifier, declaration_type ORDER BY state_heirarchy DESC, updated_at DESC)) AS rn8
   FROM
-    ${ref(`participant_declarations_latest_cpd`)} npq_dec_fin
+    npq_dec_base_heirarchy
   WHERE
-    declaration_type = 'completed'
-    AND course_identifier LIKE 'npq%' QUALIFY rn8=1),
+    declaration_type = 'completed' QUALIFY rn8=1),
   npq_outcome AS (
   SELECT
     state AS latest_outcome_state,
@@ -485,7 +495,7 @@ WITH
     employment_role,
     employment_type,
     declaration_user_id,
-    profile_user_id as participant_profile_id,
+    profile_user_id AS participant_profile_id,
     training_status,
     schedule_identifier,
     profile_updated_at,
