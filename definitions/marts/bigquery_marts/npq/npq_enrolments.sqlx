@@ -223,7 +223,7 @@ WITH
     urn IS NOT NULL ),
   npq_dec_base_heirarchy AS(
   SELECT
-    *
+    *,
     CASE
       WHEN state LIKE 'paid' THEN 7
       WHEN state LIKE 'payable' THEN 6
@@ -260,7 +260,7 @@ WITH
     ELSE
     FALSE
   END
-    AS funded_declaration,
+    AS funded_declaration
   FROM
     ${ref(`participant_declarations_latest_cpd`)}
   WHERE
