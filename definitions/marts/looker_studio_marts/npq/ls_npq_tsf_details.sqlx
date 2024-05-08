@@ -10,6 +10,7 @@ config {
     description: "This mart is made to help out NPQ Funding Team with payments for the targeted support fund. It pulls together all NPQ applications with a started declaration after October 1st 2023 who are eligible for targeted delivery funding and provides details of their school.",
     columns: {
         ecf_user_id: "This comes from the teacher profile associated with the participant profile. User ID also exists independently in other tables.",
+        application_trn: "This is the TRN provided at the point of application",
         application_ecf_id: "ID of each unique application. Declarations are joined to the application using this id and it is also the participant_profile_id in the declarations table",
         course_identifier: "Shorthand of NPQ course. This comes from the participant's latest declaration.",
         cohort: "The cohort/academic year corresponding to when the participant started their course.",
@@ -38,6 +39,7 @@ WITH
   valid_start_npq_apps AS (
   SELECT
     ecf_user_id,
+    application_trn,
     cohort,
     application_ecf_id,
     course_identifier,
@@ -77,6 +79,7 @@ WITH
     `static_tables.all_gias_04_04_2024_` )
 SELECT
   npq.ecf_user_id,
+  npq.application_trn,
   npq.application_ecf_id,
   npq.course_identifier,
   npq.cohort,
