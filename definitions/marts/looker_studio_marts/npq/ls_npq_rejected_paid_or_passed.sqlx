@@ -1,0 +1,46 @@
+config {
+    type: "table",
+    assertions: {
+        uniqueKey: ["application_ecf_id"]
+    },
+    bigquery: {
+        partitionBy: "",
+        clusterBy: ["school_urn", "establishment_type", "tsf_primary_eligibility", "tsf_primary_plus_eligibility"]
+    },
+    description: "This mart is made to identify all NPQ Applications which were rejected but still have paid declarations associated with them or have an outcome of passed.",
+    columns: {
+        application_ecf_id: "ID of each unique application. Declarations are joined to the application using this id and it is also the participant_profile_id in the declarations table",
+        application_status: "The status of the NPQ Application.",
+        latest_state: "The most recent state of the related declaration. This can be paid, pending, etc.",
+        latest_declaration_date: "The date of the last declaration from which the state has been taken.",
+        latest_outcome_state: "The most recent outcome of the training.",
+        latest_outcome_date: "The date relating to the most recent outcome of the course for the participant.",
+        ecf_user_id: "This comes from the teacher profile associated with the participant profile. User ID also exists independently in other tables.",
+        course_identifier: "The NPQ course identifier relating to the application.",
+        short_course_name: "The short name for the NPQ course identifier relating to the application.",
+        provider_name: "The name of the Lead Provider this application & declaration relates to.",
+        cohort: "The cohort/academic year corresponding to when the participant started their course." 
+    }
+}
+
+SELECT
+   application_ecf_id
+  ,application_status
+  ,latest_state
+  ,latest_declaration_date
+  ,latest_outcome_state
+  ,latest_outcome_date
+  ,ecf_user_id
+  ,course_identifier
+  ,short_course_name
+  ,provider_name
+  ,cohort
+FROM 
+  `dataform.npq_enrolments`
+WHERE
+  application_status = 'rejected'
+  AND (
+    latest_outcome_state = 'passed'
+    OR
+    latest_state = 'paid'
+  )
