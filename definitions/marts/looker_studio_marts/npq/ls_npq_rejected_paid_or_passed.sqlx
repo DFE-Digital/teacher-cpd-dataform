@@ -3,10 +3,6 @@ config {
     assertions: {
         uniqueKey: ["application_ecf_id"]
     },
-    bigquery: {
-        partitionBy: "",
-        clusterBy: ["school_urn", "establishment_type", "tsf_primary_eligibility", "tsf_primary_plus_eligibility"]
-    },
     description: "This mart is made to identify all NPQ Applications which were rejected but still have paid declarations associated with them or have an outcome of passed.",
     columns: {
         application_ecf_id: "ID of each unique application. Declarations are joined to the application using this id and it is also the participant_profile_id in the declarations table",
