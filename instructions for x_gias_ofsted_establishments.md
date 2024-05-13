@@ -11,11 +11,11 @@ There are three data sources for this table:
 ... you need to pull the relevant fields from each download into th final table.
 
 Below are the fields included in the final table and whether they are in the original downloads. If they are in the original downloads, the fields to pull the data from are signified by "FIELD NAME". If they are not in the original downloads, manual entry of data is signified by (DATA_TO_ENTER).
-| data_source | date_accessed | establishment_urn | phase_of_education | la_name | establishment_type | establishment_subtype | establishment_status | gor_code | gor_name |
+| data_source | date_accessed | establishment_urn | phase_of_education | la_name | establishment_type | establishment_subtype | establishment_status | gor_code | gor_name | section41_approved |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| GIAS - All establishment data | DATE ACCESSED | Yes: "URN" | Yes: "PhaseOfEducation (name)" | Yes: "LA (name)" | Yes: "EstablishmentTypeGroup (name)" | Yes: "TypeOfEstablishment (name)" | Yes: "EstablishmentStatus (name)" | Yes: "GOR (code)" | Yes: "GOR (name)" | 
-| GIAS - Open children's centre data | DATE ACCESSED | Yes: "URN" | Enter manually: /Children's centre/ | Yes: "LA (name)" | Enter manually: /Children's centre/ | Yes: "TypeOfEstablishment (name)" | Yes: "EstablishmentStatus (name)" | Link using GOR Codes Table | Yes: "GOR (name)" | 
-| Ofsted - Childcare providers | DATE ACCESSED | Yes: "Provider URN" | Enter manually: /Childcare provider/ | Yes: "Local Authority" | Yes: "Provider Type" | Yes: "Provider Subtype" | Enter manually: /Open/ | Link using GOR Codes Table | Yes: "Region" |
+| GIAS - All establishment data | DATE ACCESSED | Yes: "URN" | Yes: "PhaseOfEducation (name)" | Yes: "LA (name)" | Yes: "EstablishmentTypeGroup (name)" | Yes: "TypeOfEstablishment (name)" | Yes: "EstablishmentStatus (name)" | Yes: "GOR (code)" | Yes: "GOR (name)" | Yes: "Section41Approved (name)" | 
+| GIAS - Open children's centre data | DATE ACCESSED | Yes: "URN" | Enter manually: /Children's centre/ | Yes: "LA (name)" | Enter manually: /Children's centre/ | Yes: "TypeOfEstablishment (name)" | Yes: "EstablishmentStatus (name)" | Link using GOR Codes Table | Yes: "GOR (name)" | Enter manually: /Not applicable/ |
+| Ofsted - Childcare providers | DATE ACCESSED | Yes: "Provider URN" | Enter manually: /Childcare provider/ | Yes: "Local Authority" | Yes: "Provider Type" | Yes: "Provider Subtype" | Enter manually: /Open/ | Link using GOR Codes Table | Yes: "Region" | Enter manually: /Not applicable/ |
 
 The relevant GOR Codes Table is given below. For the Ofsted data, some records have the region name "*Not Recorded*". In those cases, enter /Not Recorded/ for the field gor_code:
 | GOR (name) | GOR (code) |
