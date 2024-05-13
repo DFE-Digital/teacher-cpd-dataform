@@ -1,0 +1,126 @@
+config {
+    type: "table",
+    assertions: {
+        uniqueKey: ["declaration_id"]
+    },
+    description: "This mart is made to attach a unit cost to each paid declaration relating to NPQ applications based upon Lead Provider & Statement Cohort.",
+    columns: {
+        declaration_id: "The unique declaration ID for the record.",
+        course_identifier: "The course ID for the NPQ declaration",
+        declaration_date: "The date the declaration was submitted.",
+        declaration_type: "",
+        state: "The state of the declaration which should always be paid in order to appear in this table.",
+        participant_profile_id: "",
+        cohort: "Academic cohort",
+        statement_cohort: "Statement or financial cohort.",
+        cpd_lp_name: "The Lead Provider name.",
+        cpd_lead_provider_id: "",
+        application_ecf_id: "",
+        school_urn: "URN for use in identifying within GIAS data.",
+        private_childcare_provider_urn: "URN for use in identifying within Ofsted data.",
+        employer_name: "",
+        employment_type: "",
+        final_la_name: "Coalesced Local Authority Name. GIAS is the main source but when not located it refers to Ofsted recognised name.",
+        final_la_code: "GIAS Local Authority code.",
+        unit_cost: "Cost as per the table static_tables.npq_lead_provider_declaration_prices for the course with the provider in the relevant statement cohort." 
+    }
+}
+
+WITH
+  declaration_data AS (
+  SELECT
+    DISTINCT id AS declaration_id,
+    course_identifier,
+    declaration_date,
+    declaration_type,
+    state,
+    participant_profile_id,
+    cohort,
+    statement_cohort,
+    cpd_lp_name,
+    cpd_lead_provider_id
+  FROM
+    `dataform.ls_declarations_provider_names`
+  WHERE
+    state='paid'
+    AND programme = 'NPQ'),
+
+  early_years_settings AS (
+  SELECT
+    eys.establishment_urn,
+    code.gias_la_name as la_name,
+    code.la_code,
+    eys.gor_name
+  FROM
+    `static_tables.all_gias_ofsted_establishments` eys
+  LEFT JOIN
+    `static_tables.la_codes_gias_ofsted` code
+  ON
+    eys.la_name = code.ofsted_la_name
+  WHERE
+    data_source LIKE 'Ofsted%'),
+
+  gias_settings AS (
+  SELECT
+    gias.establishment_urn,
+    gias.la_name,
+    code.la_code,
+    gias.gor_name
+  FROM
+    `static_tables.all_gias_ofsted_establishments` gias
+  LEFT JOIN
+    `static_tables.la_codes_gias_ofsted` code
+  ON
+    gias.la_name = code.gias_la_name
+  WHERE
+    data_source LIKE 'GIAS%'),
+
+  npq_application_data AS (
+  SELECT
+    DISTINCT application_ecf_id,
+    participant_profile_id,
+    school_urn,
+    private_childcare_provider_urn,
+    employer_name,
+    employment_type,
+    IFNULL(COALESCE(npq_e.la_name,gias.la_name,eys.la_name), 'Unknown/TBD') AS final_la_name,
+    COALESCE(code.la_code,gias.la_code,eys.la_code) AS final_la_code
+  FROM
+    `dataform.npq_enrolments` npq_e
+  LEFT JOIN
+    gias_settings gias
+  ON
+    npq_e.school_urn = gias.establishment_urn
+  LEFT JOIN
+    early_years_settings eys
+  ON
+    npq_e.private_childcare_provider_urn = eys.establishment_urn
+  LEFT JOIN
+    `static_tables.la_codes_gias_ofsted` code
+  ON
+    npq_e.la_name = code.gias_la_name)
+
+SELECT
+   dec.*
+  ,npq.* EXCEPT(participant_profile_id)
+  ,dp.unit_cost
+FROM
+  declaration_data dec
+LEFT JOIN
+  npq_application_data npq
+ON
+  dec.participant_profile_id=npq.application_ecf_id
+LEFT JOIN
+  `static_tables.npq_lead_provider_declaration_prices` dp
+ON
+  dp.course_identifier = dec.course_identifier
+  AND
+  dp.statement_cohort = dec.statement_cohort
+  AND
+  dp.cpd_lead_provider_id = dec.cpd_lead_provider_id
+ORDER BY
+  npq.final_la_name,
+  school_urn,
+  private_childcare_provider_urn,
+  employer_name,
+  employment_type
