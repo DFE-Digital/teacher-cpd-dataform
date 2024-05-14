@@ -564,6 +564,10 @@ dfeAnalyticsDataform({
                 keyName: "user_id",
                 dataType: "string",
                 description: ""
+            }, {
+                keyName: "cohort_id",
+                dataType: "string",
+                description: ""
             }]
         },
         {
