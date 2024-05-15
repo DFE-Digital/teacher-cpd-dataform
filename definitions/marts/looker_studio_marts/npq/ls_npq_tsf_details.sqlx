@@ -108,3 +108,5 @@ ON
   npq.school_urn = gias.string_urn
 WHERE
   school_urn IS NOT NULL
+  AND
+  npq.course_identifier <> 'npq-early-headship-coaching-offer'
