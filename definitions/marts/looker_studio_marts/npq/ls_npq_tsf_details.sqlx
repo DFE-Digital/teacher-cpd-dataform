@@ -109,4 +109,4 @@ ON
 WHERE
   school_urn IS NOT NULL
   AND
-  npq.course_identifier <> 'npq-early-headship-coaching-offer'
+  npq.course_identifier NOT IN ('npq-early-headship-coaching-offer', 'npq-additional-support-offer')
