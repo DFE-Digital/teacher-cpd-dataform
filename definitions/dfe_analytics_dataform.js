@@ -775,6 +775,10 @@ dfeAnalyticsDataform({
                 keyName: "school_urn",
                 dataType: "string",
                 description: ""
+            }, {
+                keyName: "cohort_changed_after_payments_frozen",
+                dataType: "boolean",
+                description: ""
             }]
         },
         {
