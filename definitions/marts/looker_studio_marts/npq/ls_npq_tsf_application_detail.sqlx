@@ -1,0 +1,212 @@
+config {
+    type: "table",
+    assertions: {
+        uniqueKey: ["application_id"]
+    },
+    description: "This mart is made to help out NPQ Funding Team with payments for the targeted support fund. It pulls together all NPQ applications with a started declaration after October 1st 2023 who are eligible for targeted delivery funding and provides details of their school.",
+    columns: {
+        ecf_user_id: "This comes from the teacher profile associated with the participant profile. User ID also exists independently in other tables.",
+        application_trn: "This is the TRN provided at the point of application",
+        verified_trn: "This is the TRN from the Teacher Profile associated with the ecf_user_id",
+        application_id: "ID of each unique application. Declarations are joined to the application using this id and it is also the participant_profile_id in the declarations table",
+        course_identifier: "Shorthand of NPQ course. This comes from the participant's latest declaration.",
+        cohort: "The cohort/academic year corresponding to when the participant started their course.",
+        school_urn: "The unique reference number of the participant's school.",
+        school_name: "Name of participant's school.",
+        la_name: "Name of local authority.",
+        la_code: "Code for the local authority",
+        primary_establishment: "Records whether the user's establishment at time of registration was a primary establishment or not. Based on GIAS data.",
+        establishment_type: "Establishment type as stored in GIAS on 10/05/2024.",
+        phase_of_education: "Establishment's phase of education as stored in GIAS on 10/05/2024.",
+        establishment_status: "Establishment's status (Open etc.) as stored in GIAS on 10/05/2024",
+        number_of_pupils: "Number of pupils at the establishment as recorded on GIAS at time of registration.",
+        gias_number_of_pupils: "Number of pupils at the establishment as recorded on GIAS on 10/05/2024.",
+        date_accessed: "The date at which the GIAS data was extracted and saved in the static table.",
+        targeted_delivery_funding_eligibility: "TRUE/FALSE for whether a school is eligible for TDF. Also acts as a flag for TSF Primary.",
+        tdf_count: "If the targeted_delivery_funding_eligibility = TRUE then 1 otherwise 0.",
+        tsf_primary_eligibility: "TRUE/FALSE for whether a school is eligible for TSF (£200) owing to it being a primary establishment.",
+        tsf_primary_plus_eligibility: "TRUE/ FALSE for whether a school is eligible for the base £200 as well as the additional £600 based on whether they are a primary school and have fewer than 150 pupils. Pupil count based on GIAS data at time of registration.",
+        tsf_primary_plus_count: "1 if tsf_primary_plus_eligibility is TRUE, 0 otherwise.",
+        inclusion_reason: "The reason provided for the manually included applications by the Grant Funding team.",
+        tdf_amount: "If the targeted_delivery_funding_eligibility = TRUE, then £200 is applied to the application.",
+        tsf_primary_plus_amount: "If the tsf_primary_plus_eligibility = TRUE, then £600 is applied to the application.",
+        total_tsf_amount: "Adding together of the tdf_amount and tsf_primary_plus_amount to calculate the total amount of Targeted Support Funding (TSF) that applies to the application."
+    }
+}
+/*** NPQ TSF Details Looker Studio Data Mart ***/
+/*
+  Objective:
+    To produce list of applications eligible for Grant Funding that can be aggregated at School URN level.
+
+  Dependencies:
+    static_tables.gias_snapshot_2024_05_10
+    static_tables.npq_tsf_additional_applications_to_include
+    static_tables.npq_tsf_applications_to_exclude
+
+
+  Version:
+    1.0 2024-05-17 Tony Page
+      Initial Build
+
+    1.1 2024-05-20 Tony Page
+      Added CTE to assess additional applications in the "to include" list that do not appear by default in the NPQ Applications CTE.
+
+    1.2 2024-05-24 Tony Page
+      Added manual overwrite of ecf_user_id and trn_verified for TRN 1137983 which does not have a latest participant profile in the service.
+      This is the only known instance so a manually fix was agreed by NE rather than asking developers to apply the fix in the service.
+
+*/
+
+--- Get all applications that meet specified criteria.
+WITH
+  npq_applications AS (
+  SELECT
+    CASE
+      -- Manually amend ecf_user_id for TRN 1137983 as participant profile has been deleted in service but application was not re-assigned. Only known case in the data.  
+      WHEN application_trn = '1137983' THEN 'b29059a6-f50c-4963-83d1-1ff43c992ddb'
+      ELSE ecf_user_id
+    END AS ecf_user_id,
+    application_trn,
+    -- Manually amend the trn_verfified for TRN 1137983 as participant profile has been deleted in service but application was not re-assigned. Only known case in the data. 
+    CASE
+      WHEN application_trn = '1137983' THEN 1137983
+      ELSE trn_verified
+    END AS trn_verified,
+    cohort,
+    application_ecf_id AS application_id,
+    course_identifier,
+    school_urn,
+    school_name,
+    number_of_pupils,
+    primary_establishment,
+    targeted_delivery_funding_eligibility,
+    tsf_primary_eligibility, -- Unused by the service as targeted_delivery_funding_eligibility also acts as the flag for this indicator. Included purely for visibility.
+    tsf_primary_plus_eligibility
+  FROM
+    `dataform.npq_enrolments`
+  WHERE
+    started_declaration_state IN (
+      'eligible',
+      'payable',
+      'paid')
+    AND 
+    started_declaration_date >= '2023-10-01'
+    AND
+    course_identifier NOT IN ('npq-early-headship-coaching-offer', 'npq-additional-support-offer') --EHCO/ASO courses are excluded as per instruction on 16/05/2024.
+    AND
+    school_urn IS NOT NULL --Only null when EYS or other which would not be eligible for this funding.
+), 
+
+--- Get snapshot of GIAS data
+gias_information AS (
+  SELECT
+     gias.*
+    ,code.la_code
+  FROM
+    `static_tables.gias_snapshot_2024_05_10` gias --Snapshot used as GIAS information needs to remain unchanged in relation to applications contained within output of this query.
+  LEFT JOIN
+    `static_tables.la_codes_gias_ofsted` code 
+  ON
+    code.gias_la_name = gias.la_name
+  WHERE 
+    data_source LIKE 'GIAS%'
+),
+
+--- Get additional applications that need to be included.
+additional_applications AS (
+  SELECT *
+  FROM `static_tables.npq_tsf_additional_applications_to_include`
+),
+
+--- Get applications in need of exclusion.
+excluded_applications AS (
+  SELECT *
+  FROM `static_tables.npq_tsf_applications_to_exclude`
+),
+
+-- Mark applications with include or exclude flags and reasons.
+application_review AS (
+  SELECT 
+     app.* EXCEPT(tsf_primary_plus_eligibility, targeted_delivery_funding_eligibility) --To be calculated based on npq_applications vs additional_applications
+    ,IF(add.tsf_primary_plus_eligibility = TRUE, TRUE, app.tsf_primary_plus_eligibility) AS tsf_primary_plus_eligibility
+    ,IF(add.targeted_delivery_funding_eligibility = TRUE, TRUE, app.targeted_delivery_funding_eligibility) AS targeted_delivery_funding_eligibility
+
+    ,CASE
+      WHEN ex.application_id IS NOT NULL THEN 1 ELSE 0
+    END AS is_excluded
+
+    ,CASE
+      WHEN ex.application_id IS NOT NULL THEN ex.exclusion_reason 
+      WHEN app.targeted_delivery_funding_eligibility = FALSE AND add.application_id IS NULL THEN ''
+      ELSE NULL
+    END AS exclusion_reason
+
+    ,CASE
+      WHEN add.application_id IS NOT NULL THEN 1
+      WHEN app.targeted_delivery_funding_eligibility = TRUE AND ex.application_id IS NULL THEN 1
+      ELSE 0
+    END AS is_included
+
+    ,CASE
+      WHEN add.application_id IS NOT NULL THEN add.inclusion_reason
+      WHEN app.targeted_delivery_funding_eligibility = TRUE AND ex.application_id IS NULL THEN ''
+      ELSE NULL
+    END AS inclusion_reason
+
+    ,CASE
+      WHEN app.targeted_delivery_funding_eligibility = TRUE OR add.application_id IS NOT NULL THEN 1
+      ELSE 0 
+    END AS tdf_count
+    
+    ,CASE
+      WHEN app.tsf_primary_plus_eligibility = TRUE OR add.tsf_primary_plus_eligibility = TRUE THEN 1 --Need to ensure that this flag is set to true in static table when applicable as will not be in the npq_enrolments if otherwise excluded.
+      ELSE 0 
+    END AS tsf_primary_plus_count
+  FROM 
+    npq_applications app
+  LEFT JOIN
+    excluded_applications ex 
+  ON
+    ex.application_id = app.application_id
+  LEFT JOIN
+    additional_applications add 
+  ON
+    add.application_id = app.application_id
+)
+
+--- Build output of applications that meet inclusion criteria.
+SELECT
+  npq.ecf_user_id,
+  npq.application_trn,
+  npq.trn_verified AS verified_trn,
+  npq.application_id,
+  npq.course_identifier,
+  npq.cohort,
+  npq.school_urn,
+  npq.school_name,
+  gias.la_name,
+  gias.la_code,
+  npq.primary_establishment,
+  gias.establishment_type AS establishment_type,
+  gias.phase_of_education,
+  gias.establishment_status,
+  npq.number_of_pupils,
+  gias.number_of_pupils AS gias_number_of_pupils,
+  gias.date_accessed,
+  npq.targeted_delivery_funding_eligibility,
+  npq.tdf_count,
+  npq.tsf_primary_eligibility,
+  npq.tsf_primary_plus_eligibility,
+  npq.tsf_primary_plus_count,
+  npq.inclusion_reason,
+  200 * tdf_count AS tdf_amount,
+  600 * tsf_primary_plus_count AS tsf_primary_plus_amount,
+  (200 * tdf_count) + (600 * tsf_primary_plus_count) AS total_tsf_amount,
+FROM
+  application_review npq
+LEFT JOIN
+  gias_information gias
+ON
+  npq.school_urn = gias.establishment_urn
+WHERE
+  npq.is_included = 1
