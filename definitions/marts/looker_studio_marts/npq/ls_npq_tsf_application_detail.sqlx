@@ -3,6 +3,9 @@ config {
     assertions: {
         uniqueKey: ["application_id"]
     },
+    bigquery: {
+        clusterBy: ["cohort"]
+    },
     description: "This mart is made to help the NPQ Funding Team with payments for the targeted support fund. It pulls together all NPQ applications with a started declaration after October 1st 2023 to assess who are eligible for targeted delivery funding and provides details of their school. \n \
     Objective:To produce list of NPQ applications for Grant Funding that can be aggregated at School URN level to be assessed for eligibility for TSF. \n \
     Instructions: \n \
@@ -83,7 +86,7 @@ config {
 
     1.2 2024-05-24 Tony Page
       Added manual overwrite of ecf_user_id and trn_verified for TRN 1137983 which does not have a latest participant profile in the service.
-      This is the only known instance so a manually fix was agreed by NE rather than asking developers to apply the fix in the service.
+      This is the only known instance so a manual fix was agreed by NE rather than asking developers to apply the fix in the service.
 
 */
 
