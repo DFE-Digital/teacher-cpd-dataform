@@ -3,13 +3,18 @@ config {
     assertions: {
         uniqueKey: ["application_id"]
     },
-    description: "This mart is made to help out NPQ Funding Team with payments for the targeted support fund. It pulls together all NPQ applications with a started declaration after October 1st 2023 who are eligible for targeted delivery funding and provides details of their school.",
+    description: "This mart is made to help the NPQ Funding Team with payments for the targeted support fund. It pulls together all NPQ applications with a started declaration after October 1st 2023 to assess who are eligible for targeted delivery funding and provides details of their school. \
+    Objective:To produce list of NPQ applications for Grant Funding that can be aggregated at School URN level to be assessed for eligibility for TSF. \
+    Instructions: \
+      To obtain list of eligible & included applications: is_included = 1; \
+      To obtain list of currently not included applications that meet review criteria: is_included = 0 AND is_excluded = 0 AND(pupils_at_reg_chk = 1 OR gias_pupils_chk = 1 OR gias_phase_chk = 1 OR spec_est_chk = 1) \
+    Dependencies: static_tables.gias_snapshot_2024_05_10, static_tables.npq_tsf_additional_applications_to_include, static_tables.npq_tsf_applications_to_exclude, static_tables.special_16_19_establishments",
     columns: {
         ecf_user_id: "This comes from the teacher profile associated with the participant profile. User ID also exists independently in other tables.",
         application_trn: "This is the TRN provided at the point of application",
         verified_trn: "This is the TRN from the Teacher Profile associated with the ecf_user_id",
         application_id: "ID of each unique application. Declarations are joined to the application using this id and it is also the participant_profile_id in the declarations table",
-        course_identifier: "Shorthand of NPQ course. This comes from the participant's latest declaration.",
+        course_identifier: "Shorthand of NPQ course. This comes from the participant's latest declaration. EHCO & ASO are excluded from the output.",
         cohort: "The cohort/academic year corresponding to when the participant started their course.",
         school_urn: "The unique reference number of the participant's school.",
         school_name: "Name of participant's school.",
@@ -24,24 +29,49 @@ config {
         date_accessed: "The date at which the GIAS data was extracted and saved in the static table.",
         targeted_delivery_funding_eligibility: "TRUE/FALSE for whether a school is eligible for TDF. Also acts as a flag for TSF Primary.",
         tdf_count: "If the targeted_delivery_funding_eligibility = TRUE then 1 otherwise 0.",
-        tsf_primary_eligibility: "TRUE/FALSE for whether a school is eligible for TSF (£200) owing to it being a primary establishment.",
+        tsf_primary_eligibility: "TRUE/FALSE for whether a school is eligible for TSF (£200) owing to it being a primary establishment. Unused by the service as targeted_delivery_funding_eligibility also acts as the flag for this indicator. Included purely for visibility.",
         tsf_primary_plus_eligibility: "TRUE/ FALSE for whether a school is eligible for the base £200 as well as the additional £600 based on whether they are a primary school and have fewer than 150 pupils. Pupil count based on GIAS data at time of registration.",
         tsf_primary_plus_count: "1 if tsf_primary_plus_eligibility is TRUE, 0 otherwise.",
         inclusion_reason: "The reason provided for the manually included applications by the Grant Funding team.",
         tdf_amount: "If the targeted_delivery_funding_eligibility = TRUE, then £200 is applied to the application.",
         tsf_primary_plus_amount: "If the tsf_primary_plus_eligibility = TRUE, then £600 is applied to the application.",
-        total_tsf_amount: "Adding together of the tdf_amount and tsf_primary_plus_amount to calculate the total amount of Targeted Support Funding (TSF) that applies to the application."
+        total_tsf_amount: "Adding together of the tdf_amount and tsf_primary_plus_amount to calculate the total amount of Targeted Support Funding (TSF) that applies to the application.",
+        is_included: "1 or 0 if the application should be included in list of eligible applications.",
+        is_excluded: "1 or 0 if the application has been manually excluded by the Grant Funding team.",
+        pupils_at_reg_chk: " 1 or 0 if the application has between 1-600 at time of registration.",
+        gias_pupils_chk: "1 or 0 if the school related to the application haas 1-600 pupils in GIAS as of 10/05/2024.",
+        gias_phase_chk: "1 or 0 if the school related to the application's Phase of Education in GIAS as of 10/05/2024 is either 'Primary' or 'Middle Deemed Primary'.",
+        spc_est_chk: "1 or 0 if the school URN appears in the list of Special 16-19 Establishments."
     }
 }
-/*** NPQ TSF Details Looker Studio Data Mart ***/
+/*** NPQ TSF Looker Studio Data Mart ***/
 /*
   Objective:
-    To produce list of applications eligible for Grant Funding that can be aggregated at School URN level.
+    To produce list of NPQ applications for Grant Funding that can be aggregated at School URN level to be assessed for eligibility for TSF.
+
+  Instructions:
+    To obtain list of eligible & included applications:
+      is_included = 1
+    
+    To obtain list of currently not included applications that meet review criteria:
+      is_included = 0
+      AND
+      is_excluded = 0
+      AND(
+        pupils_at_reg_chk = 1
+        OR
+        gias_pupils_chk = 1
+        OR
+        gias_phase_chk = 1
+        OR
+        spec_est_chk = 1
+      )  
 
   Dependencies:
     static_tables.gias_snapshot_2024_05_10
     static_tables.npq_tsf_additional_applications_to_include
     static_tables.npq_tsf_applications_to_exclude
+    static_tables.special_16_19_establishments
 
 
   Version:
@@ -134,7 +164,6 @@ application_review AS (
     ,CASE
       WHEN ex.application_id IS NOT NULL THEN 1 ELSE 0
     END AS is_excluded
-
     ,CASE
       WHEN ex.application_id IS NOT NULL THEN ex.exclusion_reason 
       WHEN app.targeted_delivery_funding_eligibility = FALSE AND add.application_id IS NULL THEN ''
@@ -146,7 +175,6 @@ application_review AS (
       WHEN app.targeted_delivery_funding_eligibility = TRUE AND ex.application_id IS NULL THEN 1
       ELSE 0
     END AS is_included
-
     ,CASE
       WHEN add.application_id IS NOT NULL THEN add.inclusion_reason
       WHEN app.targeted_delivery_funding_eligibility = TRUE AND ex.application_id IS NULL THEN ''
@@ -157,7 +185,6 @@ application_review AS (
       WHEN app.targeted_delivery_funding_eligibility = TRUE OR add.application_id IS NOT NULL THEN 1
       ELSE 0 
     END AS tdf_count
-    
     ,CASE
       WHEN app.tsf_primary_plus_eligibility = TRUE OR add.tsf_primary_plus_eligibility = TRUE THEN 1 --Need to ensure that this flag is set to true in static table when applicable as will not be in the npq_enrolments if otherwise excluded.
       ELSE 0 
@@ -202,11 +229,31 @@ SELECT
   200 * tdf_count AS tdf_amount,
   600 * tsf_primary_plus_count AS tsf_primary_plus_amount,
   (200 * tdf_count) + (600 * tsf_primary_plus_count) AS total_tsf_amount,
+  npq.is_included,
+  npq.is_excluded,
+  -- Pupils at time of registration check
+  CASE
+    WHEN npq.number_of_pupils BETWEEN 1 AND 600 THEN 1 ELSE 0 
+  END AS pupils_at_reg_chk,
+  -- Pupils in GIAS as of 2024-05-10 check
+  CASE
+    WHEN gias.number_of_pupils BETWEEN 1 AND 600 THEN 1 ELSE 0 
+  END AS gias_pupils_chk,
+  -- GIAS as of 2024-05-10 Phase of Education check; Case sensitivity needs to be considered.
+  CASE
+    WHEN gias.phase_of_education IN ('Primary', 'Middle Deemed Primary') THEN 1 ELSE 0 
+  END AS gias_phase_chk,
+  -- URN exists in list of Special 16-19 Establishments
+  CASE
+    WHEN spec.ukprn IS NOT NULL THEN 1 ELSE 0 
+  END AS spec_est_chk
 FROM
   application_review npq
 LEFT JOIN
   gias_information gias
 ON
   npq.school_urn = gias.establishment_urn
-WHERE
-  npq.is_included = 1
+LEFT JOIN
+    `static_tables.special_16_19_establishments` spec 
+ON
+  spec.urn = npq.school_urn
