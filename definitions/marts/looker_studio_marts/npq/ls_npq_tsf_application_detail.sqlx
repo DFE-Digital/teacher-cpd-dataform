@@ -3,11 +3,11 @@ config {
     assertions: {
         uniqueKey: ["application_id"]
     },
-    description: "This mart is made to help the NPQ Funding Team with payments for the targeted support fund. It pulls together all NPQ applications with a started declaration after October 1st 2023 to assess who are eligible for targeted delivery funding and provides details of their school. \
-    Objective:To produce list of NPQ applications for Grant Funding that can be aggregated at School URN level to be assessed for eligibility for TSF. \
-    Instructions: \
-      To obtain list of eligible & included applications: is_included = 1; \
-      To obtain list of currently not included applications that meet review criteria: is_included = 0 AND is_excluded = 0 AND(pupils_at_reg_chk = 1 OR gias_pupils_chk = 1 OR gias_phase_chk = 1 OR spec_est_chk = 1) \
+    description: "This mart is made to help the NPQ Funding Team with payments for the targeted support fund. It pulls together all NPQ applications with a started declaration after October 1st 2023 to assess who are eligible for targeted delivery funding and provides details of their school. \n \
+    Objective:To produce list of NPQ applications for Grant Funding that can be aggregated at School URN level to be assessed for eligibility for TSF. \n \
+    Instructions: \n \
+      To obtain list of eligible & included applications: is_included = 1; \n \
+      To obtain list of currently not included applications that meet review criteria: is_included = 0 AND is_excluded = 0 AND(pupils_at_reg_chk = 1 OR gias_pupils_chk = 1 OR gias_phase_chk = 1 OR spec_est_chk = 1) \n \
     Dependencies: static_tables.gias_snapshot_2024_05_10, static_tables.npq_tsf_additional_applications_to_include, static_tables.npq_tsf_applications_to_exclude, static_tables.special_16_19_establishments",
     columns: {
         ecf_user_id: "This comes from the teacher profile associated with the participant profile. User ID also exists independently in other tables.",
