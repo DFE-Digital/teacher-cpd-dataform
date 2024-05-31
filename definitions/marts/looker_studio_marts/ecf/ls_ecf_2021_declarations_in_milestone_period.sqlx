@@ -1,0 +1,252 @@
+config {
+    type: "table",
+    assertions: {
+        uniqueKey: ["declaration_id"]
+    },
+    description: "This mart holds all ECF declarations for participants in the 2021 cohort with multiple in any one Milestone Period. \n \
+    Objective: \n \
+      To identify all declarations that fall within the same milestone period for review. \n \
+    Dependencies: \n \
+      static_tables.ecf_2021_milestone_periods \n \
+      dataform.ls_declarations_provider_names \n \
+      dataform.participant_profiles_latest_cpd \n \
+      dataform.schedules_latest_cpd \n \ ",
+    columns: {
+        user_id: "This comes from the teacher profile associated with the participant profile. User ID also exists independently in other tables.",
+        participant_profile_id: "The participant profile ID as per the ECF Induction record.",
+        role: "The role of the participant which is either ECT or Mentor as per the participant profile type.",
+        current_schedule: "The schedule as per the latest participant profile.",
+        cohort: "The cohort/academic year corresponding to when the participant started their course.",
+        declaration_id: "The unique identifier for the declaration.",
+        declaration_type: "The type of declaration which can be started, retained-#, extended-# or completed. #'s range from 1 to 4.",
+        declaration_date: "The date of when the declaration was created.",
+        declaration_state: "The state of the declaration which for this mart can only be either paid, payable or eligible.",
+        declaration_type_sort_order: "A numeric value associated with the declaration type to enable sorting based upon its value. The order is started, retained-[1-4], extended-[1-3], completed.",
+        lead_provider: "The name of the Lead Provider that submitted the declaration.",
+        milestone_period_id: "The integer ID for the Milestone Period as per the static table ecf_2021_milestone_periods.",
+        milestone_period: "Concatenation of period start and end dates to create a grouping. These periods are only relevant to the 2021 academic cohort.",
+        milestone_period_dupe_flag: "1 or 0 if the declaration exists within a Milestone Period alongside another.",
+        declaration_date_dupe_flag: "1 or 0 if the declaration exists on the same Declaration Date as another.",
+        same_milestone_period: "This field contains 1 of 3 values. 'Same milestone period used more than once' if the milestone_period_dupe_flag is 1 and declaration_date_dupe_flag is 0, 'Same declaration date used more than once' if declaration_date_dupe_flag is 1 or blank if neither dupe flag is 1.",
+        is_dummy_date: "TRUE/FALSE if the declaration date is the same as the start or end date of the Milestone Period. Some Lead Providers were informed to use these dates in order to allow multiple declarations in a single period and this flag allows the Contract Management team to assess those declarations."
+    }
+}
+/*** ECF Declarations in Same Milestone Period Looker Studio Mart ***/
+/*
+  Objective:
+    To identify all declarations that fall within the same milestone period for review.
+
+  Dependencies:
+    static_tables.ecf_2021_milestone_periods
+    dataform.ls_declarations_provider_names
+    dataform.participant_profiles_latest_cpd
+    dataform.schedules_latest_cpd
+
+  Version History:
+    1.0 2024-05-24 Tony Page
+      Initial build
+
+    1.1 2024-05-28 Tony Page
+      Removed any Profile IDs where 0 declarations meet the criteria of same milestone period.
+
+    1.2 2024-05-30 Tony Page
+      Changed relevant profiles to use a concatenation of participant_profile_id & provider_id to remove declarations appearing against providers for participants with multiple in same milestone period but with a different lead provider.
+
+*/
+
+-- Gather milestone period and split into individual dates between start & end of period for use in joins later.
+  -- These milestone periods are only relevant to the 2021 academic cohort.
+WITH milestone_periods AS (
+  SELECT 
+     milestone_period_id
+    ,milestone_period_start_date
+    ,milestone_period_end_date
+    ,milestone_period_date
+  FROM 
+    static_tables.ecf_2021_milestone_periods
+  CROSS JOIN 
+    UNNEST(
+      GENERATE_DATE_ARRAY(milestone_period_start_date, milestone_period_end_date, INTERVAL 1 DAY)
+    ) AS milestone_period_date
+),
+
+-- Gather all ECF declarations where state is in 'paid', 'payable', 'eligible'
+ecf_declarations AS (
+  SELECT 
+     id AS declaration_id
+    ,user_id
+    ,participant_profile_id
+    ,course_identifier
+    ,cpd_lead_provider_id AS provider_id
+    ,cpd_lp_name AS provider_name
+    ,declaration_date
+    ,declaration_type
+    ,CASE
+      WHEN declaration_type = 'started' THEN 1
+      WHEN declaration_type = 'retained-1' THEN 2
+      WHEN declaration_type = 'retained-2' THEN 3
+      WHEN declaration_type = 'retained-3' THEN 4
+      WHEN declaration_type = 'retained-4' THEN 5
+      WHEN declaration_type = 'extended-1' THEN 6
+      WHEN declaration_type = 'extended-2' THEN 7
+      WHEN declaration_type = 'extended-3' THEN 8
+      WHEN declaration_type = 'completed' THEN 9
+    END AS declaration_type_sort_order
+    ,state AS declaration_state
+    ,evidence_held
+    ,cohort
+    ,statement_cohort
+    ,mentor_user_id
+  FROM
+    `dataform.ls_declarations_provider_names`
+  WHERE
+    programme = 'ECF'
+    AND
+    state IN (
+       'paid'
+      ,'payable'
+      ,'eligible'
+    )
+    AND cohort = 2021
+),
+
+-- Combine data obtained so far and generate grouping columns
+  -- Milestone Period Group = user + course + lead provider + milestone period
+  -- Declaration Date Group = user + course + lead provider + declaration date
+combined_data AS (    
+  SELECT 
+    dec.*
+    ,CASE
+      WHEN prof.type LIKE '%Mentor%' THEN 'Mentor'
+      WHEN prof.type LIKE '%ECT%' THEN 'ECT'
+      ELSE ''
+    END AS participant_type
+    ,prof.schedule_identifier
+    ,mp.milestone_period_id
+    ,mp.milestone_period_start_date
+    ,mp.milestone_period_end_date
+    ,user_id || course_identifier || provider_id || milestone_period_id AS milestone_period_group
+    ,user_id || course_identifier || provider_id || DATE(declaration_date) AS declaration_date_group
+    ,IF(DATE(declaration_date) IN (milestone_period_start_date, milestone_period_end_date), 1, 0) AS declaration_on_dummy_date
+  FROM 
+    ecf_declarations dec
+  -- Join on milestone periods
+  LEFT JOIN
+    milestone_periods mp 
+  ON
+    mp.milestone_period_date = DATE(dec.declaration_date)
+  -- Join on latest participant profile (with schedule included)
+  LEFT JOIN
+    (
+      SELECT 
+         prof.*
+        ,sched.schedule_identifier
+      FROM 
+        `dataform.participant_profiles_latest_cpd` prof
+      LEFT JOIN
+        `dataform.schedules_latest_cpd` sched 
+      ON
+        sched.id = prof.schedule_id
+    ) AS prof 
+  ON
+    prof.id = dec.participant_profile_id
+  ORDER BY
+    mp.milestone_period_id ASC, dec.declaration_date ASC
+),
+
+-- Group declarations by milestone period grouping to obtain quantity.
+milestone_group AS (
+  SELECT
+     milestone_period_group
+    ,COUNT(1) AS group_quantity
+  FROM
+    combined_data
+  GROUP BY
+    milestone_period_group
+),
+
+-- Group declarations by declaration date grouping to obtain quantity.
+declaration_date_group AS (
+  SELECT
+     declaration_date_group
+    ,COUNT(1) AS group_quantity
+  FROM
+    combined_data
+  GROUP BY
+    declaration_date_group
+),
+
+-- Add flags for declarations that are in the same Milestone Period and on the Same Date
+flagged_data AS(
+  SELECT 
+    cd.*
+    ,CASE
+      WHEN mpg.group_quantity > 1 AND cd.milestone_period_id = 1 AND cd.declaration_type IN ('started', 'retained-1') THEN 0
+      WHEN mpg.group_quantity > 1 THEN 1
+      ELSE 0
+    END AS milestone_period_dupe_flag
+    ,CASE
+      WHEN ddg.group_quantity > 1 AND cd.milestone_period_id = 1 AND cd.declaration_type IN ('started', 'retained-1') THEN 0
+      WHEN ddg.group_quantity > 1 THEN 1
+      ELSE 0
+    END AS declaration_date_dupe_flag
+  FROM combined_data cd
+  LEFT JOIN
+    milestone_group mpg
+  ON
+    mpg.milestone_period_group = cd.milestone_period_group
+  LEFT JOIN
+    declaration_date_group ddg 
+  ON 
+    ddg.declaration_date_group = cd.declaration_date_group
+),
+
+-- Generate list of profile IDs with their associated flag counts to be used in exlcusion for IDs with 0 of either flag.
+relevant_profiles AS (
+  SELECT 
+    participant_profile_id || provider_id AS participant_provider_group
+    ,SUM(milestone_period_dupe_flag) AS mp_flag
+    ,SUM(declaration_date_dupe_flag) AS dd_flag
+  FROM
+    flagged_data
+  GROUP BY
+    participant_profile_id || provider_id
+)
+
+-- Build output table
+SELECT
+   user_id
+  ,participant_profile_id
+  ,participant_type AS role
+  ,schedule_identifier AS current_schedule
+  ,cohort
+  ,declaration_id
+  ,declaration_type
+  ,declaration_date
+  ,declaration_state
+  ,declaration_type_sort_order
+  ,provider_name AS lead_provider
+  ,milestone_period_id
+  ,milestone_period_start_date || ' - ' || milestone_period_end_date AS milestone_period
+  ,milestone_period_dupe_flag
+  ,declaration_date_dupe_flag
+  ,CASE
+    WHEN declaration_date_dupe_flag = 1 THEN 'Same declaration date used more than once'
+    WHEN milestone_period_dupe_flag = 1 THEN 'Same milestone period used more than once'
+    ELSE ''
+  END AS same_milestone_period
+  ,IF(declaration_on_dummy_date = 1, TRUE, FALSE) AS is_dummy_date
+FROM
+  flagged_data
+WHERE
+  -- Remove participant_profile_id where no declarations exist that meet the criteria of Same Milestone Period 
+  participant_profile_id || provider_id NOT IN (
+    SELECT
+      participant_provider_group
+    FROM
+      relevant_profiles
+    WHERE
+      mp_flag = 0 AND dd_flag = 0
+  )
+ORDER BY
+  cohort ASC, participant_profile_id ASC, declaration_type_sort_order ASC
