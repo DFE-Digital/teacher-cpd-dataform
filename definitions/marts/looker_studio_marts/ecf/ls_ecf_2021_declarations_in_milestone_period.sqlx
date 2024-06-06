@@ -66,7 +66,7 @@ WITH milestone_periods AS (
     ,milestone_period_end_date
     ,milestone_period_date
   FROM 
-    static_tables.ecf_2021_milestone_periods
+    ${ref('ecf_2021_milestone_periods')}
   CROSS JOIN 
     UNNEST(
       GENERATE_DATE_ARRAY(milestone_period_start_date, milestone_period_end_date, INTERVAL 1 DAY)
