@@ -102,7 +102,7 @@ ecf_declarations AS (
     ,mentor_user_id
     ,schedule_identifier
   FROM
-    `dataform.ls_declarations_provider_names`
+    ${ref('ls_declarations_provider_names')}
   WHERE
     programme = 'ECF'
     AND
