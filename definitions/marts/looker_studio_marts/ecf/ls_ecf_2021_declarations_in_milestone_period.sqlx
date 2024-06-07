@@ -187,5 +187,3 @@ FROM
   combined_data
 QUALIFY
   declaration_date_chk > 0 OR milestone_period_chk > 0
-ORDER BY
-  cohort ASC, participant_profile_id ASC, declaration_type_sort_order ASC
