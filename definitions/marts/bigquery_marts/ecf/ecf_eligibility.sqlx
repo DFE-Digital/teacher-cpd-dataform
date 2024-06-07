@@ -34,7 +34,7 @@ SELECT
   static_eligibility.* EXCEPT(user_id,
     trn_validated_reason)
 FROM
-  `ecf-bq.static_tables.ecf_eligibility_statuses_20_02_24` static_eligibility
+  ${ref('ecf_eligibility_statuses_20_02_24')} AS static_eligibility
 LEFT JOIN
   latest_eligibility
 USING

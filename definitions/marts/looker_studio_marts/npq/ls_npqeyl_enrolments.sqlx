@@ -101,7 +101,7 @@ WITH
     la_name,
     gor_name
   FROM
-    `static_tables.all_gias_ofsted_establishments`
+    ${ref('all_gias_ofsted_establishments')}
   WHERE
     data_source LIKE 'Ofsted%'),
   gias_settings AS (
@@ -113,7 +113,7 @@ WITH
     la_name,
     gor_name
   FROM
-    `static_tables.all_gias_ofsted_establishments`
+    ${ref('all_gias_ofsted_establishments')}
   WHERE
     data_source LIKE 'GIAS%'),
   final_table AS (

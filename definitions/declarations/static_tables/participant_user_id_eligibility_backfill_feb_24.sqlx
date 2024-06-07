@@ -1,0 +1,5 @@
+config {
+    type: "declaration",
+    schema: "static_tables",
+    name: "participant_user_id_eligibility_backfill_feb_24"
+}

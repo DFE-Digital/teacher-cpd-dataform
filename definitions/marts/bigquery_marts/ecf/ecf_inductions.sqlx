@@ -75,7 +75,7 @@ WITH
   FROM
     ${ref("induction_programmes_latest_cpd")} induction_prog
   LEFT JOIN
-    `ecf-bq.static_tables.core_induction_materials_providers` cip_materials_providers
+    ${ref('core_induction_materials_providers')} AS cip_materials_providers
   ON
     induction_prog.core_induction_programme_id=cip_materials_providers.core_induction_programme_id),
   cohort_records AS(

@@ -88,12 +88,12 @@ WITH
     ON
       dec_cpd.participant_profile_id=ecf_id.participant_profile_id
     LEFT JOIN
-      `static_tables.ecf_schedule_milestone_mapping` AS schedule_milestones
+      ${ref('ecf_schedule_milestone_mapping')} AS schedule_milestones
     ON
       ecf_id.schedule_identifier=schedule_milestones.schedule_identifier
       AND ecf_id.cohort=schedule_milestones.cohort
     LEFT JOIN
-      `static_tables.ecf_schedule_milestone_mapping_condensed` AS sched_mile_cond
+      ${ref('ecf_schedule_milestone_mapping_condensed')} AS sched_mile_cond
     ON
       dec_cpd.declaration_type=sched_mile_cond.declaration_type
     WHERE
@@ -159,7 +159,7 @@ WITH
     ON
       fdmt.declaration_id=si.participant_declaration_id
     LEFT JOIN
-      `ecf-bq.static_tables.statement_cohort_known_mismatches` sckm
+      ${ref('statement_cohort_known_mismatches')} AS sckm
     ON
       fdmt.declaration_id=sckm.id
     WHERE /*This excludes declarations we already know do not align with the statement cohort but the financial statements have been closed so there is no action to be taken.*/
