@@ -31,8 +31,8 @@ config {
         declaration_date_dupe_flag: "1 or 0 if the declaration exists on the same Declaration Date as another.",
         same_milestone_period: "This field contains 1 of 3 values. 'Same milestone period used more than once' if the milestone_period_dupe_flag is 1 and declaration_date_dupe_flag is 0, 'Same declaration date used more than once' if declaration_date_dupe_flag is 1 or blank if neither dupe flag is 1.",
         is_dummy_date: "TRUE/FALSE if the declaration date is the same as the start or end date of the Milestone Period. Some Lead Providers were informed to use these dates in order to allow multiple declarations in a single period and this flag allows the Contract Management team to assess those declarations.",
-        declaration_date_chk: "Count of declarations with the same date by user_id, provider_name and course_identifier",
-        milestone_period_chk: "Count of declarations within the same milestone period by user_id, provider_name and course_identifier."
+        declaration_date_chk: "Count of declarations with the same date by participant_profile_id, provider_name and course_identifier",
+        milestone_period_chk: "Count of declarations within the same milestone period by participant_profile_id, provider_name and course_identifier."
    }
 }
 /*** ECF Declarations in Same Milestone Period Looker Studio Mart ***/
