@@ -1,0 +1,5 @@
+config {
+    type: "declaration",
+    schema: "static_tables",
+    name: "npq_trajectory_data_23_24"
+}

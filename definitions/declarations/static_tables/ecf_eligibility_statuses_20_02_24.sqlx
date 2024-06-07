@@ -1,0 +1,5 @@
+config {
+    type: "declaration",
+    schema: "static_tables",
+    name: "ecf_eligibility_statuses_20_02_24"
+}

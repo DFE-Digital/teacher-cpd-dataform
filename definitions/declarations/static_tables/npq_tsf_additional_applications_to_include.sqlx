@@ -1,0 +1,5 @@
+config {
+    type: "declaration",
+    schema: "static_tables",
+    name: "npq_tsf_additional_applications_to_include"
+}
