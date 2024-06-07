@@ -3,23 +3,25 @@ config {
     assertions: {
         uniqueKey: ["declaration_id"]
     },
-    description: "This mart holds all ECF declarations for participants in the 2021 cohort with multiple in any one Milestone Period. \n \
+    bigquery: {
+        partitionBy: "DATE(declaration_date)",
+        clusterBy: ["role"]
+    },
+    description: "This mart holds all funded (paid, payable, eligible) ECF declarations for participants in the 2021 cohort with multiple in any one Milestone Period. \n \
     Objective: \n \
       To identify all declarations that fall within the same milestone period for review. \n \
     Dependencies: \n \
       static_tables.ecf_2021_milestone_periods \n \
-      dataform.ls_declarations_provider_names \n \
-      dataform.participant_profiles_latest_cpd \n \
-      dataform.schedules_latest_cpd \n \ ",
+      dataform.ls_declarations_provider_names",
     columns: {
         user_id: "This comes from the teacher profile associated with the participant profile. User ID also exists independently in other tables.",
-        participant_profile_id: "The participant profile ID as per the ECF Induction record.",
-        role: "The role of the participant which is either ECT or Mentor as per the participant profile type.",
-        current_schedule: "The schedule as per the latest participant profile.",
+        participant_profile_id: "The ID from a participant's profile in the CPD service. Participant profiles are only generated when an application is accepted by a lead provider. There is one profile per accepted application. An NPQ participant will have a different participant_profile_id for each accepted NPQ. Their participant_profile_id should match the application_id and should match the participant_profile_id available in the declarations_latest table. While their participant_profile_id changes across NPQs, their participant_identity_id will remain the same across their participant profiles so long as they have signed up with the same email.",
+        role: "The role of the participant which is either ECT or Mentor as per the participant type.",
+        current_schedule: "The schedule as per the participant profile.",
         cohort: "The cohort/academic year corresponding to when the participant started their course.",
         declaration_id: "The unique identifier for the declaration.",
         declaration_type: "The type of declaration which can be started, retained-#, extended-# or completed. #'s range from 1 to 4.",
-        declaration_date: "The date of when the declaration was created.",
+        declaration_date: "The date of when the evidence was submitted against the declaration.",
         declaration_state: "The state of the declaration which for this mart can only be either paid, payable or eligible.",
         declaration_type_sort_order: "A numeric value associated with the declaration type to enable sorting based upon its value. The order is started, retained-[1-4], extended-[1-3], completed.",
         lead_provider: "The name of the Lead Provider that submitted the declaration.",
@@ -115,8 +117,8 @@ ecf_declarations AS (
 ),
 
 -- Combine data obtained so far and generate grouping columns
-  -- Milestone Period Group = user + course + lead provider + milestone period
-  -- Declaration Date Group = user + course + lead provider + declaration date
+  -- Milestone Period Group = participant + course + lead provider + milestone period
+  -- Declaration Date Group = participant + course + lead provider + declaration date
 combined_data AS (    
   SELECT 
     dec.*
@@ -129,14 +131,15 @@ combined_data AS (
     ,mp.milestone_period_start_date
     ,mp.milestone_period_end_date
     -- Assess each grouping for quantity and apply an indicator flag (1 or 0) where not an allowed instance.
+      -- In Milestone Period 1 providers were allowed to submit both started & retained-1 declarations for participants.
     ,CASE 
-      WHEN COUNT(*) OVER (PARTITION BY user_id, course_identifier, provider_id, milestone_period_id) > 1 
+      WHEN COUNT(*) OVER (PARTITION BY participant_profile_id, course_identifier, provider_id, milestone_period_id) > 1 
            AND
            (milestone_period_id = 1 AND declaration_type IN ('started', 'retained-1')) = FALSE THEN 1 
       ELSE 0 
      END AS milestone_period_dupe_flag
     ,CASE 
-      WHEN COUNT(*) OVER (PARTITION BY user_id, course_identifier, provider_id, DATE(declaration_date)) > 1 
+      WHEN COUNT(*) OVER (PARTITION BY participant_profile_id, course_identifier, provider_id, DATE(declaration_date)) > 1 
            AND
            (milestone_period_id = 1 AND declaration_type IN ('started', 'retained-1')) = FALSE THEN 1 
       ELSE 0 
