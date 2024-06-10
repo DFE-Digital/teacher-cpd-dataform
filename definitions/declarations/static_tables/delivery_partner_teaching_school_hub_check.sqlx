@@ -1,0 +1,5 @@
+config {
+    type: "declaration",
+    schema: "static_tables",
+    name: "delivery_partner_teaching_school_hub_check"
+}

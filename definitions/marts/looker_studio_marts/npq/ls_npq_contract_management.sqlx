@@ -30,7 +30,7 @@ WITH
     course,
     TARGET
   FROM
-    `ecf-bq.static_tables.npq_lead_provider_course_targets`
+    ${ref('npq_lead_provider_course_targets')}
   WHERE
     academic_year = 'AY23-24'
   ORDER BY

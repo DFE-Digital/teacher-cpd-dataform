@@ -116,7 +116,7 @@ WITH
     tsf_primary_eligibility, -- Unused by the service as targeted_delivery_funding_eligibility also acts as the flag for this indicator. Included purely for visibility.
     tsf_primary_plus_eligibility
   FROM
-    `dataform.npq_enrolments`
+    ${ref('npq_enrolments')}
   WHERE
     started_declaration_state IN (
       'eligible',
@@ -136,9 +136,9 @@ gias_information AS (
      gias.*
     ,code.la_code
   FROM
-    `static_tables.gias_snapshot_2024_05_10` gias --Snapshot used as GIAS information needs to remain unchanged in relation to applications contained within output of this query.
+    ${ref('gias_snapshot_2024_05_10')} AS gias --Snapshot used as GIAS information needs to remain unchanged in relation to applications contained within output of this query.
   LEFT JOIN
-    `static_tables.la_codes_gias_ofsted` code 
+    ${ref('la_codes_gias_ofsted')} AS code 
   ON
     code.gias_la_name = gias.la_name
   WHERE 
@@ -148,13 +148,13 @@ gias_information AS (
 --- Get additional applications that need to be included.
 additional_applications AS (
   SELECT *
-  FROM `static_tables.npq_tsf_additional_applications_to_include`
+  FROM ${ref('npq_tsf_additional_applications_to_include')}
 ),
 
 --- Get applications in need of exclusion.
 excluded_applications AS (
   SELECT *
-  FROM `static_tables.npq_tsf_applications_to_exclude`
+  FROM ${ref('npq_tsf_applications_to_exclude')}
 ),
 
 -- Mark applications with include or exclude flags and reasons.
