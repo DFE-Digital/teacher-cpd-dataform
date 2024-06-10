@@ -15,7 +15,7 @@ config {
       dataform.ls_declarations_provider_names",
     columns: {
         user_id: "This comes from the teacher profile associated with the participant profile. User ID also exists independently in other tables.",
-        participant_profile_id: "The ID from a participant's profile in the CPD service. Participant profiles are only generated when an application is accepted by a lead provider. There is one profile per accepted application. An NPQ participant will have a different participant_profile_id for each accepted NPQ. Their participant_profile_id should match the application_id and should match the participant_profile_id available in the declarations_latest table. While their participant_profile_id changes across NPQs, their participant_identity_id will remain the same across their participant profiles so long as they have signed up with the same email.",
+        participant_profile_id: "The ID from a participant's profile in the CPD service.",
         role: "The role of the participant which is either ECT or Mentor as per the participant type.",
         current_schedule: "The schedule as per the participant profile.",
         cohort: "The cohort/academic year corresponding to when the participant started their course.",
@@ -131,7 +131,7 @@ combined_data AS (
     ,mp.milestone_period_start_date
     ,mp.milestone_period_end_date
     -- Assess each grouping for quantity and apply an indicator flag (1 or 0) where not an allowed instance.
-      -- In Milestone Period 1 providers were allowed to submit both started & retained-1 declarations for participants.
+      -- As providers were allowed to submit both started & retained-1 declarations in Milestone Period 1 (which would trigger the flags below), these cases have been exlcuded from the flag definitions.
     ,CASE 
       WHEN COUNT(*) OVER (PARTITION BY participant_profile_id, course_identifier, provider_id, milestone_period_id) > 1 
            AND
