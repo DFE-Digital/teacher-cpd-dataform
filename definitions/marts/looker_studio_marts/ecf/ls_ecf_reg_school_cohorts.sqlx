@@ -1,0 +1,316 @@
+WITH
+  schools_latest AS (
+  SELECT
+    id,
+    name,
+    CAST(urn AS string) AS urn,
+    postcode,
+    administrative_district_code,
+    administrative_district_name,
+    school_phase_name,
+    school_phase_type,
+    school_status_code,
+    school_status_name,
+    school_type_code,
+    school_type_name
+  FROM
+    `dataform.schools_latest_cpd`),
+  available_cohorts AS (
+  SELECT
+    DISTINCT(start_year) AS cohort
+  FROM
+    `dataform.cohorts_latest_cpd`
+  WHERE
+    start_year !=2020
+  ORDER BY
+    cohort DESC),
+  induction_coordinator_profiles AS (
+  SELECT
+    id AS induction_tutor_id,
+    school_id,
+    user_id AS induction_tutor_user_id,
+    icp_df.created_at AS induction_tutor_created,
+    scp.created_at AS induction_tutor_nominated,
+    discarded_at AS induction_tutor_discarded,
+    total_sits,
+    CASE WHEN total_sits > 1 then 'replaced SIT'
+         WHEN total_sits = 1 then 'new SIT'
+         else null end as sit_type
+  FROM
+    `dataform.induction_coordinator_profiles_latest_cpd` icp_df
+  LEFT JOIN (
+    SELECT
+      induction_coordinator_profile_id,
+      school_id,
+      created_at,
+      COUNT(*) OVER (PARTITION BY school_id ORDER BY created_at asc) AS total_sits,
+      (ROW_NUMBER() OVER (PARTITION BY school_id ORDER BY created_at DESC)) AS rn0
+    FROM
+      `dataform.induction_coordinator_profiles_schools_latest_cpd`
+    QUALIFY
+      rn0=1) AS scp
+  ON
+    icp_df.id=scp.induction_coordinator_profile_id),
+  schools_partnerships AS (
+  SELECT
+    cohort_partnerships.* EXCEPT (delivery_partner_id,
+      lead_provider_id,
+      rn1),
+  FROM (
+    SELECT
+      school_id,
+      start_year AS partnership_cohort,
+      delivery_partner_id,
+      dp_latest.name AS delivery_partner,
+      lead_provider_id,
+      lp_latest.name AS lead_provider,
+      challenge_reason AS partnership_challenge_reason,
+      challenged_at AS partnership_challenge_time,
+      sp_latest.created_at AS partnership_time,
+      (ROW_NUMBER() OVER (PARTITION BY school_id, start_year ORDER BY sp_latest.created_at DESC)) AS rn1
+    FROM
+      `dataform.partnerships_latest_cpd` AS sp_latest
+    LEFT JOIN
+      `dataform.delivery_partners_latest_cpd` AS dp_latest
+    ON
+      sp_latest.delivery_partner_id=dp_latest.id
+    LEFT JOIN
+      `dataform.lead_providers_latest_cpd` AS lp_latest
+    ON
+      sp_latest.lead_provider_id=lp_latest.id
+    LEFT JOIN
+      `dataform.cohorts_latest_cpd` cohorts
+    ON
+      sp_latest.cohort_id = cohorts.id
+    WHERE
+      relationship = FALSE
+    QUALIFY
+      rn1=1) cohort_partnerships),
+  school_cohorts AS (
+  SELECT
+    cohort_school_induction_programmes.* EXCEPT (rn2),
+  FROM (
+    SELECT
+      school_id,
+      start_year AS school_cohorts_cohort,
+      induction_programme_choice,
+      core_induction_programme_id AS chosen_cip,
+      school_cohorts.created_at as school_cohort_created_at,
+      (ROW_NUMBER() OVER (PARTITION BY school_id, start_year ORDER BY school_cohorts.created_at DESC)) AS rn2
+    FROM
+      `dataform.school_cohorts_latest_cpd` school_cohorts
+    LEFT JOIN
+      `dataform.cohorts_latest_cpd` cohorts
+    ON
+      school_cohorts.cohort_id = cohorts.id
+    QUALIFY
+      rn2=1 ) cohort_school_induction_programmes ),
+  pupil_premiums AS (
+  SELECT
+    school_id,
+    pupil_premium_incentive,
+    sparsity_incentive,
+    (ROW_NUMBER() OVER (PARTITION BY school_id ORDER BY created_at DESC)) AS rn3
+  FROM
+    `dataform.pupil_premiums_latest_cpd`
+  QUALIFY
+    rn3=1),
+  eligible_gias_schools AS (
+  SELECT
+    establishment_urn
+  FROM
+    `ecf-bq.static_tables.open_gias_ofsted_establishments` schools
+  LEFT JOIN
+    `static_tables.establishment_type_state_funding_eligible` eligibility
+  ON
+    schools.establishment_subtype = eligibility.type_of_establishment_name
+  WHERE
+    (establishment_type NOT IN ('Independent schools',
+        'Special schools')
+      AND state_funded = TRUE)
+    OR (establishment_type IN ('Independent schools',
+        'Special schools')
+      AND section41_approved='Approved')),
+  school_registrations_single_cohort AS (
+  SELECT
+    DISTINCT id AS school_id,
+    cohort,
+    name,
+    urn,
+    icp.induction_tutor_user_id,
+    induction_tutor_created,
+    induction_tutor_nominated,
+    induction_tutor_discarded,
+    sit_type,
+    CASE
+      WHEN induction_programme_choice IS NOT NULL THEN induction_programme_choice
+    ELSE
+    'No cohort reported'
+  END
+    AS induction_programme_choice,
+    sc.* EXCEPT (induction_programme_choice,
+      school_id),
+    CASE
+      WHEN sc.school_id IS NOT NULL THEN TRUE
+    ELSE
+    FALSE
+  END
+    AS in_partnership,
+    CASE
+      WHEN lead_provider IS NOT NULL THEN lead_provider
+    ELSE
+    'No partnership reported'
+  END
+    AS lead_provider,
+    CASE
+      WHEN delivery_partner IS NOT NULL THEN delivery_partner
+    ELSE
+    'No partnership reported'
+  END
+    AS delivery_partner,
+    sp.* EXCEPT (delivery_partner,
+      lead_provider,
+      school_id),
+    school_phase_type,
+    school_phase_name,
+    school_status_code,
+    school_status_name,
+    postcode,
+    administrative_district_code,
+    administrative_district_name,
+    pupil_premium_incentive AS pupil_premium,
+    sparsity_incentive AS sparsity,
+    CASE
+      WHEN establishment_urn IS NOT NULL THEN TRUE
+    ELSE
+    FALSE
+  END
+    AS funding_eligible_school
+  FROM
+    schools_latest
+  CROSS JOIN
+    available_cohorts
+  LEFT JOIN
+    induction_coordinator_profiles icp
+  ON
+    schools_latest.id=icp.school_id
+  LEFT JOIN
+    schools_partnerships sp
+  ON
+    schools_latest.id=sp.school_id
+    AND available_cohorts.cohort=sp.partnership_cohort
+  LEFT JOIN
+    school_cohorts sc
+  ON
+    schools_latest.id=sc.school_id
+    AND available_cohorts.cohort=sc.school_cohorts_cohort
+  LEFT JOIN
+    pupil_premiums pp
+  ON
+    schools_latest.id=pp.school_id
+  LEFT JOIN
+    eligible_gias_schools
+  ON
+    schools_latest.urn=eligible_gias_schools.establishment_urn
+ORDER BY
+  school_id asc, cohort desc),
+registration_dates AS (
+  SELECT
+    *
+  FROM (
+    SELECT
+      DISTINCT(start_year) AS reg_year,
+      CAST(CONCAT(start_year,'-05-01') AS date) AS reg_start_date,
+      CAST(CONCAT(start_year,'-10-31') AS date) AS reg_end_date
+    FROM
+      `dataform.cohorts_latest_cpd`) AS start_years
+  CROSS JOIN
+    UNNEST( GENERATE_DATE_ARRAY(reg_start_date, reg_end_date, INTERVAL 1 DAY) ) AS join_date),
+  reg_inductions AS (
+  SELECT
+    induction_record_id,
+    participant_profile_id,
+    participant_type,
+    cohort,
+    user_id,
+    school_urn,
+    created_at
+  FROM
+    `dataform.ecf_inductions`),
+participant_inductions as (SELECT
+  reg_inductions.*,
+  reg_dates.reg_year,
+  CASE WHEN cohort_changed_after_payments_frozen is true then 2021 else cohort end as adjusted_cohort,
+FROM
+  reg_inductions
+INNER JOIN
+  registration_dates reg_dates
+ON
+  DATE(reg_inductions.created_at) =reg_dates.join_date
+LEFT JOIN
+  `dataform.participant_profiles_latest_cpd` profiles
+ON
+  reg_inductions.participant_profile_id = profiles.id),
+school_participants as (
+  SELECT
+    school_urn,
+    adjusted_cohort,
+    count(distinct(CASE WHEN participant_type = 'ParticipantProfile::Mentor' then participant_profile_id else null end)) as mentor_count,
+    count(distinct(CASE WHEN participant_type = 'ParticipantProfile::ECT' then participant_profile_id else null end)) as ect_count,
+    count(distinct(participant_profile_id)) as participant_count
+  FROM
+    participant_inductions
+  WHERE adjusted_cohort = reg_year and school_urn is not null
+  GROUP BY
+    school_urn,
+    adjusted_cohort)
+
+SELECT
+  school_cohorts.*,
+  extract(date from induction_tutor_created) as induction_tutor_created_date,
+  cohort-1 AS previous_cohort,
+  LEAD(school_cohorts_cohort) OVER (PARTITION BY school_id ORDER BY cohort DESC) as previous_school_cohort,
+  LEAD(school_cohort_created_at) OVER (PARTITION BY school_id ORDER BY cohort DESC) as previous_school_cohort_created_at,
+  CASE
+    WHEN LEAD(induction_programme_choice) OVER (PARTITION BY school_id ORDER BY cohort DESC) IS NOT NULL THEN LEAD(induction_programme_choice) OVER (PARTITION BY school_id ORDER BY cohort DESC)
+  ELSE
+  'No cohort reported'
+END
+  AS school_cohorts_prior_induction_programme_choice,
+  LEAD(chosen_cip) OVER (PARTITION BY school_id ORDER BY cohort DESC) AS school_cohorts_prior_chosen_cip,
+  LEAD(partnership_cohort) OVER (PARTITION BY school_id ORDER BY cohort DESC) as previous_partnership_cohort,
+  CASE
+    WHEN LEAD(lead_provider) OVER (PARTITION BY school_id ORDER BY cohort DESC) IS NOT NULL THEN LEAD(lead_provider) OVER (PARTITION BY school_id ORDER BY cohort DESC)
+  ELSE
+  'No partnership reported'
+END
+  AS partnerships_prior_lp,
+  CASE
+    WHEN LEAD(delivery_partner) OVER (PARTITION BY school_id ORDER BY cohort DESC) IS NOT NULL THEN LEAD(delivery_partner) OVER (PARTITION BY school_id ORDER BY cohort DESC)
+  ELSE
+  'No partnership reported'
+END
+  AS partnerships_prior_dp,
+  LEAD(partnership_challenge_reason) OVER (PARTITION BY school_id ORDER BY cohort DESC) AS partnerships_prior_challenge_reason,
+  LEAD(partnership_challenge_time) OVER (PARTITION BY school_id ORDER BY cohort DESC) AS partnerships_prior_challenge_time,
+  LEAD(partnership_time) OVER (PARTITION BY school_id ORDER BY cohort DESC) AS partnerships_prior_partnership_time,
+current_part.mentor_count,
+current_part.ect_count,
+current_part.participant_count,
+prev_part.mentor_count as prev_mentor_count,
+prev_part.ect_count as prev_ect_count,
+prev_part.participant_count as prev_part_count,
+FROM
+  school_registrations_single_cohort school_cohorts
+LEFT JOIN
+  school_participants current_part
+ON
+  school_cohorts.cohort=current_part.adjusted_cohort
+  and
+  school_cohorts.urn=cast(current_part.school_urn as string)
+LEFT JOIN
+  school_participants prev_part
+ON
+  school_cohorts.cohort=prev_part.adjusted_cohort
+  and
+  school_cohorts.urn=cast(prev_part.school_urn as string)
