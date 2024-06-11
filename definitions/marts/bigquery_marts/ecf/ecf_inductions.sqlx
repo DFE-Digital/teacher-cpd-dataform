@@ -41,7 +41,8 @@ config {
         core_induction_programme_id: "If a school offers CIP, this will be filled with the ID of their CIP programme.",
         core_induction_materials_provider: "If a school offers CIP, this shows which Lead Provider they are getting their CIP materials from.",
         mentor_completion_date: "The date a mentor completed training.",
-        mentor_completion_reason: "The reason the mentor_completion_date field is filled.Possible values: completed_during_early_roll_out, completed_declaration_received."
+        mentor_completion_reason: "The reason the mentor_completion_date field is filled.Possible values: completed_during_early_roll_out, completed_declaration_received.",
+        cohort_has_changed: "TRUE/FALSE flag streamed from the service as 'cohort_changed_after_payments_frozen' for whether a participant has been moved from the 2021 cohort to the 2024 cohort. This flag is updated by SITs in the service for applicable ECTs."
     }
 }
 
@@ -108,6 +109,7 @@ WITH
     trn AS TRN,
     mentor_completion_date,
     mentor_completion_reason,
+    cohort_changed_after_payments_frozen
     -- trn_validated,
     -- trn_validated_reason,
     -- manual_validation_required,
@@ -182,6 +184,7 @@ FROM
     core_induction_materials_provider,
     mentor_completion_date,
     mentor_completion_reason,
+    cohort_changed_after_payments_frozen AS cohort_has_changed,
     CASE
       WHEN challenged_at IS NOT NULL THEN 'No lead provider'
     ELSE
