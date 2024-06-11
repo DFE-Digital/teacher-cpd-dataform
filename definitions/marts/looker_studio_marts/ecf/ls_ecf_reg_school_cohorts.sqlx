@@ -1,3 +1,16 @@
+config {
+    type: "table",
+    assertions: {
+    },
+    bigquery: {
+        partitionBy: "DATE(school_cohort_created_at)",
+        clusterBy: ["cohort"]
+    },
+    description: "This mart shows schools and their induction programmes & partnerships ",
+    columns: {
+    }
+}
+
 WITH
   schools_latest AS (
   SELECT
