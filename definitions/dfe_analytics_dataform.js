@@ -69,6 +69,10 @@ dfeAnalyticsDataform({
                 dataType: "string",
                 description: ""
             }, {
+                keyName: "selectable_by_schools",
+                dataType: "boolean",
+                description: ""
+            }, {
                 keyName: "name",
                 dataType: "string",
                 description: ""
