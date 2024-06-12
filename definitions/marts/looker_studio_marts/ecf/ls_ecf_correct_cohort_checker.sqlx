@@ -4,7 +4,7 @@ config {
         uniqueKey: ["declaration_id"]
     },
     bigquery: {
-        partitionBy: "current_cohort",
+        partitionBy: "",
         clusterBy: ["participant_role", "participant_profile_id"]
     },
     description: "This mart combines elements of the ECF Golden Thread and relevant declarations (submitted, eligible, payable, paid) for both ECTs and Mentors to assess if the currently assigned cohort is in line with the suggested cohort based on the induction start date for ECTs and the earliest declaration date for Mentors. \n \
