@@ -145,9 +145,9 @@ WITH golden_thread AS(
     ,prt.relationship AS partnership_relationship
     ,egt.lead_provider_name AS induction_lead_provider_name
   FROM 
-    `dataform.ecf_golden_thread` egt
+    ${ref('ecf_golden_thread')} AS egt
   LEFT JOIN
-    `dataform.partnerships_latest_cpd` prt
+    ${ref('partnerships_latest_cpd')} AS prt
   ON
     prt.id = egt.partnership_id
 ),
@@ -165,7 +165,7 @@ declarations AS (
     -- Calculate earliest declaration date for the participant for funded declarations only.
     ,MIN(CASE WHEN state IN ('paid', 'payable', 'eligible') THEN DATE(declaration_date) ELSE DATE(2050,12,31) END) OVER (PARTITION BY participant_profile_id) AS earliest_declaration_date
   FROM
-    `dataform.ls_declarations_provider_names`
+    ${ref('ls_declarations_provider_names')}
   WHERE
     programme = 'ECF'
     AND
