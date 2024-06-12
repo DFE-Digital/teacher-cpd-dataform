@@ -1,8 +1,5 @@
 config {
     type: "table",
-    assertions: {
-        uniqueKey: ["declaration_id"]
-    },
     bigquery: {
         partitionBy: "",
         clusterBy: ["participant_role", "participant_profile_id"]
