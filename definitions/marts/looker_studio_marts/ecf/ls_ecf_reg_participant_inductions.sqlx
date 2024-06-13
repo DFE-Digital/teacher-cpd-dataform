@@ -1,0 +1,98 @@
+config {
+    type: "table",
+    assertions: {},
+    bigquery: {
+        partitionBy: "DATE(created_at)",
+        clusterBy: ["cohort"]
+    },
+    description: "This mart shows participant induction records generated within the registration periods from 2022 onwards for both ECTs and Mentors ",
+    columns: {}
+}
+
+
+
+WITH
+  -- # This table generates a list of the dates from May - October in each cohort #
+  registration_dates AS (
+SELECT
+  *
+FROM (
+  SELECT
+    DISTINCT(start_year) AS reg_year,
+    CAST(CONCAT(start_year,'-05-01') AS date) AS reg_start_date,
+    CAST(CONCAT(start_year,'-10-31') AS date) AS reg_end_date
+  FROM
+    `dataform.cohorts_latest_cpd`) AS start_years
+CROSS JOIN
+  UNNEST( GENERATE_DATE_ARRAY(reg_start_date, reg_end_date, INTERVAL 1 DAY) ) AS join_date),
+  -- # This table uses an inner join between ecf_inductions and the registration dates above, the join automatically filters induction records to only those generated during the periods set out above.#
+  reg_inductions AS (
+SELECT
+  induction_record_id,
+  participant_profile_id,
+  participant_type,
+  cohort,
+  user_id,
+  school_urn,
+  created_at
+FROM
+  `dataform.ecf_inductions`)
+SELECT
+  reg_inductions.*,
+  -- #This checks if this induction record is the first induction record for a given participant + school + reg_year combination#
+  CASE
+    WHEN MIN(reg_inductions.created_at) OVER (PARTITION BY participant_profile_id, reg_inductions.school_urn, reg_year) = reg_inductions.created_at THEN TRUE
+  ELSE
+  FALSE
+END
+  AS min_created_record,
+  -- #This checks if this induction record is the last induction record for a given participant + school + reg_year combination#
+  CASE
+    WHEN MAX(reg_inductions.created_at) OVER (PARTITION BY participant_profile_id, reg_inductions.school_urn, reg_year) = reg_inductions.created_at THEN TRUE
+  ELSE
+  FALSE
+END
+  AS max_created_record,
+  -- #This checks if this induction record falls within the registration period that aligns with their cohort#
+  CASE
+    WHEN cohort = reg_year THEN TRUE
+  ELSE
+  FALSE
+END
+  AS matched_cohort_reg_year,
+  -- #This moves the created at date into the relevant registration windows for that year#
+  CASE
+    WHEN reg_inductions.created_at < '2022-05-10' AND reg_year = 2022 THEN '2022-05-10'
+    WHEN reg_inductions.created_at < '2023-06-05'
+  AND reg_year = 2023 THEN '2023-06-05'
+    WHEN reg_inductions.created_at < '2024-06-17' AND reg_year = 2024 THEN '2024-06-17'
+  ELSE
+  reg_inductions.created_at
+END
+  AS adjusted_creation_date,
+  CASE
+    WHEN participant_type = 'ParticipantProfile::ECT' THEN CONCAT(reg_year,'-ECT')
+  ELSE
+  CONCAT(reg_year,'-Mentor')
+END
+  AS participant_course,
+  reg_dates.reg_year,
+  reg_dates.reg_start_date,
+  reg_dates.reg_end_date,
+  --  # This translates the null values from the field into falses to permit the use of booleans in dashboards#
+  CASE
+    WHEN profiles.cohort_changed_after_payments_frozen IS NULL THEN FALSE
+  ELSE
+  profiles.cohort_changed_after_payments_frozen
+END
+  AS cohort_21_fix,
+FROM
+  reg_inductions
+INNER JOIN
+  registration_dates reg_dates
+ON
+  DATE(reg_inductions.created_at) =reg_dates.join_date
+LEFT JOIN
+  `dataform.participant_profiles_latest_cpd` profiles
+ON
+  reg_inductions.participant_profile_id = profiles.id
