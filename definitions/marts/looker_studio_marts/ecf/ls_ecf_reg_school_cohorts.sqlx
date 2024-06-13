@@ -1,14 +1,12 @@
 config {
     type: "table",
-    assertions: {
-    },
+    assertions: {},
     bigquery: {
         partitionBy: "DATE(school_cohort_created_at)",
         clusterBy: ["cohort"]
     },
     description: "This mart shows schools and their induction programmes & partnerships ",
-    columns: {
-    }
+    columns: {}
 }
 
 WITH
@@ -16,16 +14,7 @@ WITH
   SELECT
     id,
     name,
-    CAST(urn AS string) AS urn,
-    postcode,
-    administrative_district_code,
-    administrative_district_name,
-    school_phase_name,
-    school_phase_type,
-    school_status_code,
-    school_status_name,
-    school_type_code,
-    school_type_name
+    CAST(urn AS string) AS urn
   FROM
     `dataform.schools_latest_cpd`),
   available_cohorts AS (
@@ -46,9 +35,13 @@ WITH
     scp.created_at AS induction_tutor_nominated,
     discarded_at AS induction_tutor_discarded,
     total_sits,
-    CASE WHEN total_sits > 1 then 'replaced SIT'
-         WHEN total_sits = 1 then 'new SIT'
-         else null end as sit_type
+    CASE
+      WHEN total_sits > 1 THEN 'replaced SIT'
+      WHEN total_sits = 1 THEN 'new SIT'
+    ELSE
+    NULL
+  END
+    AS sit_type
   FROM
     `dataform.induction_coordinator_profiles_latest_cpd` icp_df
   LEFT JOIN (
@@ -56,7 +49,7 @@ WITH
       induction_coordinator_profile_id,
       school_id,
       created_at,
-      COUNT(*) OVER (PARTITION BY school_id ORDER BY created_at asc) AS total_sits,
+      COUNT(*) OVER (PARTITION BY school_id ORDER BY created_at ASC) AS total_sits,
       (ROW_NUMBER() OVER (PARTITION BY school_id ORDER BY created_at DESC)) AS rn0
     FROM
       `dataform.induction_coordinator_profiles_schools_latest_cpd`
@@ -108,7 +101,7 @@ WITH
       start_year AS school_cohorts_cohort,
       induction_programme_choice,
       core_induction_programme_id AS chosen_cip,
-      school_cohorts.created_at as school_cohort_created_at,
+      school_cohorts.created_at AS school_cohort_created_at,
       (ROW_NUMBER() OVER (PARTITION BY school_id, start_year ORDER BY school_cohorts.created_at DESC)) AS rn2
     FROM
       `dataform.school_cohorts_latest_cpd` school_cohorts
@@ -118,16 +111,6 @@ WITH
       school_cohorts.cohort_id = cohorts.id
     QUALIFY
       rn2=1 ) cohort_school_induction_programmes ),
-  pupil_premiums AS (
-  SELECT
-    school_id,
-    pupil_premium_incentive,
-    sparsity_incentive,
-    (ROW_NUMBER() OVER (PARTITION BY school_id ORDER BY created_at DESC)) AS rn3
-  FROM
-    `dataform.pupil_premiums_latest_cpd`
-  QUALIFY
-    rn3=1),
   eligible_gias_schools AS (
   SELECT
     establishment_urn
@@ -184,15 +167,6 @@ WITH
     sp.* EXCEPT (delivery_partner,
       lead_provider,
       school_id),
-    school_phase_type,
-    school_phase_name,
-    school_status_code,
-    school_status_name,
-    postcode,
-    administrative_district_code,
-    administrative_district_name,
-    pupil_premium_incentive AS pupil_premium,
-    sparsity_incentive AS sparsity,
     CASE
       WHEN establishment_urn IS NOT NULL THEN TRUE
     ELSE
@@ -218,16 +192,13 @@ WITH
     schools_latest.id=sc.school_id
     AND available_cohorts.cohort=sc.school_cohorts_cohort
   LEFT JOIN
-    pupil_premiums pp
-  ON
-    schools_latest.id=pp.school_id
-  LEFT JOIN
     eligible_gias_schools
   ON
     schools_latest.urn=eligible_gias_schools.establishment_urn
-ORDER BY
-  school_id asc, cohort desc),
-registration_dates AS (
+  ORDER BY
+    school_id ASC,
+    cohort DESC),
+  registration_dates AS (
   SELECT
     *
   FROM (
@@ -250,40 +221,59 @@ registration_dates AS (
     created_at
   FROM
     `dataform.ecf_inductions`),
-participant_inductions as (SELECT
-  reg_inductions.*,
-  reg_dates.reg_year,
-  CASE WHEN cohort_changed_after_payments_frozen is true then 2021 else cohort end as adjusted_cohort,
-FROM
-  reg_inductions
-INNER JOIN
-  registration_dates reg_dates
-ON
-  DATE(reg_inductions.created_at) =reg_dates.join_date
-LEFT JOIN
-  `dataform.participant_profiles_latest_cpd` profiles
-ON
-  reg_inductions.participant_profile_id = profiles.id),
-school_participants as (
+  participant_inductions AS (
+  SELECT
+    reg_inductions.*,
+    reg_dates.reg_year,
+    CASE
+      WHEN cohort_changed_after_payments_frozen IS TRUE THEN 2021
+    ELSE
+    cohort
+  END
+    AS adjusted_cohort,
+  FROM
+    reg_inductions
+  INNER JOIN
+    registration_dates reg_dates
+  ON
+    DATE(reg_inductions.created_at) =reg_dates.join_date
+  LEFT JOIN
+    `dataform.participant_profiles_latest_cpd` profiles
+  ON
+    reg_inductions.participant_profile_id = profiles.id),
+  school_participants AS (
   SELECT
     school_urn,
     adjusted_cohort,
-    count(distinct(CASE WHEN participant_type = 'ParticipantProfile::Mentor' then participant_profile_id else null end)) as mentor_count,
-    count(distinct(CASE WHEN participant_type = 'ParticipantProfile::ECT' then participant_profile_id else null end)) as ect_count,
-    count(distinct(participant_profile_id)) as participant_count
+    COUNT(DISTINCT(CASE
+          WHEN participant_type = 'ParticipantProfile::Mentor' THEN participant_profile_id
+        ELSE
+        NULL
+      END
+        )) AS mentor_count,
+    COUNT(DISTINCT(CASE
+          WHEN participant_type = 'ParticipantProfile::ECT' THEN participant_profile_id
+        ELSE
+        NULL
+      END
+        )) AS ect_count,
+    COUNT(DISTINCT(participant_profile_id)) AS participant_count
   FROM
     participant_inductions
-  WHERE adjusted_cohort = reg_year and school_urn is not null
+  WHERE
+    adjusted_cohort = reg_year
+    AND school_urn IS NOT NULL
   GROUP BY
     school_urn,
     adjusted_cohort)
-
 SELECT
   school_cohorts.*,
-  extract(date from induction_tutor_created) as induction_tutor_created_date,
+  EXTRACT(date
+  FROM
+    induction_tutor_created) AS induction_tutor_created_date,
   cohort-1 AS previous_cohort,
-  LEAD(school_cohorts_cohort) OVER (PARTITION BY school_id ORDER BY cohort DESC) as previous_school_cohort,
-  LEAD(school_cohort_created_at) OVER (PARTITION BY school_id ORDER BY cohort DESC) as previous_school_cohort_created_at,
+  LEAD(school_cohorts_cohort) OVER (PARTITION BY school_id ORDER BY cohort DESC) AS previous_school_cohort,
+  LEAD(school_cohort_created_at) OVER (PARTITION BY school_id ORDER BY cohort DESC) AS previous_school_cohort_created_at,
   CASE
     WHEN LEAD(induction_programme_choice) OVER (PARTITION BY school_id ORDER BY cohort DESC) IS NOT NULL THEN LEAD(induction_programme_choice) OVER (PARTITION BY school_id ORDER BY cohort DESC)
   ELSE
@@ -291,7 +281,7 @@ SELECT
 END
   AS school_cohorts_prior_induction_programme_choice,
   LEAD(chosen_cip) OVER (PARTITION BY school_id ORDER BY cohort DESC) AS school_cohorts_prior_chosen_cip,
-  LEAD(partnership_cohort) OVER (PARTITION BY school_id ORDER BY cohort DESC) as previous_partnership_cohort,
+  LEAD(partnership_cohort) OVER (PARTITION BY school_id ORDER BY cohort DESC) AS previous_partnership_cohort,
   CASE
     WHEN LEAD(lead_provider) OVER (PARTITION BY school_id ORDER BY cohort DESC) IS NOT NULL THEN LEAD(lead_provider) OVER (PARTITION BY school_id ORDER BY cohort DESC)
   ELSE
@@ -307,23 +297,21 @@ END
   LEAD(partnership_challenge_reason) OVER (PARTITION BY school_id ORDER BY cohort DESC) AS partnerships_prior_challenge_reason,
   LEAD(partnership_challenge_time) OVER (PARTITION BY school_id ORDER BY cohort DESC) AS partnerships_prior_challenge_time,
   LEAD(partnership_time) OVER (PARTITION BY school_id ORDER BY cohort DESC) AS partnerships_prior_partnership_time,
-current_part.mentor_count,
-current_part.ect_count,
-current_part.participant_count,
-prev_part.mentor_count as prev_mentor_count,
-prev_part.ect_count as prev_ect_count,
-prev_part.participant_count as prev_part_count,
+  current_part.mentor_count,
+  current_part.ect_count,
+  current_part.participant_count,
+  prev_part.mentor_count AS prev_mentor_count,
+  prev_part.ect_count AS prev_ect_count,
+  prev_part.participant_count AS prev_part_count,
 FROM
   school_registrations_single_cohort school_cohorts
 LEFT JOIN
   school_participants current_part
 ON
   school_cohorts.cohort=current_part.adjusted_cohort
-  and
-  school_cohorts.urn=cast(current_part.school_urn as string)
+  AND school_cohorts.urn=CAST(current_part.school_urn AS string)
 LEFT JOIN
   school_participants prev_part
 ON
   school_cohorts.cohort=prev_part.adjusted_cohort
-  and
-  school_cohorts.urn=cast(prev_part.school_urn as string)
+  AND school_cohorts.urn=CAST(prev_part.school_urn AS string)
