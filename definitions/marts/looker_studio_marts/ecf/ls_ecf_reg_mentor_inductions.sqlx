@@ -1,0 +1,71 @@
+WITH
+  -- # This table generates a list of the dates from May - October in each cohort #
+  registration_dates AS (
+  SELECT
+    *
+  FROM (
+    SELECT
+      DISTINCT(start_year) AS reg_year,
+      CAST(CONCAT(start_year,'-05-01') AS date) AS reg_start_date,
+      CAST(CONCAT(start_year,'-10-31') AS date) AS reg_end_date
+    FROM
+      `dataform.cohorts_latest_cpd`) AS start_years
+  CROSS JOIN
+    UNNEST( GENERATE_DATE_ARRAY(reg_start_date, reg_end_date, INTERVAL 1 DAY) ) AS join_date),
+-- # This table uses an inner join between ecf_inductions and the registration dates above, the join automatically filters induction records to only those generated during the periods set out above. The records are filtered to Mentors only # 
+mentors_reg_inductions as (SELECT
+  mentors.induction_record_id,
+  mentors.participant_profile_id,
+  'Mentor' as participant_course,
+  mentors.cohort,
+  mentors.user_id,
+  mentors.school_urn,
+  mentors.schedule_identifier,
+  mentors.mentor_id,
+  mentors.created_at,
+  mentors.start_date,
+  mentors.end_date,
+  mentors.school_transfer,
+  -- # This window statement pull the previous induction record prior to this induction record being generated to determine the school_urn of the prior record #
+  LEAD(mentors.school_urn) OVER (PARTITION BY mentors.participant_profile_id ORDER BY reg_dates.join_date DESC) as previous_school_urn,
+  mentors.induction_status,
+  mentors.training_status,
+  mentors.completion_date,
+  mentors.participant_type,
+  reg_dates.reg_year,
+  reg_dates.reg_start_date,
+  reg_dates.reg_end_date,
+  mentors.mentor_completion_date as mentor_completion_date,
+  mentors.mentor_completion_reason as mentor_completion_reason,
+  --  # This translates the null values from the field into falses to permit the use of booleans in dashboards#
+  case when profiles.cohort_changed_after_payments_frozen is null then false else profiles.cohort_changed_after_payments_frozen end as mentor_21,
+FROM
+    `dataform.ecf_inductions` mentors
+  INNER JOIN
+    registration_dates reg_dates
+  ON
+    DATE(mentors.created_at) =reg_dates.join_date
+  LEFT JOIN
+    `dataform.participant_profiles_latest_cpd` profiles
+  ON
+    mentors.participant_profile_id = profiles.id
+  WHERE
+    participant_type ='ParticipantProfile::Mentor')
+
+SELECT
+*,
+-- #This checks if this mentor induction record is the first induction record for a given participant + school + reg_year combination#
+CASE WHEN MIN(created_at) OVER (PARTITION BY participant_profile_id,school_urn, reg_year) = created_at then true else false end as min_created_record,
+-- #This checks if this mentor induction record is the last induction record for a given participant + school + reg_year combination#
+CASE WHEN max(created_at) OVER (PARTITION BY participant_profile_id,school_urn, reg_year) = created_at then true else false end as max_created_record,
+-- #This checks if this mentor induction record represents transferring into a new school#
+CASE WHEN previous_school_urn != school_urn THEN true else false end as transfer_in,
+-- #This checks if this mentor induction record falls within the registration period that aligns with their cohort#
+CASE WHEN cohort = reg_year then true else false end as matched_cohort_reg_year,
+-- #This moves the created at date into the relevant registration windows for that year#  
+CASE WHEN created_at < '2022-05-10' AND reg_year = 2022 THEN '2022-05-10'
+     WHEN created_at < '2023-06-05' AND reg_year = 2023 THEN '2023-06-05'
+     WHEN created_at < '2024-06-17' AND reg_year = 2024 THEN '2024-06-17'
+     ELSE created_at END as adjusted_creation_date
+FROM
+mentors_reg_inductions
