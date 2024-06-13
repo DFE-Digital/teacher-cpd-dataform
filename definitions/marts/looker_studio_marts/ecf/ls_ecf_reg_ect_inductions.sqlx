@@ -1,0 +1,185 @@
+config {
+    type: "table",
+    assertions: {},
+    bigquery: {
+        partitionBy: "DATE(created_at)",
+        clusterBy: ["cohort"]
+    },
+    description: "This mart shows ECT induction records generated within the registration periods from 2022 onwards ",
+    columns: {}
+}
+
+WITH
+  --   #This table generates a list of the dates from May - October in each cohort#
+  registration_dates AS (
+SELECT
+  *
+FROM (
+  SELECT
+    DISTINCT(start_year) AS reg_year,
+    CAST(CONCAT(start_year,'-05-01') AS date) AS reg_start_date,
+    CAST(CONCAT(start_year,'-10-31') AS date) AS reg_end_date
+  FROM
+    `dataform.cohorts_latest_cpd`) AS start_years
+CROSS JOIN
+  UNNEST( GENERATE_DATE_ARRAY(reg_start_date, reg_end_date, INTERVAL 1 DAY) ) AS join_date),
+  --   # This table uses an inner join between ecf_inductions and the registration dates above, the join automatically filters induction records to only those generated during the periods set out above. The records are filtered to ECTs only #
+  ect_inductions_reg_period AS (
+SELECT
+  inductions.*,
+  reg_dates.*,
+  profiles.cohort_changed_after_payments_frozen
+FROM
+  `dataform.ecf_inductions` inductions
+INNER JOIN
+  registration_dates reg_dates
+ON
+  DATE(inductions.created_at) =reg_dates.join_date
+LEFT JOIN
+  `dataform.participant_profiles_latest_cpd` profiles
+ON
+  inductions.participant_profile_id = profiles.id
+WHERE
+  participant_type ='ParticipantProfile::ECT'
+ORDER BY
+  join_date DESC,
+  participant_profile_id DESC),
+  --   # This table uses an inner join between ecf_inductions and the registration dates above, the join automatically filters induction records to only those generated during the periods set out above. The records are filtered to Mentors only #
+  mentor_inductions_reg_period AS (
+SELECT
+  inductions.*,
+  reg_dates.*,
+  profiles.cohort_changed_after_payments_frozen
+FROM
+  `dataform.ecf_inductions` inductions
+INNER JOIN
+  registration_dates reg_dates
+ON
+  DATE(inductions.created_at) =reg_dates.join_date
+LEFT JOIN
+  `dataform.participant_profiles_latest_cpd` profiles
+ON
+  inductions.participant_profile_id = profiles.id
+WHERE
+  participant_type ='ParticipantProfile::Mentor'),
+  -- # This table joins ECT inductions records with their corresponding associated mentor's inductions records. This join creates duplicates of the ECT induction records (For each 1 ECT induction record this will be replicated for the number of induction records of their mentor). These duplicates are resolved in the subsequent table #
+  ect_reg_with_mentors AS (
+SELECT
+  ects.induction_record_id,
+  ects.participant_profile_id,
+  'ECT' AS participant_course,
+  ects.cohort,
+  ects.user_id,
+  ects.school_urn,
+  ects.schedule_identifier,
+  ects.mentor_id,
+  ects.created_at,
+  ects.start_date,
+  ects.end_date,
+  ects.school_transfer,
+  --   # This window statement pull the previous induction record prior to this induction record being generated to determine the school_urn of the prior record #
+  LEAD(ects.school_urn) OVER (PARTITION BY ects.participant_profile_id ORDER BY ects.join_date DESC) AS previous_school_urn,
+  ects.induction_status,
+  ects.training_status,
+  ects.completion_date,
+  ects.participant_type,
+  ects.reg_year,
+  ects.reg_start_date,
+  ects.reg_end_date,
+  --   # This translates the null values from the field into falses to permit the use of booleans in dashboards#
+  CASE
+    WHEN ects.cohort_changed_after_payments_frozen IS NULL THEN FALSE
+  ELSE
+  ects.cohort_changed_after_payments_frozen
+END
+  AS ect_21,
+  mentors.created_at AS mentor_created_at,
+  mentors.schedule_identifier AS mentor_schedule_id,
+  mentors.cohort AS mentor_cohort,
+  mentors.mentor_completion_date AS mentor_completion_date,
+  mentors.mentor_completion_reason AS mentor_completion_reason,
+  --   # This translates the null values from the field into falses to permit the use of booleans in dashboards#
+  CASE
+    WHEN mentors.cohort_changed_after_payments_frozen IS NULL THEN FALSE
+  ELSE
+  mentors.cohort_changed_after_payments_frozen
+END
+  AS mentor_21,
+  --   # This checks if the mentor induction pulled through existed before the ect induction record it was joined into#
+  CASE
+    WHEN mentors.created_at < ects.created_at THEN 1
+  ELSE
+  0
+END
+  AS eligible_mentor
+FROM
+  ect_inductions_reg_period ects
+LEFT JOIN
+  mentor_inductions_reg_period mentors
+ON
+  ects.mentor_id = mentors.participant_profile_id)
+SELECT
+  *,
+  -- #This checks if this ECT induction record is the first induction record for a given participant + school + reg_year combination#
+  CASE
+    WHEN MIN(created_at) OVER (PARTITION BY participant_profile_id, school_urn, reg_year) = created_at THEN TRUE
+  ELSE
+  FALSE
+END
+  AS min_created_record,
+  -- #This checks if this ECT induction record is the last induction record for a given participant + school + reg_year combination#
+  CASE
+    WHEN MAX(created_at) OVER (PARTITION BY participant_profile_id, school_urn, reg_year) = created_at THEN TRUE
+  ELSE
+  FALSE
+END
+  AS max_created_record,
+  -- #This checks if this ECT induction record represents transferring into a new school#
+  CASE
+    WHEN previous_school_urn != school_urn THEN TRUE
+  ELSE
+  FALSE
+END
+  AS transfer_in,
+  -- #This checks if this ECT induction record falls within the registration period that aligns with their cohort#
+  CASE
+    WHEN cohort = reg_year THEN TRUE
+  ELSE
+  FALSE
+END
+  AS matched_cohort_reg_year,
+  -- #This checks within the duplicates of the ECT records caused by the join with Mentors and ranks them by eligibility and their created date to find the latest induction record for a mentor created prior to the ECT's induction record, giving the best representation of how that mentor would have been set up when the ECT's induction record was created. If there wasn't a mentor induction record before it looks for the closest induction record after#
+  (ROW_NUMBER() OVER (PARTITION BY induction_record_id ORDER BY eligible_mentor DESC, ABS(DATE_DIFF(mentor_created_at,created_at,day)) ASC,
+  mentor_created_at DESC)) AS rn2,
+  CASE
+    WHEN mentor_id IS NULL THEN 'No Mentor Assigned'
+  ELSE
+  'Mentor Assigned'
+END
+  AS assigned_mentor_status,
+  -- #This case statement determines the kind of mentor an ECT has and whether the mentor is part of a prior cohort or finished training before this ECT induction record was generated#
+  CASE
+    WHEN mentor_id IS NULL THEN 'No Mentor Assigned'
+    WHEN mentor_completion_date IS NOT NULL
+  AND mentor_completion_date < DATE(created_at) THEN 'Completed Mentor'
+    WHEN mentor_21 IS TRUE THEN 'Mentor training in prior cohort'
+    WHEN mentor_cohort = cohort THEN 'Mentor from same cohort'
+  ELSE
+  'Mentor training in prior cohort'
+END
+  AS mentor_type,
+  -- #This moves the created at date into the relevant registration windows for that year#
+  CASE
+    WHEN created_at < '2022-05-10' AND reg_year = 2022 THEN '2022-05-10'
+    WHEN created_at < '2023-06-05'
+  AND reg_year = 2023 THEN '2023-06-05'
+    WHEN created_at < '2024-06-17' AND reg_year = 2024 THEN '2024-06-17'
+  ELSE
+  created_at
+END
+  AS adjusted_creation_date
+FROM
+  ect_reg_with_mentors
+  -- #This filters the ouput to remove the duplicates caused by joining in mentors to a single row per ECT induction record, ensuring the mentor information is from the most relevant mentor induction record#
+QUALIFY
+  rn2=1
