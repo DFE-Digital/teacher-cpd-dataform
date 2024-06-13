@@ -2,7 +2,7 @@ config {
     type: "table",
     bigquery: {
         partitionBy: "",
-        clusterBy: ["participant_role", "participant_profile_id"]
+        clusterBy: ["current_cohort", "participant_role", "participant_profile_id"]
     },
     description: "This mart combines elements of the ECF Golden Thread and relevant declarations (submitted, eligible, payable, paid) for both ECTs and Mentors to assess if the currently assigned cohort is in line with the suggested cohort based on the induction start date for ECTs and the earliest declaration date for Mentors. \n \
     Objective: \n \
@@ -16,6 +16,7 @@ config {
             AND \n \
             declaration_id IS NOT NULL \n \
             AND \n \
+            -- Check if the lead provider is NIOT and there is a Live Partnership in place. \n \
             niot_partnership_chk = 0 \n \
             AND \n \
             start_date_suggestion_match = 0 \n \
@@ -27,6 +28,7 @@ config {
             AND \n \
             declaration_id IS NOT NULL \n \
             AND \n \
+            -- Check if the lead provider is NIOT and there is a Live Partnership in place. \n \
             niot_partnership_chk = 0 \n \
             AND \n \
             earliest_dec_suggestion_match = 0 \n \
@@ -38,13 +40,13 @@ config {
             AND \n \
             declaration_id IS NULL \n \
             AND \n \
+            -- Check if the lead provider is NIOT and there is a Live Partnership in place. \n \
             niot_partnership_chk = 0 \n \
             AND \n \
             start_date_suggestion_match = 0 \n \
     Dependencies: \n \
         dataform.ecf_golden_thread \n \
-        dataform.ls_declarations_provider_names \n \
-        dataform.partnerships_latest_cpd",
+        dataform.ls_declarations_provider_names",
     columns: {
         user_id: "This comes from the teacher profile associated with the participant profile. User ID also exists independently in other tables.",
         participant_profile_id: "The ID from a participant's profile in the CPD service.",
@@ -58,7 +60,7 @@ config {
         declaration_state: "The state of the declaration which for this mart can only be submitted, eligible, payable, or paid. (s/e/p/p)",
         current_cohort: "The cohort/academic year corresponding to when the participant started their course as per the service.",
         induction_start_date: "The date when the ECT or Mentor started their induction taken from their Participant Profile.",
-        eligible_for_funding: "TRUE/FALSE flag as per ecf_golden_thread for funding eligibility.",
+        eligible_for_funding: "TRUE/FALSE flag for funding eligibility.",
         partnership_id: "ID for the Lead Provider-School partnership for a given cohort.",
         partnership_relationship: "TRUE/FALSE for the partnership_id taken from partnerships_latest_cpd. The relationship is 'live' when the value returns FALSE.",
         earliest_declaration_date: "The first declaration date for the participant_profile_id where the declaration is funded (eligible, payable or paid).",
@@ -129,43 +131,32 @@ WITH golden_thread AS(
       ELSE egt.user_id
      END AS user_id
     ,egt.participant_profile_id
-    ,CASE
-      WHEN egt.participant_type LIKE '%ECT' THEN 'ECT'
-      WHEN egt.participant_type LIKE '%Mentor' THEN 'Mentor'
-      ELSE NULL
-     END AS participant_role
+    ,egt.participant_course AS participant_role
     ,egt.schedule_identifier
     ,egt.induction_start_date AS induction_start_date
     ,egt.cohort
     ,egt.eligible_for_funding
     ,egt.partnership_id
-    ,prt.relationship AS partnership_relationship
+    ,egt.partnership_relationship
     ,egt.lead_provider_name AS induction_lead_provider_name
   FROM 
     ${ref('ecf_golden_thread')} AS egt
-  LEFT JOIN
-    ${ref('partnerships_latest_cpd')} AS prt
-  ON
-    prt.id = egt.partnership_id
 ),
 
 -- Collect all s/e/p/p declarations relating to ECF in the appropriate states.
 declarations AS (
   SELECT
-     id AS declaration_id
+     declaration_id
     ,DATE(declaration_date) AS declaration_date
     ,declaration_type
     ,state AS declaration_state
     ,participant_profile_id
-    ,cpd_lead_provider_id AS lead_provider_id
-    ,cpd_lp_name AS lead_provider_name
+    ,cpd_lead_provider_name AS lead_provider_name
     -- Calculate earliest declaration date for the participant for funded declarations only.
     ,MIN(CASE WHEN state IN ('paid', 'payable', 'eligible') THEN DATE(declaration_date) ELSE DATE(2050,12,31) END) OVER (PARTITION BY participant_profile_id) AS earliest_declaration_date
   FROM
-    ${ref('ls_declarations_provider_names')}
+    ${ref('ecf_inductions')}
   WHERE
-    programme = 'ECF'
-    AND
     state IN (
        'paid'
       ,'payable'
@@ -211,7 +202,10 @@ combined_data AS (
       WHEN pro.partnership_id IS NOT NULL AND pro.partnership_relationship = FALSE AND dec.lead_provider_name = 'National Institute of Teaching' THEN 1
       ELSE 0
      END AS niot_partnership_chk
-    ,ROW_NUMBER() OVER(PARTITION BY pro.participant_profile_id ORDER BY pro.participant_profile_id ASC) AS participant_precedence
+    ,CASE
+      WHEN ROW_NUMBER() OVER(PARTITION BY pro.participant_profile_id ORDER BY dec.declaration_date ASC) = 1 THEN 1
+      ELSE 0
+     END AS unique_participant_counter
   FROM 
     golden_thread pro
   LEFT JOIN 
@@ -229,27 +223,20 @@ output_data AS (
   SELECT 
     *
     ,CASE
-      WHEN start_date_suggested_true_cohort = '2023' AND current_cohort = 2023 THEN 1
-      WHEN start_date_suggested_true_cohort = '2022' AND current_cohort = 2022 THEN 1
-      WHEN start_date_suggested_true_cohort = '2021' AND current_cohort = 2021 THEN 1
-      WHEN start_date_suggested_true_cohort = '2022,2023' AND current_cohort IN (2022, 2023) THEN 1
-      WHEN start_date_suggested_true_cohort = '2021,2022' AND current_cohort IN (2021, 2022) THEN 1
+      WHEN INSTR(start_date_suggested_true_cohort, CAST(current_cohort AS STRING)) > 0 THEN 1
       ELSE 0
      END AS start_date_suggestion_match
     ,CASE
-      WHEN earliest_dec_suggested_true_cohort = '2023' AND current_cohort = 2023 THEN 1
-      WHEN earliest_dec_suggested_true_cohort = '2021,2022,2023' AND current_cohort IN (2021,2022,2023) THEN 1
-      WHEN earliest_dec_suggested_true_cohort = '2021,2022' AND current_cohort IN (2021,2022) THEN 1
+      WHEN INSTR(earliest_dec_suggested_true_cohort, CAST(current_cohort AS STRING)) > 0 THEN 1
       ELSE 0
      END AS earliest_dec_suggestion_match
-    ,IF(participant_precedence = 1, 1, 0) AS unique_participant_counter
   FROM
    combined_data
 )
 
 -- Generate output
 SELECT 
-  * EXCEPT(participant_precedence)
+  *
   ,IF(induction_start_date IS NOT NULL, TRUE, FALSE) AS has_induction_start_date
 FROM 
   output_data
