@@ -9,8 +9,6 @@ config {
     columns: {}
 }
 
-
-
 WITH
   -- # This table generates a list of the dates from May - October in each cohort #
   registration_dates AS (
