@@ -155,7 +155,7 @@ declarations AS (
     -- Calculate earliest declaration date for the participant for funded declarations only.
     ,MIN(CASE WHEN state IN ('paid', 'payable', 'eligible') THEN DATE(declaration_date) ELSE DATE(2050,12,31) END) OVER (PARTITION BY participant_profile_id) AS earliest_declaration_date
   FROM
-    ${ref('ecf_inductions')}
+    ${ref('ecf_declarations')}
   WHERE
     state IN (
        'paid'
