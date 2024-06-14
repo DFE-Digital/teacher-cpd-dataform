@@ -65,7 +65,7 @@ END
   AND reg_year = 2023 THEN '2023-06-05'
     WHEN reg_inductions.created_at < '2024-06-17' AND reg_year = 2024 THEN '2024-06-17'
   ELSE
-  reg_inductions.created_at
+  cast(reg_inductions.created_at as date)
 END
   AS adjusted_creation_date,
   CASE
