@@ -26,6 +26,7 @@ WITH
     start_year !=2020
   ORDER BY
     cohort DESC),
+  -- # This identifies the latest school coordinator partnership record for the induction coordinator record for the participant (In the service, there's one table for the coordinators and one table that records the partnership between the coordinator and the school) # 
   induction_coordinator_profiles AS (
   SELECT
     id AS induction_tutor_id,
@@ -49,6 +50,7 @@ WITH
       induction_coordinator_profile_id,
       school_id,
       created_at,
+      -- #This is a running sum of previous sits for the school to check if this is the first time they've had a sit or they're replacing a former sit#
       COUNT(*) OVER (PARTITION BY school_id ORDER BY created_at ASC) AS total_sits,
       (ROW_NUMBER() OVER (PARTITION BY school_id ORDER BY created_at DESC)) AS rn0
     FROM
@@ -57,6 +59,8 @@ WITH
       rn0=1) AS scp
   ON
     icp_df.id=scp.induction_coordinator_profile_id),
+  
+  -- #This pulls the latest school partnership created for a given cohort#
   schools_partnerships AS (
   SELECT
     cohort_partnerships.* EXCEPT (delivery_partner_id,
@@ -92,6 +96,7 @@ WITH
       relationship = FALSE
     QUALIFY
       rn1=1) cohort_partnerships),
+  -- #This pulls the latest school_cohort created for a given school and cohort (year)#
   school_cohorts AS (
   SELECT
     cohort_school_induction_programmes.* EXCEPT (rn2),
@@ -111,6 +116,7 @@ WITH
       school_cohorts.cohort_id = cohorts.id
     QUALIFY
       rn2=1 ) cohort_school_induction_programmes ),
+  -- #This pulls a list of gias schools to determine if a school is eligible for funding #
   eligible_gias_schools AS (
   SELECT
     establishment_urn
@@ -147,7 +153,7 @@ WITH
     sc.* EXCEPT (induction_programme_choice,
       school_id),
     CASE
-      WHEN sc.school_id IS NOT NULL THEN TRUE
+      WHEN sp.school_id IS NOT NULL THEN TRUE
     ELSE
     FALSE
   END
@@ -266,11 +272,13 @@ WITH
   GROUP BY
     school_urn,
     adjusted_cohort)
+
+
 SELECT
   school_cohorts.*,
   EXTRACT(date
   FROM
-    induction_tutor_created) AS induction_tutor_created_date,
+    induction_tutor_nominated) AS induction_tutor_nominated_date,
   cohort-1 AS previous_cohort,
   LEAD(school_cohorts_cohort) OVER (PARTITION BY school_id ORDER BY cohort DESC) AS previous_school_cohort,
   LEAD(school_cohort_created_at) OVER (PARTITION BY school_id ORDER BY cohort DESC) AS previous_school_cohort_created_at,
@@ -313,5 +321,5 @@ ON
 LEFT JOIN
   school_participants prev_part
 ON
-  school_cohorts.cohort=prev_part.adjusted_cohort
+  school_cohorts.cohort-1=prev_part.adjusted_cohort
   AND school_cohorts.urn=CAST(prev_part.school_urn AS string)
