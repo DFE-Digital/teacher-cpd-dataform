@@ -305,12 +305,12 @@ END
   LEAD(partnership_challenge_reason) OVER (PARTITION BY school_id ORDER BY cohort DESC) AS partnerships_prior_challenge_reason,
   LEAD(partnership_challenge_time) OVER (PARTITION BY school_id ORDER BY cohort DESC) AS partnerships_prior_challenge_time,
   LEAD(partnership_time) OVER (PARTITION BY school_id ORDER BY cohort DESC) AS partnerships_prior_partnership_time,
-  current_part.mentor_count,
-  current_part.ect_count,
-  current_part.participant_count,
-  prev_part.mentor_count AS prev_mentor_count,
-  prev_part.ect_count AS prev_ect_count,
-  prev_part.participant_count AS prev_part_count,
+  CASE WHEN current_part.mentor_count is null then 0 else current_part.mentor_count end as mentor_count,
+  CASE WHEN current_part.ect_count is null then 0 else current_part.ect_count end as ect_count,
+  CASE WHEN current_part.participant_count is null then 0 else current_part.participant_count end as participant_count,
+  CASE WHEN prev_part.mentor_count is null then 0 else prev_part.mentor_count end as prev_mentor_count,
+  CASE WHEN prev_part.ect_count is null then 0 else prev_part.ect_count end as prev_ect_count,
+  CASE WHEN prev_part.participant_count is null then 0 else prev_part.participant_count end as prev_participant_count,
 FROM
   school_registrations_single_cohort school_cohorts
 LEFT JOIN
