@@ -26,113 +26,112 @@ WITH
     start_year !=2020
   ORDER BY
     cohort DESC),
-  -- # This identifies the latest school coordinator partnership record for the induction coordinator record for the participant (In the service, there's one table for the coordinators and one table that records the partnership between the coordinator and the school) # 
+  -- # This identifies the latest school coordinator partnership record for the induction coordinator record for the participant (In the service, there's one table for the coordinators and one table that records the partnership between the coordinator and the school) #
   induction_coordinator_profiles AS (
+SELECT
+  id AS induction_tutor_id,
+  school_id,
+  user_id AS induction_tutor_user_id,
+  icp_df.created_at AS induction_tutor_created,
+  scp.created_at AS induction_tutor_nominated,
+  discarded_at AS induction_tutor_discarded,
+  total_sits,
+  CASE
+    WHEN total_sits > 1 THEN 'replaced SIT'
+    WHEN total_sits = 1 THEN 'new SIT'
+  ELSE
+  NULL
+END
+  AS sit_type
+FROM
+  `dataform.induction_coordinator_profiles_latest_cpd` icp_df
+LEFT JOIN (
   SELECT
-    id AS induction_tutor_id,
+    induction_coordinator_profile_id,
     school_id,
-    user_id AS induction_tutor_user_id,
-    icp_df.created_at AS induction_tutor_created,
-    scp.created_at AS induction_tutor_nominated,
-    discarded_at AS induction_tutor_discarded,
-    total_sits,
-    CASE
-      WHEN total_sits > 1 THEN 'replaced SIT'
-      WHEN total_sits = 1 THEN 'new SIT'
-    ELSE
-    NULL
-  END
-    AS sit_type
+    created_at,
+    -- #This is a running sum of previous sits for the school to check if this is the first time they've had a sit or they're replacing a former sit#
+    COUNT(*) OVER (PARTITION BY school_id ORDER BY created_at ASC) AS total_sits,
+    (ROW_NUMBER() OVER (PARTITION BY school_id ORDER BY created_at DESC)) AS rn0
   FROM
-    `dataform.induction_coordinator_profiles_latest_cpd` icp_df
-  LEFT JOIN (
-    SELECT
-      induction_coordinator_profile_id,
-      school_id,
-      created_at,
-      -- #This is a running sum of previous sits for the school to check if this is the first time they've had a sit or they're replacing a former sit#
-      COUNT(*) OVER (PARTITION BY school_id ORDER BY created_at ASC) AS total_sits,
-      (ROW_NUMBER() OVER (PARTITION BY school_id ORDER BY created_at DESC)) AS rn0
-    FROM
-      `dataform.induction_coordinator_profiles_schools_latest_cpd`
-    QUALIFY
-      rn0=1) AS scp
-  ON
-    icp_df.id=scp.induction_coordinator_profile_id),
-  
+    `dataform.induction_coordinator_profiles_schools_latest_cpd`
+  QUALIFY
+    rn0=1) AS scp
+ON
+  icp_df.id=scp.induction_coordinator_profile_id),
   -- #This pulls the latest school partnership created for a given cohort#
   schools_partnerships AS (
+SELECT
+  cohort_partnerships.* EXCEPT (delivery_partner_id,
+    lead_provider_id,
+    rn1),
+FROM (
   SELECT
-    cohort_partnerships.* EXCEPT (delivery_partner_id,
-      lead_provider_id,
-      rn1),
-  FROM (
-    SELECT
-      school_id,
-      start_year AS partnership_cohort,
-      delivery_partner_id,
-      dp_latest.name AS delivery_partner,
-      lead_provider_id,
-      lp_latest.name AS lead_provider,
-      challenge_reason AS partnership_challenge_reason,
-      challenged_at AS partnership_challenge_time,
-      sp_latest.created_at AS partnership_time,
-      (ROW_NUMBER() OVER (PARTITION BY school_id, start_year ORDER BY sp_latest.created_at DESC)) AS rn1
-    FROM
-      `dataform.partnerships_latest_cpd` AS sp_latest
-    LEFT JOIN
-      `dataform.delivery_partners_latest_cpd` AS dp_latest
-    ON
-      sp_latest.delivery_partner_id=dp_latest.id
-    LEFT JOIN
-      `dataform.lead_providers_latest_cpd` AS lp_latest
-    ON
-      sp_latest.lead_provider_id=lp_latest.id
-    LEFT JOIN
-      `dataform.cohorts_latest_cpd` cohorts
-    ON
-      sp_latest.cohort_id = cohorts.id
-    WHERE
-      relationship = FALSE
-    QUALIFY
-      rn1=1) cohort_partnerships),
+    school_id,
+    start_year AS partnership_cohort,
+    delivery_partner_id,
+    dp_latest.name AS delivery_partner,
+    lead_provider_id,
+    lp_latest.name AS lead_provider,
+    challenge_reason AS partnership_challenge_reason,
+    challenged_at AS partnership_challenge_time,
+    sp_latest.created_at AS partnership_time,
+    (ROW_NUMBER() OVER (PARTITION BY school_id, start_year ORDER BY sp_latest.created_at DESC)) AS rn1
+  FROM
+    `dataform.partnerships_latest_cpd` AS sp_latest
+  LEFT JOIN
+    `dataform.delivery_partners_latest_cpd` AS dp_latest
+  ON
+    sp_latest.delivery_partner_id=dp_latest.id
+  LEFT JOIN
+    `dataform.lead_providers_latest_cpd` AS lp_latest
+  ON
+    sp_latest.lead_provider_id=lp_latest.id
+  LEFT JOIN
+    `dataform.cohorts_latest_cpd` cohorts
+  ON
+    sp_latest.cohort_id = cohorts.id
+  WHERE
+    relationship = FALSE
+  QUALIFY
+    rn1=1) cohort_partnerships),
   -- #This pulls the latest school_cohort created for a given school and cohort (year)#
   school_cohorts AS (
+SELECT
+  cohort_school_induction_programmes.* EXCEPT (rn2),
+FROM (
   SELECT
-    cohort_school_induction_programmes.* EXCEPT (rn2),
-  FROM (
-    SELECT
-      school_id,
-      start_year AS school_cohorts_cohort,
-      induction_programme_choice,
-      core_induction_programme_id AS chosen_cip,
-      school_cohorts.created_at AS school_cohort_created_at,
-      (ROW_NUMBER() OVER (PARTITION BY school_id, start_year ORDER BY school_cohorts.created_at DESC)) AS rn2
-    FROM
-      `dataform.school_cohorts_latest_cpd` school_cohorts
-    LEFT JOIN
-      `dataform.cohorts_latest_cpd` cohorts
-    ON
-      school_cohorts.cohort_id = cohorts.id
-    QUALIFY
-      rn2=1 ) cohort_school_induction_programmes ),
+    school_id,
+    start_year AS school_cohorts_cohort,
+    induction_programme_choice,
+    core_induction_programme_id AS chosen_cip,
+    school_cohorts.created_at AS school_cohort_created_at,
+    (ROW_NUMBER() OVER (PARTITION BY school_id, start_year ORDER BY school_cohorts.created_at DESC)) AS rn2
+  FROM
+    `dataform.school_cohorts_latest_cpd` school_cohorts
+  LEFT JOIN
+    `dataform.cohorts_latest_cpd` cohorts
+  ON
+    school_cohorts.cohort_id = cohorts.id
+  QUALIFY
+    rn2=1 ) cohort_school_induction_programmes ),
   -- #This pulls a list of gias schools to determine if a school is eligible for funding #
   eligible_gias_schools AS (
-  SELECT
-    establishment_urn
-  FROM
-    `ecf-bq.static_tables.open_gias_ofsted_establishments` schools
-  LEFT JOIN
-    `static_tables.establishment_type_state_funding_eligible` eligibility
-  ON
-    schools.establishment_subtype = eligibility.type_of_establishment_name
-  WHERE
-    (establishment_type NOT IN ('Independent schools',
-        'Special schools')
-      AND state_funded = TRUE)
-    OR (establishment_type IN ('Independent schools',
-        'Special schools')
-      AND section41_approved='Approved')),
+SELECT
+  establishment_urn
+FROM
+  `ecf-bq.static_tables.open_gias_ofsted_establishments` schools
+LEFT JOIN
+  `static_tables.establishment_type_state_funding_eligible` eligibility
+ON
+  schools.establishment_subtype = eligibility.type_of_establishment_name
+WHERE
+  (establishment_type NOT IN ('Independent schools',
+      'Special schools')
+    AND state_funded = TRUE)
+  OR (establishment_type IN ('Independent schools',
+      'Special schools')
+    AND section41_approved='Approved')),
   school_registrations_single_cohort AS (
   SELECT
     DISTINCT id AS school_id,
@@ -272,8 +271,6 @@ WITH
   GROUP BY
     school_urn,
     adjusted_cohort)
-
-
 SELECT
   school_cohorts.*,
   EXTRACT(date
@@ -305,12 +302,42 @@ END
   LEAD(partnership_challenge_reason) OVER (PARTITION BY school_id ORDER BY cohort DESC) AS partnerships_prior_challenge_reason,
   LEAD(partnership_challenge_time) OVER (PARTITION BY school_id ORDER BY cohort DESC) AS partnerships_prior_challenge_time,
   LEAD(partnership_time) OVER (PARTITION BY school_id ORDER BY cohort DESC) AS partnerships_prior_partnership_time,
-  CASE WHEN current_part.mentor_count is null then 0 else current_part.mentor_count end as mentor_count,
-  CASE WHEN current_part.ect_count is null then 0 else current_part.ect_count end as ect_count,
-  CASE WHEN current_part.participant_count is null then 0 else current_part.participant_count end as participant_count,
-  CASE WHEN prev_part.mentor_count is null then 0 else prev_part.mentor_count end as prev_mentor_count,
-  CASE WHEN prev_part.ect_count is null then 0 else prev_part.ect_count end as prev_ect_count,
-  CASE WHEN prev_part.participant_count is null then 0 else prev_part.participant_count end as prev_participant_count,
+  CASE
+    WHEN current_part.mentor_count IS NULL THEN 0
+  ELSE
+  current_part.mentor_count
+END
+  AS mentor_count,
+  CASE
+    WHEN current_part.ect_count IS NULL THEN 0
+  ELSE
+  current_part.ect_count
+END
+  AS ect_count,
+  CASE
+    WHEN current_part.participant_count IS NULL THEN 0
+  ELSE
+  current_part.participant_count
+END
+  AS participant_count,
+  CASE
+    WHEN prev_part.mentor_count IS NULL THEN 0
+  ELSE
+  prev_part.mentor_count
+END
+  AS prev_mentor_count,
+  CASE
+    WHEN prev_part.ect_count IS NULL THEN 0
+  ELSE
+  prev_part.ect_count
+END
+  AS prev_ect_count,
+  CASE
+    WHEN prev_part.participant_count IS NULL THEN 0
+  ELSE
+  prev_part.participant_count
+END
+  AS prev_part_count,
 FROM
   school_registrations_single_cohort school_cohorts
 LEFT JOIN
