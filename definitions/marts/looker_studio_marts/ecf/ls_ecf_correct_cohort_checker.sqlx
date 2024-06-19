@@ -46,7 +46,7 @@ config {
             start_date_suggestion_match = 0 \n \
     Dependencies: \n \
         dataform.ecf_golden_thread \n \
-        dataform.ls_declarations_provider_names",
+        dataform.ecf_declarations",
     columns: {
         user_id: "This comes from the teacher profile associated with the participant profile. User ID also exists independently in other tables.",
         participant_profile_id: "The ID from a participant's profile in the CPD service.",
@@ -65,6 +65,11 @@ config {
         partnership_relationship: "TRUE/FALSE for the partnership_id taken from partnerships_latest_cpd. The relationship is 'live' when the value returns FALSE.",
         earliest_declaration_date: "The first declaration date for the participant_profile_id where the declaration is funded (eligible, payable or paid).",
         unique_participant_counter: "1 or 0 if the row is the first instance of the participant_profile_id. Used in reporting as a means of gaining unique count of participants.",
+        niot_partnership_chk: "1 or 0 if the declaration relates to a participant with an active school-lead provider relationship and the lead provider is NIOT",
+        start_date_suggestion_match: "1 or 0 if the suggested cohort based on induction start date matches with the current cohort in the servce.",
+        earliest_dec_suggestion_match: "1 or 0 if the suggest cohort based on the earliest funded declaration for the participant matches the current cohort in the service.",
+        has_relevant_declarations: "TRUE/FALSE if the participant has any s/e/p/p declarations present.",
+        cohort_rolled_over_21_24: "TRUE/FALSE flag from the service as to whether the participant's cohort has been changed from 2021 to 2024.",
         has_induction_start_date: "TRUE/FALSE if the induction_start_date field is not null."
     }
 }
@@ -108,82 +113,74 @@ config {
         AND 
         declaration_id IS NULL
         AND
+        has_relevant_declarations = FALSE
+        AND
         niot_partnership_chk = 0
         AND
         start_date_suggestion_match = 0
 
   Dependencies:
-    dataform.ecf_golden_thread
-    dataform.ls_declarations_provider_names
-    dataform.partnerships_latest_cpd
-
-  Version History:
-    1.0 2024-06-05 Tony Page
-      Initial Build
+    dataform.ecf_declarations
 */
 
--- Gather ECF Golden Thread
-WITH golden_thread AS( 
+-- Gather ECF Declarations
+WITH declarations AS( 
   SELECT
      -- Manually assign the user_id for specific participant profile where the profile no longer exists in latest_cpd data and has no superceeded record to call upon.
      CASE 
-      WHEN egt.participant_profile_id = '8cd0928c-ecad-482f-95cd-6a0ff3e840ad' THEN '79dee4de-a6dd-407c-ab1c-690fcb6d0056'
-      ELSE egt.user_id
+      WHEN dec.participant_profile_id = '8cd0928c-ecad-482f-95cd-6a0ff3e840ad' THEN '79dee4de-a6dd-407c-ab1c-690fcb6d0056'
+      ELSE dec.user_id
      END AS user_id
-    ,egt.participant_profile_id
-    ,egt.participant_course AS participant_role
-    ,egt.schedule_identifier
-    ,egt.induction_start_date AS induction_start_date
-    ,egt.cohort
-    ,egt.eligible_for_funding
-    ,egt.partnership_id
-    ,egt.partnership_relationship
-    ,egt.lead_provider_name AS induction_lead_provider_name
-  FROM 
-    ${ref('ecf_golden_thread')} AS egt
-),
-
--- Collect all s/e/p/p declarations relating to ECF in the appropriate states.
-declarations AS (
-  SELECT
-     declaration_id
-    ,DATE(declaration_date) AS declaration_date
-    ,declaration_type
-    ,state AS declaration_state
-    ,participant_profile_id
-    ,cpd_lead_provider_name AS lead_provider_name
-    -- Calculate earliest declaration date for the participant for funded declarations only.
+    ,dec.participant_profile_id
+    ,dec.participant_course AS participant_role
+    ,dec.schedule_identifier
+    ,dec.induction_start_date AS induction_start_date
+    ,dec.cohort
+    ,dec.eligible_for_funding
+    ,dec.partnership_id
+    ,dec.partnership_relationship
+    ,dec.lead_provider_name AS induction_lead_provider_name
+    ,dec.cohort_rolled_over_21_24
+    ,IF(dec.state IN ('submitted', 'paid', 'payable', 'eligible'),dec.declaration_id, NULL) AS declaration_id
+    ,IF(dec.state IN ('submitted', 'paid', 'payable', 'eligible'),DATE(declaration_date), NULL) AS declaration_date
+    ,IF(dec.state IN ('submitted', 'paid', 'payable', 'eligible'),dec.declaration_type, NULL) AS declaration_type
+    ,IF(dec.state IN ('submitted', 'paid', 'payable', 'eligible'), state, NULL) AS declaration_state
+    ,IF(dec.state IN ('submitted', 'paid', 'payable', 'eligible'),dec.cpd_lead_provider_name, NULL) AS lead_provider_name
     ,MIN(CASE WHEN state IN ('paid', 'payable', 'eligible') THEN DATE(declaration_date) ELSE DATE(2050,12,31) END) OVER (PARTITION BY participant_profile_id) AS earliest_declaration_date
-  FROM
-    ${ref('ecf_declarations')}
-  WHERE
-    state IN (
-       'paid'
-      ,'payable'
-      ,'eligible'
-      ,'submitted'
-    )
+    ,CASE
+      WHEN SUM(relevant_dec_state) OVER (PARTITION BY participant_profile_id) > 0 THEN TRUE 
+      ELSE FALSE 
+     END AS has_relevant_declarations
+  FROM 
+    (SELECT
+      *,
+      CASE WHEN state IN ('eligible','payable','paid','submitted') THEN 1 ELSE 0 END AS relevant_dec_state
+    FROM
+      ${ref('ecf_declarations')}
+    ) dec
 ),
 
--- Join declarations onto deduped induction records & add on the grouping of suggested cohorts by induction start date and earliest declaration..
+-- Add on the grouping of suggested cohorts by induction start date and earliest declaration, Partnership-NIOT check flag, unique participant flag and row number for duplication removal of nulled declarations. 
 combined_data AS (
   SELECT 
-     pro.user_id
-    ,pro.participant_profile_id
-    ,pro.participant_role
-    ,pro.schedule_identifier AS current_schedule
-    ,dec.declaration_id
-    ,dec.declaration_date
-    ,dec.lead_provider_name
-    ,IF(pro.induction_lead_provider_name = 'No lead provider', NULL, pro.induction_lead_provider_name) AS induction_lead_provider_name
-    ,dec.declaration_type
-    ,dec.declaration_state
-    ,pro.cohort AS current_cohort
-    ,pro.induction_start_date
-    ,pro.eligible_for_funding
-    ,pro.partnership_id
-    ,pro.partnership_relationship
-    ,dec.earliest_declaration_date AS earliest_declaration_date
+     user_id
+    ,participant_profile_id
+    ,participant_role
+    ,schedule_identifier AS current_schedule
+    ,declaration_id
+    ,declaration_date
+    ,lead_provider_name
+    ,IF(induction_lead_provider_name = 'No lead provider', NULL, induction_lead_provider_name) AS induction_lead_provider_name
+    ,declaration_type
+    ,declaration_state
+    ,cohort AS current_cohort
+    ,induction_start_date
+    ,eligible_for_funding
+    ,partnership_id
+    ,partnership_relationship
+    ,earliest_declaration_date AS earliest_declaration_date
+    ,has_relevant_declarations
+    ,cohort_rolled_over_21_24
     ,CASE
       WHEN induction_start_date < '2021-09-01' THEN '2023'
       WHEN induction_start_date BETWEEN '2021-09-01' AND '2022-05-31' THEN '2021'
@@ -199,23 +196,24 @@ combined_data AS (
       WHEN earliest_declaration_date BETWEEN '2023-09-01' AND '2024-05-31' THEN '2023'
      END AS earliest_dec_suggested_true_cohort
     ,CASE
-      WHEN pro.partnership_id IS NOT NULL AND pro.partnership_relationship = FALSE AND dec.lead_provider_name = 'National Institute of Teaching' THEN 1
+      WHEN partnership_id IS NOT NULL AND partnership_relationship = FALSE AND lead_provider_name = 'National Institute of Teaching' THEN 1
       ELSE 0
      END AS niot_partnership_chk
     ,CASE
-      WHEN ROW_NUMBER() OVER(PARTITION BY pro.participant_profile_id ORDER BY dec.declaration_date ASC) = 1 THEN 1
+      WHEN ROW_NUMBER() OVER(PARTITION BY participant_profile_id ORDER BY declaration_date ASC) = 1 THEN 1
       ELSE 0
      END AS unique_participant_counter
+    -- Generate row number to allow removal of duplicated NULL declarations created by replacing values when not a relevant state (s/e/p/p)
+    ,ROW_NUMBER() OVER(PARTITION BY participant_profile_id, declaration_id) AS rn0
   FROM 
-    golden_thread pro
-  LEFT JOIN 
-    declarations dec 
-  ON
-    pro.participant_profile_id = dec.participant_profile_id
+    declarations
   WHERE
-    pro.participant_role IS NOT NULL
+    participant_role IS NOT NULL
+  QUALIFY(
+    rn0 = 1
+  )
   ORDER BY
-    pro.user_id ASC, pro.participant_profile_id ASC, pro.participant_role ASC, dec.declaration_date ASC
+    user_id ASC, participant_profile_id ASC, participant_role ASC, declaration_date ASC
 ),
 
 -- Build preliminary output data which includes the binary result for cohort matching each of the suggested values.
@@ -235,8 +233,8 @@ output_data AS (
 )
 
 -- Generate output
-SELECT 
-  *
+SELECT
+  * EXCEPT(rn0)
   ,IF(induction_start_date IS NOT NULL, TRUE, FALSE) AS has_induction_start_date
 FROM 
   output_data
