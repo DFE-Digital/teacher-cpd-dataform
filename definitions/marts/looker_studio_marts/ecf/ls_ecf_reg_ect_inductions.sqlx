@@ -48,15 +48,15 @@ ORDER BY
   mentor_profiles AS (
 SELECT
   profiles.id as participant_profile_id,
-  mentor_completion_date,
-  start_year as cohort,
-  cohort_changed_after_payments_frozen
+  profiles.mentor_completion_date,
+  dedupe.cohort,
+  profiles.cohort_changed_after_payments_frozen
 FROM
   `dataform.participant_profiles_latest_cpd` profiles
-LEFT join
-  `dataform.cohorts_latest_cpd` cohorts
-on
-  profiles.cohort_id = cohorts.id),
+LEFT JOIN
+  `dataform.ecf_inductions_dedupe` dedupe
+ON
+  profiles.id = dedupe.participant_profile_id),
   -- # This table joins ECT inductions records with their corresponding associated mentor's inductions records. This join creates duplicates of the ECT induction records (For each 1 ECT induction record this will be replicated for the number of induction records of their mentor). These duplicates are resolved in the subsequent table #
   ect_reg_with_mentors AS (
 SELECT
