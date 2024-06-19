@@ -40,12 +40,13 @@ config {
             AND \n \
             declaration_id IS NULL \n \
             AND \n \
+            has_relevant_declarations = FALSE \n \
+            AND \n \
             -- Check if the lead provider is NIOT and there is a Live Partnership in place. \n \
             niot_partnership_chk = 0 \n \
             AND \n \
             start_date_suggestion_match = 0 \n \
     Dependencies: \n \
-        dataform.ecf_golden_thread \n \
         dataform.ecf_declarations",
     columns: {
         user_id: "This comes from the teacher profile associated with the participant profile. User ID also exists independently in other tables.",
