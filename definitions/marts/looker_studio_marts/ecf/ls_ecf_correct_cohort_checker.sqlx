@@ -2,9 +2,9 @@ config {
     type: "table",
     bigquery: {
         partitionBy: "",
-        clusterBy: ["current_cohort", "participant_role", "participant_profile_id"]
+        clusterBy: ["current_cohort", "participant_role"]
     },
-    description: "This mart combines elements of the ECF Golden Thread and relevant declarations (submitted, eligible, payable, paid) for both ECTs and Mentors to assess if the currently assigned cohort is in line with the suggested cohort based on the induction start date for ECTs and the earliest declaration date for Mentors. \n \
+    description: "This mart contains relevant declarations (submitted, eligible, payable, paid) for both ECTs and Mentors to assess if the currently assigned cohort is in line with the suggested cohort based on the induction start date for ECTs and the earliest declaration date for Mentors. \n \
     Objective: \n \
         To gather all ECTs & Mentors inducted within 2021-2023 cohorts for evaluation as to whether they are allocated to correct the cohort based on criteria below. \n \
     Instructions: \n \
@@ -14,7 +14,7 @@ config {
             AND \n \
             participant_role = 'ECT' \n \
             AND \n \
-            declaration_id IS NOT NULL \n \
+            declaration_state IN ('submitted', 'eligible', 'payable', 'paid') \n \
             AND \n \
             -- Check if the lead provider is NIOT and there is a Live Partnership in place. \n \
             niot_partnership_chk = 0 \n \
@@ -26,7 +26,7 @@ config {
             AND \n \
             participant_role = 'Mentor' \n \
             AND \n \
-            declaration_id IS NOT NULL \n \
+            declaration_state IN ('submitted', 'eligible', 'payable', 'paid') \n \
             AND \n \
             -- Check if the lead provider is NIOT and there is a Live Partnership in place. \n \
             niot_partnership_chk = 0 \n \
@@ -38,7 +38,7 @@ config {
             AND \n \
             participant_role = 'ECT' \n \
             AND \n \
-            declaration_id IS NULL \n \
+            declaration_state NOT IN ('submitted', 'eligible', 'payable', 'paid') \n \
             AND \n \
             has_relevant_declarations = FALSE \n \
             AND \n \
@@ -88,7 +88,7 @@ config {
         AND
         participant_role = 'ECT'
         AND 
-        declaration_id IS NOT NULL
+        declaration_state IN ('submitted', 'eligible', 'payable', 'paid')
         AND
         niot_partnership_chk = 0
         AND
@@ -100,7 +100,7 @@ config {
         AND
         participant_role = 'Mentor'
         AND 
-        declaration_id IS NOT NULL
+        declaration_state IN ('submitted', 'eligible', 'payable', 'paid')
         AND
         niot_partnership_chk = 0
         AND
@@ -112,7 +112,7 @@ config {
         AND
         participant_role = 'ECT'
         AND 
-        declaration_id IS NULL
+        declaration_state NOT IN ('submitted', 'eligible', 'payable', 'paid')
         AND
         has_relevant_declarations = FALSE
         AND
@@ -142,11 +142,11 @@ WITH declarations AS(
     ,dec.partnership_relationship
     ,dec.lead_provider_name AS induction_lead_provider_name
     ,dec.cohort_rolled_over_21_24
-    ,IF(dec.state IN ('submitted', 'paid', 'payable', 'eligible'),dec.declaration_id, NULL) AS declaration_id
-    ,IF(dec.state IN ('submitted', 'paid', 'payable', 'eligible'),DATE(declaration_date), NULL) AS declaration_date
-    ,IF(dec.state IN ('submitted', 'paid', 'payable', 'eligible'),dec.declaration_type, NULL) AS declaration_type
-    ,IF(dec.state IN ('submitted', 'paid', 'payable', 'eligible'), state, NULL) AS declaration_state
-    ,IF(dec.state IN ('submitted', 'paid', 'payable', 'eligible'),dec.cpd_lead_provider_name, NULL) AS lead_provider_name
+    ,dec.declaration_id
+    ,DATE(declaration_date) AS declaration_date
+    ,dec.declaration_type
+    ,state AS declaration_state
+    ,dec.cpd_lead_provider_name AS lead_provider_name
     ,MIN(CASE WHEN state IN ('paid', 'payable', 'eligible') THEN DATE(declaration_date) ELSE DATE(2050,12,31) END) OVER (PARTITION BY participant_profile_id) AS earliest_declaration_date
     ,CASE
       WHEN SUM(relevant_dec_state) OVER (PARTITION BY participant_profile_id) > 0 THEN TRUE 
@@ -157,7 +157,7 @@ WITH declarations AS(
       *,
       CASE WHEN state IN ('eligible','payable','paid','submitted') THEN 1 ELSE 0 END AS relevant_dec_state
     FROM
-      ${ref('ecf_declarations')}
+      `dataform__TP_Dev.ecf_declarations`
     ) dec
 ),
 
@@ -205,14 +205,10 @@ combined_data AS (
       ELSE 0
      END AS unique_participant_counter
     -- Generate row number to allow removal of duplicated NULL declarations created by replacing values when not a relevant state (s/e/p/p)
-    ,ROW_NUMBER() OVER(PARTITION BY participant_profile_id, declaration_id) AS rn0
   FROM 
     declarations
   WHERE
     participant_role IS NOT NULL
-  QUALIFY(
-    rn0 = 1
-  )
   ORDER BY
     user_id ASC, participant_profile_id ASC, participant_role ASC, declaration_date ASC
 ),
@@ -235,7 +231,7 @@ output_data AS (
 
 -- Generate output
 SELECT
-  * EXCEPT(rn0)
+  *
   ,IF(induction_start_date IS NOT NULL, TRUE, FALSE) AS has_induction_start_date
 FROM 
   output_data
