@@ -147,7 +147,7 @@ WITH declarations AS(
     ,dec.declaration_type
     ,state AS declaration_state
     ,dec.cpd_lead_provider_name AS lead_provider_name
-    ,MIN(CASE WHEN state IN ('paid', 'payable', 'eligible') THEN DATE(declaration_date) ELSE DATE(2050,12,31) END) OVER (PARTITION BY participant_profile_id) AS earliest_declaration_date
+    ,MIN(CASE WHEN funded_declaration = TRUE THEN DATE(declaration_date) ELSE DATE(2050,12,31) END) OVER (PARTITION BY participant_profile_id) AS earliest_declaration_date
     ,CASE
       WHEN SUM(relevant_dec_state) OVER (PARTITION BY participant_profile_id) > 0 THEN TRUE 
       ELSE FALSE 
@@ -156,7 +156,7 @@ WITH declarations AS(
   FROM 
     (SELECT
       *,
-      CASE WHEN state IN ('eligible','payable','paid','submitted') THEN 1 ELSE 0 END AS relevant_dec_state
+      CASE WHEN funded_declaration = TRUE OR state = 'submitted' THEN 1 ELSE 0 END AS relevant_dec_state
     FROM
       `dataform__TP_Dev.ecf_declarations`
     ) dec
