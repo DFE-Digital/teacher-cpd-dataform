@@ -1,0 +1,211 @@
+config {
+    type: "table",
+    bigquery: {
+        partitionBy: "",
+        clusterBy: ["current_cohort", "participant_role"]
+    },
+    description: "This mart contains relevant declarations (submitted, eligible, payable, paid) for both ECTs and Mentors to assess if the currently assigned cohort is in line with the suggested cohort based on the induction start date for ECTs and the earliest declaration date for Mentors. \n \
+    Objective: \n \
+        To gather all ECTs & Mentors inducted within 2021-2023 cohorts for evaluation as to whether they are allocated to correct the cohort based on criteria below. \n \
+    Instructions: \n \
+        For ECTs in the 'wrong' cohort with declarations: \n \
+          WHERE \n \
+            eligible_for_funding = TRUE \n \
+            AND \n \
+            participant_role = 'ECT' \n \
+            AND \n \
+            declaration_state IN ('submitted', 'eligible', 'payable', 'paid') \n \
+            AND \n \
+            -- Check if the lead provider is NIOT and there is a Live Partnership in place. \n \
+            niot_partnership_chk = 0 \n \
+            AND \n \
+            start_date_suggestion_match = 0 \n \
+        For Mentors in the 'wrong' cohort with declarations: \n \
+          WHERE \n \
+            eligible_for_funding = TRUE \n \
+            AND \n \
+            participant_role = 'Mentor' \n \
+            AND \n \
+            declaration_state IN ('submitted', 'eligible', 'payable', 'paid') \n \
+            AND \n \
+            -- Check if the lead provider is NIOT and there is a Live Partnership in place. \n \
+            niot_partnership_chk = 0 \n \
+            AND \n \
+            earliest_dec_suggestion_match = 0 \n \
+        For ECTs in the 'wrong' cohort without declarations: \n \
+           WHERE \n \
+            eligible_for_funding = TRUE \n \
+            AND \n \
+            participant_role = 'ECT' \n \
+            AND \n \
+            declaration_state NOT IN ('submitted', 'eligible', 'payable', 'paid') \n \
+            AND \n \
+            has_relevant_declarations = FALSE \n \
+            AND \n \
+            -- Check if the lead provider is NIOT and there is a Live Partnership in place. \n \
+            niot_partnership_chk = 0 \n \
+            AND \n \
+            start_date_suggestion_match = 0 \n \
+    Dependencies: \n \
+        dataform.ecf_declarations",
+    columns: {
+        user_id: "This comes from the teacher profile associated with the participant profile. User ID also exists independently in other tables.",
+        participant_profile_id: "The ID from a participant's profile in the CPD service.",
+        participant_role: "The role of the participant which is either ECT or Mentor as per the participant type.",
+        current_schedule: "The schedule as per the participant profile.",
+        declaration_id: "The unique identifier for the declaration.",
+        declaration_date: "The date of when evidence was submitted against the declaration.",
+        lead_provider_name: "The name of the Lead Provider that submitted the declaration.",
+        induction_lead_provider_name: "The name of the Lead Provider associated with the induction record. Used for ECTs & Mentors with zero s/e/p/p declarations.",
+        declaration_type: "The type of declaration which can be started, retained-#, extended-# or completed. #'s range from 1 to 4.",
+        declaration_state: "The state of the declaration which for this mart can only be submitted, eligible, payable, or paid. (s/e/p/p)",
+        current_cohort: "The cohort/academic year corresponding to when the participant started their course as per the service.",
+        induction_start_date: "The date when the ECT or Mentor started their induction taken from their Participant Profile.",
+        eligible_for_funding: "TRUE/FALSE flag for funding eligibility.",
+        partnership_id: "ID for the Lead Provider-School partnership for a given cohort.",
+        partnership_relationship: "TRUE/FALSE for the partnership_id taken from partnerships_latest_cpd. The relationship is 'live' when the value returns FALSE.",
+        earliest_declaration_date: "The first declaration date for the participant_profile_id where the declaration is funded (eligible, payable or paid).",
+        unique_participant_counter: "1 or 0 if the row is the first instance of the participant_profile_id. Used in reporting as a means of gaining unique count of participants.",
+        niot_partnership_chk: "1 or 0 if the declaration relates to a participant with an active school-lead provider relationship and the lead provider is NIOT. When this equals 1 the declaration/participant is not to be assessed for whether it is in the correct cohort. NIOT are only able to train participants in the 2023 cohorts onwards, so contract managers have occasionally greenlit them to train an ECT whose induction began before 1/9/2023 under the later cohort.",
+        start_date_suggestion_match: "1 or 0 if the suggested cohort based on induction start date matches with the current cohort in the servce.",
+        earliest_dec_suggestion_match: "1 or 0 if the suggest cohort based on the earliest funded declaration for the participant matches the current cohort in the service.",
+        has_relevant_declarations: "TRUE/FALSE if the participant has any s/e/p/p declarations present.",
+        cohort_rolled_over_21_24: "TRUE/FALSE flag from the service as to whether the participant's cohort has been changed from 2021 to 2024.",
+        has_induction_start_date: "TRUE/FALSE if the induction_start_date field is not null."
+    }
+}
+
+/*** ECF Cohort Corrections Looker Studio Data Mart ***/
+
+/*
+  Objective:
+    To gather all ECTs & Mentors inducted within 2021-2023 cohorts for evaluation as to whether they are allocated to correct the cohort based on criteria below.
+
+  Instructions:
+    For ECTs in the "wrong" cohort with declarations:
+      WHERE
+        eligible_for_funding = TRUE
+        AND
+        participant_role = 'ECT'
+        AND 
+        declaration_state IN ('submitted', 'eligible', 'payable', 'paid')
+        AND
+        niot_partnership_chk = 0
+        AND
+        start_date_suggestion_match = 0
+      
+    For Mentors in the "wrong" cohort with declarations:
+      WHERE
+        eligible_for_funding = TRUE
+        AND
+        participant_role = 'Mentor'
+        AND 
+        declaration_state IN ('submitted', 'eligible', 'payable', 'paid')
+        AND
+        niot_partnership_chk = 0
+        AND
+        earliest_dec_suggestion_match = 0
+
+    For ECTs in the "wrong" cohort without declarations:
+      WHERE
+        eligible_for_funding = TRUE
+        AND
+        participant_role = 'ECT'
+        AND 
+        declaration_state NOT IN ('submitted', 'eligible', 'payable', 'paid')
+        AND
+        has_relevant_declarations = FALSE
+        AND
+        niot_partnership_chk = 0
+        AND
+        start_date_suggestion_match = 0
+
+  Dependencies:
+    dataform.ecf_declarations
+*/
+
+-- Gather ECF Declarations
+WITH declarations AS( 
+  SELECT
+     -- Manually assign the user_id for specific participant profile where the profile no longer exists in latest_cpd data and has no superceeded record to call upon.
+     CASE 
+      WHEN dec.participant_profile_id = '8cd0928c-ecad-482f-95cd-6a0ff3e840ad' THEN '79dee4de-a6dd-407c-ab1c-690fcb6d0056'
+      ELSE dec.user_id
+     END AS user_id
+    ,dec.participant_profile_id
+    ,dec.participant_course AS participant_role
+    ,dec.schedule_identifier
+    ,dec.induction_start_date AS induction_start_date
+    ,dec.cohort AS current_cohort
+    ,dec.eligible_for_funding
+    ,dec.partnership_id
+    ,dec.partnership_relationship
+    ,IF(lead_provider_name = 'No lead provider', NULL, lead_provider_name) AS induction_lead_provider_name
+    ,dec.cohort_rolled_over_21_24
+    ,dec.declaration_id
+    ,DATE(declaration_date) AS declaration_date
+    ,dec.declaration_type
+    ,state AS declaration_state
+    ,dec.cpd_lead_provider_name AS lead_provider_name
+    ,MIN(CASE WHEN funded_declaration = TRUE THEN DATE(declaration_date) ELSE DATE(2050,12,31) END) OVER (PARTITION BY participant_profile_id) AS earliest_declaration_date
+    ,CASE
+      WHEN SUM(relevant_dec_state) OVER (PARTITION BY participant_profile_id) > 0 THEN TRUE 
+      ELSE FALSE 
+     END AS has_relevant_declarations
+    ,IF(induction_start_date IS NOT NULL, TRUE, FALSE) AS has_induction_start_date
+  FROM 
+    (SELECT
+      *,
+      CASE WHEN funded_declaration = TRUE OR state = 'submitted' THEN 1 ELSE 0 END AS relevant_dec_state
+    FROM
+      `dataform__TP_Dev.ecf_declarations`
+    ) dec
+),
+
+-- Add on the grouping of suggested cohorts by induction start date and earliest declaration, Partnership-NIOT check flag, unique participant flag and row number for duplication removal of nulled declarations. 
+combined_data AS (
+  SELECT 
+     *
+    ,CASE
+      WHEN induction_start_date < '2021-09-01' THEN '2023'
+      WHEN induction_start_date BETWEEN '2021-09-01' AND '2022-05-31' THEN '2021'
+      WHEN induction_start_date BETWEEN '2022-06-01' AND '2022-08-31' THEN '2021,2022'
+      WHEN induction_start_date BETWEEN '2022-09-01' AND '2023-05-31' THEN '2022'
+      WHEN induction_start_date BETWEEN '2023-06-01' AND '2023-08-31' THEN '2022,2023'
+      WHEN induction_start_date BETWEEN '2023-09-01' AND '2024-05-31' THEN '2023'
+      ELSE NULL
+    END AS start_date_suggested_true_cohort
+    ,CASE
+      WHEN earliest_declaration_date BETWEEN '2021-09-01' AND '2023-05-31' THEN '2021,2022'
+      WHEN earliest_declaration_date BETWEEN '2023-06-01' AND '2023-08-31' THEN '2021,2022,2023'
+      WHEN earliest_declaration_date BETWEEN '2023-09-01' AND '2024-05-31' THEN '2023'
+     END AS earliest_dec_suggested_true_cohort
+    ,CASE
+      WHEN partnership_id IS NOT NULL AND partnership_relationship = FALSE AND lead_provider_name = 'National Institute of Teaching' THEN 1
+      ELSE 0
+     END AS niot_partnership_chk
+    ,CASE
+      WHEN ROW_NUMBER() OVER(PARTITION BY participant_profile_id ORDER BY declaration_date ASC) = 1 THEN 1
+      ELSE 0
+     END AS unique_participant_counter
+  FROM 
+    declarations
+  WHERE
+    participant_role IS NOT NULL
+  ORDER BY
+    user_id ASC, participant_profile_id ASC, participant_role ASC, declaration_date ASC
+)
+
+-- Generate output
+SELECT
+   *
+  ,CASE
+    WHEN INSTR(start_date_suggested_true_cohort, CAST(current_cohort AS STRING)) > 0 THEN 1
+    ELSE 0
+    END AS start_date_suggestion_match
+  ,CASE
+    WHEN INSTR(earliest_dec_suggested_true_cohort, CAST(current_cohort AS STRING)) > 0 THEN 1
+    ELSE 0
+    END AS earliest_dec_suggestion_match
+FROM 
+  combined_data
