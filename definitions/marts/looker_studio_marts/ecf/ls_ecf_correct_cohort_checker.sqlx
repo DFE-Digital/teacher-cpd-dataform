@@ -136,11 +136,11 @@ WITH declarations AS(
     ,dec.participant_course AS participant_role
     ,dec.schedule_identifier
     ,dec.induction_start_date AS induction_start_date
-    ,dec.cohort
+    ,dec.cohort AS current_cohort
     ,dec.eligible_for_funding
     ,dec.partnership_id
     ,dec.partnership_relationship
-    ,dec.lead_provider_name AS induction_lead_provider_name
+    ,IF(lead_provider_name = 'No lead provider', NULL, lead_provider_name) AS induction_lead_provider_name
     ,dec.cohort_rolled_over_21_24
     ,dec.declaration_id
     ,DATE(declaration_date) AS declaration_date
@@ -164,24 +164,7 @@ WITH declarations AS(
 -- Add on the grouping of suggested cohorts by induction start date and earliest declaration, Partnership-NIOT check flag, unique participant flag and row number for duplication removal of nulled declarations. 
 combined_data AS (
   SELECT 
-     user_id
-    ,participant_profile_id
-    ,participant_role
-    ,schedule_identifier AS current_schedule
-    ,declaration_id
-    ,declaration_date
-    ,lead_provider_name
-    ,IF(induction_lead_provider_name = 'No lead provider', NULL, induction_lead_provider_name) AS induction_lead_provider_name
-    ,declaration_type
-    ,declaration_state
-    ,cohort AS current_cohort
-    ,induction_start_date
-    ,eligible_for_funding
-    ,partnership_id
-    ,partnership_relationship
-    ,earliest_declaration_date AS earliest_declaration_date
-    ,has_relevant_declarations
-    ,cohort_rolled_over_21_24
+     *
     ,CASE
       WHEN induction_start_date < '2021-09-01' THEN '2023'
       WHEN induction_start_date BETWEEN '2021-09-01' AND '2022-05-31' THEN '2021'
@@ -204,34 +187,25 @@ combined_data AS (
       WHEN ROW_NUMBER() OVER(PARTITION BY participant_profile_id ORDER BY declaration_date ASC) = 1 THEN 1
       ELSE 0
      END AS unique_participant_counter
-    -- Generate row number to allow removal of duplicated NULL declarations created by replacing values when not a relevant state (s/e/p/p)
   FROM 
     declarations
   WHERE
     participant_role IS NOT NULL
   ORDER BY
     user_id ASC, participant_profile_id ASC, participant_role ASC, declaration_date ASC
-),
-
--- Build preliminary output data which includes the binary result for cohort matching each of the suggested values.
-output_data AS (
-  SELECT 
-    *
-    ,CASE
-      WHEN INSTR(start_date_suggested_true_cohort, CAST(current_cohort AS STRING)) > 0 THEN 1
-      ELSE 0
-     END AS start_date_suggestion_match
-    ,CASE
-      WHEN INSTR(earliest_dec_suggested_true_cohort, CAST(current_cohort AS STRING)) > 0 THEN 1
-      ELSE 0
-     END AS earliest_dec_suggestion_match
-  FROM
-   combined_data
 )
 
 -- Generate output
 SELECT
-  *
+   *
+  ,CASE
+    WHEN INSTR(start_date_suggested_true_cohort, CAST(current_cohort AS STRING)) > 0 THEN 1
+    ELSE 0
+    END AS start_date_suggestion_match
+  ,CASE
+    WHEN INSTR(earliest_dec_suggested_true_cohort, CAST(current_cohort AS STRING)) > 0 THEN 1
+    ELSE 0
+    END AS earliest_dec_suggestion_match
   ,IF(induction_start_date IS NOT NULL, TRUE, FALSE) AS has_induction_start_date
 FROM 
-  output_data
+  combined_data
