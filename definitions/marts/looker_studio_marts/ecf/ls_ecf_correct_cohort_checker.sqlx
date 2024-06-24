@@ -152,6 +152,7 @@ WITH declarations AS(
       WHEN SUM(relevant_dec_state) OVER (PARTITION BY participant_profile_id) > 0 THEN TRUE 
       ELSE FALSE 
      END AS has_relevant_declarations
+    ,IF(induction_start_date IS NOT NULL, TRUE, FALSE) AS has_induction_start_date
   FROM 
     (SELECT
       *,
@@ -206,6 +207,5 @@ SELECT
     WHEN INSTR(earliest_dec_suggested_true_cohort, CAST(current_cohort AS STRING)) > 0 THEN 1
     ELSE 0
     END AS earliest_dec_suggestion_match
-  ,IF(induction_start_date IS NOT NULL, TRUE, FALSE) AS has_induction_start_date
 FROM 
   combined_data
