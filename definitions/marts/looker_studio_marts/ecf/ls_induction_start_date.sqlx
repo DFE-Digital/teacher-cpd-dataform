@@ -23,7 +23,8 @@ config {
         school_urn: "URN from the ECT's most recent/current induction record.",
         lead_provider_name: "Lead Provider that is partnered with the ECT's school.",
         delivery_partner_name: "Delivery Partner that is partnered with the ECT's school.",
-        appropriate_body_name: "Appropriate Body that is associated with the ECT's school."
+        appropriate_body_name: "Appropriate Body that is associated with the ECT's school.",
+        cohort_rolled_over_21_24: "TRUE/FALSE flag from the service as to whether the participant's cohort has been changed from 2021 to 2024."
     }
 }
 
@@ -44,7 +45,8 @@ WITH
     ecfid.school_urn,
     ecfid.lead_provider_name,
     ecfid.delivery_partner_name,
-    ecfid.appropriate_body_name
+    ecfid.appropriate_body_name,
+    ecfid.cohort_rolled_over_21_24
   FROM
     ${ref(`ecf_inductions_dedupe`)} ecfid
   LEFT JOIN
