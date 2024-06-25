@@ -5,7 +5,7 @@ config {
         partitionBy: "DATE(school_cohort_created_at)",
         clusterBy: ["cohort"]
     },
-    description: "This mart shows schools and their induction programmes & partnerships ",
+    description: "This mart underpins the 2024 ECF Registration dashboard. It pulls together the engagement of schools and their lead providers during the registration process across each academic year (one record per school per academic year) showing both that year and additionally pulling in a copy of the prior year's engagement into the same record to allow for comparison year-on-year within the same record. It joins the school profile data we hold in the service with GIAS data about schools (coming from a static snapshot) to evaluate the school's eligibility for funding and joins in: the details of the schools' school induction tutors (SITs), the self-reported school cohort data reporting the induction programme selected by the school for the relevant academic year (collected when SITs register their school's induction programmes during the registration period), the partnerships with lead providers in the given academic year (reported by lead providers) and the number of participants (ECTs and mentors) that have been registered at that school for the academic year",
     columns: {}
 }
 
@@ -16,17 +16,18 @@ WITH
     name,
     CAST(urn AS string) AS urn
   FROM
-    `dataform.schools_latest_cpd`),
+     ${ref("schools_latest_cpd")}),
+  -- # This identifies the academic years that have been reported to date which will allow us to later ensure there is a record per school per year #
   available_cohorts AS (
   SELECT
     DISTINCT(start_year) AS cohort
   FROM
-    `dataform.cohorts_latest_cpd`
+    ${ref("cohorts_latest_cpd")}
   WHERE
     start_year !=2020
   ORDER BY
     cohort DESC),
-  -- # This identifies the latest school coordinator partnership record for the induction coordinator record for the participant (In the service, there's one table for the coordinators and one table that records the partnership between the coordinator and the school) #
+  -- # This identifies the latest school coordinator (SIT) partnership record (this records establishes a relationship between a SIT and a School) for the induction coordinator record (record for the participant in the role of SIT but not linked to a school) for the participant (In the service, there's one table for the coordinators and one table that records the partnership between the coordinator and the school) #
   induction_coordinator_profiles AS (
 SELECT
   id AS induction_tutor_id,
@@ -36,15 +37,15 @@ SELECT
   scp.created_at AS induction_tutor_nominated,
   discarded_at AS induction_tutor_discarded,
   total_sits,
+  -- # This flags if the relationship between the SIT and the school is replacing a pre-exisitng relationship between the school and another SIT or is completely new#
   CASE
     WHEN total_sits > 1 THEN 'replaced SIT'
     WHEN total_sits = 1 THEN 'new SIT'
-  ELSE
-  NULL
+    ELSE NULL
 END
   AS sit_type
 FROM
-  `dataform.induction_coordinator_profiles_latest_cpd` icp_df
+  ${ref("induction_coordinator_profiles_latest_cpd")} icp_df
 LEFT JOIN (
   SELECT
     induction_coordinator_profile_id,
@@ -54,12 +55,12 @@ LEFT JOIN (
     COUNT(*) OVER (PARTITION BY school_id ORDER BY created_at ASC) AS total_sits,
     (ROW_NUMBER() OVER (PARTITION BY school_id ORDER BY created_at DESC)) AS rn0
   FROM
-    `dataform.induction_coordinator_profiles_schools_latest_cpd`
+    ${ref("induction_coordinator_profiles_schools_latest_cpd")}
   QUALIFY
     rn0=1) AS scp
 ON
   icp_df.id=scp.induction_coordinator_profile_id),
-  -- #This pulls the latest school partnership created for a given cohort#
+  -- #This pulls the latest school partnership created for a given cohort, it's reported by lead providers, it filters out relationships that are not active#
   schools_partnerships AS (
 SELECT
   cohort_partnerships.* EXCEPT (delivery_partner_id,
@@ -69,33 +70,31 @@ FROM (
   SELECT
     school_id,
     start_year AS partnership_cohort,
-    delivery_partner_id,
     dp_latest.name AS delivery_partner,
-    lead_provider_id,
     lp_latest.name AS lead_provider,
     challenge_reason AS partnership_challenge_reason,
     challenged_at AS partnership_challenge_time,
     sp_latest.created_at AS partnership_time,
     (ROW_NUMBER() OVER (PARTITION BY school_id, start_year ORDER BY sp_latest.created_at DESC)) AS rn1
   FROM
-    `dataform.partnerships_latest_cpd` AS sp_latest
+    ${ref("partnerships_latest_cpd")} sp_latest
   LEFT JOIN
-    `dataform.delivery_partners_latest_cpd` AS dp_latest
+    ${ref("delivery_partners_latest_cpd")} dp_latest
   ON
     sp_latest.delivery_partner_id=dp_latest.id
   LEFT JOIN
-    `dataform.lead_providers_latest_cpd` AS lp_latest
+    ${ref("lead_providers_latest_cpd")}  lp_latest
   ON
     sp_latest.lead_provider_id=lp_latest.id
   LEFT JOIN
-    `dataform.cohorts_latest_cpd` cohorts
+    ${ref("cohorts_latest_cpd")} cohorts
   ON
     sp_latest.cohort_id = cohorts.id
   WHERE
     relationship = FALSE
   QUALIFY
     rn1=1) cohort_partnerships),
-  -- #This pulls the latest school_cohort created for a given school and cohort (year)#
+  -- #This pulls the latest school_cohort record created for a given school and cohort (academic year) as reported by SITs#
   school_cohorts AS (
 SELECT
   cohort_school_induction_programmes.* EXCEPT (rn2),
@@ -108,21 +107,21 @@ FROM (
     school_cohorts.created_at AS school_cohort_created_at,
     (ROW_NUMBER() OVER (PARTITION BY school_id, start_year ORDER BY school_cohorts.created_at DESC)) AS rn2
   FROM
-    `dataform.school_cohorts_latest_cpd` school_cohorts
+    ${ref("school_cohorts_latest_cpd")} school_cohorts
   LEFT JOIN
-    `dataform.cohorts_latest_cpd` cohorts
+     ${ref("cohorts_latest_cpd")} cohorts
   ON
     school_cohorts.cohort_id = cohorts.id
   QUALIFY
     rn2=1 ) cohort_school_induction_programmes ),
-  -- #This pulls a list of gias schools to determine if a school is eligible for funding #
+  -- #This pulls the latest list of gias schools to determine if a school meets the requirements to be eligible for funding #
   eligible_gias_schools AS (
 SELECT
   establishment_urn
 FROM
-  `ecf-bq.static_tables.open_gias_ofsted_establishments` schools
+  ${ref("open_gias_ofsted_establishments")} schools
 LEFT JOIN
-  `static_tables.establishment_type_state_funding_eligible` eligibility
+  ${ref("establishment_type_state_funding_eligible")} eligibility
 ON
   schools.establishment_subtype = eligibility.type_of_establishment_name
 WHERE
@@ -132,7 +131,8 @@ WHERE
   OR (establishment_type IN ('Independent schools',
       'Special schools')
     AND section41_approved='Approved')),
-  school_registrations_single_cohort AS (
+-- # This query pulls together the school profile data cross joining it with the list of academic years to ensure there is a record for each school for each academic year, it then pulls in SIT records, School Cohort records, Partnership records and the GIAS funding eligibility check#
+school_registrations_single_cohort AS (
   SELECT
     DISTINCT id AS school_id,
     cohort,
@@ -145,28 +145,24 @@ WHERE
     sit_type,
     CASE
       WHEN induction_programme_choice IS NOT NULL THEN induction_programme_choice
-    ELSE
-    'No cohort reported'
+      ELSE 'No cohort reported'
   END
     AS induction_programme_choice,
     sc.* EXCEPT (induction_programme_choice,
       school_id),
     CASE
       WHEN sp.school_id IS NOT NULL THEN TRUE
-    ELSE
-    FALSE
+      ELSE FALSE
   END
     AS in_partnership,
     CASE
       WHEN lead_provider IS NOT NULL THEN lead_provider
-    ELSE
-    'No partnership reported'
+      ELSE 'No partnership reported'
   END
     AS lead_provider,
     CASE
       WHEN delivery_partner IS NOT NULL THEN delivery_partner
-    ELSE
-    'No partnership reported'
+      ELSE 'No partnership reported'
   END
     AS delivery_partner,
     sp.* EXCEPT (delivery_partner,
@@ -174,8 +170,7 @@ WHERE
       school_id),
     CASE
       WHEN establishment_urn IS NOT NULL THEN TRUE
-    ELSE
-    FALSE
+      ELSE FALSE
   END
     AS funding_eligible_school
   FROM
@@ -203,6 +198,7 @@ WHERE
   ORDER BY
     school_id ASC,
     cohort DESC),
+  -- # This creates a table for each academic year with dates during the greater registration window #
   registration_dates AS (
   SELECT
     *
@@ -212,9 +208,10 @@ WHERE
       CAST(CONCAT(start_year,'-05-01') AS date) AS reg_start_date,
       CAST(CONCAT(start_year,'-10-31') AS date) AS reg_end_date
     FROM
-      `dataform.cohorts_latest_cpd`) AS start_years
+      ${ref("cohorts_latest_cpd")} ) AS start_years
   CROSS JOIN
     UNNEST( GENERATE_DATE_ARRAY(reg_start_date, reg_end_date, INTERVAL 1 DAY) ) AS join_date),
+  -- # This pulls selected fields from all ecf participant induction records #
   reg_inductions AS (
   SELECT
     induction_record_id,
@@ -225,15 +222,14 @@ WHERE
     school_urn,
     created_at
   FROM
-    `dataform.ecf_inductions`),
+    ${ref("ecf_inductions")} ),
   participant_inductions AS (
   SELECT
     reg_inductions.*,
     reg_dates.reg_year,
     CASE
       WHEN cohort_changed_after_payments_frozen IS TRUE THEN 2021
-    ELSE
-    cohort
+      ELSE cohort
   END
     AS adjusted_cohort,
   FROM
@@ -252,14 +248,12 @@ WHERE
     adjusted_cohort,
     COUNT(DISTINCT(CASE
           WHEN participant_type = 'ParticipantProfile::Mentor' THEN participant_profile_id
-        ELSE
-        NULL
+          ELSE NULL
       END
         )) AS mentor_count,
     COUNT(DISTINCT(CASE
           WHEN participant_type = 'ParticipantProfile::ECT' THEN participant_profile_id
-        ELSE
-        NULL
+          ELSE NULL
       END
         )) AS ect_count,
     COUNT(DISTINCT(participant_profile_id)) AS participant_count
@@ -281,22 +275,19 @@ SELECT
   LEAD(school_cohort_created_at) OVER (PARTITION BY school_id ORDER BY cohort DESC) AS previous_school_cohort_created_at,
   CASE
     WHEN LEAD(induction_programme_choice) OVER (PARTITION BY school_id ORDER BY cohort DESC) IS NOT NULL THEN LEAD(induction_programme_choice) OVER (PARTITION BY school_id ORDER BY cohort DESC)
-  ELSE
-  'No cohort reported'
+    ELSE 'No cohort reported'
 END
   AS school_cohorts_prior_induction_programme_choice,
   LEAD(chosen_cip) OVER (PARTITION BY school_id ORDER BY cohort DESC) AS school_cohorts_prior_chosen_cip,
   LEAD(partnership_cohort) OVER (PARTITION BY school_id ORDER BY cohort DESC) AS previous_partnership_cohort,
   CASE
     WHEN LEAD(lead_provider) OVER (PARTITION BY school_id ORDER BY cohort DESC) IS NOT NULL THEN LEAD(lead_provider) OVER (PARTITION BY school_id ORDER BY cohort DESC)
-  ELSE
-  'No partnership reported'
+    ELSE 'No partnership reported'
 END
   AS partnerships_prior_lp,
   CASE
     WHEN LEAD(delivery_partner) OVER (PARTITION BY school_id ORDER BY cohort DESC) IS NOT NULL THEN LEAD(delivery_partner) OVER (PARTITION BY school_id ORDER BY cohort DESC)
-  ELSE
-  'No partnership reported'
+    ELSE 'No partnership reported'
 END
   AS partnerships_prior_dp,
   LEAD(partnership_challenge_reason) OVER (PARTITION BY school_id ORDER BY cohort DESC) AS partnerships_prior_challenge_reason,
@@ -304,38 +295,32 @@ END
   LEAD(partnership_time) OVER (PARTITION BY school_id ORDER BY cohort DESC) AS partnerships_prior_partnership_time,
   CASE
     WHEN current_part.mentor_count IS NULL THEN 0
-  ELSE
-  current_part.mentor_count
+    ELSE current_part.mentor_count
 END
   AS mentor_count,
   CASE
     WHEN current_part.ect_count IS NULL THEN 0
-  ELSE
-  current_part.ect_count
+    ELSE current_part.ect_count
 END
   AS ect_count,
   CASE
     WHEN current_part.participant_count IS NULL THEN 0
-  ELSE
-  current_part.participant_count
+    ELSE current_part.participant_count
 END
   AS participant_count,
   CASE
     WHEN prev_part.mentor_count IS NULL THEN 0
-  ELSE
-  prev_part.mentor_count
+    ELSE prev_part.mentor_count
 END
   AS prev_mentor_count,
   CASE
     WHEN prev_part.ect_count IS NULL THEN 0
-  ELSE
-  prev_part.ect_count
+    ELSE prev_part.ect_count
 END
   AS prev_ect_count,
   CASE
     WHEN prev_part.participant_count IS NULL THEN 0
-  ELSE
-  prev_part.participant_count
+    ELSE prev_part.participant_count
 END
   AS prev_part_count,
 FROM
