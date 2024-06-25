@@ -63,9 +63,7 @@ ON
   -- #This pulls the latest school partnership created for a given cohort, it's reported by lead providers, it filters out relationships that are not active#
   schools_partnerships AS (
 SELECT
-  cohort_partnerships.* EXCEPT (delivery_partner_id,
-    lead_provider_id,
-    rn1),
+  cohort_partnerships.* EXCEPT (rn1),
 FROM (
   SELECT
     school_id,
