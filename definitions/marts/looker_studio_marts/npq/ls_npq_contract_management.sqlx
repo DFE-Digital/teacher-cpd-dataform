@@ -7,7 +7,7 @@ config {
         partitionBy: "",
         clusterBy: ["provider_name", "short_course_name"]
     },
-    description: "THIS IS CURRENTLY A PROOF OF CONCEPT. This mart is made to help out NPQ Contract Managers with Lead Provider conversations. It creates a table that outlines the number DfE-funded applications, acceptance rates, starts, and targets for each Lead Provider and their courses.",
+    description: "This mart is made to help out NPQ Contract Managers with Lead Provider conversations. It creates a table that outlines the number DfE-funded applications, acceptance rates, starts, and targets for each Lead Provider and their courses.",
     columns: {
         provider_name: "Name of the provider.",
         short_course_name: "Shortened name of the course.",
@@ -32,7 +32,7 @@ WITH
   FROM
     ${ref('npq_lead_provider_course_targets')}
   WHERE
-    academic_year = 'AY23-24'
+    academic_year = 'AY24-25'
   ORDER BY
     lead_provider ASC,
     course ASC),
@@ -72,7 +72,7 @@ WITH
   FROM
     ${ref("npq_enrolments")}
   WHERE
-    cohort = 2023
+    cohort = 2024
     AND funding_choice IS NULL
   GROUP BY
     provider_name,
