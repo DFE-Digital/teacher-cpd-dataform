@@ -1,16 +1,47 @@
 config {
     type: "table",
-    assertions: {},
+    assertions: {
+        uniqueKey: ["induction_record_id"]
+    },
     bigquery: {
         partitionBy: "DATE(created_at)",
         clusterBy: ["cohort"]
     },
     description: "This mart pulls together all ECT induction records generated within May - October (the wider 'registration' period) from 2022 onwards and pairs them with the details of the mentor they were assigned to. It feeds into the Looker Studio 2024 ECF Registration Dashboard and informs ECT metrics. Induction records outside of the registration window are excluded because they don't reflect activity that occurred in registration. There are three marts that inform participants registered within the annual registration windows: ECT_inductions, Mentor_inductions and Participant_inductions. There are three as they have different fields and cannot be amalgamated into a single mart. They utilise a similar structure logic and are dependent on induction records",
-    columns: {}
+    columns: {
+        induction_record_id: "ID of individual induction record",
+        participant_profile_id: "Participant profiles are automatically generated for ECTs/Mentors when induction tutors register the ECT/Mentor details. Meaning a participant_profile_id (and full participant_profile) should be available for each ECF participant with an induction record. ECF participants have one participant_profile for each type of participation (ECT or Mentor).",
+        participant_course: "Type of ECF Participant",
+        cohort: "The cohort/academic year corresponding to when the participant started their course. Possible fields: 2022 onwards in this mart.",
+        user_id: "This comes from the teacher profile associated with the participant profile via induction records.",
+        school_id: "ID of the participant's school.",
+        schedule_identifier: "This indicates which sub-cohort or tranche the participant commenced training within an annual cohort. For ECF, the schedule identifier also indicates if a participant is following a non-standard training route at any point (e.g. extended or reduced).",
+        mentor_id: "The participant_profile_id of an ECT's mentor. This field is always NULL for mentors.",
+        created_at: "The timestamp of when the underlying induction record was generated",
+        start_date: "Start date for this induction record",
+        end_date: "End date for this induction record. This is not the completion date for a participant's full induction.",
+        school_transfer: "TRUE if a participant has transferred out of/in to the school in that induction record.",
+        previous_school_id: "School ID from the preceding induction record for the participant",
+        induction_status: "A status value used to manage the state of an induction record. It can indicate that a record is the active record or that something has changed and the record is not the active record (or will not be in the future). Potential values: active, changed, leaving, withdrawn ",
+        training_status: "This is managed on the lead provider side and indicates whether the participant is being trained by a provider or not. Potential Values: active, deferred, withdrawn",
+        completion_date: "The date an ECT completed their induction.",
+        reg_year: "The registration year of the induction record",
+        ect_21: "TRUE/FALSE flag that checks if this ECT was rolled over from 2021 to 2024",
+        mentor_cohort: "The cohort of the associated mentor of the ECT",
+        mentor_completion_date: "The date the corresponding mentor of the ECT completed their training",
+        mentor_21: "TRUE/FALSE flag that checks if the corresponding mentor was rolled over from 2021 to 2024",
+        min_created_record: "TRUE/FALSE flag that checks if this induction record was the first created for the participant + school combination in a given registration year",
+        max_created_record: "TRUE/FALSE flag that checks if this induction record was the last created for the participant + school combination in a given registration year",
+        transfer_in: "TRUE/FALSE flag that checks if the induction record has a different school_id than the prior induction record and the record is flagged as a transfer record, identifying this participant having transferred to a new school",
+        matched_cohort_reg_year: "TRUE/FALSE flag that checks if the registration year of the induction record matches the cohort of the participant confirming this is a new participant in this year",
+        assigned_mentor_status: "Checks if a mentor has been assigned to the participant",
+        mentor_type: "Classification of the type of mentor assigned to the ECT, checking where the mentor is in their training and which cohort they come from. Values are either: No Mentor Assigned, Completed Mentor, Mentor training in prior cohort, Mentor from same cohort",
+        adjusted_creation_date: "This shifts the creation date of the induction record forward to the beginning of registration of a given year: 2022 - 10/05/2022, 2023 - 05/06/2023, 2024 - 17/06/2024"
+    }
 }
 
 WITH
-    -- #This table generates a list of the dates from May - October in each approximate registration window (May - October) #
+  -- #This table generates a list of the dates from May - October in each approximate registration window (May - October) #
   registration_dates AS (
 SELECT
   *
@@ -21,43 +52,35 @@ FROM (
     CAST(CONCAT(start_year,'-10-31') AS date) AS reg_end_date
   FROM
     `dataform.cohorts_latest_cpd`
-   WHERE start_year != 2021) AS start_years
+  WHERE
+    start_year != 2021) AS start_years
 CROSS JOIN
   UNNEST( GENERATE_DATE_ARRAY(reg_start_date, reg_end_date, INTERVAL 1 DAY) ) AS join_date),
   --   # This query uses an inner join between ecf_inductions and the registration dates above, the join automatically filters induction records to only those generated during the periods set out above. The records are filtered to ECTs only #
   ect_inductions_reg_period AS (
 SELECT
   inductions.*,
-  reg_dates.*,
-  profiles.cohort_changed_after_payments_frozen
+  reg_dates.*
 FROM
   `dataform.ecf_inductions` inductions
 INNER JOIN
   registration_dates reg_dates
 ON
   DATE(inductions.created_at) =reg_dates.join_date
-LEFT JOIN
-  `dataform.participant_profiles_latest_cpd` profiles
-ON
-  inductions.participant_profile_id = profiles.id
 WHERE
   participant_type ='ParticipantProfile::ECT'
 ORDER BY
   join_date DESC,
   participant_profile_id DESC),
-  --   # This query pulls key fields for mentors so that we can categorize the type of mentors ECTs are assigned to. Cohort has been pulled from induction records and not the participant profile to ensure the latest cohort for a given participant is reflected and not the cohort stamped on the participant profile when it was generated #
+  --   # This query pulls key fields for mentors from their latest induction record so that we can categorize the type of mentors ECTs are assigned to. #
   mentor_profiles AS (
 SELECT
-  profiles.id as participant_profile_id,
-  profiles.mentor_completion_date,
-  dedupe.cohort,
-  profiles.cohort_changed_after_payments_frozen
+  participant_profile_id,
+  mentor_completion_date,
+  cohort,
+  cohort_rolled_over_21_24
 FROM
-  `dataform.participant_profiles_latest_cpd` profiles
-LEFT JOIN
-  `dataform.ecf_inductions_dedupe` dedupe
-ON
-  profiles.id = dedupe.participant_profile_id),
+  `dataform.ecf_inductions_dedupe` dedupe),
   -- # This table joins ECT inductions records with their corresponding associated mentor's details.  #
   ect_reg_with_mentors AS (
 SELECT
@@ -78,24 +101,19 @@ SELECT
   ects.induction_status,
   ects.training_status,
   ects.completion_date,
-  ects.participant_type,
   ects.reg_year,
-  ects.reg_start_date,
-  ects.reg_end_date,
   --   # This translates the null values from the field into falses to permit the use of booleans in dashboards#
   CASE
-    WHEN ects.cohort_changed_after_payments_frozen IS NULL THEN FALSE
-  ELSE
-  ects.cohort_changed_after_payments_frozen
+    WHEN ects.cohort_rolled_over_21_24 IS NULL THEN FALSE
+    ELSE ects.cohort_rolled_over_21_24
 END
   AS ect_21,
   mentors.cohort AS mentor_cohort,
   mentors.mentor_completion_date AS mentor_completion_date,
   --   # This translates the null values from the field into falses to permit the use of booleans in dashboards#
   CASE
-    WHEN mentors.cohort_changed_after_payments_frozen IS NULL THEN FALSE
-  ELSE
-  mentors.cohort_changed_after_payments_frozen
+    WHEN mentors.cohort_rolled_over_21_24 IS NULL THEN FALSE
+    ELSE mentors.cohort_rolled_over_21_24
 END
   AS mentor_21
 FROM
@@ -104,42 +122,36 @@ LEFT JOIN
   mentor_profiles mentors
 ON
   ects.mentor_id = mentors.participant_profile_id)
-
--- # This adds flags to the final output that can be filtered on in the looker studio dashboard#
+  -- # This adds flags to the final output that can be filtered on in the looker studio dashboard#
 SELECT
   *,
   -- #This checks if this ECT induction record is the first induction record for a given participant within the school + reg_year combination#
   CASE
     WHEN MIN(created_at) OVER (PARTITION BY participant_profile_id, school_id, reg_year) = created_at THEN TRUE
-  ELSE
-  FALSE
+    ELSE FALSE
 END
   AS min_created_record,
   -- #This checks if this ECT induction record is the last induction record for a given participant within the + school + reg_year combination#
   CASE
     WHEN MAX(created_at) OVER (PARTITION BY participant_profile_id, school_id, reg_year) = created_at THEN TRUE
-  ELSE
-  FALSE
+    ELSE FALSE
 END
   AS max_created_record,
   -- #This checks if this ECT induction record represents transferring into a new school because this record has a different school_id than previous induction record had#
   CASE
-    WHEN previous_school_id != school_id THEN TRUE
-  ELSE
-  FALSE
+    WHEN previous_school_id != school_id AND school_transfer IS TRUE THEN TRUE
+    ELSE FALSE
 END
   AS transfer_in,
   -- #This checks if this ECT induction record falls within the registration period that aligns with their cohort, filters are in place in the looker studio dashboard to weed out cases where they are participants that have rolled over from 2021#
   CASE
     WHEN cohort = reg_year THEN TRUE
-  ELSE
-  FALSE
+    ELSE FALSE
 END
   AS matched_cohort_reg_year,
   CASE
     WHEN mentor_id IS NULL THEN 'No Mentor Assigned'
-  ELSE
-  'Mentor Assigned'
+    ELSE 'Mentor Assigned'
 END
   AS assigned_mentor_status,
   -- #This case statement determines the kind of mentor an ECT has and whether the mentor is part of a prior cohort or finished training before this ECT induction record was generated#
@@ -149,8 +161,7 @@ END
   AND mentor_completion_date < DATE(created_at) THEN 'Completed Mentor'
     WHEN mentor_21 IS TRUE THEN 'Mentor training in prior cohort'
     WHEN mentor_cohort = cohort THEN 'Mentor from same cohort'
-  ELSE
-  'Mentor training in prior cohort'
+    ELSE 'Mentor training in prior cohort'
 END
   AS mentor_type,
   -- #This moves the created at date into the relevant exact registration windows for that year#
@@ -159,10 +170,8 @@ END
     WHEN created_at < '2023-06-05'
   AND reg_year = 2023 THEN '2023-06-05'
     WHEN created_at < '2024-06-17' AND reg_year = 2024 THEN '2024-06-17'
-  ELSE
-  cast(created_at as date)
+    ELSE CAST(created_at AS date)
 END
   AS adjusted_creation_date
 FROM
   ect_reg_with_mentors
-
