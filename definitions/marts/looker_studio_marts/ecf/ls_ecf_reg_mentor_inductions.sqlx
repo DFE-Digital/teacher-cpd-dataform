@@ -5,12 +5,12 @@ config {
         partitionBy: "DATE(created_at)",
         clusterBy: ["cohort"]
     },
-    description: "This mart shows mentor induction records generated within the registration periods from 2022 onwards ",
+    description:"This mart pulls together all Mentor induction records generated within the registration periods from 2022 onwards. It feeds into the Looker Studio 2024 ECF Registration Dashboard and informs Mentor metrics. Induction records outside of the registration window are excluded because they don't reflect activity that occurred in registration. There are three marts that inform participants registerred within the annual registration windows: ECT_inductions, Mentor_inductions and Participant_inductions. There are three as they have different fields and cannot be amalgamated into a single mart. They utilise a similar structure logic and are dependent on induction records",
     columns: {}
 }
 
 WITH
-  -- # This table generates a list of the dates from May - October in each cohort #
+-- #This table generates a list of the dates from May - October in each approximate registration window (May - October) #
   registration_dates AS (
 SELECT
   *
@@ -20,7 +20,8 @@ FROM (
     CAST(CONCAT(start_year,'-05-01') AS date) AS reg_start_date,
     CAST(CONCAT(start_year,'-10-31') AS date) AS reg_end_date
   FROM
-    `dataform.cohorts_latest_cpd`) AS start_years
+    `dataform.cohorts_latest_cpd`
+   WHERE start_year != 2021) AS start_years
 CROSS JOIN
   UNNEST( GENERATE_DATE_ARRAY(reg_start_date, reg_end_date, INTERVAL 1 DAY) ) AS join_date),
   -- # This table uses an inner join between ecf_inductions and the registration dates above, the join automatically filters induction records to only those generated during the periods set out above. The records are filtered to Mentors only #
@@ -31,15 +32,15 @@ SELECT
   'Mentor' AS participant_course,
   mentors.cohort,
   mentors.user_id,
-  mentors.school_urn,
+  mentors.school_id,
   mentors.schedule_identifier,
   mentors.mentor_id,
   mentors.created_at,
   mentors.start_date,
   mentors.end_date,
   mentors.school_transfer,
-  -- # This window statement pull the previous induction record prior to this induction record being generated to determine the school_urn of the prior record #
-  LEAD(mentors.school_urn) OVER (PARTITION BY mentors.participant_profile_id ORDER BY reg_dates.join_date DESC) AS previous_school_urn,
+  -- # This window statement pull the previous induction record prior to this induction record being generated to determine the school_id of the prior record #
+  LEAD(mentors.school_id) OVER (PARTITION BY mentors.participant_profile_id ORDER BY reg_dates.join_date DESC) AS previous_school_id,
   mentors.induction_status,
   mentors.training_status,
   mentors.completion_date,
@@ -68,25 +69,27 @@ ON
   mentors.participant_profile_id = profiles.id
 WHERE
   participant_type ='ParticipantProfile::Mentor')
+
+-- # This adds flags to the final output that can be filtered on in the looker studio dashboard#
 SELECT
   *,
   -- #This checks if this mentor induction record is the first induction record for a given participant + school + reg_year combination#
   CASE
-    WHEN MIN(created_at) OVER (PARTITION BY participant_profile_id, school_urn, reg_year) = created_at THEN TRUE
+    WHEN MIN(created_at) OVER (PARTITION BY participant_profile_id, school_id, reg_year) = created_at THEN TRUE
   ELSE
   FALSE
 END
   AS min_created_record,
   -- #This checks if this mentor induction record is the last induction record for a given participant + school + reg_year combination#
   CASE
-    WHEN MAX(created_at) OVER (PARTITION BY participant_profile_id, school_urn, reg_year) = created_at THEN TRUE
+    WHEN MAX(created_at) OVER (PARTITION BY participant_profile_id, school_id, reg_year) = created_at THEN TRUE
   ELSE
   FALSE
 END
   AS max_created_record,
   -- #This checks if this mentor induction record represents transferring into a new school#
   CASE
-    WHEN previous_school_urn != school_urn THEN TRUE
+    WHEN previous_school_id != school_id THEN TRUE
   ELSE
   FALSE
 END
