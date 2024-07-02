@@ -30,7 +30,7 @@ config {
     }
 }
 ```
-8. Input SQL query below the configuration above. Ensure you change the FROM clause so that it's formatted in javascript. Replace 'xxxxx' with the value that comes directly after 'ecf-bq.dataform.'. If using a new static table this will need to be added to definitions -> declarations -> static_tables section so that a javascript statement can be used in the place of the FROM statement.
+8. Input SQL query below the configuration above. Ensure you change the FROM clause so that it's formatted in javascript. Replace 'xxxxx' with the value that comes directly after 'ecf-bq.dataform.'. If using a new static table this will need to be added to definitions -> declarations -> static_tables section so that a javascript statement can be used in the FROM statement.
 ```
 ${ref('xxxxx')}
 ```
