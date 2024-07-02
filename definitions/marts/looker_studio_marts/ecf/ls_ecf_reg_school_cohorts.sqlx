@@ -182,7 +182,7 @@ SELECT
   sit_type,
   CASE
     WHEN induction_programme_choice IS NOT NULL THEN induction_programme_choice
-    ELSE 'NO cohort reported'
+    ELSE 'No cohort reported'
 END
   AS induction_programme_choice,
   sc.*EXCEPT(induction_programme_choice,
@@ -194,12 +194,12 @@ END
   AS in_partnership,
   CASE
     WHEN lead_provider IS NOT NULL THEN lead_provider
-    ELSE 'NO partnership reported'
+    ELSE 'No partnership reported'
 END
   AS lead_provider,
   CASE
     WHEN delivery_partner IS NOT NULL THEN delivery_partner
-    ELSE 'NO partnership reported'
+    ELSE 'No partnership reported'
 END
   AS delivery_partner,
   sp.*EXCEPT(delivery_partner,
