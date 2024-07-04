@@ -1,0 +1,114 @@
+config {
+    type: "table",
+    assertions: {
+        uniqueKey: ["induction_record_id"]
+    },
+    bigquery: {
+        partitionBy: "DATE(created_at)",
+        clusterBy: ["cohort"]
+    },
+    description: "This mart pulls together all ECT & Mentor induction records generated within May - October (the wider 'registration' period) from 2022 onwards. It feeds into the Looker Studio 2024 ECF Registration Dashboard and informs combined participant graphs. Induction records outside of the registration window are excluded because they don't reflect activity that occurred in registration. There are three marts that inform participants registerred within the annual registration windows: ECT_inductions, Mentor_inductions and Participant_inductions. There are three as they have different fields and cannot be amalgamated into a single mart. They utilise a similar structure logic and are dependent on induction records",
+    columns: {
+        induction_record_id: "ID of individual induction record",
+        participant_profile_id: "Participant profiles are automatically generated for ECTs/Mentors when induction tutors register the ECT/Mentor details. Meaning a participant_profile_id (and full participant_profile) should be available for each ECF participant with an induction record. ECF participants have one participant_profile for each type of participation (ECT or Mentor).",
+        participant_course: "Type of ECF Participant",
+        cohort: "The cohort/academic year corresponding to when the participant started their course. Possible fields: 2022 onwards in this mart.",
+        user_id: "This comes from the teacher profile associated with the participant profile via induction records.",
+        school_id: "ID of the participant's school.",
+        created_at: "The timestamp of when the underlying induction record was generated",
+        school_transfer: "TRUE if a participant has transferred out of/in to the school in that induction record.",
+        previous_school_id: "School ID from the preceding induction record for the participant",
+        reg_year: "The registration year of the induction record",
+        cohort_21_fix: "TRUE/FALSE flag that checks if the participant was rolled over from 2021 to 2024",
+        min_created_record: "TRUE/FALSE flag that checks if this induction record was the first created for the participant + school combination in a given registration year",
+        max_created_record: "TRUE/FALSE flag that checks if this induction record was the last created for the participant + school combination in a given registration year",
+        transfer_in: "TRUE/FALSE flag that checks if the induction record has a different school_id than the prior induction record and the record is flagged as a transfer record, identifying this participant having transferred to a new school",
+        matched_cohort_reg_year: "TRUE/FALSE flag that checks if the registration year of the induction record matches the cohort of the participant confirming this is a new participant in this year",
+        adjusted_creation_date: "This shifts the creation date of the induction record forward to the beginning of registration of a given year: 2022 - 10/05/2022, 2023 - 05/06/2023, 2024 - 17/06/2024"
+    }
+}
+
+WITH
+  -- #This table generates a list of the dates from May - October in each approximate registration window (May - October) #
+  registration_dates AS (
+SELECT
+  *
+FROM (
+  SELECT
+    DISTINCT(start_year) AS reg_year,
+    CAST(CONCAT(start_year,'-05-01') AS date) AS reg_start_date,
+    CAST(CONCAT(start_year,'-10-31') AS date) AS reg_end_date
+  FROM
+    ${ref("cohorts_latest_cpd")}
+  WHERE
+    start_year != 2021 ) AS start_years
+CROSS JOIN
+  UNNEST( GENERATE_DATE_ARRAY(reg_start_date, reg_end_date, INTERVAL 1 DAY) ) AS join_date),
+  -- # This table uses an inner join between ecf_inductions and the registration dates above, the join automatically filters induction records to only those generated during the periods set out above.#
+  reg_inductions AS (
+SELECT
+  inductions.induction_record_id,
+  inductions.participant_profile_id,
+  inductions.cohort,
+  inductions.user_id,
+  inductions.school_id,
+  inductions.created_at,
+  inductions.school_transfer,
+  CASE
+    WHEN participant_type = 'ParticipantProfile::ECT' THEN CONCAT(reg_year,'-ECT')
+    ELSE CONCAT(reg_year,'-Mentor')
+END
+  AS participant_course,
+  reg_dates.reg_year,
+  --  # This translates the null values from the field into falses to permit the use of booleans in dashboards#
+  CASE
+    WHEN cohort_rolled_over_21_24 IS NULL THEN FALSE
+    ELSE cohort_rolled_over_21_24
+END
+  AS cohort_21_fix,
+  --   # This window statement pull the previous induction record prior to this induction record being generated to determine the school_id of the prior record#
+  LEAD(inductions.school_id) OVER (PARTITION BY inductions.participant_profile_id ORDER BY reg_dates.join_date DESC) AS previous_school_id,
+FROM
+   ${ref("ecf_inductions")} inductions
+INNER JOIN
+  registration_dates reg_dates
+ON
+  DATE(inductions.created_at) =reg_dates.join_date)
+  -- # This adds flags to the final output that can be filtered on in the looker studio dashboard#
+SELECT
+  reg_inductions.*,
+  -- #This checks if this induction record is the first induction record for a given participant + school + reg_year combination#
+  CASE
+    WHEN MIN(reg_inductions.created_at) OVER (PARTITION BY participant_profile_id, reg_inductions.school_id, reg_year) = reg_inductions.created_at THEN TRUE
+    ELSE FALSE
+END
+  AS min_created_record,
+  -- #This checks if this induction record is the last induction record for a given participant + school + reg_year combination#
+  CASE
+    WHEN MAX(reg_inductions.created_at) OVER (PARTITION BY participant_profile_id, reg_inductions.school_id, reg_year) = reg_inductions.created_at THEN TRUE
+    ELSE FALSE
+END
+  AS max_created_record,
+  -- #This checks if this induction record falls within the registration period that aligns with their cohort, filters are in place in the looker studio dashboard to weed out cases where they are participants that have rolled over from 2021#
+  CASE
+    WHEN cohort = reg_year THEN TRUE
+    ELSE FALSE
+END
+  AS matched_cohort_reg_year,
+  -- #This checks if the participant induction record represents transferring into a new school#
+  CASE
+    WHEN previous_school_id != school_id AND school_transfer IS TRUE THEN TRUE
+    ELSE FALSE
+END
+  AS transfer_in,
+  -- #This moves the created at date into the relevant registration windows for that year#
+  CASE
+    WHEN reg_inductions.created_at < '2022-05-10' AND reg_year = 2022 THEN '2022-05-10'
+    WHEN reg_inductions.created_at < '2023-06-05'
+  AND reg_year = 2023 THEN '2023-06-05'
+    WHEN reg_inductions.created_at < '2024-06-17' AND reg_year = 2024 THEN '2024-06-17'
+    ELSE CAST(reg_inductions.created_at AS date)
+END
+  AS adjusted_creation_date
+FROM
+  reg_inductions
