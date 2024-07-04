@@ -51,7 +51,7 @@ FROM (
     CAST(CONCAT(start_year,'-05-01') AS date) AS reg_start_date,
     CAST(CONCAT(start_year,'-10-31') AS date) AS reg_end_date
   FROM
-    `dataform.cohorts_latest_cpd`
+    ${ref("cohorts_latest_cpd")}
   WHERE
     start_year != 2021) AS start_years
 CROSS JOIN
@@ -62,7 +62,7 @@ SELECT
   inductions.*,
   reg_dates.*
 FROM
-  `dataform.ecf_inductions` inductions
+  ${ref("ecf_inductions")} inductions
 INNER JOIN
   registration_dates reg_dates
 ON
@@ -80,7 +80,7 @@ SELECT
   cohort,
   cohort_rolled_over_21_24
 FROM
-  `dataform.ecf_inductions_dedupe` dedupe),
+   ${ref("ecf_inductions_dedupe")} dedupe),
   -- # This table joins ECT inductions records with their corresponding associated mentor's details.  #
   ect_reg_with_mentors AS (
 SELECT

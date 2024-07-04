@@ -7,7 +7,7 @@ config {
         partitionBy: "DATE(created_at)",
         clusterBy: ["cohort"]
     },
-    description: "This mart pulls together all ECT & Mentor induction records generated within the registration periods from 2022 onwards. It feeds into the Looker Studio 2024 ECF Registration Dashboard and informs combined participant graphs. Induction records outside of the registration window are excluded because they don't reflect activity that occurred in registration. There are three marts that inform participants registerred within the annual registration windows: ECT_inductions, Mentor_inductions and Participant_inductions. There are three as they have different fields and cannot be amalgamated into a single mart. They utilise a similar structure logic and are dependent on induction records",
+    description: "This mart pulls together all ECT & Mentor induction records generated within May - October (the wider 'registration' period) from 2022 onwards. It feeds into the Looker Studio 2024 ECF Registration Dashboard and informs combined participant graphs. Induction records outside of the registration window are excluded because they don't reflect activity that occurred in registration. There are three marts that inform participants registerred within the annual registration windows: ECT_inductions, Mentor_inductions and Participant_inductions. There are three as they have different fields and cannot be amalgamated into a single mart. They utilise a similar structure logic and are dependent on induction records",
     columns: {
         induction_record_id: "ID of individual induction record",
         participant_profile_id: "Participant profiles are automatically generated for ECTs/Mentors when induction tutors register the ECT/Mentor details. Meaning a participant_profile_id (and full participant_profile) should be available for each ECF participant with an induction record. ECF participants have one participant_profile for each type of participation (ECT or Mentor).",
@@ -39,7 +39,7 @@ FROM (
     CAST(CONCAT(start_year,'-05-01') AS date) AS reg_start_date,
     CAST(CONCAT(start_year,'-10-31') AS date) AS reg_end_date
   FROM
-    `dataform.cohorts_latest_cpd`
+    ${ref("cohorts_latest_cpd")}
   WHERE
     start_year != 2021 ) AS start_years
 CROSS JOIN
@@ -69,7 +69,7 @@ END
   --   # This window statement pull the previous induction record prior to this induction record being generated to determine the school_id of the prior record#
   LEAD(inductions.school_id) OVER (PARTITION BY inductions.participant_profile_id ORDER BY reg_dates.join_date DESC) AS previous_school_id,
 FROM
-  `dataform.ecf_inductions` inductions
+   ${ref("ecf_inductions")} inductions
 INNER JOIN
   registration_dates reg_dates
 ON
