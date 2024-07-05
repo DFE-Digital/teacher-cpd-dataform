@@ -7,7 +7,8 @@ config {
         partitionBy: "DATE(application_created_at)",
         clusterBy: ["cohort", "provider_name", "course_name", "application_status"]
     },
-    description: "This table is designed around NPQ Applications with each application constituting a single record. Participant details have been joined into the application record. Since participant profiles are only generated when an application is accepted by a lead provider, gaps in key fields (like schedule) can be the result of a pending application. We also join in participant declarations to create a 'golden thread' of NPQ participation for each application, splitting out declarations across the different declaration types. In the rare cases that multiple declarations exist for the same type of declaration, we've determined a preferred state_heirarchy:paid>payable>eligible>submitted>clawed_back>awaiting_clawback>voided. For the latest declaration we've also incorporated a type heirarchy, prioritising declarations from further along in the golden thread ",
+    description: "This table is designed around NPQ Applications with each application constituting a single record. Participant details have been joined into the application record. Since participant profiles are only generated when an application is accepted by a lead provider, gaps in key fields (like schedule) can be the result of a pending application. We also join in participant declarations to create a 'golden thread' of NPQ participation for each application, splitting out declarations across the different declaration types. In the rare cases that multiple declarations exist for the same type of declaration, we've determined a preferred state_heirarchy:paid>payable>eligible>submitted>clawed_back>awaiting_clawback>voided. For the latest declaration we've also incorporated a type heirarchy, prioritising declarations from further along in the golden thread. \n \
+    There are 2 NPQSENCO fields; senco_in_role and senco_start_date that are being pulled from a separate NPQ pipeline compared to the rest of the data which comes from the usual ECF App pipeline.",
     columns: {
         application_ecf_id: "ID of each unique application. It matches both the participant_profile_id coming from the CPD service's participant profile and the participant_profile_id in declarations_latest that comes from lead providers. Declarations are joined to the application using this id, it is the participant_profile_id in the declarations table",
         application_trn: "This is the TRN provided at the point of application.",
@@ -80,7 +81,9 @@ config {
         tsf_primary_plus_eligibility: "TRUE/ FALSE for whether a school is eligible for the base £200 as well as the additional £600 based on whether they are a primary school and have fewer than 150 pupils. Pupil count based on GIAS data at time of registration.",
         works_in_nursery: "Indicates whether the participant works in a nursery.",
         works_in_school: "Indicates whether the participant works in a school. ",
-        funded_place: "This indicates if the accepted NPQ application is being funded by the DfE as one of the capped funded places. Being eligible for funding does not guarantee the application will be funded."
+        funded_place: "This indicates if the accepted NPQ application is being funded by the DfE as one of the capped funded places. Being eligible for funding does not guarantee the application will be funded.",
+        senco_in_role: "Pulled from separate NPQ pipline as not fed into ECF App data that dataform runs on. Answer selected for question 'Are you a SENCO?' during the application stage. Possible results are; yes, no but I plan to be, no and I do not plan to be.",
+        senco_start_date: "Pulled from separate NPQ pipline as not fed into ECF App data that dataform runs on. Provided at time of application and only answered if 'yes' is selected for Are you a SENCO. Format is MM/YYYY stored as a string."
     }
 }
 
@@ -555,6 +558,13 @@ WITH
     npq_comb_enrolment.application_ecf_id = npq_full_outcomes.participant_profile_id
     AND npq_comb_enrolment.declaration_course_identifier = npq_full_outcomes.course_identifier QUALIFY rn10=1)
 SELECT
-  * EXCEPT(rn10)
+   gt.* EXCEPT(rn10)
+  ,app.senco_in_role
+  ,app.senco_start_date
 FROM
-  npq_gold_thread
+  npq_gold_thread AS gt
+-- Join on NPQ Application data for 2 SENCO related fields not currently (as of 05/07/2024) being streamed into the ECF app nor Dataform pipeline.
+LEFT JOIN
+    ${ref('applications')} AS app
+ON
+    app.application_ecf_id = gt.application_ecf_id
