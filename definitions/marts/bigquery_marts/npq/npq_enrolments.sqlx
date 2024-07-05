@@ -555,6 +555,13 @@ WITH
     npq_comb_enrolment.application_ecf_id = npq_full_outcomes.participant_profile_id
     AND npq_comb_enrolment.declaration_course_identifier = npq_full_outcomes.course_identifier QUALIFY rn10=1)
 SELECT
-  * EXCEPT(rn10)
+   gt.* EXCEPT(rn10)
+  ,app.senco_in_role
+  ,app.senco_start_date
 FROM
-  npq_gold_thread
+  npq_gold_thread AS gt
+-- Join on NPQ Application data for 2 SENCO related fields not currently (as of 05/07/2024) being streamed into the ECF app nor Dataform pipeline.
+LEFT JOIN
+    ${ref('applications')} AS app
+ON
+    app.application_ecf_id = gt.application_ecf_id
