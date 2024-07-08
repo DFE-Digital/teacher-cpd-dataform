@@ -158,7 +158,7 @@ WITH declarations AS(
       *,
       CASE WHEN funded_declaration = TRUE OR state = 'submitted' THEN 1 ELSE 0 END AS relevant_dec_state
     FROM
-      `dataform__TP_Dev.ecf_declarations`
+      ${ref('ecf_declarations')}
     ) dec
 ),
 
@@ -173,6 +173,8 @@ combined_data AS (
       WHEN induction_start_date BETWEEN '2022-09-01' AND '2023-05-31' THEN '2022'
       WHEN induction_start_date BETWEEN '2023-06-01' AND '2023-08-31' THEN '2022,2023'
       WHEN induction_start_date BETWEEN '2023-09-01' AND '2024-05-31' THEN '2023'
+      WHEN induction_start_date BETWEEN '2024-06-01' AND '2024-08-31' THEN '2023,2024'
+      WHEN induction_start_date BETWEEN '2024-09-01' AND '2025-05-31' THEN '2024'
       ELSE NULL
     END AS start_date_suggested_true_cohort
     ,CASE
