@@ -102,6 +102,7 @@ WITH
     e_dec.state,
     e_dec.funded_declaration,
     e_dec.cpd_lead_provider_name,
+    e_dec.delivery_partner_name,
    (ROW_NUMBER() OVER (PARTITION BY e_ind.participant_profile_id, e_dec.course_identifier, e_dec.declaration_type ORDER BY e_dec.state_heirarchy DESC, e_dec.declaration_date desc)) AS rn1 
   FROM
     ecf_inductions_expanded e_ind
