@@ -1,0 +1,11 @@
+TAD regularly needs access to the CPD Data Model available in BigQuery. Historically, TAD colleagues accessed data through LookerStudio Dashboards:  
+exporting a snapshot of the data from there before uploading it into their R environment. This means of access limited them to snapshots, not a     
+continuous stream of data, and meant they had to access the data elsewhere before importing the data into their local environment. 
+
+We upgraded this model, granting individual TAD colleagues access privileges in BigQuery:
+  - 'BigQuery Data Editor' - This is granted to a copy of our dataset ensuring they cannot edit our main dataset
+  - 'BigQuery Job User' - This gives them billing privileges, it is a requirement to use BigQuery
+
+Using the R Packages 'bigrquery' and 'gargle' they can query BQ directly within their R environment.
+
+This set-up ensures they have up-to-date visibility of the model in their local environment.
