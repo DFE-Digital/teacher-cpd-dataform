@@ -106,5 +106,3 @@ SELECT
   * EXCEPT(rn0)
 FROM 
   review_cases
-ORDER BY
-  user_id ASC, declaration_type_hierarchy ASC
