@@ -84,7 +84,8 @@ config {
         funded_place: "This indicates if the accepted NPQ application is being funded by the DfE as one of the capped funded places. Being eligible for funding does not guarantee the application will be funded.",
         senco_in_role: "Pulled from separate NPQ pipline as not fed into ECF App data that dataform runs on. Answer selected for question 'Are you a SENCO?' during the application stage. Possible results are; yes, no but I plan to be, no and I do not plan to be.",
         senco_start_date: "Pulled from separate NPQ pipline as not fed into ECF App data that dataform runs on. Provided at time of application and only answered if 'yes' is selected for Are you a SENCO. Format is MM/YYYY stored as a string.",
-        valid_application: "TRUE/FALSE currently checking for 2 known NPQ SENCO issues. If the application has NULL for senco_in_role or it is 'yes' but the senco_start_date is NULL then this flag is set to FALSE."
+        valid_application: "TRUE/FALSE currently checking for 2 known NPQ SENCO issues. If the application has NULL for senco_in_role or it is 'yes' but the senco_start_date is NULL then this flag is set to FALSE.",
+        invalid_application_reason: "The description of the invalidity reason for any FALSE valid_application rows."
     }
 }
 
@@ -567,6 +568,11 @@ SELECT
     WHEN gt.course_name LIKE '%SENCO%' AND senco_in_role = 'yes' AND senco_start_date IS NULL THEN FALSE -- If an applicant answers yes to Are you a SENCO when applying for the NPQ SENCO course, they must provide a start date.
     ELSE TRUE
    END AS valid_application
+  ,CASE
+    WHEN gt.course_name LIKE '%SENCO%' AND senco_in_role IS NULL THEN 'NPQSENCO Ghost Application' -- SENCO application must have this question answered during application process or else it is a "Ghost" application.
+    WHEN gt.course_name LIKE '%SENCO%' AND senco_in_role = 'yes' AND senco_start_date IS NULL THEN 'NPQSENCO Missing senco start date' -- If an applicant answers yes to Are you a SENCO when applying for the NPQ SENCO course, they must provide a start date.
+    ELSE NULL
+   END AS invalid_application_reason
 FROM
   npq_gold_thread AS gt
 -- Join on NPQ Application data for 2 SENCO related fields not currently (as of 05/07/2024) being streamed into the ECF app nor Dataform pipeline.
