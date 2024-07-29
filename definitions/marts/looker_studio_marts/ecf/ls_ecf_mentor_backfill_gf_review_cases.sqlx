@@ -11,7 +11,7 @@ config {
       participant_profile_id: "The id of the participant associated with the declaration.",
       declaration_type: "The type of declaration which can be retained-3/4 or completed.",
       declaration_state: "The state of the declaration which for this mart can only be funded (eligible/payable/paid)",
-      declaration_type_hierarchy: "A number from 1 to 9 based on started to completed declaration types to enable sorting in the correct sequence regardless of declaration date.",
+      declaration_type_hierarchy: "A number (either 4, 5 or 9) based on the declaration types to enable sorting in the correct sequence regardless of declaration date.",
       declaration_created_at_date: "The date the declaration record was created in the service.",
       declaration_date: "The date the declaration was evidenced.",
       lead_provider_name: "The name of the lead provider as per the declaration record.",
