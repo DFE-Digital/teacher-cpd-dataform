@@ -20,7 +20,7 @@ config {
       induction_record_school_urn: "The school urn associated with the latest induction record.",
       declaration_date_school_urn: "The school urn associated with the induction record valid on the declaration date where a declaration is present.",
       used_school_urn: "The school urn used for aggregation. This is determined by the first non-null value from declaration_date_school_urn, induction_record_school_urn",
-      previously_paid: "TRUE/FALSE if the user_id appears in the static table of previously paid mentors. If a mentor was paid for in Instalment 1 then any started, retained-1/2 declarations present are marked as TRUE. If a mentor was paid for in Instalment 2 then any retained-3/4, completed declarations are marked as TRUE.",
+      previously_paid: "TRUE/FALSE if the user_id appears in the static table of previously paid mentors whose schools recieved a payment for them prior to 2024. If a mentor was paid for in Instalment 1 then any started, retained-1/2 declarations present are marked as TRUE. If a mentor was paid for in Instalment 2 then any retained-3/4, completed declarations are marked as TRUE.",
       declaration_match: "TRUE/FALSE if the declaration ID found matches to the declaration ID provided by Grant Funding in the file static_tables.ecf_mentor_backfill_grant_funding_review_cases"
    }
 }
