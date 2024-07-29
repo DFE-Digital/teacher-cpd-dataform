@@ -83,13 +83,14 @@ WITH declarations AS (
     ,ROW_NUMBER() OVER(PARTITION BY dec.declaration_id ORDER BY COALESCE(ind.start_date, ind2.start_date) DESC) AS rn0
   FROM 
     ${ref('ecf_declarations')} AS dec
+  -- Join on induction records where the declaration date is between the start and end of the record.
   LEFT JOIN
     ${ref('ecf_inductions')} AS ind
   ON
     ind.participant_profile_id = dec.participant_profile_id
     AND
     DATE(dec.declaration_date) BETWEEN DATE(ind.start_date) AND DATE(IFNULL(ind.end_date, '2050-12-31'))
-        
+  -- Second join on same source to use different methodology where the prior option returns NULL. This option checks for the the induction record where the declaration date is before the end date only.      
   LEFT JOIN
     ${ref('ecf_inductions')} ind2
   ON
