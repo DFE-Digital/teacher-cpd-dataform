@@ -61,6 +61,7 @@ WITH review_cases AS (
       WHEN rev.declaration_id = dec.declaration_id THEN TRUE
       ELSE FALSE
      END AS declaration_match
+    -- Determine a row number per unique row. If there is a declaration id present some produce multiple induction records that cover the declaration date. This rn0 allows the mart to filter out duplicated rows in the below Qualify statement.
     ,CASE
       WHEN dec.declaration_id IS NULL THEN 1
       ELSE ROW_NUMBER() OVER(PARTITION BY dec.declaration_id ORDER BY ind.start_date DESC)
