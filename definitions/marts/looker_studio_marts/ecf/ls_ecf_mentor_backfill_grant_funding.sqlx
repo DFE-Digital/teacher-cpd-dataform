@@ -28,7 +28,7 @@ config {
         unique_school_urn_count: "1 or 0 to be summed in order to count the number of unique school urns present in the used_school_urn_field.",
         declaration_sequence: "Per participant profile id a row number is applied in order to sequence the declarations associated with them. In the payment period a maximum of 3 declarations should be present however, some have 4 or more which may need to be excluded by the Grant Funding team in their final calcualtions.",
         funded_hours_cost: "The cost associated with the number of hours attributed to the declaration. This cost is weighted by teacher_pay_band and a division of the 36 hour amount provided multiplied by the funded_hours marked against the declaration.",
-        previously_paid: "TRUE/FALSE if the user_id appears in the static table of previously paid mentors. If a mentor was paid for in Instalment 1 then any started, retained-1/2 declarations present are marked as TRUE. If a mentor was paid for in Instalment 2 then any retained-3/4, completed declarations are marked as TRUE.",
+        previously_paid: "TRUE/FALSE if the user_id appears in the static table of previously paid mentors whose schools recieved a payment for them prior to 2024. If a mentor was paid for in Instalment 1 then any started, retained-1/2 declarations present are marked as TRUE. If a mentor was paid for in Instalment 2 then any retained-3/4, completed declarations are marked as TRUE.",
         local_authority: "The local authority name associated with the used_school_urn currently in GIAS.",
         la_code: "The local authority code associated with the used_school_urn.",
         teacher_pay_band: "The band associated to the local_authority as provided by the Grant Funding Team.",
