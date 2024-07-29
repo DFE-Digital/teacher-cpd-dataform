@@ -118,24 +118,20 @@ WITH declarations AS (
 
 ects AS (
   SELECT 
-     sch.urn
-    ,COUNT(1) AS school_ect_count 
+     ind.school_urn
+    ,COUNT(1) AS school_ect_count
   FROM 
+    ${ref('ecf_inductions_dedupe')} AS ind
+  LEFT JOIN
     ${ref('participant_profiles_latest_cpd')} AS pp
-  LEFT JOIN
-    ${ref('school_cohorts_latest_cpd')} AS scho
   ON
-    scho.id = pp.school_cohort_id
-  LEFT JOIN
-    ${ref('schools_latest_cpd')} AS sch 
-  ON
-    sch.id = scho.school_id
+    pp.id = ind.participant_profile_id
   WHERE
-    type LIKE '%ECT'
+    ind.participant_type LIKE '%ECT'
     AND
-    induction_completion_date IS NULL OR induction_completion_date > '2023-08-31'
+    pp.induction_completion_date IS NULL OR pp.induction_completion_date > '2023-08-31'
   GROUP BY
-    sch.urn
+    ind.school_urn
   ORDER BY 
     school_ect_count DESC
 ),
@@ -163,7 +159,7 @@ declarations_extended AS (
   LEFT JOIN
     ects 
   ON 
-    ects.urn = dec.used_school_urn
+    ects.school_urn = dec.used_school_urn
   LEFT JOIN
     ${ref('establishments')} AS gias
   ON
