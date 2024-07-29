@@ -37,7 +37,7 @@ config {
         gias_phase_of_education: "The phase of education currently in GIAS for the used_school_urn.",
         gias_establishment_status: "The establishment status currently in GIAS for the used_school_urn.",
         school_mentor_count: "The aggregated count of mentors, using unique participant profile ids, for a given used_school_urn (where those mentors have not received prior payments).",
-        school_ect_count: "The aggregated count of ECTs, using unique participant profile ids from participant_profiles_latest, for a given used_school_urn (where those ECTS have an induction_completed_date that is either null or after 31/08/2023).",
+        school_ect_count: "The aggregated count of ECTs, using unique participant profile ids from ecf_inductions_dedupe, for a given used_school_urn (where those ECTS have an completed_date that is either null or after 31/08/2023).",
         school_mentor_backfill_funded_hours: "The sum of funded hours for mentors for a given used_school_urn (where previously_paid if FALSE).",
         fractional_ect_count: "The ect_count for the used_school_urn split evenly across all rows of the mart where previously_paid is FALSE. This enables accurate summing to occur in the Looker Dashboard."
    }
@@ -118,20 +118,16 @@ WITH declarations AS (
 
 ects AS (
   SELECT 
-     ind.school_urn
-    ,COUNT(1) AS school_ect_count
+     school_urn
+    ,COUNT(DISTINCT participant_profile_id) AS school_ect_count
   FROM 
-    ${ref('ecf_inductions_dedupe')} AS ind
-  LEFT JOIN
-    ${ref('participant_profiles_latest_cpd')} AS pp
-  ON
-    pp.id = ind.participant_profile_id
+    ${ref('ecf_inductions_dedupe')}
   WHERE
-    ind.participant_type LIKE '%ECT'
+    participant_type LIKE '%ECT'
     AND
-    pp.induction_completion_date IS NULL OR pp.induction_completion_date > '2023-08-31'
+    completion_date IS NULL OR completion_date > '2023-08-31'
   GROUP BY
-    ind.school_urn
+    school_urn
   ORDER BY 
     school_ect_count DESC
 ),
