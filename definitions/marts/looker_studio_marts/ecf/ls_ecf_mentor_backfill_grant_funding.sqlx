@@ -201,7 +201,7 @@ declarations_extended AS (
 
 SELECT
    * EXCEPT(rn0)
-  -- Funded hours per school for mentors not previously paid to enable aggregation at school level for relevant cases only.
+  -- Funded hours per school for mentors not previously paid aggregated at school level for relevant cases only.
   ,SUM(CASE WHEN previously_paid = FALSE THEN funded_hours ELSE 0 END) OVER(PARTITION BY used_school_urn) AS school_mentor_backfill_funded_hours
   -- School ECT count evenly distributed across rows for mentors who were not previously paid to enable aggregation at School level in the dashboard output.
   ,CASE
