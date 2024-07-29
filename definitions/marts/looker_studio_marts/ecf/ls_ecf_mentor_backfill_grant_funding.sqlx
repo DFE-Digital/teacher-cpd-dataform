@@ -24,9 +24,9 @@ config {
         declaration_date_school_urn: "The school urn associated with the induction record valid on the declaration date.",
         induction_record_id_on_declaration_date: "The induction record id for the record valud on the declaration date.",
         used_school_urn: "The school urn used for aggregation. This is determined by the first non-null value from declaration_date_school_urn, induction_record_school_urn",
-        funded_hours: "If the declaration type is not extended-1/2/3 it is allocated 6 hours as per the specification of the Grant Funding allocation.",
+        funded_hours: "If the declaration type is not extended-1/2/3 it is allocated 6 hours as per the specification of the Grant Funding allocation else it is 0.",
         unique_school_urn_count: "1 or 0 to be summed in order to count the number of unique school urns present in the used_school_urn_field.",
-        declaration_sequence: "Per participant profile id a row number is applied in order to sequence the declarations associated with them. In the payment period a maximum of 3 declarations should be present however, some have 4 or more which may need to be excluded by the Grant Funding team in their final calcualtions.",
+        declaration_sequence: "Per participant profile id a row number is applied in order to sequence the declarations associated with them ordered by the declaration type hierarchy. In the payment period a maximum of 3 declarations should be present however, some have 4 or more which may need to be excluded by the Grant Funding team in their final calcualtions.",
         funded_hours_cost: "The cost associated with the number of hours attributed to the declaration. This cost is weighted by teacher_pay_band and a division of the 36 hour amount provided multiplied by the funded_hours marked against the declaration.",
         previously_paid: "TRUE/FALSE if the user_id appears in the static table of previously paid mentors whose schools recieved a payment for them prior to 2024. If a mentor was paid for in Instalment 1 then any started, retained-1/2 declarations present are marked as TRUE. If a mentor was paid for in Instalment 2 then any retained-3/4, completed declarations are marked as TRUE.",
         local_authority: "The local authority name associated with the used_school_urn currently in GIAS.",
@@ -36,9 +36,9 @@ config {
         gias_establishment_type: "The establishment type currently in GIAS for the used_school_urn.",
         gias_phase_of_education: "The phase of education currently in GIAS for the used_school_urn.",
         gias_establishment_status: "The establishment status currently in GIAS for the used_school_urn.",
-        school_mentor_count: "The count of all unique participant profile ids (Mentors) present in this mart where not previously paid aggregated at the used_school_urn.",
-        school_ect_count: "The count of all unique participant profile ids (ECTs) present in participant_profiles_latest_cpd where induction_completed_date is either NULL or after 31/08/2023, aggregated at the used_school_urn.",
-        school_mentor_backfill_funded_hours: "Sum of funded_hours as per this mart aggregated at the used_school_urn where previously_paid is FALSE.",
+        school_mentor_count: "The aggregated count of mentors, using unique participant profile ids, for a given used_school_urn (where those mentors have not received prior payments).",
+        school_ect_count: "The aggregated count of ECTs, using unique participant profile ids from participant_profiles_latest, for a given used_school_urn (where those ECTS have an induction_completed_date that is either null or after 31/08/2023).",
+        school_mentor_backfill_funded_hours: "The sum of funded hours for mentors for a given used_school_urn (where previously_paid if FALSE).",
         fractional_ect_count: "The ect_count for the used_school_urn split evenly across all rows of the mart where previously_paid is FALSE. This enables accurate summing to occur in the Looker Dashboard."
    }
 }
