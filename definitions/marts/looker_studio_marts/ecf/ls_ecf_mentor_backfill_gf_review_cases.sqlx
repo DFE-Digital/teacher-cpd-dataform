@@ -12,7 +12,7 @@ config {
       declaration_type: "The type of declaration which can be started, retained-1/2/3/4, extended-1/2/3 or completed.",
       declaration_state: "The state of the declaration which for this mart can only be funded (eligible/payable/paid)",
       declaration_type_hierarchy: "A number from 1 to 9 based on started to completed declaration types to enable sorting in the correct sequence regardless of declaration date.",
-      declaration_created_at: "The date the declaration record was created in the service.",
+      declaration_created_at_date: "The date the declaration record was created in the service.",
       declaration_date: "The date the declaration was evidenced.",
       lead_provider_name: "The name of the lead provider as per the declaration record.",
       delivery_partner_name: "The name of the delivery partner as per the declaration record or where null from the induction record.",
@@ -45,7 +45,7 @@ WITH review_cases AS (
       WHEN dec.declaration_type = 'completed' THEN 9
       ELSE NULL
      END AS declaration_type_hierarchy
-    ,DATE(dp.created_at) AS declaration_created_at
+    ,DATE(dp.created_at) AS declaration_created_at_date
     ,DATE(dec.declaration_date) AS declaration_date
     ,dec.cpd_lead_provider_name AS lead_provider_name
     ,COALESCE(dec.cpd_delivery_partner_name, dec.delivery_partner_name) AS delivery_partner_name
