@@ -9,7 +9,7 @@ config {
       review_file_school_urn: "The School URN provided for the Mentor in the list of review cases provided by Grant Funding. BQ Source = static_tables.ecf_mentor_backfill_grant_funding_review_cases",
       declaration_id: "The unique identifier of the declaration.",
       participant_profile_id: "The id of the participant associated with the declaration.",
-      declaration_type: "The type of declaration which can be started, retained-1/2/3/4, extended-1/2/3 or completed.",
+      declaration_type: "The type of declaration which can be retained-3/4 or completed.",
       declaration_state: "The state of the declaration which for this mart can only be funded (eligible/payable/paid)",
       declaration_type_hierarchy: "A number from 1 to 9 based on started to completed declaration types to enable sorting in the correct sequence regardless of declaration date.",
       declaration_created_at_date: "The date the declaration record was created in the service.",
