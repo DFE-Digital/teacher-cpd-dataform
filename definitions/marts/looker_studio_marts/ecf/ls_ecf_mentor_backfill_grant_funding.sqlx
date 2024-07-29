@@ -80,10 +80,7 @@ WITH declarations AS (
       WHEN ROW_NUMBER() OVER(PARTITION BY COALESCE(ind.school_urn, ind2.school_urn, dec.school_urn)) = 1 THEN 1
       ELSE 0
      END AS unique_school_urn_count
-    ,CASE 
-      WHEN (ROW_NUMBER() OVER(PARTITION BY dec.declaration_id ORDER BY COALESCE(ind.start_date, ind2.start_date) DESC)) = 1 THEN 1 
-      ELSE 0 
-     END AS rn0
+    ,ROW_NUMBER() OVER(PARTITION BY dec.declaration_id ORDER BY COALESCE(ind.start_date, ind2.start_date) DESC) AS rn0
   FROM 
     ${ref('ecf_declarations')} AS dec
   LEFT JOIN
