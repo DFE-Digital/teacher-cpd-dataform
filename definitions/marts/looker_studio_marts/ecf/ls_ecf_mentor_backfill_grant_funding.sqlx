@@ -75,7 +75,7 @@ WITH declarations AS (
       WHEN dec.declaration_type IN ('started', 'retained-1', 'retained-2', 'retained-3', 'retained-4', 'completed') THEN 6
       ELSE 0
      END AS funded_hours
-    ,ROW_NUMBER() OVER(PARTITION BY dec.declaration_id ORDER BY COALESCE(ind.start_date, ind2.start_date) DESC) AS rn0
+    ,ROW_NUMBER() OVER(PARTITION BY dec.declaration_id ORDER BY COALESCE(ind.start_date, ind2.start_date) DESC, COALESCE(ind.created_at, ind2.created_at) DESC) AS rn0
   FROM 
     ${ref('ecf_declarations')} AS dec
   -- Join on induction records where the declaration date is between the start and end of the record.
