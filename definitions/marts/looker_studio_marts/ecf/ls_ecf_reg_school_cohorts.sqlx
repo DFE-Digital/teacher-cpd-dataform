@@ -21,12 +21,10 @@ config {
         school_cohorts_cohort: "This is the cohort associated with the reported induction programme and indicates that a SIT has declared the school's training programme for that year in the registration window, it is only filled if the SIT has reported for the school",
         chosen_cip: "The ID of the CIP programme that was selected, is only filled in if the school has selected the Core Induction Programme",
         school_cohort_created_at: "When the school cohort record was generated corresponding with when the SIT reported their school's choices for that year",
-        in_partnership: "TRUE/FALSE flag when the school is in an active partnership with a lead provider for that cohort as reported by lead providers, successfully challenged/discarded relationships are not included here",
+        in_partnership: "TRUE/FALSE flag when the school is in an active partnership with a lead provider for that cohort as reported by lead providers, challenged/discarded relationships are not included here",
         lead_provider: "The name of the Lead Provider in partnership with the school in this cohort",
         delivery_partner: "The name of the Delivery Partner in partnership with the school in this cohort",
         partnership_cohort: "This is the cohort associated with the relationship between the Lead Provider and the school, it is only filled if a relationship has been reported",
-        partnership_challenge_reason: "The reason the parnership between the Lead Provider and school was challenged by the school,only unsuccessful challenges are included here as only active relationships are included",
-        partnership_challenge_time: "When the partnership was challenged by the school",
         partnership_time: "When the partnership record was generated, corresponding with when the Lead Provider reported their relationship with the school",
         funding_eligible_school: "TRUE/FALSE flag to check if the school is eligible for DfE funding based on GIAS categorisations: either the school is not an Independent School or a Special school and is classified by GIAS as state funded or it is one of those school types and is section41 approved.",
         previous_cohort: "Automatically generated field, the cohort field minus one",
@@ -37,8 +35,6 @@ config {
         previous_partnership_cohort: "Previous Year - This is the cohort associated with the relationship between the Lead Provider and the school, it is only filled if a relationship has been reported",
         partnerships_prior_lp: "Previous year - The name of the Lead Provider in partnership with the school in this cohort",
         partnerships_prior_dp: "Previous year - The name of the Delivery Partner in partnership with the school in this cohort",
-        partnerships_prior_challenge_reason: "Previous Year - The reason the parnership between the Lead Provider and school was challenged by the school,only unsuccessful challenges are included here as only active relationships are included",
-        partnerships_prior_challenge_time: "Previous Year - When the partnership was challenged by the school",
         partnerships_prior_partnership_time: "Previous Year - When the partnership record was generated, corresponding with when the Lead Provider reported their relationship with the school",
         mentor_count: "The number of new mentors (non-transferred mentors from that cohort) registered that year in the registration period for that school",
         ect_count: "The number of new ects (non-transferred ects from that cohort) registered that year in the registration period for that school",
@@ -110,8 +106,6 @@ FROM (
     start_year AS partnership_cohort,
     dp_latest.name AS delivery_partner,
     lp_latest.name AS lead_provider,
-    challenge_reason AS partnership_challenge_reason,
-    challenged_at AS partnership_challenge_time,
     sp_latest.created_at AS partnership_time,
     (ROW_NUMBER() OVER(PARTITION BY school_id, start_year ORDER BY sp_latest.created_at DESC)) AS rn1
   FROM
@@ -130,6 +124,7 @@ FROM (
     sp_latest.cohort_id = cohorts.id
   WHERE
     relationship = FALSE
+    and challenge_reason is null
   QUALIFY
     rn1 = 1) cohort_partnerships),
   --#This pulls the latest school_cohort record createFOR a given school AND cohort(academic year) AS reported BY SITs #
@@ -330,8 +325,6 @@ END
     ELSE 'No partnership reported'
 END
   AS partnerships_prior_dp,
-  LEAD(partnership_challenge_reason) OVER(PARTITION BY school_cohorts.school_id ORDER BY cohort DESC) AS partnerships_prior_challenge_reason,
-  LEAD(partnership_challenge_time) OVER(PARTITION BY school_cohorts.school_id ORDER BY cohort DESC) AS partnerships_prior_challenge_time,
   LEAD(partnership_time) OVER(PARTITION BY school_cohorts.school_id ORDER BY cohort DESC) AS partnerships_prior_partnership_time,
   CASE
     WHEN current_part.mentor_count IS NULL THEN 0
