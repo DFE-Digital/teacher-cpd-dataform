@@ -473,6 +473,10 @@ dfeAnalyticsDataform({
                 keyName: "works_in_nursery",
                 dataType: "boolean",
                 description: ""
+            },{
+                keyName: "referred_by_return_to_teaching_adviser",
+                dataType: "boolean",
+                description: ""
             }, {
                 keyName: "works_in_school",
                 dataType: "boolean",

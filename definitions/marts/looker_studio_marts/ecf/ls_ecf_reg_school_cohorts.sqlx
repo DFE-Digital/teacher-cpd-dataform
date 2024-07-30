@@ -315,19 +315,19 @@ SELECT
   LEAD(school_cohort_created_at) OVER(PARTITION BY school_cohorts.school_id ORDER BY cohort DESC) AS previous_school_cohort_created_at,
   CASE
     WHEN LEAD(induction_programme_choice) OVER(PARTITION BY school_cohorts.school_id ORDER BY cohort DESC) IS NOT NULL THEN LEAD(induction_programme_choice) OVER(PARTITION BY school_cohorts.school_id ORDER BY cohort DESC)
-    ELSE 'NO cohort reported'
+    ELSE 'No cohort reported'
 END
   AS school_cohorts_prior_induction_programme_choice,
   LEAD(chosen_cip) OVER(PARTITION BY school_cohorts.school_id ORDER BY cohort DESC) AS school_cohorts_prior_chosen_cip,
   LEAD(partnership_cohort) OVER(PARTITION BY school_cohorts.school_id ORDER BY cohort DESC) AS previous_partnership_cohort,
   CASE
     WHEN LEAD(lead_provider) OVER(PARTITION BY school_cohorts.school_id ORDER BY cohort DESC) IS NOT NULL THEN LEAD(lead_provider) OVER(PARTITION BY school_cohorts.school_id ORDER BY cohort DESC)
-    ELSE 'NO partnership reported'
+    ELSE 'No partnership reported'
 END
   AS partnerships_prior_lp,
   CASE
     WHEN LEAD(delivery_partner) OVER(PARTITION BY school_cohorts.school_id ORDER BY cohort DESC) IS NOT NULL THEN LEAD(delivery_partner) OVER(PARTITION BY school_cohorts.school_id ORDER BY cohort DESC)
-    ELSE 'NO partnership reported'
+    ELSE 'No partnership reported'
 END
   AS partnerships_prior_dp,
   LEAD(partnership_challenge_reason) OVER(PARTITION BY school_cohorts.school_id ORDER BY cohort DESC) AS partnerships_prior_challenge_reason,
