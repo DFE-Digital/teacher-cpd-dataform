@@ -1,0 +1,197 @@
+config {
+    type: "table",
+    assertions: {
+        uniqueKey: ["declaration_id"]
+    },
+    bigquery: {
+        partitionBy: "declaration_date",
+        clusterBy: ["used_school_urn"]
+    },
+    description: "This mart produces an output at declaration level for mentors who require backfill grant funding payments. This mart can also be used to aggregate the number of mentors and hours associated at the School URN level. This is designed to assist the Grant Funding team in determining final payments required to be made to establishments that made provision in order for this mentors to mentor ECTs. The financial values produced via this mart are not the exact amount due as the value has been divided and re-multiplied accordingly resulting in a decimal difference. The GF team are aware of this and know to use the financial value as a guide rather than an absolute amount.",
+    columns: {
+        declaration_id: "The unique identifier of the declaration.",
+        participant_profile_id: "The id of the participant associated with the declaration.",
+        user_id: "This comes from the teacher profile associated with the participant profile.",
+        TRN: "This comes from a participant's teacher profile.",
+        declaration_type: "The type of declaration which can be started, retained-1/2/3/4, extended-1/2/3 or completed.",
+        declaration_state: "The state of the declaration which for this mart can only be funded (eligible/payable/paid)",
+        declaration_type_hierarchy: "A number from 1 to 9 based on started to completed declaration types to enable sorting in the correct sequence regardless of declaration date.",
+        declaration_date: "The date the declaration was evidenced.",
+        lead_provider_name: "The name of the lead provider as per the declaration record.",
+        delivery_partner_name: "The name of the delivery partner as per the declaration record or where null from the induction record.",
+        latest_induction_record_id: "The id of the latest induction record associated with the participant profile id.",
+        induction_record_school_urn: "The school urn associated with the latest induction record.",
+        declaration_date_school_urn: "The school urn associated with the induction record valid on the declaration date.",
+        induction_record_id_on_declaration_date: "The induction record id for the record valud on the declaration date.",
+        used_school_urn: "The school urn used for aggregation. This is determined by the first non-null value from declaration_date_school_urn, induction_record_school_urn",
+        funded_hours: "If the declaration type is not extended-1/2/3 it is allocated 6 hours as per the specification of the Grant Funding allocation else it is 0.",
+        declaration_sequence: "Per participant profile id a row number is applied in order to sequence the declarations associated with them ordered by the declaration type hierarchy. In the payment period a maximum of 3 declarations should be present however, some have 4 or more which may need to be excluded by the Grant Funding team in their final calcualtions.",
+        funded_hours_cost: "The cost associated with the number of hours attributed to the declaration. This cost is weighted by teacher_pay_band and a division of the 36 hour amount provided multiplied by the funded_hours marked against the declaration.",
+        previously_paid: "TRUE/FALSE if the user_id appears in the static table of previously paid mentors whose schools recieved a payment for them prior to 2024. If a mentor was paid for in Instalment 1 then any started, retained-1/2 declarations present are marked as TRUE. If a mentor was paid for in Instalment 2 then any retained-3/4, completed declarations are marked as TRUE.",
+        local_authority: "The local authority name associated with the used_school_urn currently in GIAS.",
+        la_code: "The local authority code associated with the used_school_urn.",
+        teacher_pay_band: "The band associated to the local_authority as provided by the Grant Funding Team.",
+        gias_school_name: "The school name currently in GIAS for the used_school_urn.",
+        gias_establishment_type: "The establishment type currently in GIAS for the used_school_urn.",
+        gias_phase_of_education: "The phase of education currently in GIAS for the used_school_urn.",
+        gias_establishment_status: "The establishment status currently in GIAS for the used_school_urn.",
+        school_mentor_count: "The aggregated count of mentors, using unique participant profile ids, for a given used_school_urn (where those mentors have not received prior payments).",
+        school_ect_count: "The aggregated count of ECTs, using unique participant profile ids from ecf_inductions_dedupe, for a given used_school_urn (where those ECTS have an completed_date that is either null or after 31/08/2023).",
+        school_mentor_backfill_funded_hours: "The sum of funded hours for mentors for a given used_school_urn (where previously_paid if FALSE).",
+        fractional_ect_count: "The ect_count for the used_school_urn split evenly across all rows of the mart where previously_paid is FALSE. This enables accurate summing to occur in the Looker Dashboard."
+   }
+}
+
+WITH declarations AS (
+  SELECT
+     dec.declaration_id
+    ,dec.participant_profile_id
+    ,dec.user_id
+    ,dec.TRN
+    ,dec.declaration_type
+    ,dec.state AS declaration_state
+    ,CASE
+      WHEN dec.declaration_type = 'started' THEN 1
+      WHEN dec.declaration_type = 'retained-1' THEN 2
+      WHEN dec.declaration_type = 'retained-2' THEN 3
+      WHEN dec.declaration_type = 'retained-3' THEN 4
+      WHEN dec.declaration_type = 'retained-4' THEN 5
+      WHEN dec.declaration_type = 'extended-1' THEN 6
+      WHEN dec.declaration_type = 'extended-2' THEN 7
+      WHEN dec.declaration_type = 'extended-3' THEN 8
+      WHEN dec.declaration_type = 'completed' THEN 9
+      ELSE NULL
+     END AS declaration_type_hierarchy
+    ,DATE(dec.declaration_date) AS declaration_date
+    ,dec.cpd_lead_provider_name AS lead_provider_name
+    ,COALESCE(dp.cpd_dp_name, dec.delivery_partner_name) AS delivery_partner_name
+    ,dec.induction_record_id AS latest_induction_record_id
+    ,dec.school_urn AS induction_record_school_urn -- School URN of latest induction record.    
+    ,COALESCE(ind.school_urn, ind2.school_urn) AS declaration_date_school_urn -- School URN on the induction record valid on the declaration date.
+    ,COALESCE(ind.induction_record_id, ind2.induction_record_id) AS induction_record_id_on_declaration_date
+    ,COALESCE(ind.school_urn, ind2.school_urn, dec.school_urn) AS used_school_urn
+    -- For each started, retained-1/2/3/4 or completed declaration 6 hours of funding is allocated.
+    ,CASE
+      WHEN dec.declaration_type IN ('started', 'retained-1', 'retained-2', 'retained-3', 'retained-4', 'completed') THEN 6
+      ELSE 0
+     END AS funded_hours
+    ,ROW_NUMBER() OVER(PARTITION BY dec.declaration_id ORDER BY COALESCE(ind.start_date, ind2.start_date) DESC, COALESCE(ind.created_at, ind2.created_at) DESC) AS rn0
+  FROM 
+    ${ref('ecf_declarations')} AS dec
+  -- Join on induction records where the declaration date is between the start and end of the record.
+  LEFT JOIN
+    ${ref('ecf_inductions')} AS ind
+  ON
+    ind.participant_profile_id = dec.participant_profile_id
+    AND
+    DATE(dec.declaration_date) BETWEEN DATE(ind.start_date) AND DATE(IFNULL(ind.end_date, '2050-12-31'))
+  -- Second join on same source to use different methodology where the prior option returns NULL. This option checks for the the induction record where the declaration date is before the end date only.      
+  LEFT JOIN
+    ${ref('ecf_inductions')} ind2
+  ON
+    ind2.participant_profile_id = dec.participant_profile_id
+    AND
+    DATE(dec.declaration_date) < IFNULL(DATE(ind2.end_date), '2050-12-31')
+    AND
+    ind.induction_record_id IS NULL
+
+  LEFT JOIN
+    ${ref('ls_declarations_provider_names')} AS dp
+  ON
+    dp.id = dec.declaration_id
+
+  WHERE
+    funded_declaration = TRUE
+    AND
+    participant_course = 'Mentor'
+    AND
+    dec.declaration_date >= '2023-09-01'
+  QUALIFY (
+    rn0 = 1
+  )
+),
+
+ects AS (
+  SELECT 
+     school_urn
+    ,COUNT(DISTINCT participant_profile_id) AS school_ect_count
+  FROM 
+    ${ref('ecf_inductions_dedupe')}
+  WHERE
+    participant_type LIKE '%ECT'
+    AND
+    completion_date IS NULL OR completion_date > '2023-08-31'
+  GROUP BY
+    school_urn
+  ORDER BY 
+    school_ect_count DESC
+),
+
+declarations_extended AS (
+  SELECT
+     dec.*
+    ,ROW_NUMBER() OVER(PARTITION BY dec.participant_profile_id ORDER BY declaration_type_hierarchy ASC) AS declaration_sequence
+    ,ROUND((cost.cost_for_36_hours / 36) * dec.funded_hours, 2) AS funded_hours_cost
+    ,CASE
+      WHEN pp.user_id IS NOT NULL THEN TRUE
+      ELSE FALSE
+     END AS previously_paid
+    ,gias.LA_Name AS local_authority
+    ,gias.LA_code AS la_code
+    ,band.teacher_pay_band
+    ,gias.EstablishmentName AS gias_school_name
+    ,gias.TypeOfEstablishment_name AS gias_establishment_type
+    ,gias.PhaseOfEducation_name AS gias_phase_of_education
+    ,gias.EstablishmentStatus_name AS gias_establishment_status
+    ,COUNT(DISTINCT dec.participant_profile_id) OVER(PARTITION BY dec.used_school_urn) AS school_mentor_count
+    ,ects.school_ect_count
+  FROM
+    declarations dec
+  LEFT JOIN
+    ects 
+  ON 
+    ects.school_urn = dec.used_school_urn
+  LEFT JOIN
+    ${ref('establishments')} AS gias
+  ON
+    CAST(gias.urn AS INT) = dec.used_school_urn
+  LEFT JOIN
+    ${ref('la_teacher_pay_band_grouping')} AS band
+  ON
+    band.LA_code = CAST(gias.LA_code AS INT)
+  LEFT JOIN
+    ${ref('ecf_mentors_previously_paid')} AS pp
+  ON
+    pp.user_id = dec.user_id
+    AND 
+    (
+      (
+        dec.declaration_type IN ('started', 'retained-1', 'retained-2')
+        AND
+        pp.payment_period LIKE 'Instalment 1%'
+      )
+      OR
+      (
+        dec.declaration_type IN ('retained-3', 'retained-4', 'completed')
+        AND
+        pp.payment_period LIKE 'Instalment 2%'
+      )
+    )
+
+  LEFT JOIN
+    ${ref('teacher_pay_band_36_hour_cost')} AS cost
+  ON
+    cost.teacher_pay_band = band.teacher_pay_band
+)
+
+SELECT
+   * EXCEPT(rn0)
+  -- Funded hours per school for mentors not previously paid aggregated at school level for relevant cases only.
+  ,SUM(CASE WHEN previously_paid = FALSE THEN funded_hours ELSE 0 END) OVER(PARTITION BY used_school_urn) AS school_mentor_backfill_funded_hours
+  -- School ECT count evenly distributed across rows for mentors who were not previously paid to enable aggregation at School level in the dashboard output.
+  ,CASE
+    WHEN previously_paid = FALSE THEN school_ect_count / (SUM(CASE WHEN previously_paid = FALSE THEN 1 ELSE 0 END) OVER(PARTITION BY used_school_urn))
+    ELSE 0
+   END AS fractional_ect_count
+FROM 
+  declarations_extended
