@@ -1,0 +1,109 @@
+config {
+    type: "table",    
+    bigquery: {
+      clusterBy: ["used_school_urn"]
+    },
+    description: "This mart produces an output at declaration/mentor level for mentors who Grant Funding have said they should have had their declarations clawed back in the last academic year. These individuals should not be in receipt of Grant Funding this year unless deemed necessary by the GF Team. The output of this table enables the GF Team to perform the necessary reviews.",
+    columns: {
+      user_id: "This comes from the teacher profile associated with the participant profile.",
+      review_file_school_urn: "The School URN provided for the Mentor in the list of review cases provided by Grant Funding. BQ Source = static_tables.ecf_mentor_backfill_grant_funding_review_cases",
+      declaration_id: "The unique identifier of the declaration.",
+      participant_profile_id: "The id of the participant associated with the declaration.",
+      declaration_type: "The type of declaration which can be retained-3/4 or completed.",
+      declaration_state: "The state of the declaration which for this mart can only be funded (eligible/payable/paid)",
+      declaration_type_hierarchy: "A number (either 4, 5 or 9) based on the declaration types to enable sorting in the correct sequence regardless of declaration date.",
+      declaration_created_at_date: "The date the declaration record was created in the service.",
+      declaration_date: "The date the declaration was evidenced.",
+      lead_provider_name: "The name of the lead provider as per the declaration record.",
+      delivery_partner_name: "The name of the delivery partner as per the declaration record or where null from the induction record.",
+      latest_induction_record_id: "The id of the latest induction record associated with the participant profile id.",
+      induction_record_school_urn: "The school urn associated with the latest induction record.",
+      declaration_date_school_urn: "The school urn associated with the induction record valid on the declaration date where a declaration is present.",
+      used_school_urn: "The school urn used for aggregation. This is determined by the first non-null value from declaration_date_school_urn, induction_record_school_urn",
+      previously_paid: "TRUE/FALSE if the user_id appears in the static table of previously paid mentors whose schools recieved a payment for them prior to 2024. If a mentor was paid for in Instalment 1 then any started, retained-1/2 declarations present are marked as TRUE. If a mentor was paid for in Instalment 2 then any retained-3/4, completed declarations are marked as TRUE.",
+      declaration_match: "TRUE/FALSE if the declaration ID found matches to the declaration ID provided by Grant Funding in the file static_tables.ecf_mentor_backfill_grant_funding_review_cases. If matched then GF team should be aware of it. It also allows to distinguish between declarations the mart has identified versus those provided in the review file."
+   }
+}
+
+WITH review_cases AS (
+  SELECT
+     rev.user_id
+    ,rev.school_urn AS review_file_school_urn
+    ,dec.declaration_id
+    ,dec.participant_profile_id
+    ,dec.declaration_type
+    ,dec.state AS declaration_state
+    ,CASE
+      -- WHEN dec.declaration_type = 'started' THEN 1
+      -- WHEN dec.declaration_type = 'retained-1' THEN 2
+      -- WHEN dec.declaration_type = 'retained-2' THEN 3
+      WHEN dec.declaration_type = 'retained-3' THEN 4
+      WHEN dec.declaration_type = 'retained-4' THEN 5
+      -- WHEN dec.declaration_type = 'extended-1' THEN 6
+      -- WHEN dec.declaration_type = 'extended-2' THEN 7
+      -- WHEN dec.declaration_type = 'extended-3' THEN 8
+      WHEN dec.declaration_type = 'completed' THEN 9
+      ELSE NULL
+     END AS declaration_type_hierarchy
+    ,DATE(dp.created_at) AS declaration_created_at_date
+    ,DATE(dec.declaration_date) AS declaration_date
+    ,dec.cpd_lead_provider_name AS lead_provider_name
+    ,COALESCE(dec.cpd_delivery_partner_name, dec.delivery_partner_name) AS delivery_partner_name
+    ,dec.induction_record_id AS latest_induction_record_id
+    ,dec.school_urn AS induction_record_school_urn -- School URN of latest induction record.
+    ,ind.school_urn AS declaration_date_school_urn
+    ,COALESCE(ind.school_urn, dec.school_urn, rev.school_urn) AS used_school_urn
+    ,CASE
+      WHEN pp.user_id IS NOT NULL THEN TRUE 
+      ELSE FALSE
+     END AS previously_paid
+    ,CASE
+      WHEN rev.declaration_id = dec.declaration_id THEN TRUE
+      ELSE FALSE
+     END AS declaration_match
+    -- Determine a row number per unique row. If there is a declaration id present some produce multiple induction records that cover the declaration date. This rn0 allows the mart to filter out duplicated rows in the below Qualify statement.
+    ,CASE
+      WHEN dec.declaration_id IS NULL THEN 1
+      ELSE ROW_NUMBER() OVER(PARTITION BY dec.declaration_id ORDER BY ind.start_date DESC)
+     END AS rn0
+  FROM
+    ${ref('ecf_mentor_backfill_grant_funding_review_cases')} AS rev
+  LEFT JOIN
+    ${ref('ecf_declarations')} AS dec  
+  ON
+    rev.user_id = dec.user_id
+    AND
+    dec.funded_declaration = TRUE
+    AND
+    dec.declaration_type IN ('retained-3', 'retained-4', 'completed')
+    AND
+    dec.participant_course = 'Mentor'
+
+  LEFT JOIN
+    ${ref('ecf_mentors_previously_paid')} AS pp
+  ON
+    pp.user_id = rev.user_id
+    AND
+    pp.payment_period = 'Instalment 2 - 2023'
+  
+  LEFT JOIN
+    ${ref('ecf_inductions')} AS ind
+  ON
+    ind.participant_profile_id = dec.participant_profile_id
+    AND
+    DATE(dec.declaration_date) BETWEEN DATE(ind.start_date) AND DATE(IFNULL(ind.end_date, '2050-12-31'))
+
+  LEFT JOIN
+    ${ref('ls_declarations_provider_names')} dp
+  ON
+    dp.id = dec.declaration_id
+
+  QUALIFY(
+    rn0 = 1
+  )
+)
+
+SELECT 
+  * EXCEPT(rn0)
+FROM 
+  review_cases

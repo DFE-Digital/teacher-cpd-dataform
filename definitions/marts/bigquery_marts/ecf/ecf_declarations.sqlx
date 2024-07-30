@@ -7,7 +7,8 @@ config {
     description: "This mart joins the latest induction record for a given ECF participant (found in the ecf_inductions_dedupe mart) with the relevant ecf declarations for that participant resulting in one row per declaration per participant. In order to determine the preferred declaration for each declaration type (if multiple records exist for the same declaration type) we've determined a preferred state_heirarchy:paid>payable>eligible>submitted>clawed_back>awaiting_clawback>voided ",
     columns: {
         induction_record_id: "ID of individual induction record",
-        participant_course: "This is a shortened version of participant_type"
+        participant_course: "This is a shortened version of participant_type",
+        cpd_delivery_partner_name: "The name of the Delivery Partner taken from the declaration record rather than the induction record."
     }
 }
 
@@ -102,6 +103,7 @@ WITH
     e_dec.state,
     e_dec.funded_declaration,
     e_dec.cpd_lead_provider_name,
+    e_dec.delivery_partner_name AS cpd_delivery_partner_name,
    (ROW_NUMBER() OVER (PARTITION BY e_ind.participant_profile_id, e_dec.course_identifier, e_dec.declaration_type ORDER BY e_dec.state_heirarchy DESC, e_dec.declaration_date desc)) AS rn1 
   FROM
     ecf_inductions_expanded e_ind

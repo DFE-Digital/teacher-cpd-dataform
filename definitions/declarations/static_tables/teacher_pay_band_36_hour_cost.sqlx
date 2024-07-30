@@ -1,0 +1,5 @@
+config {
+    type: "declaration",
+    schema: "static_tables",
+    name: "teacher_pay_band_36_hour_cost"
+}
