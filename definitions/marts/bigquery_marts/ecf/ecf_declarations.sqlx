@@ -8,7 +8,9 @@ config {
     columns: {
         induction_record_id: "ID of individual induction record",
         participant_course: "This is a shortened version of participant_type",
-        cpd_delivery_partner_name: "The name of the Delivery Partner taken from the declaration record rather than the induction record."
+        cpd_delivery_partner_name: "The name of the Delivery Partner taken from the declaration record rather than the induction record.",
+        statement_id: "The ID of the financial statement which the declaration belongs to.",
+        statement_cohort: "The start_year of the cohort associated with the financial statement the declaration belongs to. This can differ to the participants cohort and is often used when assessing declaration level KPIs as these cannot change whereas a participant can move between academic cohorts."
     }
 }
 
@@ -39,13 +41,13 @@ WITH
     cpd_lead_providers.name AS cpd_lead_provider_name,
     delivery_partners.name AS delivery_partner_name,
     CASE
-      WHEN state LIKE 'paid' THEN 7
-      WHEN state LIKE 'payable' THEN 6
-      WHEN state LIKE 'eligible' THEN 5
-      WHEN state LIKE 'submitted' THEN 4
-      WHEN state LIKE 'clawed_back' THEN 3
-      WHEN state LIKE 'awaiting_clawback' THEN 2
-      WHEN state LIKE 'voided' THEN 1
+      WHEN dec_cpd.state LIKE 'paid' THEN 7
+      WHEN dec_cpd.state LIKE 'payable' THEN 6
+      WHEN dec_cpd.state LIKE 'eligible' THEN 5
+      WHEN dec_cpd.state LIKE 'submitted' THEN 4
+      WHEN dec_cpd.state LIKE 'clawed_back' THEN 3
+      WHEN dec_cpd.state LIKE 'awaiting_clawback' THEN 2
+      WHEN dec_cpd.state LIKE 'voided' THEN 1
     ELSE
     0
   END
@@ -68,9 +70,9 @@ WITH
   END
     AS type_heirarchy,
     CASE
-      WHEN state = 'paid' THEN TRUE
-      WHEN state = 'eligible' THEN TRUE
-      WHEN state = 'payable' THEN TRUE
+      WHEN dec_cpd.state = 'paid' THEN TRUE
+      WHEN dec_cpd.state = 'eligible' THEN TRUE
+      WHEN dec_cpd.state = 'payable' THEN TRUE
     ELSE
     FALSE
   END
@@ -81,7 +83,9 @@ WITH
     ELSE
     NULL
   END
-    AS participant_course
+    AS participant_course,
+  sli.statement_id,
+  cohorts.start_year AS statement_cohort
   FROM
     ${ref(`participant_declarations_latest_cpd`)} AS dec_cpd
   LEFT JOIN
@@ -92,6 +96,18 @@ WITH
     ${ref(`delivery_partners_latest_cpd`)} AS delivery_partners
   ON
     dec_cpd.delivery_partner_id=delivery_partners.id
+  LEFT JOIN
+    ${ref('statement_line_items_latest_cpd')} AS sli
+  ON
+    sli.participant_declaration_id = dec_cpd.id
+  LEFT JOIN
+    ${ref('statements_latest_cpd')} AS stm
+  ON
+    stm.id = sli.statement_id
+  LEFT JOIN
+    ${ref('cohorts_latest_cpd')} AS cohorts
+  ON
+    cohorts.id = stm.cohort_id
   WHERE
     course_identifier LIKE 'ecf%'),
   ecf_participant_declarations AS (
@@ -104,6 +120,8 @@ WITH
     e_dec.funded_declaration,
     e_dec.cpd_lead_provider_name,
     e_dec.delivery_partner_name AS cpd_delivery_partner_name,
+    e_dec.statement_id,
+    e_dec.statement_cohort,
    (ROW_NUMBER() OVER (PARTITION BY e_ind.participant_profile_id, e_dec.course_identifier, e_dec.declaration_type ORDER BY e_dec.state_heirarchy DESC, e_dec.declaration_date desc)) AS rn1 
   FROM
     ecf_inductions_expanded e_ind
