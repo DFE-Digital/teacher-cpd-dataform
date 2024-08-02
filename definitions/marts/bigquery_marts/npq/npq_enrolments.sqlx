@@ -84,7 +84,7 @@ config {
         funded_place: "This indicates if the accepted NPQ application is being funded by the DfE as one of the capped funded places. Being eligible for funding does not guarantee the application will be funded.",
         senco_in_role: "Pulled from separate NPQ pipline as not fed into ECF App data that dataform runs on. Answer selected for question 'Are you a SENCO?' during the application stage. Possible results are; yes, no but I plan to be, no and I do not plan to be.",
         senco_start_date: "Pulled from separate NPQ pipline as not fed into ECF App data that dataform runs on. Provided at time of application and only answered if 'yes' is selected for Are you a SENCO. Format is MM/YYYY stored as a string.",
-        valid_application: "Boolean field used to filter out applications affected by known bugs. Logic can be updated to reflect any ongoing bugs. Currently checking for 2 known NPQ SENCO issues so that these can be filtered out of any results when not required. If the application has NULL for senco_in_role or it is 'yes' but the senco_start_date is NULL then this flag is set to FALSE.",
+        valid_application: "Boolean field used to filter out applications affected by known bugs. Logic can be updated to reflect any ongoing bugs. Currently checking for 2 known NPQ SENCO issues and Ghost applications that do not exist in the live service, so that these can be filtered out of any results when not required. If the application has NULL for senco_in_role or it is 'yes' but the senco_start_date is NULL then this flag is set to FALSE.",
         invalid_application_reason: "The description of the invalidity reason for any FALSE valid_application rows."
     }
 }
@@ -566,16 +566,19 @@ SELECT
   ,CASE
     WHEN gt.course_name LIKE '%SENCO%' AND senco_in_role IS NULL THEN FALSE -- SENCO application must have this question answered during application process or else it is a "Ghost" application.
     WHEN gt.course_name LIKE '%SENCO%' AND senco_in_role = 'yes' AND senco_start_date IS NULL THEN FALSE -- If an applicant answers yes to Are you a SENCO when applying for the NPQ SENCO course, they must provide a start date.
+    WHEN app.application_ecf_id IS NULL AND COALESCE(started_declaration_id, retained1_declaration_id, retained2_declaration_id, completed_declaration_id) IS NULL THEN FALSE --If an application does not exist in the NPQ Data from the live service and has zero declarations against it; it is considered a Ghost application.
     ELSE TRUE
    END AS valid_application
   ,CASE
     WHEN gt.course_name LIKE '%SENCO%' AND senco_in_role IS NULL THEN 'NPQSENCO Ghost Application' -- SENCO application must have this question answered during application process or else it is a "Ghost" application.
     WHEN gt.course_name LIKE '%SENCO%' AND senco_in_role = 'yes' AND senco_start_date IS NULL THEN 'NPQSENCO Missing senco start date' -- If an applicant answers yes to Are you a SENCO when applying for the NPQ SENCO course, they must provide a start date.
+    WHEN app.application_ecf_id IS NULL AND COALESCE(started_declaration_id, retained1_declaration_id, retained2_declaration_id, completed_declaration_id) IS NULL THEN 'Ghost Application' --If an application does not exist in the NPQ Data from the live service and has zero declarations against it; it is considered a Ghost application.
     ELSE NULL
    END AS invalid_application_reason
 FROM
   npq_gold_thread AS gt
 -- Join on NPQ Application data for 2 SENCO related fields not currently (as of 05/07/2024) being streamed into the ECF app nor Dataform pipeline.
+-- Join is also being used to check for Ghost applications where the result is NULL against data coming from the ECF App.
 LEFT JOIN
     ${ref('applications')} AS app
 ON
