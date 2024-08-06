@@ -1,0 +1,334 @@
+config {
+    type: "table",
+    bigquery: {
+        clusterBy: ["lead_provider_name"]
+    },
+    description: "Objective: To determine the number of started participants still retained by the lead provider in each cohort and schedule. \n \
+    Summary: \n \
+    For each cohort the retention KPI needs to measure the percentage of participants that started with a lead provider and as of the current date or cut off point how many are still with that lead provider and not withdrawn from training. \n \
+    Started participants are any with an eligible, paid or payable declaration with the lead provider in the statement cohort being measured. \n \
+    The cut off point is the 31 st July 2 years after the cohort.For example 31 / 07 / 2024 is the cut off point for the 2022 cohort. \n \
+    ECT retention is measured as the number of participants still with the started lead provider and their training status is not withdrawn out of the total started participants. \n \
+    Mentor retention is the same until it comes to the withdrawn status where the lead provider is the same as when started.If a Mentor is withdrawn at the time of review, a check is then done to see if the ECTs they were mentoring have since been assigned a new mentor which has an active training status.If so, the withdrawn Mentor is considered retained. \n \
+    A freeze has been applied to the relevant data within the script for any cohorts where the final cut off date has passed.A mid - point data freeze is also in place for 2023 onwards. \n \
+    This freeze is applied by using the versioned data and only looking at the record states where the cut - off date applies.This means that any changes to induction records or declarations after this date will not be reflected to enable retrospective review without fear of post cut - off modifications.",
+    columns: {
+        lead_provider_name: "The name of the lead provider associated with the started declaration that qualifies the participant to be included in relevant starts.",
+        participant_type: "Either ECT or Mentor depending on participant_type from their participant_profile.",
+        started_participants_2022_cut_off: "The number of participants split by participant_type for the lead provider where the started declaration in the 2022 statement cohort is funded (e/p/p) as of the cut-off date 31/07/2024.",
+        started_participants_2023_mid_point: "The number of participants split by participant_type for the lead provider where the started declaration in the 2023 statement cohort is funded (e/p/p) as of the mid-point date 31/07/2024.",
+        started_participants_2023_cut_off: "The number of participants split by participant_type for the lead provider where the started declaration in the 2023 statement cohort is funded (e/p/p) as of the cut-off date 31/07/2025.",
+        started_participants_2024_mid_point: "The number of participants split by participant_type for the lead provider where the started declaration in the 2024 statement cohort is funded (e/p/p) as of the mid-point date 31/07/2025.",
+        started_participants_2024_cut_off: "The number of participants split by participant_type for the lead provider where the started declaration in the 2024 statement cohort is funded (e/p/p) as of the cut-off date 31/07/2026.",
+        retained_cut_off_participants_2022: "The number of started participants split by participant_type for the lead provider where they are still associated with the same lead provider and their status is not withdrawn as of the cut-off date 31/07/2024. Some withdrawn Mentors are still considered retained if the ECTs they were mentoring are associated with an active Mentor as of the same cut-off date.",
+        retained_mid_point_participants_2023: "The number of started participants split by participant_type for the lead provider where they are still associated with the same lead provider and their status is not withdrawn as of the mid-point date 31/07/2024. Some withdrawn Mentors are still considered retained if the ECTs they were mentoring are associated with an active Mentor as of the same mid-point date.",
+        retained_cut_off_participants_2023: "The number of started participants split by participant_type for the lead provider where they are still associated with the same lead provider and their status is not withdrawn as of the cut-off date 31/07/2025. Some withdrawn Mentors are still considered retained if the ECTs they were mentoring are associated with an active Mentor as of the same cut-off date.",
+        retained_mid_point_participants_2024: "The number of started participants split by participant_type for the lead provider where they are still associated with the same lead provider and their status is not withdrawn as of the mid-point date 31/07/2025. Some withdrawn Mentors are still considered retained if the ECTs they were mentoring are associated with an active Mentor as of the same mid-point date.",
+        retained_cut_off_participants_2024: "The number of started participants split by participant_type for the lead provider where they are still associated with the same lead provider and their status is not withdrawn as of the cut-off date 31/07/2026. Some withdrawn Mentors are still considered retained if the ECTs they were mentoring are associated with an active Mentor as of the same cut-off date."
+    }
+}
+
+  /*** ECF Retention KPI Script ***/
+  /*
+  Objective: To determine the number of started participants still retained by the lead provider in each cohort and schedule.
+
+  Summary:
+  For each cohort the retention KPI needs to measure the percentage of participants that started with a lead provider and as of the current date or cut off point how many are still with that lead provider and not withdrawn from training.
+  Started participants are any with an eligible, paid or payable declaration with the lead provider in the statement cohort being measured.
+  The cut off point is the 31st July 2 years after the cohort. For example 31/07/2024 is the cut off point for the 2022 cohort.
+  ECT retention is measured as the number of participants still with the started lead provider and their training status is not withdrawn out of the total started participants.
+  Mentor retention is the same until it comes to the withdrawn status where the lead provider is the same as when started. If a Mentor is withdrawn at the time of review, a check is then done to see if the ECTs they were mentoring have since been assigned a new mentor which has an active training status. If so, the withdrawn Mentor is considered retained.
+  A freeze has been applied to the relevant data within the script for any cohorts where the final cut off date has passed. A mid-point data freeze is also in place for 2023 onwards.
+  This freeze is applied by using the versioned data and only looking at the record states where the cut-off date applies. This means that any changes to induction records or declarations after this date will not be reflected to enable retrospective review without fear of post cut-off modifications.
+
+  */
+  -- Gather induction history records and replace the NULL valid_to dates with 2050-12-31. This data is used multiple times within the script to ensure only the state of the record at a given time is used for analysis. Only records where the valid_to is on or after 31/07/2024 are gathered as the first cohort being reviewed is 2022 and this is the cut off date for those cases.
+WITH
+  induction_history AS (
+  SELECT
+    participant_profile_id,
+    id AS induction_record_id,
+    induction_programme_id,
+    training_status,
+    mentor_profile_id,
+    schedule_id,
+    start_date,
+    valid_from,
+    IFNULL(DATETIME(valid_to), DATETIME(2050,12,31,00,00,00)) AS valid_to
+    -- Create row number to ensure only the last record is obtained. The valid_to order ensures the last change on the date is obtained and the start_date, created_at order ensure it relates to the latest induction record at that time.
+    ,
+    ROW_NUMBER() OVER(PARTITION BY participant_profile_id, IFNULL(DATE(valid_to), DATE(2050,12,31))
+    ORDER BY
+      IFNULL(DATETIME(valid_to), DATETIME(2050,12,31,00,00,00)) DESC,
+      start_date DESC,
+      created_at DESC) AS rn0
+  FROM
+    ${ref('induction_records_version_cpd')}
+  WHERE
+    IFNULL(DATE(valid_to), DATE(2050,12,31)) >= DATE('2024-07-31')
+    -- The ability to track versions begins with the 2022 cohort which has a cut-off date of 31/07/2024. Any records prior to this date will be irrelevant.
+  QUALIFY
+    ( rn0 = 1 ) ),
+  -- Gather the starts and add the cut-off & mid-point dates for each record.
+  starts AS (
+SELECT
+  dec.*,
+  DATETIME(dec.statement_cohort + 1, 07, 31, 23, 59, 59) AS retention_mid_point_datetime,
+  DATETIME(dec.statement_cohort + 2, 07, 31, 23, 59, 59) AS retention_cut_off_datetime
+FROM
+  ${ref('ecf_declarations')} AS dec
+WHERE
+  dec.declaration_type = 'started'
+  AND dec.statement_cohort != 2021
+  -- Induction Record version history does not begin until 18/09/2023 which means that the state of the induction record as of 31/07/2023 cannot be determined.
+  ),
+  -- Add additional infor to starts. By looking at the mid-point & cut-off dates and their associated record states we add the declaration state, training status and lead provider at those points in time. Where one or both of these dates are in the future the values can change but once passed they will remain frozen as of that date.
+  starts_extended AS (
+SELECT
+  starts.*,
+  dec_hist_mid.state AS retention_mid_point_declaration_state,
+  COALESCE(ind_ver_mid.training_status, starts.training_status) AS retention_mid_point_training_status,
+  COALESCE(lp2.name, starts.lead_provider_name, latest_dec.cpd_lead_provider_name) AS retention_mid_point_lead_provider,
+  dec_hist.state AS retention_cut_off_declaration_state,
+  COALESCE(ind_ver.training_status, starts.training_status) AS retention_cut_off_training_status,
+  COALESCE(lp.name, starts.lead_provider_name, latest_dec.cpd_lead_provider_name) AS retention_cut_off_lead_provider
+FROM
+  starts
+  -- Join on declaration state at cut off & mid point dates to avoid excluding any that were changed from eligible, paid or payable after the cut off date.
+LEFT JOIN
+  ${ref('participant_declarations_version_cpd')} AS dec_hist
+ON
+  dec_hist.id = starts.declaration_id
+  AND starts.retention_cut_off_datetime BETWEEN DATETIME(dec_hist.valid_from)
+  AND IFNULL(DATETIME(dec_hist.valid_to), DATETIME(2050,12,31,00,00,00))
+LEFT JOIN
+  ${ref('participant_declarations_version_cpd')} AS dec_hist_mid
+ON
+  dec_hist_mid.id = starts.declaration_id
+  AND starts.retention_mid_point_datetime BETWEEN DATETIME(dec_hist_mid.valid_from)
+  AND IFNULL(DATETIME(dec_hist_mid.valid_to), DATETIME(2050,12,31,00,00,00))
+  -- Join on snapshot of induction record as at the retention cut-off & mid-point dates.
+LEFT JOIN
+  induction_history AS ind_ver
+ON
+  ind_ver.participant_profile_id = starts.participant_profile_id
+  AND starts.retention_cut_off_datetime BETWEEN DATETIME(ind_ver.valid_from)
+  AND DATETIME(ind_ver.valid_to)
+  AND starts.retention_cut_off_datetime >= DATE(ind_ver.start_date)
+LEFT JOIN
+  induction_history AS ind_ver_mid
+ON
+  ind_ver_mid.participant_profile_id = starts.participant_profile_id
+  AND starts.retention_mid_point_datetime BETWEEN DATETIME(ind_ver_mid.valid_from)
+  AND DATETIME(ind_ver_mid.valid_to)
+  AND starts.retention_mid_point_datetime >= DATE(ind_ver_mid.start_date)
+LEFT JOIN
+  ${ref('induction_programmes_version_cpd')} ind_pro_ver
+ON
+  ind_pro_ver.id = ind_ver.induction_programme_id
+  AND starts.retention_cut_off_datetime BETWEEN DATETIME(ind_pro_ver.valid_from)
+  AND IFNULL(DATETIME(ind_pro_ver.valid_to), DATETIME(2050,12,31,00,00,00))
+LEFT JOIN
+  ${ref('induction_programmes_version_cpd')} AS ind_pro_ver_mid
+ON
+  ind_pro_ver_mid.id = ind_ver_mid.induction_programme_id
+  AND starts.retention_mid_point_datetime BETWEEN DATETIME(ind_pro_ver_mid.valid_from)
+  AND IFNULL(DATETIME(ind_pro_ver_mid.valid_to), DATETIME(2050,12,31,00,00,00))
+LEFT JOIN
+  ${ref('partnerships_version_cpd')} AS part_ver
+ON
+  part_ver.id = ind_pro_ver.partnership_id
+  AND starts.retention_cut_off_datetime BETWEEN DATETIME(part_ver.valid_from)
+  AND IFNULL(DATETIME(part_ver.valid_to), DATETIME(2050,12,31,00,00,00))
+LEFT JOIN
+  ${ref('partnerships_version_cpd')} AS part_ver_mid
+ON
+  part_ver_mid.id = ind_pro_ver_mid.partnership_id
+  AND starts.retention_mid_point_datetime BETWEEN DATETIME(part_ver_mid.valid_from)
+  AND IFNULL(DATETIME(part_ver_mid.valid_to), DATETIME(2050,12,31,00,00,00))
+LEFT JOIN
+  ${ref('lead_providers_latest_cpd')} AS lp
+ON
+  lp.id = part_ver.lead_provider_id
+  AND part_ver.challenged_at IS NULL
+  -- If challenged this is not a valid partnership.
+LEFT JOIN
+  ${ref('lead_providers_latest_cpd')} AS lp2
+ON
+  lp2.id = part_ver_mid.lead_provider_id
+  AND part_ver_mid.challenged_at IS NULL
+  -- If challenged this is not a valid partnership.
+  -- Join on latest declaration based on declaration date.
+LEFT JOIN (
+  SELECT
+    participant_profile_id,
+    cpd_lead_provider_name,
+    ROW_NUMBER() OVER(PARTITION BY participant_profile_id ORDER BY declaration_date DESC) AS rn1
+  FROM
+    ${ref('ecf_declarations')}
+  WHERE
+    funded_declaration = TRUE
+  QUALIFY
+    ( rn1 = 1 ) ) AS latest_dec
+ON
+  latest_dec.participant_profile_id = starts.participant_profile_id
+WHERE
+  -- starts.statement_cohort = 2022 -- 2022 = 45,604 rows; 2023 = 39,668
+  -- AND
+  ( dec_hist.state IN ('paid',
+  'payable',
+  'eligible')
+  OR dec_hist_mid.state IN ('payable',
+    'paid',
+    'eligible') ) ),
+  -- Gather replaced mentors. If a started Mentor from the starts data is withdrawn this section looks for the ECTs they were mentoring and who now mentors them. If the new mentor has an active training status the withdrawn mentor is considered retained. It too looks at both the mid-point and cut-off to see at those moments in time what was the situation.
+  replaced_mentors AS (
+SELECT
+  ind.mentor_id,
+  ind.participant_profile_id,
+  ect_hist_mid.mentor_profile_id AS retention_mid_point_mentor_id,
+  mentor_hist_mid.training_status AS retention_cut_off_mentor_training_status,
+IF
+  (SUM(CASE
+        WHEN mentor_hist_mid.training_status = 'active' THEN 1
+        ELSE 0
+    END
+      ) OVER(PARTITION BY ind.participant_profile_id) > 0, 1, 0) AS retention_mid_point_active_mentors,
+  ect_hist.mentor_profile_id AS retention_cut_off_mentor_id,
+  mentor_hist.training_status AS retention_cut_off_mentor_training_status,
+IF
+  (SUM(CASE
+        WHEN mentor_hist.training_status = 'active' THEN 1
+        ELSE 0
+    END
+      ) OVER(PARTITION BY ind.participant_profile_id) > 0, 1, 0) AS retention_cut_off_active_mentors
+FROM
+  ${ref('ecf_inductions')} AS ind
+INNER JOIN
+  starts_extended se
+ON
+  se.participant_profile_id = ind.mentor_id
+  AND se.retention_cut_off_training_status = 'withdrawn'
+  -- Join on relevant induction history version for ECT mentored by withdrawn mentor from starts data.
+LEFT JOIN
+  induction_history ect_hist
+ON
+  ect_hist.participant_profile_id = ind.participant_profile_id
+  AND se.retention_cut_off_datetime BETWEEN DATETIME(ect_hist.valid_from)
+  AND DATETIME(ect_hist.valid_to)
+  -- Join on relevant induction history version for the new mentor associated with the ECT previously with a withdrawn mentor.
+LEFT JOIN
+  induction_history mentor_hist
+ON
+  mentor_hist.participant_profile_id = ect_hist.mentor_profile_id
+  AND se.retention_cut_off_datetime BETWEEN DATETIME(mentor_hist.valid_from)
+  AND DATETIME(mentor_hist.valid_to)
+LEFT JOIN
+  induction_history ect_hist_mid
+ON
+  ect_hist_mid.participant_profile_id = ind.participant_profile_id
+  AND se.retention_mid_point_datetime BETWEEN DATETIME(ect_hist_mid.valid_from)
+  AND DATETIME(ect_hist_mid.valid_to)
+  -- Join on relevant induction history version for the new mentor associated with the ECT previously with a withdrawn mentor.
+LEFT JOIN
+  induction_history mentor_hist_mid
+ON
+  mentor_hist_mid.participant_profile_id = ect_hist_mid.mentor_profile_id
+  AND se.retention_mid_point_datetime BETWEEN DATETIME(mentor_hist_mid.valid_from)
+  AND DATETIME(mentor_hist_mid.valid_to) ),
+  -- Add the retention markers for the started participants. Retention is based upon whether the lead provider has changed or the participant is now withdrawn. Mentors with the same provider but withdrawn and then reviewed using the replaced_mentor dataset to see if they have been replaced by an active mentor in which case they are classed as retained.
+  retention_markers AS (
+SELECT
+  se.*,
+  rep_men.retention_cut_off_mentor_id,
+  CASE
+    WHEN se.retention_mid_point_lead_provider != se.cpd_lead_provider_name THEN FALSE
+    WHEN se.retention_mid_point_training_status = 'withdrawn'
+  AND se.participant_course = 'ECT' THEN FALSE
+    WHEN se.retention_mid_point_training_status = 'withdrawn' AND se.participant_course = 'Mentor' AND rep_men.retention_mid_point_active_mentors = 0 THEN FALSE
+    ELSE TRUE
+END
+  AS participant_retained_at_mid_point,
+  CASE
+    WHEN se.retention_cut_off_lead_provider != se.cpd_lead_provider_name THEN FALSE
+    WHEN se.retention_cut_off_training_status = 'withdrawn'
+  AND se.participant_course = 'ECT' THEN FALSE
+    WHEN se.retention_cut_off_training_status = 'withdrawn' AND se.participant_course = 'Mentor' AND rep_men.retention_cut_off_active_mentors = 0 THEN FALSE
+    ELSE TRUE
+END
+  AS participant_retained_at_cut_off
+FROM
+  starts_extended se
+LEFT JOIN (
+  SELECT
+    mentor_id,
+    retention_cut_off_mentor_id,
+    retention_mid_point_active_mentors,
+    retention_cut_off_active_mentors,
+    ROW_NUMBER() OVER(PARTITION BY mentor_id) AS rn1
+  FROM
+    replaced_mentors
+  QUALIFY
+    (
+    -- As Mentors can have multiple ECTs and the active_mentor check is a total per row; only one row needs to be returned per Mentor to determine if repalced.
+    rn1 = 1 ) ) AS rep_men
+    ON
+      rep_men.mentor_id = se.participant_profile_id )
+      -- Build output that creates columns for each capture point within the data. These include 2022 cut-off, 2023 mid-point & cut-off and 2024 mid-point & cut-off presented as columns for each lead provider split by participant type.
+  SELECT
+    DISTINCT cpd_lead_provider_name AS lead_provider_name,
+    participant_course AS participant_type,
+    SUM(CASE
+        WHEN retention_cut_off_declaration_state IN ('paid', 'payable', 'eligible') AND statement_cohort = 2022 THEN 1
+        ELSE 0
+    END
+      ) OVER(PARTITION BY cpd_lead_provider_name, participant_course) AS started_participants_2022_cut_off,
+    SUM(CASE
+        WHEN retention_mid_point_declaration_state IN ('paid', 'payable', 'eligible') AND statement_cohort = 2023 THEN 1
+        ELSE 0
+    END
+      ) OVER(PARTITION BY cpd_lead_provider_name, participant_course) AS started_participants_2023_mid_point,
+    SUM(CASE
+        WHEN retention_cut_off_declaration_state IN ('paid', 'payable', 'eligible') AND statement_cohort = 2023 THEN 1
+        ELSE 0
+    END
+      ) OVER(PARTITION BY cpd_lead_provider_name, participant_course) AS started_participants_2023_cut_off,
+    SUM(CASE
+        WHEN retention_mid_point_declaration_state IN ('paid', 'payable', 'eligible') AND statement_cohort = 2024 THEN 1
+        ELSE 0
+    END
+      ) OVER(PARTITION BY cpd_lead_provider_name, participant_course) AS started_participants_2024_mid_point,
+    SUM(CASE
+        WHEN retention_cut_off_declaration_state IN ('paid', 'payable', 'eligible') AND statement_cohort = 2024 THEN 1
+        ELSE 0
+    END
+      ) OVER(PARTITION BY cpd_lead_provider_name, participant_course) AS started_participants_2024_cut_off,
+    SUM(CASE
+        WHEN participant_retained_at_cut_off = TRUE AND statement_cohort = 2022 THEN 1
+        ELSE 0
+    END
+      ) OVER(PARTITION BY cpd_lead_provider_name, participant_course) AS retained_cut_off_participants_2022,
+    SUM(CASE
+        WHEN participant_retained_at_mid_point = TRUE AND statement_cohort = 2023 THEN 1
+        ELSE 0
+    END
+      ) OVER(PARTITION BY cpd_lead_provider_name, participant_course) AS retained_mid_point_participants_2023,
+    SUM(CASE
+        WHEN participant_retained_at_cut_off = TRUE AND statement_cohort = 2023 THEN 1
+        ELSE 0
+    END
+      ) OVER(PARTITION BY cpd_lead_provider_name, participant_course) AS retained_cut_off_participants_2023,
+    SUM(CASE
+        WHEN participant_retained_at_mid_point = TRUE AND statement_cohort = 2024 THEN 1
+        ELSE 0
+    END
+      ) OVER(PARTITION BY cpd_lead_provider_name, participant_course) AS retained_mid_point_participants_2024,
+    SUM(CASE
+        WHEN participant_retained_at_cut_off = TRUE AND statement_cohort = 2024 THEN 1
+        ELSE 0
+    END
+      ) OVER(PARTITION BY cpd_lead_provider_name, participant_course) AS retained_cut_off_participants_2024
+  FROM
+    retention_markers
+  WHERE
+    schedule_identifier = 'ecf-standard-september'

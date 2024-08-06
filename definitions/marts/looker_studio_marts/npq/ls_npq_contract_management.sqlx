@@ -73,7 +73,10 @@ WITH
     ${ref("npq_enrolments")}
   WHERE
     cohort = 2024
-    AND funding_choice IS NULL
+    AND 
+    funding_choice IS NULL
+    AND
+    valid_application = TRUE
   GROUP BY
     provider_name,
     short_course_name
