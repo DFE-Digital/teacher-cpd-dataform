@@ -173,9 +173,9 @@ WITH
   SELECT
     lp_inductions_dedupe.*,
     ecf_dec_start.* EXCEPT(started_participant_profile_id,
-      participant_course),
+      participant_course, rn5),
     ecf_dec_completed.* EXCEPT(completed_participant_profile_id,
-      participant_course)
+      participant_course, rn5)
   FROM
     lp_inductions_dedupe
   LEFT JOIN
