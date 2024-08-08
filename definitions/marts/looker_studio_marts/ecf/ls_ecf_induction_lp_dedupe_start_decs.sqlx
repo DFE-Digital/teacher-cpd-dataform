@@ -7,7 +7,7 @@ config {
         partitionBy: "DATE(induction_record_created_at)",
         clusterBy: ["cohort", "participant_type", "induction_status", "training_status"]
     },
-    description: "This mart is used for the ECF Contract Managers dashboard. This dedupes ECF Inductions at the lead provider level (as well as user_id and participant_type) and joins in start declaration info for those records.In order to determine the preferred declaration for each declaration type we've determined a preferred state_heirarchy:paid>payable>eligible>submitted>clawed_back>awaiting_clawback>voided.",
+    description: "This mart is used for the ECF Contract Managers dashboard. The mart identifies the latest induction records for a given participant + LP combo which can then help us to determine if the participant began their training with that LP and whether their participation with that LP qualifies for the KPIs set out by the SRM team. It dedupes ECF Inductions at the lead provider level (as well as user_id and participant_type) using nearly identitcal deduping logic as the ecf_induction_dedupe mart (with the addition of grouping at LP level) and joins in started and completed declaration info for those records. In order to determine the preferred declaration for each declaration type we've determined a preferred state_heirarchy:paid>payable>eligible>submitted>clawed_back>awaiting_clawback>voided.",
     columns: {
         induction_record_id: "ID of individual induction record",
         external_id: "",
@@ -55,6 +55,7 @@ config {
         paid_start_declaration: "Declaration state is in payable or paid (note, not eligible, to meet SRM requirements)",
         schedule_intake_month: "Extracts the month contained in the schedule identifier",
         started_lead_provider_short_name: "Abbreviated version of the lead provider name on the start declaration",
+        reduced_schedule_criteria_check: "Participants on a reduced schedule do not receive the full set of declaration types, they only receive a completed declaration. Therefore to check their 'started' status with a LP we use their completed declaration instead of a started declaration. This boolean confirms they're both on a 'reduced' schedule and they have a paid/payable completed declaration.",
         replacement_mentor_check: "Checks if the schedule identifier is for a replacement mentor",
         induction_start_dec_same_lp: "This checks that the lead provider on the induction record matches the start declaration lead provider"
 
@@ -62,6 +63,7 @@ config {
 }
 
 WITH
+--  This logic is roughly identical to ecf_inductions_dedupe with the addition of lead provider in the partition by statement.It identifies one induction record per participant & LP. It prioritizes induction records with a completed training status > active training status > other training status and then prioritizes by latest start date and the latest created record.
   lp_inductions_dedupe AS (
   SELECT
     *,
@@ -85,6 +87,7 @@ WITH
       AS active
     FROM
       ${ref("ecf_inductions")} ) T1 QUALIFY rn0=1),
+--  This CTE pulls and ranks all ECF declarations (using the heirarchies set out below) to enable us to join in the preferred declaration to the deduped induction records above
   ecf_declarations_expanded AS (
   SELECT
     dec_cpd.*,
@@ -129,12 +132,11 @@ WITH
     dec_cpd.delivery_partner_id=delivery_partners.id
   WHERE
     course_identifier LIKE 'ecf%'),
+  -- This uses the heirarchies established in the expanded declaration mart above to identify a single start declaration for each participant + course combination
   ecf_dec_start AS(
   SELECT
     id AS started_declaration_id,
-    user_id AS started_declaration_user_id,
     participant_profile_id AS started_participant_profile_id,
-    course_identifier AS started_course_identifier,
     declaration_type AS started_declaration_type,
     created_at AS started_declaration_created_at,
     state AS start_declaration_state,
@@ -143,16 +145,36 @@ WITH
     cpd_lead_provider_name AS started_cpd_lead_provider_name,
     delivery_partner_name AS started_delivery_partner_name,
     participant_course,
-    (ROW_NUMBER() OVER (PARTITION BY participant_profile_id, course_identifier, declaration_type ORDER BY state_heirarchy DESC)) AS rn5
+    (ROW_NUMBER() OVER (PARTITION BY participant_profile_id, course_identifier ORDER BY state_heirarchy DESC)) AS rn5
   FROM
     ecf_declarations_expanded ecf_dec_0
   WHERE
     declaration_type = 'started' QUALIFY rn5=1),
+  -- This uses the heirarchies established in the expanded declaration mart above to identify a single completed declaration for each participant + course combination
+  ecf_dec_completed AS(
+  SELECT
+    id AS completed_declaration_id,
+    participant_profile_id AS completed_participant_profile_id,
+    declaration_type AS completed_declaration_type,
+    created_at AS completed_declaration_created_at,
+    state AS completed_declaration_state,
+    funded_declaration AS funded_completed_declaration,
+    declaration_date AS completed_declaration_date,
+    cpd_lead_provider_name AS completed_cpd_lead_provider_name,
+    delivery_partner_name AS completed_delivery_partner_name,
+    participant_course,
+    (ROW_NUMBER() OVER (PARTITION BY participant_profile_id, course_identifier ORDER BY state_heirarchy DESC)) AS rn5
+  FROM
+    ecf_declarations_expanded ecf_dec_0
+  WHERE
+    declaration_type = 'completed' QUALIFY rn5=1),
+--  This joins the started and completed declaration information onto the deduped induction records
   lp_ecf_golden_thread AS (
   SELECT
     lp_inductions_dedupe.*,
-    ecf_dec_start.* EXCEPT(started_declaration_user_id,
-      started_course_identifier,
+    ecf_dec_start.* EXCEPT(started_participant_profile_id,
+      participant_course),
+    ecf_dec_completed.* EXCEPT(completed_participant_profile_id,
       participant_course)
   FROM
     lp_inductions_dedupe
@@ -160,7 +182,14 @@ WITH
     ecf_dec_start
   ON
     lp_inductions_dedupe.participant_profile_id=ecf_dec_start.started_participant_profile_id
-    AND lp_inductions_dedupe.participant_course=ecf_dec_start.participant_course)
+    AND lp_inductions_dedupe.participant_course=ecf_dec_start.participant_course
+  LEFT JOIN
+    ecf_dec_completed
+  ON
+    lp_inductions_dedupe.participant_profile_id=ecf_dec_completed.completed_participant_profile_id
+    AND lp_inductions_dedupe.participant_course=ecf_dec_completed.participant_course)
+
+
 SELECT
   *,
   CASE
@@ -197,6 +226,23 @@ END
   started_cpd_lead_provider_name
 END
   AS started_lead_provider_short_name,
+  CASE
+    WHEN completed_cpd_lead_provider_name = 'Ambition Institute' THEN 'Ambition'
+    WHEN completed_cpd_lead_provider_name = 'Best Practice Network' THEN 'BPN'
+    WHEN completed_cpd_lead_provider_name = 'Church of England' THEN 'CofE'
+    WHEN completed_cpd_lead_provider_name = 'Education Development Trust' THEN 'EDT'
+    WHEN completed_cpd_lead_provider_name = 'LLSE' THEN 'LLSE'
+    WHEN completed_cpd_lead_provider_name = 'National Institute of Teaching' THEN 'NIoT'
+    WHEN completed_cpd_lead_provider_name = 'School-Led Network' THEN 'School-Led'
+    WHEN completed_cpd_lead_provider_name = 'Teach First' THEN 'TF'
+    WHEN completed_cpd_lead_provider_name = 'Teacher Development Trust' THEN 'TDT'
+    WHEN completed_cpd_lead_provider_name = 'UCL Institute of Education' THEN 'UCL'
+  ELSE
+  completed_cpd_lead_provider_name
+END
+  AS completed_lead_provider_short_name,
+  (completed_declaration_state IN ('payable',
+    'paid') and REGEXP_CONTAINS(schedule_identifier,'reduced')) AS reduced_schedule_criteria_check,
   CASE
     WHEN REGEXP_CONTAINS(schedule_identifier,'replacement') THEN TRUE
   ELSE
