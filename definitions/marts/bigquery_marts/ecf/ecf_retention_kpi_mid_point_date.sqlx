@@ -1,0 +1,422 @@
+config {
+    type: "table",
+    assertions: {
+        uniqueKey: ["declaration_id"]
+    },
+    bigquery: {
+        partitionBy: "mid_point_date",
+        clusterBy: ["cpd_lead_provider_name"]
+    },
+    description: "Objective: To determine the number of started participants still retained by the lead provider in each cohort at the relevant mid-point date. \n \
+Summary: \n \
+For each cohort the retention KPI needs to measure the percentage of participants that started with a lead provider and as of the current date or mid-point and how many are still with that lead provider and not withdrawn from training. \n \
+Started participants are any with an eligible, paid or payable declaration with the lead provider in the statement cohort being measured as of the mid-point date. \n \
+The mid-point is the 31st July 1 years after the cohort. For example 31/07/2024 is the mid-oint for the 2023 cohort. \n \
+ECT retention is measured as the number of participants still with the started lead provider and their training status is not withdrawn out of the total started participants. \n \
+Mentor retention is the same until it comes to the withdrawn status where the lead provider is the same as when started. If a Mentor is withdrawn at the time of review, a check is then done to see if the ECTs they were mentoring have since been assigned a new mentor which has an active training status. If so, the withdrawn Mentor is considered retained. \n \
+A freeze has been applied to the relevant data within the script for any cohorts where the final cut off date has passed. \n \
+This freeze is applied by using the versioned data and only looking at the record states where the mid-point date applies. This means that any changes to induction records or declarations after this date will not be reflected to enable retrospective review without fear of post mid-point modifications.",
+    columns: {
+       mid_point_date: "The date at which the record is being assessed. Each cohort 2023 and 2024 has a mid_point date which is the 31st July 1 years after its name. For example, 2023's mid-point date is 31/07/2024.",
+       statement_cohort: "The financial cohort in which the declaration was processed. This can differ to the participant cohort and is used to ensure only the relevant started declarations per period are assessed.",
+       declaration_id: "The ID of the started declaration being assessed for retention.",
+       declaration_type: "The type of the declaration which in this mart can only be started.",
+       declaration_state: "The state of the declaration which in this mart can only be eligible, paid or payable.",
+       declaration_date: "The datetime of when the declaration was evidenced in the service.",
+       cpd_lead_provider_id: "The ID of the lead provider who submitted the declaration.",
+       cpd_lead_provider_name: "The name of the lead provider who submitted the declaration.",
+       cpd_delivery_partner_id: "The ID of the delivery partner associated with the submitted declaration.",
+       cpd_delivery_partner_name: "The name of the delivery partner associated with the submitted declaration.",
+       participant_profile_id: "The profile ID of the participant.",
+       user_id: "The user ID of the participant.",
+       participant_type: "The type of participant associated with the participant_profile_id. Value is either ECT or Mentor.",
+       induction_record_id: "The ID of the induction record used for the retention review as deemed valid as of the mid-point date.",
+       induction_programme_id: "The ID of the induction programme marked against the used induction record.",
+       training_status: "The participant's training status as per the induction record deemed valid at the mid-point date.",
+       mentor_profile_id: "The Mentor profile ID associated with the participant as per the induction record deemed valid at the mid-point date. This field is null where the participant_type is Mentor.",
+       schedule_identifier: "The name of the schedule as per the induction record deemed valid at the mid-point date. This mart only contains ecf-standard-september schedules as this is the only schedule where retention is calculated.",
+       partnership_id: "The ID of the partnership as per the induction programme associated with the induction record deemed valid at the mid-point date.",
+       lead_provider_name: "The Lead Provider name either associated with the induction record deemed valid at the mid-point date or from the last funded (e/p/p) declaration submitted by the mid-point date.",
+       delivery_partner_name: "The Delivery Partner name either associated with the induction record deemed valid at the mid-point date or from the last funded (e/p/p) declaration submitted by the mid-point date.",
+       mentor_was_replaced: "For participant_type Mentor; if their training status was withdrawn as of the mid-point date but one of their associated ECTs had a new Mentor with an active training status, this mentor is retained. Where this replacement has occurred, the record is marked TRUE else FALSE. When not a Mentor this field is NULL.",
+       participant_retained_at_cut_off: "TRUE/FALSE based on the marker applied. Logic provided by ECF SRM is: Any ECT still with the same lead provider as the started declaration and does not have a withdrawn training status then true. Any Mentor still with the same lead provider as the started declaration and not withdrawn then true. If the mentor is withdrawn but replaced, as per column above, then true." 
+    }
+}
+
+/*** ECF Retention Mid Point KPI Script ***/
+
+/*
+  Objective: To determine the number of started participants still retained by the lead provider in each cohort at the relevant mid-point date.
+
+  Summary:
+    For each cohort the retention KPI needs to measure the percentage of participants that started with a lead provider and as of the current date or mid-point and how many are still with that lead provider and not withdrawn from training.
+    Started participants are any with an eligible, paid or payable declaration with the lead provider in the statement cohort being measured as of the mid-point date.
+    The mid-point is the 31st July 1 years after the cohort. For example 31/07/2024 is the mid-oint for the 2023 cohort.
+    ECT retention is measured as the number of participants still with the started lead provider and their training status is not withdrawn out of the total started participants.
+    Mentor retention is the same until it comes to the withdrawn status where the lead provider is the same as when started. If a Mentor is withdrawn at the time of review, a check is then done to see if the ECTs they were mentoring have since been assigned a new mentor which has an active training status. If so, the withdrawn Mentor is considered retained.
+    A freeze has been applied to the relevant data within the script for any cohorts where the final cut off date has passed.
+    This freeze is applied by using the versioned data and only looking at the record states where the mid-point date applies. This means that any changes to induction records or declarations after this date will not be reflected to enable retrospective review without fear of post mid-point modifications.
+*/
+
+--- Generate table of mid-point dates that will need to be used for calculating retention at certain points in time.
+  -- The mid-point date is the 31st July 1 years after the statement cohort name. For example statement cohort 2023's mid-point is 31/07/2024.
+  -- The current (as of August 2024) retention KPI is valid against statement cohorts 2022, 2023 and 2024. Although only mid-points for 2023 & 2024 are available.
+  -- The table created here contains the 2 mid-point dates relevant for each of the included statement cohorts.
+WITH mid_point_dates AS (
+  SELECT
+     DATE(2024,07,31) AS mid_point_date
+    ,DATETIME(2024,07,31,23,59,59) AS mid_point_datetime
+    ,2023 AS statement_cohort
+  UNION ALL
+  SELECT
+     DATE(2025,07,31) AS mid_point_date
+    ,DATETIME(2025,07,31,23,59,59) AS mid_point_datetime
+    ,2024 AS statement_cohort
+),
+
+--- Gather induction record history to create a valid daily record for use later on.
+  -- This query generates a history of induction records and their versions per participant with a row number to indicate the last record per date (rn0).
+    -- rn0 is evaluated by grouping the participant_profile_id AND valid_to DATE then ordering by end_date DESC, valid_to DESC, created_at DESC so we get the last induction_record in it's last state for each valid_to date.
+  -- With this query we can grab the record relevant on each mid-point date later on in the query.
+induction_history AS (
+  SELECT
+     induction_versions.participant_profile_id
+    ,CASE 
+      WHEN profiles.type LIKE '%ECT' THEN 'ECT' 
+      WHEN profiles.type LIKE '%Mentor' THEN 'Mentor'
+      ELSE NULL
+     END AS participant_type
+    ,induction_versions.id AS induction_record_id
+    ,induction_versions.induction_programme_id
+    ,induction_versions.training_status
+    ,induction_versions.mentor_profile_id
+    ,induction_versions.schedule_id
+    ,schedules.schedule_identifier
+    ,induction_versions.created_at
+    ,induction_versions.start_date
+    ,IFNULL(DATETIME(induction_versions.end_date), DATETIME(2050,12,31,00,00,00)) AS end_date
+    ,induction_versions.valid_from
+    ,IFNULL(DATETIME(induction_versions.valid_to), DATETIME(2050,12,31,00,00,00)) AS valid_to
+    -- Create row number to tag the last record per day. The valid_to order ensures the last change on the date is flagged and the start_date, created_at order ensure it relates to the latest induction record at that time.
+    ,ROW_NUMBER() OVER(PARTITION BY induction_versions.participant_profile_id, IFNULL(DATE(induction_versions.valid_to), DATE(2050,12,31)) ORDER BY IFNULL(DATETIME(end_date), DATETIME(2050,12,31,00,00,00)) DESC, IFNULL(DATETIME(induction_versions.valid_to), DATETIME(2050,12,31,00,00,00)) DESC, induction_versions.created_at DESC) AS rn0
+  FROM
+    ${ref('induction_records_version_cpd')} AS induction_versions
+  LEFT JOIN
+    ${ref('participant_profiles_latest_cpd')} AS profiles
+  ON
+    profiles.id = induction_versions.participant_profile_id
+  LEFT JOIN
+    ${ref('schedules_latest_cpd')} AS schedules
+  ON
+    schedules.id = induction_versions.schedule_id
+  WHERE
+    IFNULL(DATE(induction_versions.valid_to), DATE(2050,12,31)) >= DATE('2024-07-31') -- The ability to track versions begins with the 2023 cohort which has a mid-point date of 31/07/2024. Any records prior to this date will be irrelevant.
+),
+
+--- Gather started declarations at each of the mid-point dates for review as part of the retention KPI mechanism.
+  -- The basis of the retention metric is the number of participants that started with a lead provider in any statement cohort.
+  -- This table contains the declarations as they were at the mid-point dates or presently for those yet to be reached.
+  -- By creating the snapshot of these declarations at the dates we esnure that any changes after the date do not impact the KPI result in the future.
+    -- This snapshot is achieved by finding the last version that was applicable on each of the mid-point dates through inner joining the cut_off_dates created above.
+  -- The declarations are then extended through adding the statement cohort which will be the cohort used for KPI analysis. This is because statement cohort relates to when the declaration was/would be paid rather than which academic cohort the participant relates to as this can change.
+  -- Only funded declarations (e/p/p) are returned in this query.
+started_declarations AS (
+  SELECT
+     mid_point_dates.mid_point_date
+    ,cohorts.start_year AS statement_cohort 
+    ,declaration_versions.id AS declaration_id
+    ,declaration_versions.declaration_type
+    ,declaration_versions.state AS declaration_state
+    ,declaration_versions.declaration_date
+    ,declaration_versions.cpd_lead_provider_id
+    ,lead_providers.name AS cpd_lead_provider_name
+    ,declaration_versions.delivery_partner_id AS cpd_delivery_partner_id
+    ,delivery_partners.name AS cpd_delivery_partner_name
+    ,declaration_versions.participant_profile_id
+    ,declaration_versions.user_id
+    -- Returned rows are sequenced by the cut_off_date, declaration_id and valid_to date of the version for the declaration. The order is specified as last version valid per valid_to date.
+    ,ROW_NUMBER() OVER(PARTITION BY mid_point_dates.mid_point_date, declaration_versions.id, IFNULL(DATE(declaration_versions.valid_to), DATE(2050,12,31)) ORDER BY IFNULL(DATETIME(declaration_versions.valid_to), DATETIME(2050,12,31,00,00,00)) DESC, declaration_versions.created_at DESC) AS rn0
+  FROM
+    ${ref('participant_declarations_version_cpd')} AS declaration_versions
+
+  -- Join on statement details to get statement_cohort.
+    -- 3 joins in total to achieve this. -> statement_line_items -> statements -> cohorts
+  LEFT JOIN
+    ${ref('statement_line_items_latest_cpd')} AS statement_line_items
+  ON
+    statement_line_items.participant_declaration_id = declaration_versions.id
+  LEFT JOIN
+    ${ref('statements_latest_cpd')} AS statements
+  ON
+    statements.id = statement_line_items.statement_id
+  LEFT JOIN
+    ${ref('cohorts_latest_cpd')} AS cohorts
+  ON
+    cohorts.id = statements.cohort_id
+
+  -- Join mid_point_dates to limit records returned to only those valid on the mid-point dates for each cohort.
+  INNER JOIN
+    mid_point_dates
+  ON
+    mid_point_dates.mid_point_datetime BETWEEN DATETIME(declaration_versions.valid_from) AND IFNULL(DATETIME(declaration_versions.valid_to), DATETIME(2050,12,31,00,00,00))
+    AND
+    mid_point_dates.statement_cohort = cohorts.start_year
+
+  -- Join on lead providers & delivery partners to convert IDs to names.
+  LEFT JOIN
+    ${ref('cpd_lead_providers_latest_cpd')} AS lead_providers
+  ON
+    lead_providers.id = declaration_versions.cpd_lead_provider_id
+  LEFT JOIN
+    ${ref('delivery_partners_latest_cpd')} AS delivery_partners
+  ON
+    delivery_partners.id = declaration_versions.delivery_partner_id
+  WHERE
+    declaration_type = 'started'
+    AND
+    course_identifier LIKE 'ecf%'
+    AND
+    declaration_versions.state IN ('paid', 'payable', 'eligible')
+  QUALIFY( -- This ensures only 1 record is returned per date and the ROW_NUMBER() statement above qualifies the last version as number 1.
+      rn0 = 1
+  )
+),
+
+--- Gather induction record versions as at each mid-point date for joining later on to started_declarations.
+  -- 2 queries unioned together for each of the mid_point dates. The inner join on cut_off_dates does not produce the correct output due to the need to row_number over the returned records.
+  -- Each query gathers the records & their states as at the mid-points for each of the 2 cohorts included in the script. 2023 & 2024.
+  -- By using the versioned data we can create snapshots for each of the dates that have passsed and ensure no future changes will change historical KPI values.
+  -- We need to use the same version logic for Partnerships as only changes in LP cause a new partnership record to be generated. If the DP changes the partnership_id does not.
+    -- Although LP is the element being reviewed there has been a desire from the ECF SRM to understand which participants have changed DP or remained but changed LP.
+  -- This data will be joined to the started_declarations later to determine if the participant is retained based upon the lead provider and training status recorded at the mid-point.
+induction_snapshots AS (
+  SELECT
+     induction_history.*
+    ,induction_programmes.partnership_id
+    ,lead_providers.name AS lead_provider_name
+    ,delivery_partners.name AS delivery_partner_name
+    ,DATE(2024,07,31) AS mid_point_date
+    ,ROW_NUMBER() OVER(PARTITION BY participant_profile_id ORDER BY IFNULL(DATETIME(end_date), DATETIME(2050,12,31,00,00,00)) DESC, IFNULL(DATETIME(induction_history.valid_to), DATETIME(2050,12,31,00,00,00)) DESC,  induction_history.created_at DESC) AS rn1
+  FROM
+    induction_history
+  LEFT JOIN
+  ${ref('induction_programmes_latest_cpd')} AS induction_programmes
+  ON
+    induction_programmes.id = induction_history.induction_programme_id
+  LEFT JOIN
+    (
+      SELECT 
+        *
+        ,ROW_NUMBER() OVER(PARTITION BY id, IFNULL(DATE(valid_to), DATE(2050,12,31)) ORDER BY IFNULL(DATETIME(valid_to), DATETIME(2050,12,31,00,00,00)) DESC, created_at DESC) as rn2
+      FROM
+        ${ref('partnerships_version_cpd')}
+      WHERE 
+        challenged_at IS NULL -- If not null then partnership is not valid.
+        AND
+        DATETIME(2024,07,31,23,59,59) BETWEEN DATETIME(valid_from) AND IFNULL(DATETIME(valid_to), DATETIME(2050,12,31,00,00,00))
+      QUALIFY(
+        rn2 = 1
+      )
+    ) AS partnership_versions
+  ON
+    partnership_versions.id = induction_programmes.partnership_id
+  LEFT JOIN
+    ${ref('lead_providers_latest_cpd')} AS lead_providers
+  ON
+    lead_providers.id = partnership_versions.lead_provider_id
+  LEFT JOIN
+    ${ref('delivery_partners_latest_cpd')} AS delivery_partners
+  ON
+    delivery_partners.id = partnership_versions.delivery_partner_id
+  WHERE
+    DATETIME(2024,07,31,23,59,59) BETWEEN DATETIME(induction_history.valid_from) AND DATETIME(induction_history.valid_to)
+    AND
+    DATE(start_date) <= DATE(2024,07,31)
+  QUALIFY(
+    rn1 = 1
+  )
+  UNION ALL
+  SELECT
+     induction_history.*
+    ,induction_programmes.partnership_id
+    ,lead_providers.name AS lead_provider_name
+    ,delivery_partners.name AS delivery_partner_name
+    ,DATE(2025,07,31) AS mid_point_date
+    ,ROW_NUMBER() OVER(PARTITION BY participant_profile_id ORDER BY IFNULL(DATETIME(end_date), DATETIME(2050,12,31,00,00,00)) DESC, IFNULL(DATETIME(induction_history.valid_to), DATETIME(2050,12,31,00,00,00)) DESC,  induction_history.created_at DESC) AS rn1
+  FROM
+    induction_history
+  LEFT JOIN
+  ${ref('induction_programmes_latest_cpd')} AS induction_programmes
+  ON
+    induction_programmes.id = induction_history.induction_programme_id
+  LEFT JOIN
+    (
+      SELECT 
+        *
+        ,ROW_NUMBER() OVER(PARTITION BY id, IFNULL(DATE(valid_to), DATE(2050,12,31)) ORDER BY IFNULL(DATETIME(valid_to), DATETIME(2050,12,31,00,00,00)) DESC, created_at DESC) as rn2
+      FROM
+        ${ref('partnerships_version_cpd')} 
+      WHERE 
+        challenged_at IS NULL -- If not null then partnership is not valid.
+        AND
+        DATETIME(2025,07,31,23,59,59) BETWEEN DATETIME(valid_from) AND IFNULL(DATETIME(valid_to), DATETIME(2050,12,31,00,00,00))
+      QUALIFY(
+        rn2 = 1
+      )
+    ) AS partnership_versions
+  ON
+    partnership_versions.id = induction_programmes.partnership_id
+  LEFT JOIN
+    ${ref('lead_providers_latest_cpd')} AS lead_providers
+  ON
+    lead_providers.id = partnership_versions.lead_provider_id
+  LEFT JOIN
+    ${ref('delivery_partners_latest_cpd')} AS delivery_partners
+  ON
+    delivery_partners.id = partnership_versions.delivery_partner_id
+  WHERE
+    DATETIME(2025,07,31,23,59,59) BETWEEN DATETIME(induction_history.valid_from) AND DATETIME(induction_history.valid_to)
+    AND
+    DATE(start_date) <= DATE(2025,07,31)
+  QUALIFY(
+    rn1 = 1
+  )
+),
+
+--- Gather information on replaced/superceded mentors.
+  -- This query generates a reference list of withdrawn mentors who have been replaced. 
+    -- As per ECF SRM definition; If any ECT related to a Mentor with a withdrawn training status as of the mid-point date has a new Mentor as of the mid-point date with an active training status, the original withdrawn Mentor is classed as retained.
+  -- The query first looks for all ECTs mentored by a withdrawn mentor
+  -- It then looks for the induction snapshots of those ECTs and who the mentor was/is associated with them
+  -- When not the original withdrawn mentor it looks at the induction snapshot for the new mentor to determine their training status.
+  -- The query returns all records where the ECTs new Mentor is active on a given mid-point date.
+  -- This query will be joined on later to assess if a withdrawn mentor at the mid-point date has a replacement record.
+replaced_mentors AS (
+  SELECT
+    withdrawn_mentor_ects.participant_profile_id AS ect_participant_profile_id
+    ,withdrawn_mentors.participant_profile_id AS withdrawn_mentor_id
+    ,ect_induction_snapshot.mid_point_date AS ect_induction_snapshot_mid_point_date
+    ,ect_induction_snapshot.mentor_profile_id AS ect_snapshot_mentor_id
+    ,new_mentor_induction_snapshot.training_status AS new_mentor_training_status
+    ,ROW_NUMBER() OVER(PARTITION BY withdrawn_mentors.participant_profile_id, ect_induction_snapshot.mid_point_date) AS replaced_mentor_indicator
+  FROM induction_history AS withdrawn_mentor_ects
+  INNER JOIN
+    (SELECT
+      participant_profile_id
+      ,mid_point_date
+    FROM
+      induction_snapshots
+    WHERE
+      participant_type = 'Mentor'
+      AND
+      training_status = 'withdrawn'
+      AND
+      schedule_identifier = 'ecf-standard-september'
+    ) AS withdrawn_mentors
+  ON
+    withdrawn_mentors.participant_profile_id = withdrawn_mentor_ects.mentor_profile_id
+  LEFT JOIN
+    induction_snapshots AS ect_induction_snapshot
+  ON
+    ect_induction_snapshot.participant_profile_id = withdrawn_mentor_ects.participant_profile_id
+  LEFT JOIN
+    induction_snapshots AS new_mentor_induction_snapshot
+  ON
+    new_mentor_induction_snapshot.participant_profile_id = ect_induction_snapshot.mentor_profile_id
+    AND
+    new_mentor_induction_snapshot.mid_point_date = ect_induction_snapshot.mid_point_date
+  WHERE
+    withdrawn_mentor_ects.rn0 = 1
+    AND
+    withdrawn_mentors.participant_profile_id != ect_induction_snapshot.mentor_profile_id
+    AND
+    new_mentor_induction_snapshot.training_status = 'active'
+  QUALIFY(
+    replaced_mentor_indicator = 1
+  )
+),
+
+--- Extend the started declarations with induction record and replaced mentor markers
+  -- For each of the started declarations identified earlier and marked with a statement cohort and mid-point date. We join on the induction record valid for that participant as of that mid-point date to be used later on for retention marker review.
+  -- Where the Lead Provider or Delivery Partner is NULL on the relevant induction record we review the last funded (e/p/p) declaration raised as of the mid-point date for these values.
+starts_extended AS (
+  SELECT
+    started_declarations.* EXCEPT(rn0)
+    ,induction_snapshots.participant_type
+    ,induction_snapshots.induction_record_id
+    ,induction_snapshots.induction_programme_id
+    ,induction_snapshots.training_status
+    ,induction_snapshots.mentor_profile_id
+    ,induction_snapshots.schedule_identifier
+    ,induction_snapshots.partnership_id
+    ,COALESCE(induction_snapshots.lead_provider_name, latest_declarations.lead_provider_name) AS lead_provider_name
+    ,COALESCE(induction_snapshots.delivery_partner_name, latest_declarations.delivery_partner_name) AS delivery_partner_name
+    ,CASE 
+      WHEN induction_snapshots.participant_type = 'Mentor' AND replaced_mentors.replaced_mentor_indicator = 1 THEN TRUE
+      WHEN induction_snapshots.participant_type = 'Mentor' AND replaced_mentors.replaced_mentor_indicator IS NULL THEN FALSE
+      ELSE NULL
+    END AS mentor_was_replaced
+  FROM
+    started_declarations
+  LEFT JOIN
+    induction_snapshots
+  ON
+    induction_snapshots.participant_profile_id = started_declarations.participant_profile_id
+    AND
+    induction_snapshots.mid_point_date = started_declarations.mid_point_date
+  LEFT JOIN
+    replaced_mentors
+  ON
+    replaced_mentors.withdrawn_mentor_id = induction_snapshots.participant_profile_id
+    AND
+    replaced_mentors.ect_induction_snapshot_mid_point_date = induction_snapshots.mid_point_date
+  LEFT JOIN
+  (
+    SELECT 
+       declarations.*
+      ,lead_providers.name AS lead_provider_name
+      ,delivery_partners.name AS delivery_partner_name
+      ,mid_point_dates.mid_point_date
+      ,ROW_NUMBER() OVER(PARTITION BY participant_profile_id, mid_point_date ORDER BY declaration_date DESC) AS rn0
+    FROM 
+      ${ref('participant_declarations_latest_cpd')} AS declarations
+    LEFT JOIN
+      mid_point_dates
+    ON
+      mid_point_dates.mid_point_date >= DATE(declarations.declaration_date)
+    LEFT JOIN
+      ${ref('cpd_lead_providers_latest_cpd')} AS lead_providers
+    ON
+      lead_providers.id = declarations.cpd_lead_provider_id
+    LEFT JOIN
+      ${ref('delivery_partners_latest_cpd')} AS delivery_partners
+    ON
+      delivery_partners.id = declarations.delivery_partner_id
+    WHERE 
+      state IN ('paid', 'payable', 'eligible')
+    QUALIFY(
+      rn0 = 1
+    )
+  ) AS latest_declarations
+  ON
+    latest_declarations.participant_profile_id = started_declarations.participant_profile_id
+    AND
+    latest_declarations.mid_point_date = started_declarations.mid_point_date
+  WHERE
+    induction_snapshots.schedule_identifier = 'ecf-standard-september'
+)
+
+--- Generate retention markers for each of extended started declaration
+  -- The definition of retained as per the ECF SRM is:
+    -- Any ECT not withdrawn and still showing against the same lead provider as the started declaration as of the mid_point date.
+    -- Any Mentor still showing against the same lead provider as the started declaration as of the mid_point date. If withdrawn, their ECT must be assigned a new active mentor as of the mid-point date to be considered retained.
+SELECT 
+  *
+  ,CASE
+    WHEN cpd_lead_provider_name != lead_provider_name THEN FALSE
+    WHEN participant_type = 'ECT' AND training_status = 'withdrawn' THEN FALSE
+    WHEN participant_type = 'Mentor' AND training_status = 'withdrawn' AND mentor_was_replaced = FALSE THEN FALSE
+    ELSE TRUE
+  END AS participant_retained_at_cut_off
+FROM
+  starts_extended
