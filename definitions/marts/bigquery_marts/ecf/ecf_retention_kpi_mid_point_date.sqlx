@@ -39,7 +39,7 @@ This freeze is applied by using the versioned data and only looking at the recor
        lead_provider_name: "The Lead Provider name either associated with the induction record deemed valid at the mid-point date or from the last funded (e/p/p) declaration submitted by the mid-point date.",
        delivery_partner_name: "The Delivery Partner name either associated with the induction record deemed valid at the mid-point date or from the last funded (e/p/p) declaration submitted by the mid-point date.",
        mentor_was_replaced: "For participant_type Mentor; if their training status was withdrawn as of the mid-point date but one of their associated ECTs had a new Mentor with an active training status, this mentor is retained. Where this replacement has occurred, the record is marked TRUE else FALSE. When not a Mentor this field is NULL.",
-       participant_retained_at_cut_off: "TRUE/FALSE based on the marker applied. Logic provided by ECF SRM is: Any ECT still with the same lead provider as the started declaration and does not have a withdrawn training status then true. Any Mentor still with the same lead provider as the started declaration and not withdrawn then true. If the mentor is withdrawn but replaced, as per column above, then true." 
+       participant_retained_at_mid_point: "TRUE/FALSE based on the marker applied. Logic provided by ECF SRM is: Any ECT still with the same lead provider as the started declaration and does not have a withdrawn training status then true. Any Mentor still with the same lead provider as the started declaration and not withdrawn then true. If the mentor is withdrawn but replaced, as per column above, then true." 
     }
 }
 
@@ -117,7 +117,7 @@ induction_history AS (
   -- The basis of the retention metric is the number of participants that started with a lead provider in any statement cohort.
   -- This table contains the declarations as they were at the mid-point dates or presently for those yet to be reached.
   -- By creating the snapshot of these declarations at the dates we esnure that any changes after the date do not impact the KPI result in the future.
-    -- This snapshot is achieved by finding the last version that was applicable on each of the mid-point dates through inner joining the cut_off_dates created above.
+    -- This snapshot is achieved by finding the last version that was applicable on each of the mid-point dates through inner joining the mid_point_dates created above.
   -- The declarations are then extended through adding the statement cohort which will be the cohort used for KPI analysis. This is because statement cohort relates to when the declaration was/would be paid rather than which academic cohort the participant relates to as this can change.
   -- Only funded declarations (e/p/p) are returned in this query.
 started_declarations AS (
@@ -134,7 +134,7 @@ started_declarations AS (
     ,delivery_partners.name AS cpd_delivery_partner_name
     ,declaration_versions.participant_profile_id
     ,declaration_versions.user_id
-    -- Returned rows are sequenced by the cut_off_date, declaration_id and valid_to date of the version for the declaration. The order is specified as last version valid per valid_to date.
+    -- Returned rows are sequenced by the mid_point_date, declaration_id and valid_to date of the version for the declaration. The order is specified as last version valid per valid_to date.
     ,ROW_NUMBER() OVER(PARTITION BY mid_point_dates.mid_point_date, declaration_versions.id, IFNULL(DATE(declaration_versions.valid_to), DATE(2050,12,31)) ORDER BY IFNULL(DATETIME(declaration_versions.valid_to), DATETIME(2050,12,31,00,00,00)) DESC, declaration_versions.created_at DESC) AS rn0
   FROM
     ${ref('participant_declarations_version_cpd')} AS declaration_versions
@@ -183,7 +183,7 @@ started_declarations AS (
 ),
 
 --- Gather induction record versions as at each mid-point date for joining later on to started_declarations.
-  -- 2 queries unioned together for each of the mid_point dates. The inner join on cut_off_dates does not produce the correct output due to the need to row_number over the returned records.
+  -- 2 queries unioned together for each of the mid_point dates. The inner join on mid_point_dates does not produce the correct output due to the need to row_number over the returned records.
   -- Each query gathers the records & their states as at the mid-points for each of the 2 cohorts included in the script. 2023 & 2024.
   -- By using the versioned data we can create snapshots for each of the dates that have passsed and ensure no future changes will change historical KPI values.
   -- We need to use the same version logic for Partnerships as only changes in LP cause a new partnership record to be generated. If the DP changes the partnership_id does not.
@@ -417,6 +417,6 @@ SELECT
     WHEN participant_type = 'ECT' AND training_status = 'withdrawn' THEN FALSE
     WHEN participant_type = 'Mentor' AND training_status = 'withdrawn' AND mentor_was_replaced = FALSE THEN FALSE
     ELSE TRUE
-  END AS participant_retained_at_cut_off
+  END AS participant_retained_at_mid_point
 FROM
   starts_extended
