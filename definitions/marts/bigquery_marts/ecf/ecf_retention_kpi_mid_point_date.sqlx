@@ -113,7 +113,7 @@ induction_history AS (
     IFNULL(DATE(induction_versions.valid_to), DATE(2050,12,31)) >= DATE('2024-07-31') -- The ability to track versions begins with the 2023 cohort which has a mid-point date of 31/07/2024. Any records prior to this date will be irrelevant.
 ),
 
---- Gather started declarations at each of the mid-point dates for review as part of the retention KPI mechanism.
+--- Gather started & completed declarations at each of the mid-point dates for review as part of the retention KPI mechanism.
   -- The basis of the retention metric is the number of participants that started with a lead provider in any statement cohort.
   -- This table contains the declarations as they were at the mid-point dates or presently for those yet to be reached.
   -- By creating the snapshot of these declarations at the dates we esnure that any changes after the date do not impact the KPI result in the future.
@@ -134,6 +134,12 @@ started_declarations AS (
     ,delivery_partners.name AS cpd_delivery_partner_name
     ,declaration_versions.participant_profile_id
     ,declaration_versions.user_id
+    ,CASE 
+      WHEN declaration_type = 'completed'
+        AND SUM(CASE WHEN declaration_type = 'started' THEN 1 ELSE 0 END) OVER(PARTITION BY participant_profile_id) > 0
+      THEN TRUE
+      ELSE FALSE
+     END AS has_started_declaration
     -- Returned rows are sequenced by the mid_point_date, declaration_id and valid_to date of the version for the declaration. The order is specified as last version valid per valid_to date.
     ,ROW_NUMBER() OVER(PARTITION BY mid_point_dates.mid_point_date, declaration_versions.id, IFNULL(DATE(declaration_versions.valid_to), DATE(2050,12,31)) ORDER BY IFNULL(DATETIME(declaration_versions.valid_to), DATETIME(2050,12,31,00,00,00)) DESC, declaration_versions.created_at DESC) AS rn0
   FROM
@@ -172,7 +178,7 @@ started_declarations AS (
   ON
     delivery_partners.id = declaration_versions.delivery_partner_id
   WHERE
-    declaration_type = 'started'
+    declaration_type IN ('started', 'completed')
     AND
     course_identifier LIKE 'ecf%'
     AND
@@ -311,7 +317,7 @@ replaced_mentors AS (
       AND
       training_status = 'withdrawn'
       AND
-      schedule_identifier = 'ecf-standard-september'
+      schedule_identifier IN ('ecf-standard-september', 'ecf-reduced-september')
     ) AS withdrawn_mentors
   ON
     withdrawn_mentors.participant_profile_id = withdrawn_mentor_ects.mentor_profile_id
@@ -394,6 +400,8 @@ starts_extended AS (
       delivery_partners.id = declarations.delivery_partner_id
     WHERE 
       state IN ('paid', 'payable', 'eligible')
+      AND
+      course_identifier LIKE 'ecf%'
     QUALIFY(
       rn0 = 1
     )
@@ -403,7 +411,11 @@ starts_extended AS (
     AND
     latest_declarations.mid_point_date = started_declarations.mid_point_date
   WHERE
-    induction_snapshots.schedule_identifier = 'ecf-standard-september'
+   -- Started on the included September schedules: standard & reduced.
+    (started_declarations.declaration_type = 'started' AND induction_snapshots.schedule_identifier IN ('ecf-standard-september', 'ecf-reduced-september'))
+    OR
+    -- Completed without a started declaration on the reduced September schedule.
+    (started_declarations.declaration_type = 'completed' AND started_declarations.has_started_declaration = FALSE AND induction_snapshots.schedule_identifier = 'ecf-reduced-september')
 )
 
 --- Generate retention markers for each of extended started declaration
