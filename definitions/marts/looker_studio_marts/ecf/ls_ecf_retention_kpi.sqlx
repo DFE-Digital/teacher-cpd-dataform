@@ -6,7 +6,8 @@ config {
     description: "Objective: To produce tailored output for ECF Contract Management Dashboard to display retention at the points available for each Lead Provider. \n \
   Summary: \n \
     ECF Retention is the number or participants split by participant type(PT) (ECT or Mentor) still with the Lead Provider(LP) at the cut-off & mid-point dates based on the statement cohort of the participants started declaration. \n \
-    This output produces a table where for each LP-PT combination the number of started & retained participants for each point in time. \n \
+    In order to determine if a participant is still with the started lead provider we look at the induction record version valid at the cut-off & mid-point dates. Where this is null we look at the last declaration evidence by the respective dates. \n \
+    This output produces a table where for each LP-PT combination the number of started & retained participants are calculated for each point cut-off & mid-pojnt date. \n \
     The points in time are: 2022 cut-off, 2023 mid-point & cut-off and 2024 mid-point & cut-off.",
     columns: {
         lead_provider_name: "The name of the lead provider associated with the started declaration that qualifies the participant to be included in relevant starts.",
@@ -23,17 +24,6 @@ config {
         retained_participants_2024_cut_off: "The number of started participants split by participant_type for the lead provider where they are still associated with the same lead provider and their status is not withdrawn as of the cut-off date 31/07/2026. Some withdrawn Mentors are still considered retained if the ECTs they were mentoring are associated with an active Mentor as of the same cut-off date."
     }
 }
-
-  /*** ECF Retention KPI LS Output Mart ***/
-
-/*
-  Objective: To produce tailored output for ECF Contract Management Dashboard to display retention at the points available for each Lead Provider.
-
-  Summary:
-    ECF Retention is the number or participants split by participant type(PT) (ECT or Mentor) still with the Lead Provider(LP) at the cut-off & mid-point dates based on the statement cohort of the participants started declaration.
-    This output produces a table where for each LP-PT combination the number of started & retained participants for each point in time.
-    The points in time are: 2022 cut-off, 2023 mid-point & cut-off and 2024 mid-point & cut-off.
-*/
 
 --- Gather unique list of Lead Providers (LP) & Participant Types (PT)
 WITH lead_providers AS (
