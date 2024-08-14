@@ -146,7 +146,9 @@ WITH
   ON
     npq_e.school_urn = gias.establishment_urn
   WHERE
-    npq_e.course_name = 'NPQ Early Years Leadership (NPQEYL)')
+    npq_e.course_name = 'NPQ Early Years Leadership (NPQEYL)'
+    AND
+    npq_e.valid_application = TRUE)
 SELECT
   *,
   CASE
