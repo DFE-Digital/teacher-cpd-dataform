@@ -251,6 +251,7 @@ END
   AS replacement_mentor_check,
   CASE
     WHEN lead_provider_name = started_cpd_lead_provider_name THEN TRUE
+    WHEN lead_provider_name = completed_cpd_lead_provider_name and REGEXP_CONTAINS(schedule_identifier,'reduced')) THEN TRUE
   ELSE
   FALSE
 END
