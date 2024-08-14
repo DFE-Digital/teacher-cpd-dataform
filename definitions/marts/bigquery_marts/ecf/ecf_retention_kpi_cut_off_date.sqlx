@@ -10,7 +10,9 @@ config {
     description: "Objective: To determine the number of started participants still retained by the lead provider in each cohort at the relevant cut-off date. \n \
 Summary: \n \
 For each cohort the retention KPI needs to measure the percentage of participants that started with a lead provider and as of the current date or cut off point and how many are still with that lead provider and not withdrawn from training. \n \
-Started participants are any with an eligible, paid or payable declaration with the lead provider in the statement cohort being measured as of the cut-off date. \n \
+In order to determine if a participant is still with the lead provider, we look at the induction record version valid as of the cut-off date to check the associated lead provider. If this is null we assess the last declaration evidenced by the cut-off date for the associated lead provider. \n \
+Started participants are any with an eligible, paid or payable started declaration with the lead provider in the statement cohort being measured as of the cut-off date. \n \
+We also include any participants with a completed declaration on a reduced September schedule that have no started declaration; these are classed as one-term inductions. \n \
 The cut off point is the 31st July 2 years after the cohort. For example 31/07/2024 is the cut off point for the 2022 cohort. \n \
 ECT retention is measured as the number of participants still with the started lead provider and their training status is not withdrawn out of the total started participants. \n \
 Mentor retention is the same until it comes to the withdrawn status where the lead provider is the same as when started. If a Mentor is withdrawn at the time of review, a check is then done to see if the ECTs they were mentoring have since been assigned a new mentor which has an active training status. If so, the withdrawn Mentor is considered retained. \n \
@@ -42,21 +44,6 @@ This freeze is applied by using the versioned data and only looking at the recor
        participant_retained_at_cut_off: "TRUE/FALSE based on the marker applied. Logic provided by ECF SRM is: Any ECT still with the same lead provider as the started declaration and does not have a withdrawn training status then true. Any Mentor still with the same lead provider as the started declaration and not withdrawn then true. If the mentor is withdrawn but replaced, as per column above, then true." 
     }
 }
-
-/*** ECF Retention Cut Off KPI Script ***/
-
-/*
-  Objective: To determine the number of started participants still retained by the lead provider in each cohort at the relevant cut-off date.
-
-  Summary:
-    For each cohort the retention KPI needs to measure the percentage of participants that started with a lead provider and as of the current date or cut off point and how many are still with that lead provider and not withdrawn from training.
-    Started participants are any with an eligible, paid or payable declaration with the lead provider in the statement cohort being measured as of the cut-off date.
-    The cut off point is the 31st July 2 years after the cohort. For example 31/07/2024 is the cut off point for the 2022 cohort.
-    ECT retention is measured as the number of participants still with the started lead provider and their training status is not withdrawn out of the total started participants.
-    Mentor retention is the same until it comes to the withdrawn status where the lead provider is the same as when started. If a Mentor is withdrawn at the time of review, a check is then done to see if the ECTs they were mentoring have since been assigned a new mentor which has an active training status. If so, the withdrawn Mentor is considered retained.
-    A freeze has been applied to the relevant data within the script for any cohorts where the final cut off date has passed.
-    This freeze is applied by using the versioned data and only looking at the record states where the cut-off date applies. This means that any changes to induction records or declarations after this date will not be reflected to enable retrospective review without fear of post cut-off modifications.
-*/
 
 --- Generate table of cut-off dates that will need to be used for calculating retention at certain points in time.
   -- The cut-off date is the 31st July 2 years after the statement cohort name. For example statement cohort 2022's cut-off is 31/07/2024.
@@ -118,6 +105,38 @@ induction_history AS (
     IFNULL(DATE(induction_versions.valid_to), DATE(2050,12,31)) >= DATE('2024-07-31') -- The ability to track versions begins with the 2022 cohort which has a cut-off date of 31/07/2024. Any records prior to this date will be irrelevant.
 ),
 
+--- Gather Partnerships History for use in induction record versioning later.
+    -- Partnership versions are required as when a Delivery Partner changes it does not generate a new partnership record & ID.
+    -- Lead provider changes do create a new partnership record.
+    -- If the partnership is challenged (challenged_at IS NOT NULL) or the relationship flag is FALSE then we ignore these as considered invalid partnerships.
+partnership_history AS (
+  SELECT 
+     partnership_versions.* EXCEPT(valid_to)
+    ,IFNULL(DATETIME(partnership_versions.valid_to), DATETIME(2050,12,31,00,00,00)) AS valid_to
+    ,lead_providers.name AS lead_provider_name
+    ,delivery_partners.name AS delivery_partner_name
+    ,ROW_NUMBER() OVER(PARTITION BY partnership_versions.id, IFNULL(DATE(partnership_versions.valid_to), DATE(2050,12,31)) ORDER BY IFNULL(DATETIME(partnership_versions.valid_to), DATETIME(2050,12,31,00,00,00)) DESC, partnership_versions.created_at DESC) as rn2
+  FROM
+   ${ref('partnerships_version_cpd')} AS partnership_versions
+  LEFT JOIN
+    ${ref('lead_providers_latest_cpd')} AS lead_providers
+  ON
+    lead_providers.id = partnership_versions.lead_provider_id
+  LEFT JOIN
+    ${ref('delivery_partners_latest_cpd')} AS delivery_partners
+  ON
+    delivery_partners.id = partnership_versions.delivery_partner_id
+  WHERE 
+    partnership_versions.challenged_at IS NULL -- If not null then partnership is not valid.
+    AND
+    partnership_versions.relationship = FALSE
+    AND
+    DATETIME(2024,07,31,23,59,59) BETWEEN DATETIME(partnership_versions.valid_from) AND IFNULL(DATETIME(partnership_versions.valid_to), DATETIME(2050,12,31,00,00,00))
+  QUALIFY(
+    rn2 = 1
+  )
+),
+
 --- Gather started & completed declarations at each of the cut-off dates for review as part of the retention KPI mechanism.
   -- The basis of the retention metric is the number of participants that started with a lead provider in any statement cohort.
   -- This table contains the declarations as they were at the cut-off dates or presently for those yet to be reached.
@@ -139,6 +158,9 @@ started_declarations AS (
     ,delivery_partners.name AS cpd_delivery_partner_name
     ,declaration_versions.participant_profile_id
     ,declaration_versions.user_id
+    -- In order to flag those participants on a one-term induction we need to determine if those with a completed declaration have a started declaration.
+      -- One-Term Inductions are classified as any participant on a reduced September schedule (determined later via Induction Record) with a completed declaration but without a started declaration.
+      -- This flag checks whether the participant against the completed declaration has a started declaration and tags it with TRUE or FALSE.
     ,CASE 
       WHEN declaration_type = 'completed'
         AND SUM(CASE WHEN declaration_type = 'started' THEN 1 ELSE 0 END) OVER(PARTITION BY participant_profile_id) > 0
@@ -204,10 +226,10 @@ induction_snapshots AS (
   SELECT
      induction_history.*
     ,induction_programmes.partnership_id
-    ,lead_providers.name AS lead_provider_name
-    ,delivery_partners.name AS delivery_partner_name
+    ,partnership_history.lead_provider_name
+    ,partnership_history.delivery_partner_name
     ,DATE(2024,07,31) AS cut_off_date
-    ,ROW_NUMBER() OVER(PARTITION BY participant_profile_id ORDER BY IFNULL(DATETIME(end_date), DATETIME(2050,12,31,00,00,00)) DESC, IFNULL(DATETIME(induction_history.valid_to), DATETIME(2050,12,31,00,00,00)) DESC,  induction_history.created_at DESC) AS rn1
+    ,ROW_NUMBER() OVER(PARTITION BY participant_profile_id ORDER BY DATETIME(end_date) DESC, DATETIME(induction_history.valid_to) DESC,  induction_history.created_at DESC) AS rn1
   FROM
     induction_history
   LEFT JOIN
@@ -215,30 +237,11 @@ induction_snapshots AS (
   ON
     induction_programmes.id = induction_history.induction_programme_id
   LEFT JOIN
-    (
-      SELECT 
-        *
-        ,ROW_NUMBER() OVER(PARTITION BY id, IFNULL(DATE(valid_to), DATE(2050,12,31)) ORDER BY IFNULL(DATETIME(valid_to), DATETIME(2050,12,31,00,00,00)) DESC, created_at DESC) as rn2
-      FROM
-        ${ref('partnerships_version_cpd')}
-      WHERE 
-        challenged_at IS NULL -- If not null then partnership is not valid.
-        AND
-        DATETIME(2024,07,31,23,59,59) BETWEEN DATETIME(valid_from) AND IFNULL(DATETIME(valid_to), DATETIME(2050,12,31,00,00,00))
-      QUALIFY(
-        rn2 = 1
-      )
-    ) AS partnership_versions
+    partnership_history
   ON
-    partnership_versions.id = induction_programmes.partnership_id
-  LEFT JOIN
-    ${ref('lead_providers_latest_cpd')} AS lead_providers
-  ON
-    lead_providers.id = partnership_versions.lead_provider_id
-  LEFT JOIN
-    ${ref('delivery_partners_latest_cpd')} AS delivery_partners
-  ON
-    delivery_partners.id = partnership_versions.delivery_partner_id
+    partnership_history.id = induction_programmes.partnership_id
+    AND
+    DATETIME(2024,07,31,23,59,59) BETWEEN DATETIME(partnership_history.valid_from) AND DATETIME(partnership_history.valid_to)
   WHERE
     DATETIME(2024,07,31,23,59,59) BETWEEN DATETIME(induction_history.valid_from) AND DATETIME(induction_history.valid_to)
     AND
@@ -250,10 +253,10 @@ induction_snapshots AS (
   SELECT
      induction_history.*
     ,induction_programmes.partnership_id
-    ,lead_providers.name AS lead_provider_name
-    ,delivery_partners.name AS delivery_partner_name
+    ,partnership_history.lead_provider_name
+    ,partnership_history.delivery_partner_name
     ,DATE(2025,07,31) AS cut_off_date
-    ,ROW_NUMBER() OVER(PARTITION BY participant_profile_id ORDER BY IFNULL(DATETIME(end_date), DATETIME(2050,12,31,00,00,00)) DESC, IFNULL(DATETIME(induction_history.valid_to), DATETIME(2050,12,31,00,00,00)) DESC,  induction_history.created_at DESC) AS rn1
+    ,ROW_NUMBER() OVER(PARTITION BY participant_profile_id ORDER BY DATETIME(end_date) DESC, DATETIME(induction_history.valid_to) DESC,  induction_history.created_at DESC) AS rn1
   FROM
     induction_history
   LEFT JOIN
@@ -261,30 +264,11 @@ induction_snapshots AS (
   ON
     induction_programmes.id = induction_history.induction_programme_id
   LEFT JOIN
-    (
-      SELECT 
-        *
-        ,ROW_NUMBER() OVER(PARTITION BY id, IFNULL(DATE(valid_to), DATE(2050,12,31)) ORDER BY IFNULL(DATETIME(valid_to), DATETIME(2050,12,31,00,00,00)) DESC, created_at DESC) as rn2
-      FROM
-        ${ref('partnerships_version_cpd')}
-      WHERE 
-        challenged_at IS NULL -- If not null then partnership is not valid.
-        AND
-        DATETIME(2025,07,31,23,59,59) BETWEEN DATETIME(valid_from) AND IFNULL(DATETIME(valid_to), DATETIME(2050,12,31,00,00,00))
-      QUALIFY(
-        rn2 = 1
-      )
-    ) AS partnership_versions
+    partnership_history
   ON
-    partnership_versions.id = induction_programmes.partnership_id
-  LEFT JOIN
-    ${ref('lead_providers_latest_cpd')} AS lead_providers
-  ON
-    lead_providers.id = partnership_versions.lead_provider_id
-  LEFT JOIN
-    ${ref('delivery_partners_latest_cpd')} AS delivery_partners
-  ON
-    delivery_partners.id = partnership_versions.delivery_partner_id
+    partnership_history.id = induction_programmes.partnership_id
+    AND
+    DATETIME(2025,07,31,23,59,59) BETWEEN DATETIME(partnership_history.valid_from) AND DATETIME(partnership_history.valid_to)
   WHERE
     DATETIME(2025,07,31,23,59,59) BETWEEN DATETIME(induction_history.valid_from) AND DATETIME(induction_history.valid_to)
     AND
@@ -296,10 +280,10 @@ induction_snapshots AS (
   SELECT
      induction_history.*
     ,induction_programmes.partnership_id
-    ,lead_providers.name AS lead_provider_name
-    ,delivery_partners.name AS delivery_partner_name
+    ,partnership_history.lead_provider_name
+    ,partnership_history.delivery_partner_name
     ,DATE(2026,07,31) AS cut_off_date
-    ,ROW_NUMBER() OVER(PARTITION BY participant_profile_id ORDER BY IFNULL(DATETIME(end_date), DATETIME(2050,12,31,00,00,00)) DESC, IFNULL(DATETIME(induction_history.valid_to), DATETIME(2050,12,31,00,00,00)) DESC,  induction_history.created_at DESC) AS rn1
+    ,ROW_NUMBER() OVER(PARTITION BY participant_profile_id ORDER BY DATETIME(end_date) DESC, DATETIME(induction_history.valid_to) DESC,  induction_history.created_at DESC) AS rn1
   FROM
     induction_history
   LEFT JOIN
@@ -307,30 +291,11 @@ induction_snapshots AS (
   ON
     induction_programmes.id = induction_history.induction_programme_id
   LEFT JOIN
-    (
-      SELECT 
-        *
-        ,ROW_NUMBER() OVER(PARTITION BY id, IFNULL(DATE(valid_to), DATE(2050,12,31)) ORDER BY IFNULL(DATETIME(valid_to), DATETIME(2050,12,31,00,00,00)) DESC, created_at DESC) as rn2
-      FROM
-        ${ref('partnerships_version_cpd')} 
-      WHERE 
-        challenged_at IS NULL -- If not null then partnership is not valid.
-        AND
-        DATETIME(2026,07,31,23,59,59) BETWEEN DATETIME(valid_from) AND IFNULL(DATETIME(valid_to), DATETIME(2050,12,31,00,00,00))
-      QUALIFY(
-        rn2 = 1
-      )
-    ) AS partnership_versions
+    partnership_history
   ON
-    partnership_versions.id = induction_programmes.partnership_id
-  LEFT JOIN
-    ${ref('lead_providers_latest_cpd')} AS lead_providers
-  ON
-    lead_providers.id = partnership_versions.lead_provider_id
-  LEFT JOIN
-    ${ref('delivery_partners_latest_cpd')} AS delivery_partners
-  ON
-    delivery_partners.id = partnership_versions.delivery_partner_id
+    partnership_history.id = induction_programmes.partnership_id
+    AND
+    DATETIME(2026,07,31,23,59,59) BETWEEN DATETIME(partnership_history.valid_from) AND DATETIME(partnership_history.valid_to)
   WHERE
     DATETIME(2026,07,31,23,59,59) BETWEEN DATETIME(induction_history.valid_from) AND DATETIME(induction_history.valid_to)
     AND
@@ -368,6 +333,7 @@ replaced_mentors AS (
       AND
       training_status = 'withdrawn'
       AND
+      -- Only include the schedules being assessed as part of the KPI to review withdrawn Mentors in the started participant group.
       schedule_identifier IN ('ecf-standard-september', 'ecf-reduced-september')
     ) AS withdrawn_mentors
   ON
@@ -391,6 +357,37 @@ replaced_mentors AS (
   QUALIFY(
     replaced_mentor_indicator = 1
   )
+),
+
+--- Gather the last declaration for each participant at the various cut-off dates
+latest_declarations AS (
+  SELECT 
+       declarations.*
+      ,lead_providers.name AS lead_provider_name
+      ,delivery_partners.name AS delivery_partner_name
+      ,cut_off_dates.cut_off_date
+      ,ROW_NUMBER() OVER(PARTITION BY participant_profile_id, cut_off_date ORDER BY declaration_date DESC) AS rn0
+    FROM 
+      ${ref('participant_declarations_latest_cpd')} AS declarations
+    LEFT JOIN
+      cut_off_dates
+    ON
+      cut_off_dates.cut_off_date >= DATE(declarations.declaration_date)
+    LEFT JOIN
+      ${ref('cpd_lead_providers_latest_cpd')} AS lead_providers
+    ON
+      lead_providers.id = declarations.cpd_lead_provider_id
+    LEFT JOIN
+      ${ref('delivery_partners_latest_cpd')} AS delivery_partners
+    ON
+      delivery_partners.id = declarations.delivery_partner_id
+    WHERE 
+      state IN ('paid', 'payable', 'eligible')
+      AND
+      course_identifier LIKE 'ecf%'
+    QUALIFY(
+      rn0 = 1
+    )
 ),
 
 --- Extend the started declarations with induction record and replaced mentor markers
@@ -428,35 +425,7 @@ starts_extended AS (
     AND
     replaced_mentors.ect_induction_snapshot_cut_off_date = induction_snapshots.cut_off_date
   LEFT JOIN
-  (
-    SELECT 
-       declarations.*
-      ,lead_providers.name AS lead_provider_name
-      ,delivery_partners.name AS delivery_partner_name
-      ,cut_off_dates.cut_off_date
-      ,ROW_NUMBER() OVER(PARTITION BY participant_profile_id, cut_off_date ORDER BY declaration_date DESC) AS rn0
-    FROM 
-      ${ref('participant_declarations_latest_cpd')} AS declarations
-    LEFT JOIN
-      cut_off_dates
-    ON
-      cut_off_dates.cut_off_date >= DATE(declarations.declaration_date)
-    LEFT JOIN
-      ${ref('cpd_lead_providers_latest_cpd')} AS lead_providers
-    ON
-      lead_providers.id = declarations.cpd_lead_provider_id
-    LEFT JOIN
-      ${ref('delivery_partners_latest_cpd')} AS delivery_partners
-    ON
-      delivery_partners.id = declarations.delivery_partner_id
-    WHERE 
-      state IN ('paid', 'payable', 'eligible')
-      AND
-      course_identifier LIKE 'ecf%'
-    QUALIFY(
-      rn0 = 1
-    )
-  ) AS latest_declarations
+    latest_declarations
   ON
     latest_declarations.participant_profile_id = started_declarations.participant_profile_id
     AND
