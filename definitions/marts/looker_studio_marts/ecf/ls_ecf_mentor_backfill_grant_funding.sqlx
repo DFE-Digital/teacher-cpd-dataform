@@ -37,6 +37,7 @@ config {
         gias_establishment_status: "The establishment status currently in GIAS for the used_school_urn.",
         school_mentor_count: "The aggregated count of mentors, using unique participant profile ids, for a given used_school_urn (where those mentors have not received prior payments).",
         school_ect_count: "The aggregated count of ECTs, using unique participant profile ids from ecf_inductions_dedupe, for a given used_school_urn (where those ECTS have an completed_date that is either null or after 31/08/2023).",
+        capped_funded_hours: "The funded hours per declaration where the declaration is one of the 3 allowed per Grant Funding period.",
         school_mentor_backfill_funded_hours: "The sum of funded hours for mentors for a given used_school_urn (where previously_paid if FALSE).",
         fractional_ect_count: "The ect_count for the used_school_urn split evenly across all rows of the mart where previously_paid is FALSE. This enables accurate summing to occur in the Looker Dashboard."
    }
@@ -186,8 +187,10 @@ declarations_extended AS (
 
 SELECT
    * EXCEPT(rn0)
+  -- Create column for adjusted funded hours where declaration sequence is 3 or less. Only 3 declarations can be funded in a single round of Grant Funding.
+  ,CASE WHEN declaration_sequence <= 3 THEN funded_hours ELSE 0 END AS capped_funded_hours
   -- Funded hours per school for mentors not previously paid aggregated at school level for relevant cases only.
-  ,SUM(CASE WHEN previously_paid = FALSE THEN funded_hours ELSE 0 END) OVER(PARTITION BY used_school_urn) AS school_mentor_backfill_funded_hours
+  ,SUM(CASE WHEN previously_paid = FALSE AND declaration_sequence <= 3 THEN funded_hours ELSE 0 END) OVER(PARTITION BY used_school_urn) AS school_mentor_backfill_funded_hours
   -- School ECT count evenly distributed across rows for mentors who were not previously paid to enable aggregation at School level in the dashboard output.
   ,CASE
     WHEN previously_paid = FALSE THEN school_ect_count / (SUM(CASE WHEN previously_paid = FALSE THEN 1 ELSE 0 END) OVER(PARTITION BY used_school_urn))
