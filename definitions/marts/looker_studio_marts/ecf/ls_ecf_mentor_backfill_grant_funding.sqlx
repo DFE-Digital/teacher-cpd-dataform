@@ -188,7 +188,7 @@ declarations_extended AS (
 SELECT
    * EXCEPT(rn0)
   -- Create column for adjusted funded hours where declaration sequence is 3 or less. Only 3 declarations can be funded in a single round of Grant Funding.
-  ,CASE WHEN declaration_sequence <= 3 THEN funded_hours ELSE 0 END AS capped_funded_hours
+  ,CASE WHEN declaration_sequence <= 3 AND previously_paid = FALSE THEN funded_hours ELSE 0 END AS capped_funded_hours
   -- Funded hours per school for mentors not previously paid aggregated at school level for relevant cases only.
   ,SUM(CASE WHEN previously_paid = FALSE AND declaration_sequence <= 3 THEN funded_hours ELSE 0 END) OVER(PARTITION BY used_school_urn) AS school_mentor_backfill_funded_hours
   -- School ECT count evenly distributed across rows for mentors who were not previously paid to enable aggregation at School level in the dashboard output.
