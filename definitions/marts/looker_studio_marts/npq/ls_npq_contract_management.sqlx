@@ -28,7 +28,7 @@ WITH
   SELECT
     lead_provider,
     course,
-    TARGET
+    target
   FROM
     ${ref('npq_lead_provider_course_targets')}
   WHERE
@@ -48,6 +48,13 @@ WITH
       NULL
     END
       ) AS accepted_applications,
+    COUNT(DISTINCT
+      CASE
+        WHEN application_status = 'accepted' AND funded_place = 'true' THEN application_ecf_id
+      ELSE
+      NULL
+    END
+      ) AS accepted_funded_applications,
     COUNT(DISTINCT
       CASE
         WHEN application_status = 'pending' THEN application_ecf_id
