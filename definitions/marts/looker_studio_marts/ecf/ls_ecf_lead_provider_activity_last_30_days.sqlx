@@ -111,6 +111,10 @@ api_user_mapping AS (
   SELECT
      'fb9c56b2-252b-41fe-b6b2-ebf208999df9' AS request_user_id
     ,'UCL Institute of Education' AS request_user_name
+  UNION ALL
+  SELECT
+     'bd152c5a-5ef4-4584-9c63-c32877dbba07' AS request_user_id
+    ,'Teach First' AS request_user_name
 
 ),
 
@@ -148,7 +152,7 @@ ecf_declarations AS (
   WHERE
     DATE(declarations.created_at) BETWEEN CURRENT_DATE()-30 AND CURRENT_DATE()
     AND
-    type LIKE '%ECF'
+    (type LIKE '%ECF' OR type LIKE '%Mentor')
 ),
 
 voided_declarations AS (
@@ -173,7 +177,7 @@ voided_declarations AS (
     AND
     request_path LIKE '%void'
     AND
-    type LIKE '%ECF'
+    (type LIKE '%ECF' OR type LIKE '%Mentor')
 ),
 
 profile_changes AS (
@@ -200,7 +204,7 @@ profile_changes AS (
     AND
     response_status = '200'
     AND
-    type LIKE '%ECF'
+    (type LIKE '%ECF' OR type LIKE '%Mentor')
 ),
 
 partnership_creations AS (
