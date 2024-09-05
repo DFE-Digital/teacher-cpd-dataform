@@ -273,26 +273,31 @@ SELECT
   ,voided_declarations.key_updated AS voided_declaration_key_updated
   ,voided_declarations.new_value AS voided_declaration_new_value
   ,voided_declarations.previous_value AS voided_declaration_previous_value
+  ,ROW_NUMBER() OVER(PARTITION BY voided_declarations.request_uuid, event_date) AS voided_declaration_rn
   ,withdrawals.request_uuid AS withdrawal_request_uuid
   ,withdrawals.participant_profile_id AS withdrawal_participant_profile_id
   ,withdrawals.key_updated AS withdrawal_participant_key_updated
   ,withdrawals.new_value AS withdrawal_participant_new_value
   ,withdrawals.previous_value AS withdrawal_participant_previous_value
+  ,ROW_NUMBER() OVER(PARTITION BY withdrawals.request_uuid, event_date) AS withdrawal_participant_rn
   ,deferrals.request_uuid AS deferral_request_uuid
   ,deferrals.participant_profile_id AS deferral_participant_profile_id
   ,deferrals.key_updated AS deferral_participant_key_updated
   ,deferrals.new_value AS deferral_participant_new_value
   ,deferrals.previous_value AS deferral_participant_previous_value
+  ,ROW_NUMBER() OVER(PARTITION BY deferrals.request_uuid, event_date) AS deferral_participant_rn
   ,resumes.request_uuid AS resume_request_uuid
   ,resumes.participant_profile_id AS resume_participant_profile_id
   ,resumes.key_updated AS resume_participant_key_updated
   ,resumes.new_value AS resume_participant_new_value
   ,resumes.previous_value AS resume_participant_previous_value
+  ,ROW_NUMBER() OVER(PARTITION BY resumes.request_uuid, event_date) AS resume_participant_rn
   ,schedule_changes.request_uuid AS change_schedule_request_uuid
   ,schedule_changes.participant_profile_id AS change_schedule_participant_profile_id
   ,schedule_changes.key_updated AS change_schedule_key_updated
   ,schedule_changes.new_value_name AS change_schedule_new_value
   ,schedule_changes.previous_value_name AS change_schedule_previous_value
+  ,ROW_NUMBER() OVER(PARTITION BY schedule_changes.request_uuid, event_date) AS schedule_change_rn
   ,partnership_creations.partnership_id AS partnership_creation_partnership_id
   ,partnership_creations.request_uuid AS partnership_creation_request_uuid
   ,partnership_creations.cohort AS partnership_creation_cohort
@@ -300,6 +305,7 @@ SELECT
   ,partnership_changes.key_updated AS partnership_change_key_updated
   ,partnership_changes.new_value AS partnership_change_new_value
   ,partnership_changes.previous_value AS partnership_change_previous_value
+  ,ROW_NUMBER() OVER(PARTITION BY partnership_changes.request_uuid, event_date) AS partnership_change_rn
 FROM
   table_foundation
 LEFT JOIN
