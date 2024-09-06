@@ -131,7 +131,9 @@ ects AS (
 declarations_extended AS (
   SELECT
      dec.*
-    ,ROW_NUMBER() OVER(PARTITION BY dec.participant_profile_id ORDER BY declaration_type_hierarchy ASC) AS declaration_sequence
+    -- Create declaration sequence per participant and also by whether there are funded_hours associated and whether it is was previously paid.
+        -- This ensures that declarations after extended-1/2/3 are not incorrectly excluded by the 3 declaration cap per period.
+    ,ROW_NUMBER() OVER(PARTITION BY dec.participant_profile_id, funded_hours, pp.user_id ORDER BY declaration_type_hierarchy ASC) AS declaration_sequence
     ,ROUND((cost.cost_for_36_hours / 36) * dec.funded_hours, 2) AS funded_hours_cost
     ,CASE
       WHEN pp.user_id IS NOT NULL THEN TRUE
