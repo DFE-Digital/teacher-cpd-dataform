@@ -106,7 +106,7 @@ WITH declarations AS (
     AND
     participant_course = 'Mentor'
     AND
-    dec.declaration_date >= '2023-09-01'
+    dec.declaration_date >= '2023-09-01' AND dec.declaration_date <= '2024-08-31'
   QUALIFY (
     rn0 = 1
   )
