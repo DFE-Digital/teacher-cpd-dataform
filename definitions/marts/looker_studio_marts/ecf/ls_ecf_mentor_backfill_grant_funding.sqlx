@@ -16,7 +16,7 @@ config {
         declaration_type: "The type of declaration which can be started, retained-1/2/3/4, extended-1/2/3 or completed.",
         declaration_state: "The state of the declaration which for this mart can only be funded (eligible/payable/paid)",
         declaration_type_hierarchy: "A number from 1 to 9 based on started to completed declaration types to enable sorting in the correct sequence regardless of declaration date.",
-        declaration_date: "The date the declaration was evidenced.",
+        declaration_date: "The date the declaration was evidenced. Values range from 2023-09-01 to 2024-08-31.",
         lead_provider_name: "The name of the lead provider as per the declaration record.",
         delivery_partner_name: "The name of the delivery partner as per the declaration record or where null from the induction record.",
         latest_induction_record_id: "The id of the latest induction record associated with the participant profile id.",
@@ -106,7 +106,7 @@ WITH declarations AS (
     AND
     participant_course = 'Mentor'
     AND
-    dec.declaration_date >= '2023-09-01'
+    dec.declaration_date >= '2023-09-01' AND dec.declaration_date <= '2024-08-31'
   QUALIFY (
     rn0 = 1
   )
