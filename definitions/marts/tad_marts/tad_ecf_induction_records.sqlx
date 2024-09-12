@@ -29,7 +29,8 @@ config {
         completion_date: "The date an ECT completed their induction ",
         participant_type: "When joining to declarations it is important to confirm the declaration record matches on participant_type (so ECT record & ECT declaration and Mentor record & Mentor declaration)",
         high_pupil_premium: "This indicates whether the uplift payment for X is applicable to this participant's started declaration",
-        sparsity_incentive: "This indicates whether the uplift payment for X is applicable to this participant's started declaration"
+        sparsity_incentive: "This indicates whether the uplift payment for X is applicable to this participant's started declaration",
+        cohort_rolled_over_21_24: "This identifies a participant that has some declarations originally paid under the 2021 contract/cohort. They are now continuing training under the 2024 cohort/contract"
 
     }
 }
@@ -59,6 +60,7 @@ SELECT
   cohort,
   school_id,
   high_pupil_premium,
-  sparsity_incentive
+  sparsity_incentive,
+  cohort_rolled_over_21_24
 FROM
   ${ref(`ecf_inductions`)}
