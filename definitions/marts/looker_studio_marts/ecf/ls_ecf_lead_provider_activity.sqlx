@@ -95,13 +95,14 @@ lead_providers AS (
   FROM
     ${ref('cpd_lead_providers_latest_cpd')}
   WHERE
-	-- Exlcude Lead Providers no longer relevant
+	-- Exlcude Lead Providers no longer relevant as per instruction from NE
     name NOT IN ('Capita', 'Teacher Development Trust', 'LLSE', 'Church of England', 'School-Led Network')
   GROUP BY
     id, name
 ),
 
--- List out the metrics that will be covered by this script.
+-- Create reference table of metrics that the script is to generate data for. This list will need to be amended accordingly if metrics need to be added or removed.
+--- By using this in the final output it avoids uncessary duplication that can occure through multiple left joins and allows for easy segration when filtering to a specific metric.
 metrics AS (
   SELECT
     'declarations_submitted' AS metric_name
@@ -128,7 +129,7 @@ metrics AS (
     'schedules_changed' AS metric_name
 ),
 
--- Create the table foundation which all other data will be joined to later on.
+-- Create the table foundation which all other data will be joined to later on. This CTE consists of a cross join between dates in the last_X_days CTE, metric_name from the above CTE and lead_provider from the CTE above which contains only the desired LPs.
 table_foundation AS (
   SELECT 
      event_date
@@ -143,7 +144,21 @@ table_foundation AS (
     metrics
 ),
 
--- Gather the ECF Declaration Submissions over the last X days.
+-- Gather ECF Induction Records to be able to join User ID, Participant Type & Cohort onto participants within the script without needing to join on Participant Profiles and Teacher Profiles separately.
+ecf_inductions AS(
+  SELECT
+     induction_record_id
+    ,participant_profile_id
+    ,participant_type
+    ,user_id
+    ,cohort
+    ,DATE(start_date) AS start_date
+    ,IFNULL(DATE(end_date), DATE(2050,12,31)) AS end_date
+  FROM
+    ${ref('ecf_inductions')}
+),
+
+-- Gather the ECF Declaration Submissions over the last X days. This CTE looks at all declarations created in the service over the last X days and we join on ecf_inductions to obtain the participant's user_id and participant_type.
 ecf_declarations AS (
   SELECT
      declarations.id AS declaration_id
@@ -153,8 +168,8 @@ ecf_declarations AS (
     ,declarations.declaration_type
     ,declarations.state
     ,declarations.participant_profile_id
-    ,teacher_profiles.user_id
-    ,profiles.type  AS participant_type
+    ,ecf_inductions.user_id
+    ,ecf_inductions.participant_type  AS participant_type
     ,lp.lead_provider_name AS cpd_lead_provider_name
     ,cohorts.start_year AS cohort
   FROM
@@ -168,14 +183,22 @@ ecf_declarations AS (
     ${ref('cohorts_latest_cpd')} AS cohorts
   ON  
     cohorts.id = declarations.cohort_id
+  -- Join on ecf_inductions CTE and de-duplicate where multiple induction records are valid around the date of the event. We use the last record valid on the date.
   LEFT JOIN
-    ${ref('participant_profiles_latest_cpd')} AS profiles
+    (
+      SELECT
+         *
+        ,ROW_NUMBER() OVER(PARTITION BY participant_profile_id ORDER BY end_date DESC) AS rn0
+      FROM
+        ecf_inductions
+      QUALIFY(
+        rn0 = 1
+      )
+    ) AS ecf_inductions
   ON
-    profiles.id = declarations.participant_profile_id
-  LEFT JOIN
-    ${ref('teacher_profiles_latest_cpd')} AS teacher_profiles
-  ON
-    teacher_profiles.id = profiles.teacher_profile_id
+    ecf_inductions.participant_profile_id = declarations.participant_profile_id
+    AND
+    DATE(declarations.created_at) BETWEEN ecf_inductions.start_date AND ecf_inductions.end_date
   -- Join on las_X_days to limit the data to the range we want to review.
   INNER JOIN
     last_X_days 
@@ -185,15 +208,15 @@ ecf_declarations AS (
     declarations.type NOT LIKE '%NPQ'
 ),
 
--- Gather voided declarations triggered by Lead Provider API actions.
+-- Gather voided declarations triggered by Lead Provider API actions. The field we check for updates is 'state'. We also join on ecf_inductions in order to obtain the participant's user_id and participant_type.
 voided_declarations AS (
   SELECT
      entity_id AS declaration_id
     ,declaration_type
     ,cohorts.start_year AS cohort
     ,declarations.participant_profile_id
-    ,teacher_profiles.user_id
-    ,profiles.type AS participant_type
+    ,ecf_inductions.user_id
+    ,ecf_inductions.participant_type AS participant_type
     ,DATE(occurred_at) AS occurred_at_date
     ,declarations.cpd_lead_provider_id
     ,request_uuid
@@ -209,14 +232,22 @@ voided_declarations AS (
     ${ref('cohorts_latest_cpd')} AS cohorts
   ON
     cohorts.id = declarations.cohort_id
+  -- Join on ecf_inductions CTE and de-duplicate where multiple induction records are valid around the date of the event. We use the last record valid on the date.
   LEFT JOIN
-    ${ref('participant_profiles_latest_cpd')} AS profiles
+    (
+      SELECT
+         *
+        ,ROW_NUMBER() OVER(PARTITION BY participant_profile_id ORDER BY end_date DESC) AS rn0
+      FROM
+        ecf_inductions
+      QUALIFY(
+        rn0 = 1
+      )
+    ) AS ecf_inductions
   ON
-    profiles.id = declarations.participant_profile_id
-  LEFT JOIN
-    ${ref('teacher_profiles_latest_cpd')} AS teacher_profiles
-  ON
-    teacher_profiles.id = profiles.teacher_profile_id
+    ecf_inductions.participant_profile_id = declarations.participant_profile_id
+    AND
+    DATE(declarations.occurred_at) BETWEEN ecf_inductions.start_date AND ecf_inductions.end_date
   INNER JOIN
     lead_providers
   ON
@@ -228,18 +259,21 @@ voided_declarations AS (
   WHERE
     request_path LIKE '%void'
     AND
+    key_updated = 'state'
+    AND
     declarations.type NOT LIKE '%NPQ'
 ),
 
--- Gather Participant Profile Changes (training_status and schedule_id)
+-- Gather Participant Profile Changes to training_status. There are 3 APIs that can affect this field; withdraw, defer & resume. This CTE captures all 3 and in the final output table at the end of this script we split by request_path to then match with the corresponding metric_name from table_foundation.
+--- We join on the ecf_inductions CTE to gather the participants user_id, participant_type and cohort.
 profile_changes AS (
   SELECT 
      DATE(occurred_at) AS occurred_at_date
     ,request_uuid
     ,entity_id AS participant_profile_id
-    ,teacher_profiles.user_id
-    ,profiles.type AS participant_type
-    ,cohorts.start_year AS cohort
+    ,ecf_inductions.user_id
+    ,ecf_inductions.participant_type AS participant_type
+    ,ecf_inductions.cohort AS cohort
     ,request_path
     ,profiles.request_user_id
     ,lead_providers.lead_provider_name AS request_user_name
@@ -248,18 +282,22 @@ profile_changes AS (
     ,previous_value
   FROM 
     ${ref('participant_profiles_field_updates_cpd')} AS profiles
+  -- Join on ecf_inductions CTE and de-duplicate where multiple induction records are valid around the date of the event. We use the last record valid on the date.
   LEFT JOIN
-    ${ref('teacher_profiles_latest_cpd')} AS teacher_profiles
+    (
+      SELECT
+         * 
+        ,ROW_NUMBER() OVER(PARTITION BY participant_profile_id ORDER BY end_date DESC) AS rn0
+      FROM
+        ecf_inductions
+      QUALIFY(
+        rn0 = 1
+      )
+    ) AS ecf_inductions
   ON
-    teacher_profiles.id = profiles.teacher_profile_id
-  LEFT JOIN
-    ${ref('school_cohorts_latest_cpd')} AS school_cohort
-  ON
-    school_cohort.id = profiles.school_cohort_id
-  LEFT JOIN
-    ${ref('cohorts_latest_cpd')} AS cohorts
-  ON
-    cohorts.id = school_cohort.cohort_id
+    ecf_inductions.participant_profile_id = profiles.entity_id
+    AND
+    DATE(profiles.occurred_at) BETWEEN ecf_inductions.start_date AND ecf_inductions.end_date
   INNER JOIN
     lead_providers 
   ON
@@ -269,12 +307,95 @@ profile_changes AS (
   ON
     last_X_days.event_date = DATE(occurred_at)
   WHERE 
-    key_updated IN ('training_status', 'schedule_id')
+    key_updated IN ('training_status')
     AND
     type NOT LIKE '%NPQ'
 ),
 
--- Gather Partnership Creations conducted by Lead Providers over the API method.
+-- Gather Schedule Changes made via the API by Lead Providers. These API changes impact the participant profile and as such we take the information from the field changes made to this table. When a schedule changes so can the cohort and in this CTE we capture both values in their new and previous states.
+schedule_changes AS (
+  SELECT 
+     DATE(occurred_at) AS occurred_at_date
+    ,request_uuid
+    ,entity_id AS participant_profile_id
+    ,ecf_inductions.user_id
+    ,ecf_inductions.participant_type AS participant_type
+    ,ecf_inductions.cohort AS cohort
+    ,request_path
+    ,profiles.request_user_id
+    ,lead_providers.lead_provider_name AS request_user_name
+    ,key_updated
+    ,new_schedules.schedule_name AS new_schedule
+    ,new_schedules.cohort AS new_cohort
+    ,prev_schedules.schedule_name AS previous_schedule
+    ,prev_schedules.cohort AS previous_cohort
+  FROM 
+    ${ref('participant_profiles_field_updates_cpd')} AS profiles
+  -- Join on ecf_inductions CTE and de-duplicate where multiple induction records are valid around the date of the event. We use the last record valid on the date.
+  LEFT JOIN
+    (
+      SELECT
+         *
+        ,ROW_NUMBER() OVER(PARTITION BY participant_profile_id ORDER BY end_date DESC) AS rn0
+      FROM
+        ecf_inductions
+      QUALIFY(
+        rn0 = 1
+      )
+    ) AS ecf_inductions
+  ON
+    ecf_inductions.participant_profile_id = profiles.entity_id
+    AND
+    DATE(profiles.occurred_at) BETWEEN ecf_inductions.start_date AND ecf_inductions.end_date
+  -- Join on Schedules to convert the new & previous values from the field updates into the schedule & cohort names
+  LEFT JOIN
+    (
+      SELECT
+         schedules.id
+        ,schedules.name AS schedule_name
+        ,cohorts.start_year AS cohort
+      FROM
+        ${ref('schedules_latest_cpd')} AS schedules
+      LEFT JOIN
+        ${ref('cohorts_latest_cpd')} AS cohorts
+      ON
+        cohorts.id = schedules.cohort_id
+    ) AS new_schedules
+  ON
+    new_schedules.id = profiles.new_value
+  LEFT JOIN
+    (
+      SELECT
+         schedules.id
+        ,schedules.name AS schedule_name
+        ,cohorts.start_year AS cohort
+      FROM
+        ${ref('schedules_latest_cpd')} AS schedules
+      LEFT JOIN
+        ${ref('cohorts_latest_cpd')} AS cohorts
+      ON
+        cohorts.id = schedules.cohort_id
+    ) AS prev_schedules
+  ON
+    prev_schedules.id = profiles.previous_value
+  INNER JOIN
+    lead_providers 
+  ON
+    lead_providers.lead_provider_id = profiles.request_user_id
+  INNER JOIN
+    last_X_days
+  ON
+    last_X_days.event_date = DATE(occurred_at)
+  WHERE 
+    key_updated IN ('schedule_id')
+    AND
+    request_path LIKE '%change-schedule'
+    AND
+    type NOT LIKE '%NPQ'
+),
+
+-- Gather Partnership Creations conducted by Lead Providers over the API method. A limited number of LPs use an alternative CSV upload method to create partnerships but the activity captured in this CTE is believed to be the majority by the ECF Reg & SRM teams.
+--- We also include the School URN and Cohort in this CTE which is required in the final output for display in the dashboard.
 partnership_creations AS (
   SELECT
      partnerships.id AS partnership_id
@@ -286,6 +407,7 @@ partnership_creations AS (
     ,partnerships.request_user_id
     ,lead_providers.lead_provider_name AS request_user_name
     ,cohorts.start_year AS cohort
+    -- Some partnership IDs are duplicated in the versioned data due to having the same created_at date. This RN allows us to only bring through the last record on a a given created_at date achieved via the Qualify statement below.    
     ,ROW_NUMBER() OVER(PARTITION BY partnerships.id, DATE(partnerships.created_at) ORDER BY partnerships.created_at DESC) AS rn0
   FROM
     ${ref('partnerships_version_cpd')} AS partnerships
@@ -319,6 +441,7 @@ partnership_creations AS (
 ),
 
 -- Gather Partnership Changes made by Lead Providers over the API. The LPs can only update the Delivery Partner.
+--- We also gather the School URN and Cohort which are required in the final output for display in the dashboard.
 partnership_changes AS (
   SELECT 
      DATE(occurred_at) AS occurred_at_date
@@ -340,7 +463,7 @@ partnership_changes AS (
   ON
     schools.id = partnerships.school_id
   LEFT JOIN
-    ${ref('delivery_partners_latest_cpd')} AS new_dp
+   ${ref('delivery_partners_latest_cpd')} AS new_dp
   ON
     new_dp.id = partnerships.new_value
   LEFT JOIN
@@ -348,7 +471,7 @@ partnership_changes AS (
   ON
     old_dp.id = partnerships.previous_value
   LEFT JOIN
-   ${ref('cohorts_latest_cpd')} AS cohorts
+    ${ref('cohorts_latest_cpd')} AS cohorts
   ON
     cohorts.id = partnerships.cohort_id
   INNER JOIN
@@ -365,7 +488,8 @@ partnership_changes AS (
     request_path LIKE '%partnerships%'
 )
 
--- Put everything together.
+-- Produce the final output that takes the table_foundation and left joins on each of the CTEs above that correspond with a metric_name created at the start.
+--- Using the left join method over a union makes any future changes easier as there is no need to to have consistent column numbers per joined entity.
 SELECT
    table_foundation.*
   ,ecf_declarations.*
@@ -432,6 +556,7 @@ SELECT
   ,partnership_changes.previous_value_name AS partnership_change_previous_dp
 FROM
   table_foundation
+-- Join on Declarations Submitted to the LP, Event Date and corresponding Metric Name
 LEFT JOIN
   ecf_declarations
 ON
@@ -440,6 +565,7 @@ ON
   table_foundation.event_date = ecf_declarations.declaration_created_at_date
   AND
   table_foundation.metric_name = 'declarations_submitted'
+-- Join on Declarations Voided to the LP, Event Date and corresponding Metric Name
 LEFT JOIN
   voided_declarations 
 ON
@@ -448,6 +574,7 @@ ON
   voided_declarations.request_user_name = table_foundation.lead_provider_name
   AND
   table_foundation.metric_name = 'declarations_voided'
+-- Join on Profile Changes and filter to withdraw request path for the LP, Event Date & corresponding Metric Name
 LEFT JOIN
   profile_changes AS withdrawals
 ON
@@ -458,8 +585,7 @@ ON
   withdrawals.request_path LIKE '%withdraw'
   AND
   table_foundation.metric_name = 'participants_withdrawn'
-  AND
-  withdrawals.key_updated = 'training_status'
+  -- Join on Profile Changes and filter to defer request path for the LP, Event Date & corresponding Metric Name
 LEFT JOIN
   profile_changes AS deferrals
 ON
@@ -470,8 +596,7 @@ ON
   deferrals.request_path LIKE '%defer'
   AND
   table_foundation.metric_name = 'participants_deferred'
-  AND
-  deferrals.key_updated = 'training_status'
+-- Join on Profile Changes and filter to resume request path for the LP, Event Date & corresponding Metric Name
 LEFT JOIN
   profile_changes AS resumes
 ON
@@ -482,59 +607,16 @@ ON
   resumes.request_path LIKE '%resume'
   AND
   table_foundation.metric_name = 'participants_resumed'
-  AND
-  resumes.key_updated = 'training_status'
+-- Join on Schedule Changes to the LP, Event Date & corresponding Metric Name
 LEFT JOIN 
-  (
-    SELECT
-      profile_changes.*
-      ,new_schedules.schedule_name AS new_schedule
-      ,new_schedules.cohort AS new_cohort
-      ,prev_schedules.schedule_name AS previous_schedule
-      ,prev_schedules.cohort AS previous_cohort
-    FROM
-      profile_changes
-    LEFT JOIN
-      (
-        SELECT
-           schedules.id
-          ,schedules.name AS schedule_name
-          ,cohorts.start_year AS cohort
-        FROM
-          ${ref('schedules_latest_cpd')} AS schedules
-        LEFT JOIN
-          ${ref('cohorts_latest_cpd')} AS cohorts
-        ON
-          cohorts.id = schedules.cohort_id
-      ) AS new_schedules
-    ON
-      new_schedules.id = profile_changes.new_value
-    LEFT JOIN
-      (
-        SELECT
-           schedules.id
-          ,schedules.name AS schedule_name
-          ,cohorts.start_year AS cohort
-        FROM
-          ${ref('schedules_latest_cpd')} AS schedules
-        LEFT JOIN
-          ${ref('cohorts_latest_cpd')} AS cohorts
-        ON
-          cohorts.id = schedules.cohort_id
-      ) AS prev_schedules
-    ON
-      prev_schedules.id = profile_changes.previous_value
-    WHERE
-      profile_changes.request_path LIKE '%change-schedule'
-      AND
-      profile_changes.key_updated = 'schedule_id'
-  ) AS schedule_changes
+  schedule_changes
 ON
   schedule_changes.occurred_at_date = table_foundation.event_date
   AND
   schedule_changes.request_user_name = table_foundation.lead_provider_name
   AND
   table_foundation.metric_name = 'schedules_changed'
+-- Join on Partnership Creations to the LP, Event Date & corresponding Metric Name
 LEFT JOIN
   partnership_creations
 ON
@@ -543,6 +625,7 @@ ON
   partnership_creations.request_user_name = table_foundation.lead_provider_name
   AND
   table_foundation.metric_name = 'partnerships_created'
+-- Join on Partnership Changes to the LP, Event Date & corresponding Metric Name
 LEFT JOIN 
   partnership_changes
 ON
