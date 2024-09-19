@@ -123,7 +123,7 @@ WITH
       'payable',
       'paid')
     AND 
-    started_declaration_date >= '2023-10-01'
+    started_declaration_date >= '2023-10-01' AND started_declaration_date <= '2024-07-31'
     AND
     course_identifier NOT IN ('npq-early-headship-coaching-offer', 'npq-additional-support-offer') --EHCO/ASO courses are excluded as per instruction on 16/05/2024.
     AND
