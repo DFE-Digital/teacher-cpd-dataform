@@ -10,8 +10,7 @@ config {
     Objective:To produce list of NPQ applications for Grant Funding that can be aggregated at School URN level to be assessed for eligibility for TSF. \n \
     Instructions: \n \
       To obtain list of eligible & included applications: is_included = 1; \n \
-      To obtain list of currently not included applications that meet review criteria: is_included = 0 AND is_excluded = 0 AND(pupils_at_reg_chk = 1 OR gias_pupils_chk = 1 OR gias_phase_chk = 1 OR spec_est_chk = 1) \n \
-    Dependencies: static_tables.gias_snapshot_2024_05_10, static_tables.npq_tsf_additional_applications_to_include, static_tables.npq_tsf_applications_to_exclude, static_tables.special_16_19_establishments",
+      To obtain list of currently not included applications that meet review criteria: is_included = 0 AND is_excluded = 0 AND(pupils_at_reg_chk = 1 OR gias_pupils_chk = 1 OR gias_phase_chk = 1 OR spec_est_chk = 1)",
     columns: {
         ecf_user_id: "This comes from the teacher profile associated with the participant profile. User ID also exists independently in other tables.",
         application_trn: "This is the TRN provided at the point of application",
@@ -68,26 +67,7 @@ config {
         gias_phase_chk = 1
         OR
         spec_est_chk = 1
-      )  
-
-  Dependencies:
-    static_tables.gias_snapshot_2024_05_10
-    static_tables.npq_tsf_additional_applications_to_include
-    static_tables.npq_tsf_applications_to_exclude
-    static_tables.special_16_19_establishments
-
-
-  Version:
-    1.0 2024-05-17 Tony Page
-      Initial Build
-
-    1.1 2024-05-20 Tony Page
-      Added CTE to assess additional applications in the "to include" list that do not appear by default in the NPQ Applications CTE.
-
-    1.2 2024-05-24 Tony Page
-      Added manual overwrite of ecf_user_id and trn_verified for TRN 1137983 which does not have a latest participant profile in the service.
-      This is the only known instance so a manual fix was agreed by NE rather than asking developers to apply the fix in the service.
-
+      )
 */
 
 --- Get all applications that meet specified criteria.
