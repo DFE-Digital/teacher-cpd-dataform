@@ -1,0 +1,69 @@
+config {
+    type: "table",
+    bigquery: {
+        partitionBy: "event_date",
+        clusterBy: ["cpd_lead_provider_name"]
+    },
+    description: "This mart contains successful (200 status code) API requests made by a Lead Provider on the API path containing 'partnerships/ecf' to change a partnership's associated delivery partner. \n \
+	This mart includes changes where the occurred_at date is in the last 180 days only. \n \
+	The purpose of this mart is to support ECF Contract Management in monitoring Lead Provider made changes, namely, the change of deliver partners associated with partnerships. \n \
+	The data within this mart will be used in the ECF Contract Management Dashboard to provide a high level count of changes made by the Lead Provider on an Event Date as well as key information that can assist in their conversations with LPs.",
+    columns: {
+      event_date: "The date the change was made in the service. This is called occurred_at in the source data table and renamed to event_date in the mart.",
+      event_date_delta: "The number of days between the event_date and the current date.",
+      cpd_lead_provider_name: "The name of the lead provider who performed the action. This is determined by the request_user_id which is captured in the service and mapped against the cpd_lead_provider_id in cpd_lead_providers_latest. This connection has been confirmed as correct by LPDOB.",
+	  partnership_id: "The ID of the created partnership.",
+	  school_urn: "The Unique Reference Number (URN) of the school involved in the newly created partnership with the lead provider.",
+	  cohort: "The cohort associated with the created partnership.",
+	  request_uuid: "The unique identifier for the API request that triggered the creation of this partnership. This UUID is only usable by LPDOB or developers if the request needs to be reviewed. In this mart this value is unique and a distinct count of this field is used to determine how many actions of this type have been conducted by a lead provider on the event date.",
+	  request_path: "The full API path used by the lead provider to create the partnership. The path can vary but should always include 'partnerships/ecf'.",
+	  key_updated: "The field on the table partnerships_latest_cpd that was changed via this lead provider API request. The only field that can be changed via this method is delivery_partner_id.",
+	  new_value: "The new delivery_partner_id value assigned by this request, translated into the delivery partner's name via delivery_partners_latest_cpd.",
+	  previous_value: "The previous delivery_partner_id value changed by this request, translated into the delivery partner's name via delivery_partners_latest_cpd."	  
+    }
+}
+
+-- Gather Partnership Changes made by Lead Providers over the API. The LPs can only update the Delivery Partner.
+--- We also gather the School URN and Cohort which are required in the final output for display in the dashboard.
+SELECT 
+   DATE(occurred_at) AS event_date
+  ,DATE_DIFF(CURRENT_DATE(), DATE(partnerships.occurred_at), DAY) AS event_date_delta
+  ,lead_providers.name AS cpd_lead_provider_name
+  ,entity_id AS partnership_id
+  ,schools.urn AS school_urn
+  ,cohorts.start_year AS cohort
+  ,request_uuid
+  ,request_path
+  ,key_updated
+  ,new_dp.name AS new_value
+  ,old_dp.name AS previous_value
+FROM 
+  ${ref('partnerships_field_updates_cpd')} AS partnerships
+LEFT JOIN 
+  ${ref('schools_latest_cpd')} AS schools
+ON
+  schools.id = partnerships.school_id
+LEFT JOIN
+  ${ref('cpd_lead_providers_latest_cpd')} AS lead_providers
+ON
+  lead_providers.id = partnerships.request_user_id
+LEFT JOIN
+  ${ref('delivery_partners_latest_cpd')} AS new_dp
+ON
+  new_dp.id = partnerships.new_value
+LEFT JOIN
+  ${ref('delivery_partners_latest_cpd')} AS old_dp
+ON
+  old_dp.id = partnerships.previous_value
+LEFT JOIN
+  ${ref('cohorts_latest_cpd')} AS cohorts
+ON
+  cohorts.id = partnerships.cohort_id
+WHERE
+  key_updated = 'delivery_partner_id'
+  AND
+  request_path LIKE '%partnerships/ecf%'
+  AND
+  request_method != 'GET'
+  AND
+  DATE(partnerships.occurred_at) BETWEEN CURRENT_DATE()-180 AND CURRENT_DATE()

@@ -2,79 +2,30 @@ config {
     type: "table",
     bigquery: {
         partitionBy: "event_date",
-        clusterBy: ["lead_provider_name"]
+        clusterBy: ["cpd_lead_provider_name"]
     },
-    description: "This mart provides a table of lead provider activity in the last 180 days from the current date on key themes. These themes are; declarations submitted, declarations voided, partnerships created, partnerships changed, participants withdrawn, deferred or resumed and participant schedule changes.",
+    description: "This mart contains a summary of Lead Provider made changes across 8 change types, broken down by event date (the date the change was made in the service). The change types are; submitted declarations, voided declarations, partnerships created, partnerships changed, participants withdrawn, deferred or resumed and schedules changed. Each of these changes have been made by the corresponding Lead Provider by API requests. \n \
+	This mart enables ECF Contract Management to review lead provider changes (known as activity by the Contract Managers) over a given time period to identify unexpected versus expected behaviour by reviewing the volumes of changes and whether they align with what the Contract Management team are expecting to see. \n \
+	The date range included within this mart is the last 180 days including the current date. \n \
+	This mart relies upon 6 others and these are: \n \
+	ecf_declarations for the count of declarations submitted, \n \
+	ls_ecf_provider_activity_voided_declarations for the count of declarations voided, \n \
+	ls_ecf_provider_activity_training_status_changes for the count of training status changes via withdraw, defer and resume API paths., \n \
+	ls_ecf_provider_activity_partnership_creations for the count of partnerships created, \n \
+	ls_ecf_provider_activity_partnership_changes for the count of delivery partner changes made to partnerships, \n \
+	ls_ecf_provider_activity_schedule_changes for the count of schedule changes.",
     columns: {
-      event_date: "The date being used to aggregate activity by lead provider.",
+      event_date: "The date the change was made in the service. This is called occurred_at in the source data table and renamed to event_date in the mart.",
       event_date_delta: "The number of days between the event_date and the current date.",
-      lead_provider_name: "The name of the lead provider who performed the action.",
-      metric_name: "The name of the metric that will be present on the row. The metric names are; declarations submitted, declarations voided, partnerships created, partnerships changed, participants withdrawn, participants deferred, participants resumed, schedules changed.",
-      declaration_id: "The declaration ID of the submitted declaration. A distinct count of this field determines the number of declarations submitted on the event date by the lead provider.",
-      declaration_created_at_date: "The created at date for the submitted declaration. This is the date used to join on the event date.",
-      course_identifier: "The course identifier related to the submitted declaration.",
-      declaration_date: "The date on which the submitted declaration was evidenced.",
-      declaration_type: "The declaration type of the submitted declaration.",
-      state: "The declaration state of the submitted declaration.",
-      participant_profile_id: "The participant profile ID associated with the submitted declaration.",
-      user_id: "The user ID taken from the teacher profile of the participant.",
-      participant_type: "The participant type which is either ECT or Mentor taken from the participant profile.",
-      cpd_lead_provider_name: "The lead provider name associated with the submitted declaration.",
-      cohort: "The academic cohort of the participant associated with the submitted declaration.",
-      voided_declaration_id: "The declaration ID for the declaration updated vai the void API. A distinct count of this field determines the number of voided declarations that occurred on the event date by the lead provider.",
-      voided_declaration_type: "The type of the declaration that has been voided by the lead provider.",
-      voided_declaration_participant_cohort: "The cohort of the participant the voided declaration relates to.",
-      voided_declaration_participant_profile_id: "The participant profile ID of the participant that relates to the voided declaration.",
-      voided_declaration_user_id: "The User ID of the participant relating to the voided declaration taken from their teacher profile.",
-      voided_declaration_participant_type: "The participant type of the participant relating to the voided declaration.",
-      voided_declaration_request_uuid: "The API request ID of the change being made.",
-      voided_declaration_key_updated: "The field on the participant_declarations table being amended via the void declaration API call.",
-      voided_declaration_new_value: "The new value for the field (key_updated) that was changed via this API request.",
-      voided_declaration_previous_value: "The previous value for the field (key_updated) that was changed via this API request.",
-      withdrawal_request_uuid: "The API request ID for the change being made to a participant's training status via the withdraw API. A distinct count of this field provides the number of withdrawal changes made on the event date by the lead provider.",
-      withdrawal_participant_profile_id: "The participant profile ID for the participant whose training status was amended via the withdraw API request.",
-      withdrawal_user_id: "The user ID of the withdrawn participant as per their teacher profile.",
-      withdrawal_participant_type: "The participant type of the withdrawn participant.",
-      withdrawal_participant_cohort: "The cohort the withdrawn participant relates to as per their school cohort record.",
-      withdrawal_participant_key_updated: "The field being updated on the participant_profiles table via this API request. The value is always 'training_status'.",
-      withdrawal_participant_new_value: "The new value for the field (key_updated) that was assigned via this API request.",
-      withdrawal_participant_previous_value: "The previous value for the field (key_updated) that was changed via this API request.",
-      deferral_request_uuid: "The API request ID for the change being made to a participant's training status via the defer API. A distinct count of this field provides the number of deferral changes made on the event date by the lead provider.",
-      deferral_participant_profile_id: "The participant profile ID for the participant whose training status was amended via the defer API request.",
-      deferral_user_id: "The user ID of the deferred participant as per their teacher profile.",
-      deferral_participant_type: "The participant type of the deferred participant.",
-      deferral_participant_cohort: "The cohort the deferred participant relates to as per their school cohort record.",
-      deferral_participant_key_updated: "The field being updated on the participant_profiles table via this API request. The value is always 'training_status'.",
-      deferral_participant_new_value: "The new value for the field (key_updated) that was assigned via this API request.",
-      deferral_participant_previous_value: "The previous value for the field (key_updated) that was changed via this API request.",
-      resume_request_uuid: "The API request ID for the change being made to a participant's training status via the resume API. A distinct count of this field provides the number of resume changes made on the event date by the lead provider.",
-      resume_participant_profile_id: "The participant profile ID of the participant whose training status was changed via the resume API request made by the lead provider.",
-      resume_participant_user_id: "The user ID of the resumed participant as per their teacher profile.",
-      resume_participant_type: "The participant type of the resumed participant.",
-      resume_participant_cohort: "The cohort the resumed participant relates to as per their school cohort record.",
-      resume_participant_key_updated: "The field being updated on the participant_profiles table via this API request. The value is always 'training_status'.",
-      resume_participant_new_value: "The new value for the field (key_updated) that was assigned via this API request.",
-      resume_participant_previous_value: "The previous value for the field (key_updated) that was changed via this API request.",
-      change_schedule_request_uuid: "The API request ID for the change being made to a participant's training status via the change-schedule API. A distinct count of this field provides the number of schedule changes made on the event date by the lead provider.",
-      change_schedule_participant_profile_id: "The participant profile ID of the participant whose schedule was changed via this API request from the Lead Provider.",
-      change_schedule_user_id: "The user ID of the participant whose schedule has been changed, taken from their teacher profile.",
-      change_schedule_participant_type: "The participant type of the participant whose schedule has been changed.",
-      change_schedule_key_updated: "The field being updated on the participant_profiles table via this API request. The value is always 'schedule_id'.",
-      change_schedule_new_value: "The new value for the field (key_updated) that was assigned via this API request.",
-      change_schedule_new_cohort: "The cohort associated with the new schedule.",
-      change_schedule_previous_value: "The previous value for the field (key_updated) that was changed via this API request.",
-      change_schedule_previous_cohort: "The cohort associated with the previous schedule.",
-      partnership_creation_partnership_id: "The partnership ID for the partnership created by the lead provider on the event date. Only partnerships where relationship = False are included. A distinct count of this field provides the number of partnerships created by the lead provider on the event date.",
-      partnership_creation_school_urn: "The URN of the school that this relationship relates to.",
-      partnership_creation_delivery_partner_name: "The name of the delivery partner associated with this created partnership.",
-      partnership_creation_request_uuid: "The API request ID for the creation of this partnership.",
-      partnership_creation_cohort: "The academic cohort the partnership relates to.",
-      partnership_change_request_uuid: "The API request ID for the change being made to a partnership via the partnerships/ecf API. A distinct count of this field provides the number of partnership changes to delivery_partner_id on the event date by the lead provider.",
-      partnership_change_partnership_id: "The ID of the partnership that has been changed by the lead provider.",
-      partnership_change_school_urn: "The URN of the school associated with the partnership that has been changed by the lead provider.",
-      partnership_change_cohort: "The cohort related to the partnership that has been changed by the lead provider.",
-      partnership_change_new_dp: "The new delivery partner value that was assigned via this API request.",
-      partnership_change_previous_dp: "The previous delivery partner value that was changed via this API request."
+      cpd_lead_provider_name: "The name of the lead provider who performed the actions contained within the summarised columns.",
+	    declarations_submitted: "The count of distinct declaration_id from ecf_declarations where the created_at date is the event_date.",
+	    declarations_voided: "The count of distinct request_uuid (API request unique identifier) from ls_ecf_provider_activity_voided_declarations where the occurred_at date of the change is the event date.",
+	    partnerships_created: "The count of distinct request_uuid (API request unique identifier) from ls_ecf_provider_activity_partnership_creations where the created_at date of the change is the event date.",
+	    partnerships_changed: "The count of distinct request_uuid (API request unique identifier) from ls_ecf_provider_activity_partnership_changes where the occurred_at date of the change is the event date.",
+	    participants_withdrawn: "The count of distinct request_uuid (API request unique identifier) from ls_ecf_provider_activity_training_status_changes where the occurred_at date of the change is the event date and the request_type is withdraw.",
+	    participants_deferred: "The count of distinct request_uuid (API request unique identifier) from ls_ecf_provider_activity_training_status_changes where the occurred_at date of the change is the event date and the request_type is defer.",
+	    participants_resumed: "The count of distinct request_uuid (API request unique identifier) from ls_ecf_provider_activity_training_status_changes where the occurred_at date of the change is the event date and the request_type is resume.",
+	    schedules_changed: "The count of distinct request_uuid (API request unique identifier) from ls_ecf_provider_activity_schedule_changes where the occurred_at date of the change is the event date."	  
     }
 }
 
@@ -91,7 +42,7 @@ WITH last_X_days AS (
 lead_providers AS (
   SELECT
      id AS lead_provider_id -- Also acts as the link for request_user_id
-    ,name AS lead_provider_name
+    ,name AS cpd_lead_provider_name
   FROM
     ${ref('cpd_lead_providers_latest_cpd')}
   WHERE
@@ -102,7 +53,7 @@ lead_providers AS (
 ),
 
 -- Create reference table of metrics that the script is to generate data for. This list will need to be amended accordingly if metrics need to be added or removed.
---- By using this in the final output it avoids uncessary duplication that can occure through multiple left joins and allows for easy segration when filtering to a specific metric.
+--- By using this in the final output it improves query performance by streamlining the joins to avoid redundant duplication.
 metrics AS (
   SELECT
     'declarations_submitted' AS metric_name
@@ -134,7 +85,7 @@ table_foundation AS (
   SELECT 
      event_date
     ,DATE_DIFF(CURRENT_DATE(), event_date, DAY) AS event_date_delta
-    ,lead_provider_name
+    ,cpd_lead_provider_name
     ,metric_name
   FROM 
     last_X_days
@@ -142,495 +93,71 @@ table_foundation AS (
     lead_providers
   CROSS JOIN
     metrics
-),
-
--- Gather ECF Induction Records to be able to join User ID, Participant Type & Cohort onto participants within the script without needing to join on Participant Profiles and Teacher Profiles separately.
-ecf_inductions AS(
-  SELECT
-     induction_record_id
-    ,participant_profile_id
-    ,participant_type
-    ,user_id
-    ,cohort
-    ,DATE(start_date) AS start_date
-    ,IFNULL(DATE(end_date), DATE(2050,12,31)) AS end_date
-  FROM
-    ${ref('ecf_inductions')}
-),
-
--- Gather the ECF Declaration Submissions over the last X days. This CTE looks at all declarations created in the service over the last X days and we join on ecf_inductions to obtain the participant's user_id and participant_type.
-ecf_declarations AS (
-  SELECT
-     declarations.id AS declaration_id
-    ,DATE(declarations.created_at) AS declaration_created_at_date
-    ,declarations.course_identifier
-    ,DATE(declarations.declaration_date) AS declaration_date
-    ,declarations.declaration_type
-    ,declarations.state
-    ,declarations.participant_profile_id
-    ,ecf_inductions.user_id
-    ,ecf_inductions.participant_type  AS participant_type
-    ,lp.lead_provider_name AS cpd_lead_provider_name
-    ,cohorts.start_year AS cohort
-  FROM
-    ${ref('participant_declarations_latest_cpd')} AS declarations
-  -- Join on Lead Providers to convert ID to name and limit to only those providers we want to measure.
-  INNER JOIN
-    lead_providers lp
-  ON
-    lp.lead_provider_id = declarations.cpd_lead_provider_id
-  LEFT JOIN
-    ${ref('cohorts_latest_cpd')} AS cohorts
-  ON  
-    cohorts.id = declarations.cohort_id
-  -- Join on ecf_inductions CTE and de-duplicate where multiple induction records are valid around the date of the event. We use the last record valid on the date.
-  LEFT JOIN
-    (
-      SELECT
-         *
-        ,ROW_NUMBER() OVER(PARTITION BY participant_profile_id ORDER BY end_date DESC) AS rn0
-      FROM
-        ecf_inductions
-      QUALIFY(
-        rn0 = 1
-      )
-    ) AS ecf_inductions
-  ON
-    ecf_inductions.participant_profile_id = declarations.participant_profile_id
-    AND
-    DATE(declarations.created_at) BETWEEN ecf_inductions.start_date AND ecf_inductions.end_date
-  -- Join on las_X_days to limit the data to the range we want to review.
-  INNER JOIN
-    last_X_days 
-  ON
-    last_X_days.event_date = DATE(declarations.created_at)
-  WHERE
-    declarations.type NOT LIKE '%NPQ'
-),
-
--- Gather voided declarations triggered by Lead Provider API actions. The field we check for updates is 'state'. We also join on ecf_inductions in order to obtain the participant's user_id and participant_type.
-voided_declarations AS (
-  SELECT
-     entity_id AS declaration_id
-    ,declaration_type
-    ,cohorts.start_year AS cohort
-    ,declarations.participant_profile_id
-    ,ecf_inductions.user_id
-    ,ecf_inductions.participant_type AS participant_type
-    ,DATE(occurred_at) AS occurred_at_date
-    ,declarations.cpd_lead_provider_id
-    ,request_uuid
-    ,request_path
-    ,declarations.request_user_id
-    ,lead_providers.lead_provider_name AS request_user_name
-    ,key_updated
-    ,new_value
-    ,previous_value
-  FROM
-    ${ref('participant_declarations_field_updates_cpd')} AS declarations
-  LEFT JOIN
-    ${ref('cohorts_latest_cpd')} AS cohorts
-  ON
-    cohorts.id = declarations.cohort_id
-  -- Join on ecf_inductions CTE and de-duplicate where multiple induction records are valid around the date of the event. We use the last record valid on the date.
-  LEFT JOIN
-    (
-      SELECT
-         *
-        ,ROW_NUMBER() OVER(PARTITION BY participant_profile_id ORDER BY end_date DESC) AS rn0
-      FROM
-        ecf_inductions
-      QUALIFY(
-        rn0 = 1
-      )
-    ) AS ecf_inductions
-  ON
-    ecf_inductions.participant_profile_id = declarations.participant_profile_id
-    AND
-    DATE(declarations.occurred_at) BETWEEN ecf_inductions.start_date AND ecf_inductions.end_date
-  INNER JOIN
-    lead_providers
-  ON
-    lead_providers.lead_provider_id = declarations.request_user_id
-  INNER JOIN
-    last_X_days 
-  ON
-    last_X_days.event_date = DATE(occurred_at)
-  WHERE
-    request_path LIKE '%void'
-    AND
-    key_updated = 'state'
-    AND
-    declarations.type NOT LIKE '%NPQ'
-),
-
--- Gather Participant Profile Changes to training_status. There are 3 APIs that can affect this field; withdraw, defer & resume. This CTE captures all 3 and in the final output table at the end of this script we split by request_path to then match with the corresponding metric_name from table_foundation.
---- We join on the ecf_inductions CTE to gather the participants user_id, participant_type and cohort.
-profile_changes AS (
-  SELECT 
-     DATE(occurred_at) AS occurred_at_date
-    ,request_uuid
-    ,entity_id AS participant_profile_id
-    ,ecf_inductions.user_id
-    ,ecf_inductions.participant_type AS participant_type
-    ,ecf_inductions.cohort AS cohort
-    ,request_path
-    ,profiles.request_user_id
-    ,lead_providers.lead_provider_name AS request_user_name
-    ,key_updated
-    ,new_value
-    ,previous_value
-  FROM 
-    ${ref('participant_profiles_field_updates_cpd')} AS profiles
-  -- Join on ecf_inductions CTE and de-duplicate where multiple induction records are valid around the date of the event. We use the last record valid on the date.
-  LEFT JOIN
-    (
-      SELECT
-         * 
-        ,ROW_NUMBER() OVER(PARTITION BY participant_profile_id ORDER BY end_date DESC) AS rn0
-      FROM
-        ecf_inductions
-      QUALIFY(
-        rn0 = 1
-      )
-    ) AS ecf_inductions
-  ON
-    ecf_inductions.participant_profile_id = profiles.entity_id
-    AND
-    DATE(profiles.occurred_at) BETWEEN ecf_inductions.start_date AND ecf_inductions.end_date
-  INNER JOIN
-    lead_providers 
-  ON
-    lead_providers.lead_provider_id = profiles.request_user_id
-  INNER JOIN
-    last_X_days
-  ON
-    last_X_days.event_date = DATE(occurred_at)
-  WHERE 
-    key_updated IN ('training_status')
-    AND
-    type NOT LIKE '%NPQ'
-),
-
--- Gather Schedule Changes made via the API by Lead Providers. These API changes impact the participant profile and as such we take the information from the field changes made to this table. When a schedule changes so can the cohort and in this CTE we capture both values in their new and previous states.
-schedule_changes AS (
-  SELECT 
-     DATE(occurred_at) AS occurred_at_date
-    ,request_uuid
-    ,entity_id AS participant_profile_id
-    ,ecf_inductions.user_id
-    ,ecf_inductions.participant_type AS participant_type
-    ,ecf_inductions.cohort AS cohort
-    ,request_path
-    ,profiles.request_user_id
-    ,lead_providers.lead_provider_name AS request_user_name
-    ,key_updated
-    ,new_schedules.schedule_name AS new_schedule
-    ,new_schedules.cohort AS new_cohort
-    ,prev_schedules.schedule_name AS previous_schedule
-    ,prev_schedules.cohort AS previous_cohort
-  FROM 
-    ${ref('participant_profiles_field_updates_cpd')} AS profiles
-  -- Join on ecf_inductions CTE and de-duplicate where multiple induction records are valid around the date of the event. We use the last record valid on the date.
-  LEFT JOIN
-    (
-      SELECT
-         *
-        ,ROW_NUMBER() OVER(PARTITION BY participant_profile_id ORDER BY end_date DESC) AS rn0
-      FROM
-        ecf_inductions
-      QUALIFY(
-        rn0 = 1
-      )
-    ) AS ecf_inductions
-  ON
-    ecf_inductions.participant_profile_id = profiles.entity_id
-    AND
-    DATE(profiles.occurred_at) BETWEEN ecf_inductions.start_date AND ecf_inductions.end_date
-  -- Join on Schedules to convert the new & previous values from the field updates into the schedule & cohort names
-  LEFT JOIN
-    (
-      SELECT
-         schedules.id
-        ,schedules.name AS schedule_name
-        ,cohorts.start_year AS cohort
-      FROM
-        ${ref('schedules_latest_cpd')} AS schedules
-      LEFT JOIN
-        ${ref('cohorts_latest_cpd')} AS cohorts
-      ON
-        cohorts.id = schedules.cohort_id
-    ) AS new_schedules
-  ON
-    new_schedules.id = profiles.new_value
-  LEFT JOIN
-    (
-      SELECT
-         schedules.id
-        ,schedules.name AS schedule_name
-        ,cohorts.start_year AS cohort
-      FROM
-        ${ref('schedules_latest_cpd')} AS schedules
-      LEFT JOIN
-        ${ref('cohorts_latest_cpd')} AS cohorts
-      ON
-        cohorts.id = schedules.cohort_id
-    ) AS prev_schedules
-  ON
-    prev_schedules.id = profiles.previous_value
-  INNER JOIN
-    lead_providers 
-  ON
-    lead_providers.lead_provider_id = profiles.request_user_id
-  INNER JOIN
-    last_X_days
-  ON
-    last_X_days.event_date = DATE(occurred_at)
-  WHERE 
-    key_updated IN ('schedule_id')
-    AND
-    request_path LIKE '%change-schedule'
-    AND
-    type NOT LIKE '%NPQ'
-),
-
--- Gather Partnership Creations conducted by Lead Providers over the API method. A limited number of LPs use an alternative CSV upload method to create partnerships but the activity captured in this CTE is believed to be the majority by the ECF Reg & SRM teams.
---- We also include the School URN and Cohort in this CTE which is required in the final output for display in the dashboard.
-partnership_creations AS (
-  SELECT
-     partnerships.id AS partnership_id
-    ,schools.urn AS school_urn
-    ,dp.name AS delivery_partner_name
-    ,DATE(partnerships.created_at) AS created_at_date
-    ,partnerships.request_uuid
-    ,partnerships.request_path
-    ,partnerships.request_user_id
-    ,lead_providers.lead_provider_name AS request_user_name
-    ,cohorts.start_year AS cohort
-    -- Some partnership IDs are duplicated in the versioned data due to having the same created_at date. This RN allows us to only bring through the last record on a a given created_at date achieved via the Qualify statement below.    
-    ,ROW_NUMBER() OVER(PARTITION BY partnerships.id, DATE(partnerships.created_at) ORDER BY partnerships.created_at DESC) AS rn0
-  FROM
-    ${ref('partnerships_version_cpd')} AS partnerships
-  LEFT JOIN 
-    ${ref('schools_latest_cpd')} AS schools
-  ON
-    schools.id = partnerships.school_id
-  LEFT JOIN
-    ${ref('delivery_partners_latest_cpd')} AS dp
-  ON
-    dp.id = partnerships.delivery_partner_id
-  LEFT JOIN
-    ${ref('cohorts_latest_cpd')} AS cohorts
-  ON
-    cohorts.id = partnerships.cohort_id
-  INNER JOIN 
-    lead_providers
-  ON
-    lead_providers.lead_provider_id = partnerships.request_user_id  
-  INNER JOIN
-    last_X_days
-  ON
-    last_X_days.event_date = DATE(partnerships.created_at)
-  WHERE
-    partnerships.relationship = FALSE
-    AND
-    partnerships.request_path LIKE'%partnerships/ecf%'
-  QUALIFY(
-    rn0 = 1
-  )
-),
-
--- Gather Partnership Changes made by Lead Providers over the API. The LPs can only update the Delivery Partner.
---- We also gather the School URN and Cohort which are required in the final output for display in the dashboard.
-partnership_changes AS (
-  SELECT 
-     DATE(occurred_at) AS occurred_at_date
-    ,request_uuid
-    ,entity_id AS partnership_id
-    ,schools.urn AS school_urn
-    ,request_path
-    ,partnerships.request_user_id
-    ,lead_providers.lead_provider_name AS request_user_name
-    ,new_value
-    ,new_dp.name AS new_value_name
-    ,previous_value
-    ,old_dp.name AS previous_value_name
-    ,cohorts.start_year AS cohort
-  FROM 
-    ${ref('partnerships_field_updates_cpd')} AS partnerships
-  LEFT JOIN 
-    ${ref('schools_latest_cpd')} AS schools
-  ON
-    schools.id = partnerships.school_id
-  LEFT JOIN
-   ${ref('delivery_partners_latest_cpd')} AS new_dp
-  ON
-    new_dp.id = partnerships.new_value
-  LEFT JOIN
-    ${ref('delivery_partners_latest_cpd')} AS old_dp
-  ON
-    old_dp.id = partnerships.previous_value
-  LEFT JOIN
-    ${ref('cohorts_latest_cpd')} AS cohorts
-  ON
-    cohorts.id = partnerships.cohort_id
-  INNER JOIN
-    lead_providers
-  ON
-    lead_providers.lead_provider_id = partnerships.request_user_id
-  INNER JOIN
-    last_X_days
-  ON
-    last_X_days.event_date = DATE(occurred_at)
-  WHERE
-    key_updated = 'delivery_partner_id'
-    AND
-    request_path LIKE '%partnerships%'
 )
 
--- Produce the final output that takes the table_foundation and left joins on each of the CTEs above that correspond with a metric_name created at the start.
---- Using the left join method over a union makes any future changes easier as there is no need to to have consistent column numbers per joined entity.
 SELECT
-   table_foundation.*
-  ,ecf_declarations.*
-
-  ,voided_declarations.declaration_id AS voided_declaration_id
-  ,voided_declarations.declaration_type AS voided_declaration_type
-  ,voided_declarations.cohort AS voided_declaration_participant_cohort
-  ,voided_declarations.participant_profile_id AS voided_declaration_participant_profile_id
-  ,voided_declarations.user_id AS voided_declaration_user_id
-  ,voided_declarations.participant_type AS voided_declaration_participant_type
-  ,voided_declarations.request_uuid AS voided_declaration_request_uuid
-  ,voided_declarations.key_updated AS voided_declaration_key_updated
-  ,voided_declarations.new_value AS voided_declaration_new_value
-  ,voided_declarations.previous_value AS voided_declaration_previous_value
-
-  ,withdrawals.request_uuid AS withdrawal_request_uuid
-  ,withdrawals.participant_profile_id AS withdrawal_participant_profile_id
-  ,withdrawals.user_id AS withdrawal_user_id
-  ,withdrawals.participant_type AS withdrawal_participant_type
-  ,withdrawals.cohort AS withdrawal_participant_cohort
-  ,withdrawals.key_updated AS withdrawal_participant_key_updated
-  ,withdrawals.new_value AS withdrawal_participant_new_value
-  ,withdrawals.previous_value AS withdrawal_participant_previous_value
-
-  ,deferrals.request_uuid AS deferral_request_uuid
-  ,deferrals.participant_profile_id AS deferral_participant_profile_id
-  ,deferrals.user_id AS deferral_user_id
-  ,deferrals.participant_type AS deferral_participant_type
-  ,deferrals.cohort AS deferral_participant_cohort
-  ,deferrals.key_updated AS deferral_participant_key_updated
-  ,deferrals.new_value AS deferral_participant_new_value
-  ,deferrals.previous_value AS deferral_participant_previous_value
-
-  ,resumes.request_uuid AS resume_request_uuid
-  ,resumes.participant_profile_id AS resume_participant_profile_id
-  ,resumes.user_id AS resume_user_id
-  ,resumes.participant_type AS resume_participant_type
-  ,resumes.cohort AS resume_participant_cohort
-  ,resumes.key_updated AS resume_participant_key_updated
-  ,resumes.new_value AS resume_participant_new_value
-  ,resumes.previous_value AS resume_participant_previous_value
-
-  ,schedule_changes.request_uuid AS change_schedule_request_uuid
-  ,schedule_changes.participant_profile_id AS change_schedule_participant_profile_id
-  ,schedule_changes.user_id AS change_schedule_user_id
-  ,schedule_changes.participant_type AS change_schedule_participant_type
-  ,schedule_changes.key_updated AS change_schedule_key_updated
-  ,schedule_changes.new_schedule AS change_schedule_new_value
-  ,schedule_changes.new_cohort AS change_schedule_new_cohort
-  ,schedule_changes.previous_schedule AS change_schedule_previous_value
-  ,schedule_changes.previous_cohort AS change_schedule_previous_cohort
-
-  ,partnership_creations.partnership_id AS partnership_creation_partnership_id
-  ,partnership_creations.school_urn AS partnership_creation_school_urn
-  ,partnership_creations.delivery_partner_name AS partnership_creation_delivery_partner_name
-  ,partnership_creations.request_uuid AS partnership_creation_request_uuid
-  ,partnership_creations.cohort AS partnership_creation_cohort
-
-  ,partnership_changes.request_uuid AS partnership_change_request_uuid
-  ,partnership_changes.partnership_id AS partnership_change_partnership_id
-  ,partnership_changes.school_urn AS partnership_change_school_urn
-  ,partnership_changes.cohort AS partnership_change_cohort
-  ,partnership_changes.new_value_name AS partnership_change_new_dp
-  ,partnership_changes.previous_value_name AS partnership_change_previous_dp
+   tf.event_date
+  ,tf.event_date_delta
+  ,tf.cpd_lead_provider_name
+  ,COUNT(DISTINCT declarations.declaration_id) AS declarations_submitted
+  ,COUNT(DISTINCT voided_declarations.request_uuid) AS declarations_voided
+  ,COUNT(DISTINCT prt_create.partnership_id) AS partnerships_created
+  ,COUNT(DISTINCT prt_changes.request_uuid) AS partnerships_changed
+  ,COUNT(DISTINCT CASE WHEN ts_changes.request_type = 'withdraw' THEN ts_changes.request_uuid ELSE NULL END) AS participants_withdrawn
+  ,COUNT(DISTINCT CASE WHEN ts_changes.request_type = 'defer' THEN ts_changes.request_uuid ELSE NULL END) AS participants_deferred
+  ,COUNT(DISTINCT CASE WHEN ts_changes.request_type = 'resume' THEN ts_changes.request_uuid ELSE NULL END) AS participants_resumed
+  ,COUNT(DISTINCT schedule_changes.request_uuid) AS schedules_changed
 FROM
-  table_foundation
--- Join on Declarations Submitted to the LP, Event Date and corresponding Metric Name
+  table_foundation AS tf
 LEFT JOIN
-  ecf_declarations
+ ${ref('ecf_declarations')} AS declarations
 ON
-  table_foundation.lead_provider_name = ecf_declarations.cpd_lead_provider_name
+  declarations.cpd_lead_provider_name = tf.cpd_lead_provider_name
   AND
-  table_foundation.event_date = ecf_declarations.declaration_created_at_date
+  declarations.declaration_created_at_date = tf.event_date
   AND
-  table_foundation.metric_name = 'declarations_submitted'
--- Join on Declarations Voided to the LP, Event Date and corresponding Metric Name
+  tf.metric_name = 'declarations_submitted'
 LEFT JOIN
-  voided_declarations 
+  ${ref('ls_ecf_provider_activity_voided_declarations')} AS voided_declarations
 ON
-  voided_declarations.occurred_at_date = table_foundation.event_date
+  voided_declarations.event_date = tf.event_date
   AND
-  voided_declarations.request_user_name = table_foundation.lead_provider_name
+  voided_declarations.cpd_lead_provider_name = tf.cpd_lead_provider_name
   AND
-  table_foundation.metric_name = 'declarations_voided'
--- Join on Profile Changes and filter to withdraw request path for the LP, Event Date & corresponding Metric Name
+  tf.metric_name = 'declarations_voided'
 LEFT JOIN
-  profile_changes AS withdrawals
+  ${ref('ls_ecf_provider_activity_training_status_changes')} AS ts_changes
 ON
-  withdrawals.occurred_at_date = table_foundation.event_date
+  ts_changes.event_date = tf.event_date
   AND
-  withdrawals.request_user_name = table_foundation.lead_provider_name
+  ts_changes.cpd_lead_provider_name = tf.cpd_lead_provider_name
   AND
-  withdrawals.request_path LIKE '%withdraw'
-  AND
-  table_foundation.metric_name = 'participants_withdrawn'
-  -- Join on Profile Changes and filter to defer request path for the LP, Event Date & corresponding Metric Name
+  tf.metric_name IN ('participants_withdrawn', 'participants_deferred', 'participants_resumed')
 LEFT JOIN
-  profile_changes AS deferrals
+  ${ref('ls_ecf_provider_activity_partnership_creations')} AS prt_create
 ON
-  deferrals.occurred_at_date = table_foundation.event_date
+  prt_create.event_date = tf.event_date
   AND
-  deferrals.request_user_name = table_foundation.lead_provider_name
+  prt_create.cpd_lead_provider_name = tf.cpd_lead_provider_name
   AND
-  deferrals.request_path LIKE '%defer'
-  AND
-  table_foundation.metric_name = 'participants_deferred'
--- Join on Profile Changes and filter to resume request path for the LP, Event Date & corresponding Metric Name
-LEFT JOIN
-  profile_changes AS resumes
-ON
-  resumes.occurred_at_date = table_foundation.event_date
-  AND
-  resumes.request_user_name = table_foundation.lead_provider_name
-  AND
-  resumes.request_path LIKE '%resume'
-  AND
-  table_foundation.metric_name = 'participants_resumed'
--- Join on Schedule Changes to the LP, Event Date & corresponding Metric Name
+  tf.metric_name = 'partnerships_created'
 LEFT JOIN 
-  schedule_changes
+  ${ref('ls_ecf_provider_activity_partnership_changes')} AS prt_changes
 ON
-  schedule_changes.occurred_at_date = table_foundation.event_date
+  prt_changes.event_date = tf.event_date
   AND
-  schedule_changes.request_user_name = table_foundation.lead_provider_name
+  prt_changes.cpd_lead_provider_name = tf.cpd_lead_provider_name
   AND
-  table_foundation.metric_name = 'schedules_changed'
--- Join on Partnership Creations to the LP, Event Date & corresponding Metric Name
+  tf.metric_name = 'partnerships_changed'
 LEFT JOIN
-  partnership_creations
+  ${ref('ls_ecf_provider_activity_schedule_changes')} AS schedule_changes
 ON
-  partnership_creations.created_at_date = table_foundation.event_date
+  schedule_changes.event_date = tf.event_date
   AND
-  partnership_creations.request_user_name = table_foundation.lead_provider_name
+  schedule_changes.cpd_lead_provider_name = tf.cpd_lead_provider_name
   AND
-  table_foundation.metric_name = 'partnerships_created'
--- Join on Partnership Changes to the LP, Event Date & corresponding Metric Name
-LEFT JOIN 
-  partnership_changes
-ON
-  partnership_changes.occurred_at_date = table_foundation.event_date
-  AND
-  partnership_changes.request_user_name = table_foundation.lead_provider_name
-  AND
-  table_foundation.metric_name = 'partnerships_changed'
+  tf.metric_name = 'schedules_changed'
+GROUP BY
+   tf.event_date
+  ,tf.event_date_delta
+  ,tf.cpd_lead_provider_name

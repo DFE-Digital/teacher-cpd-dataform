@@ -1,0 +1,100 @@
+config {
+    type: "table",
+    bigquery: {
+        partitionBy: "event_date",
+        clusterBy: ["cpd_lead_provider_name"]
+    },
+    description: "This mart contains successful (200 status code) API requests made by a Lead Provider on the API paths ending in 'withdraw', 'defer' or 'resume' to change a participants training status on their participant profile. \n \
+	This mart includes changes where the occurred_at date is in the last 180 days only. \n \
+	The purpose of this mart is to support ECF Contract Management in monitoring Lead Provider made changes, namely, the changing of a participants training status. \n \
+	The data within this mart will be used in the ECF Contract Management Dashboard to provide a high level count of changes made by the Lead Provider on an Event Date as well as key information that can assist in their conversations with LPs.",
+    columns: {
+      event_date: "The date the change was made in the service. This is called occurred_at in the source data table and renamed to event_date in the mart.",
+      event_date_delta: "The number of days between the event_date and the current date.",
+      cpd_lead_provider_name: "The name of the lead provider who performed the action. This is determined by the request_user_id which is captured in the service and mapped against the cpd_lead_provider_id in cpd_lead_providers_latest. This connection has been confirmed as correct by LPDOB.",
+	  request_uuid: "The unique identifier for the API request that triggered the change to the participants training status. This UUID is only usable by LPDOB or developers if the request needs to be reviewed. In this mart this value is unique and a distinct count of this field is used to determine how many actions of this type have been conducted by a lead provider on the event date.",
+	  participant_profile_id: "The participant profile ID of the participant whose training status has been changed.",
+	  user_id: "The user ID taken from the teacher profile associated with the participant profile.",
+	  participant_type: "The type of the participant whose training status has been changed. The value can be either ECT or Mentor.",
+	  participant_cohort: "The cohort of the participant whose training status has been changed. This is determined from the participants induction record which was valid at the time this change was made. If a participant's cohort has subsequently changed, this value will not reflect the latest value.",
+	  request_path: "The full API path used by the lead provider to change the participant's training status. The path contains the user_id but always ends with 'withdraw', 'defer' or 'resume'.",
+	  request_type: "The API path type determined by how it ends. If it ends with 'withdraw', 'defer' or 'resume' the value in this field is set accordingly. As the full API path contains the user_id being updated each path is not unique enough to enable grouping effectively without this string separation.",
+	  key_updated: "The name of the field in the table participant_profiles_latest_cpd that was changed by the API request. This is always training_status as that is the only field a lead provider can amend via the 'withdraw', 'defer' or 'resume' API paths.",
+	  new_value: "The new value for the training_status field on the participant profile. This can be active, withdrawn or deferred.",
+	  previous_value: "The previous value for the training_status field on the participant profile. This can be active, withdrawn or deferred."
+    }
+}
+
+-- Gather ECF Induction Records to be able to join User ID, Participant Type & Cohort onto participants within the script without needing to join on Participant Profiles and Teacher Profiles separately.
+WITH ecf_inductions AS(
+  SELECT
+     induction_record_id
+    ,participant_profile_id
+    ,participant_type
+    ,user_id
+    ,cohort
+    ,DATE(start_date) AS start_date
+    ,IFNULL(DATE(end_date), DATE(2050,12,31)) AS end_date
+  FROM
+    ${ref('ecf_inductions')}
+),
+
+-- Gather Participant Profile Changes to training_status. There are 3 APIs available to Lead Providers that can affect this field; withdraw, defer & resume. This CTE captures all 3 and in the final output table at the end of this script we split by request_path to then match with the corresponding metric_name from table_foundation.
+--- We join on the ecf_inductions CTE to gather the participants user_id, participant_type and cohort.
+profile_changes AS (
+  SELECT 
+     DATE(occurred_at) AS event_date
+	,DATE_DIFF(CURRENT_DATE(), DATE(occurred_at), DAY) AS event_date_delta
+    ,lead_providers.name AS cpd_lead_provider_name
+    ,request_uuid
+    ,entity_id AS participant_profile_id
+    ,ecf_inductions.user_id
+    ,ecf_inductions.participant_type AS participant_type
+    ,ecf_inductions.cohort AS cohort
+    ,request_path
+    ,CASE 
+      WHEN request_path LIKE '%withdraw' THEN 'withdraw'
+      WHEN request_path LIKE '%defer' THEN 'defer'
+      WHEN request_path LIKE '%resume' THEN 'resume'
+      ELSE NULL
+    END AS request_type
+    ,key_updated
+    ,new_value
+    ,previous_value
+  FROM 
+    ${ref('participant_profiles_field_updates_cpd')} AS profiles
+  -- Join on ecf_inductions CTE and de-duplicate where multiple induction records are valid around the date of the event. We use the last record valid on the date.
+  LEFT JOIN
+    (
+      SELECT
+          * 
+        ,ROW_NUMBER() OVER(PARTITION BY participant_profile_id ORDER BY end_date DESC) AS rn0
+      FROM
+        ecf_inductions
+      QUALIFY(
+        rn0 = 1
+      )
+    ) AS ecf_inductions
+  ON
+    ecf_inductions.participant_profile_id = profiles.entity_id
+    AND
+    DATE(profiles.occurred_at) BETWEEN ecf_inductions.start_date AND ecf_inductions.end_date
+  LEFT JOIN
+    ${ref('cpd_lead_providers_latest_cpd')} AS lead_providers
+  ON
+    lead_providers.id = profiles.request_user_id
+  WHERE 
+    key_updated = 'training_status'
+    AND
+    type NOT LIKE '%NPQ'
+    AND
+    DATE(occurred_at) BETWEEN CURRENT_DATE()-180 AND CURRENT_DATE()
+)
+
+SELECT
+  *
+FROM
+  profile_changes
+WHERE
+  -- We only want changes to the training status where the API available to Lead Providers has been used. This where clause limits the output to only those events.
+  request_type IS NOT NULL
