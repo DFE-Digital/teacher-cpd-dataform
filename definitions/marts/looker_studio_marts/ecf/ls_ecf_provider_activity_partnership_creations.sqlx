@@ -17,7 +17,7 @@ config {
 	    delivery_partner_name: "The name of the delivery partner listed on the newly created partnership by the lead provider.",
 	    request_uuid: "The unique identifier for the API request that triggered the creation of this partnership. This UUID is only usable by LPDOB or developers if the request needs to be reviewed. In this mart this value is unique and a distinct count of this field is used to determine how many actions of this type have been conducted by a lead provider on the event date.",
 	    request_path: "The full API path used by the lead provider to create the partnership. The path can vary but should always include 'partnerships/ecf'.",
-	    cohort: "The cohort associated with the created partnership."
+	    cohort: "The cohort associated with the created partnership. This field is set by the LP during the API request to create the partnership."
     }
 }
 

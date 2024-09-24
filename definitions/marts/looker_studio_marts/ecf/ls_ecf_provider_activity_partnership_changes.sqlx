@@ -14,7 +14,7 @@ config {
       cpd_lead_provider_name: "The name of the lead provider who performed the action. This is determined by the request_user_id which is captured in the service and mapped against the cpd_lead_provider_id in cpd_lead_providers_latest. This connection has been confirmed as correct by LPDOB.",
 	  partnership_id: "The ID of the created partnership.",
 	  school_urn: "The Unique Reference Number (URN) of the school involved in the amended partnership with the lead provider. The URN is determined via the school_id that the partnership record contains.",
-	  cohort: "The cohort associated with the created partnership.",
+	  cohort: "The cohort associated with the created partnership. This field is set by the LP when they create it via the API and converted into a value from an ID by using cohorts_latest.",
 	  request_uuid: "The unique identifier for the API request that triggered the creation of this partnership. This UUID is only usable by LPDOB or developers if the request needs to be reviewed. In this mart this value is unique and a distinct count of this field is used to determine how many actions of this type have been conducted by a lead provider on the event date.",
 	  request_path: "The full API path used by the lead provider to create the partnership. The path can vary but should always include 'partnerships/ecf'.",
 	  key_updated: "The field on the table partnerships_latest_cpd that was changed via this lead provider API request. The only field that can be changed via this method is delivery_partner_id.",
