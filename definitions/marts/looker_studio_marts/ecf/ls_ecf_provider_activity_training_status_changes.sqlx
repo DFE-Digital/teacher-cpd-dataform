@@ -33,18 +33,20 @@ WITH ecf_inductions AS(
     ,participant_type
     ,user_id
     ,cohort
+    ,created_at
+    ,DATETIME(start_date) AS start_datetime
     ,DATE(start_date) AS start_date
+    ,IFNULL(DATETIME(end_date), DATETIME(2050,12,31,00,00,00)) AS end_datetime
     ,IFNULL(DATE(end_date), DATE(2050,12,31)) AS end_date
   FROM
     ${ref('ecf_inductions')}
-),
+)
 
 -- Gather Participant Profile Changes to training_status. There are 3 APIs available to Lead Providers that can affect this field; withdraw, defer & resume. This CTE captures all 3 and in the final output table at the end of this script we split by request_path to then match with the corresponding metric_name from table_foundation.
 --- We join on the ecf_inductions CTE to gather the participants user_id, participant_type and cohort.
-profile_changes AS (
-  SELECT 
-     DATE(occurred_at) AS event_date
-	,DATE_DIFF(CURRENT_DATE(), DATE(occurred_at), DAY) AS event_date_delta
+SELECT 
+    DATE(occurred_at) AS event_date
+    ,DATE_DIFF(CURRENT_DATE(), DATE(occurred_at), DAY) AS event_date_delta
     ,lead_providers.name AS cpd_lead_provider_name
     ,request_uuid
     ,entity_id AS participant_profile_id
@@ -53,48 +55,36 @@ profile_changes AS (
     ,ecf_inductions.cohort AS cohort
     ,request_path
     ,CASE 
-      WHEN request_path LIKE '%withdraw' THEN 'withdraw'
-      WHEN request_path LIKE '%defer' THEN 'defer'
-      WHEN request_path LIKE '%resume' THEN 'resume'
-      ELSE NULL
+        WHEN request_path LIKE '%withdraw' THEN 'withdraw'
+        WHEN request_path LIKE '%defer' THEN 'defer'
+        WHEN request_path LIKE '%resume' THEN 'resume'
+        ELSE NULL
     END AS request_type
     ,key_updated
     ,new_value
     ,previous_value
-  FROM 
+    ,ROW_NUMBER() OVER(PARTITION BY request_uuid ORDER BY ecf_inductions.start_datetime DESC, ecf_inductions.end_datetime DESC) AS rn0
+FROM 
     ${ref('participant_profiles_field_updates_cpd')} AS profiles
-  -- Join on ecf_inductions CTE and de-duplicate where multiple induction records are valid around the date of the event. We use the last record valid on the date.
+-- Left Join on ecf_inductions CTE and de-duplicate where multiple induction records are valid around the date of the event. We use the last record valid on the date.
   LEFT JOIN
-    (
-      SELECT
-          * 
-        ,ROW_NUMBER() OVER(PARTITION BY participant_profile_id ORDER BY end_date DESC) AS rn0
-      FROM
-        ecf_inductions
-      QUALIFY(
-        rn0 = 1
-      )
-    ) AS ecf_inductions
+    ecf_inductions
   ON
     ecf_inductions.participant_profile_id = profiles.entity_id
     AND
     DATE(profiles.occurred_at) BETWEEN ecf_inductions.start_date AND ecf_inductions.end_date
-  LEFT JOIN
+LEFT JOIN
     ${ref('cpd_lead_providers_latest_cpd')} AS lead_providers
-  ON
+ON
     lead_providers.id = profiles.request_user_id
-  WHERE 
+WHERE 
     key_updated = 'training_status'
     AND
     type NOT LIKE '%NPQ'
     AND
     DATE(occurred_at) BETWEEN CURRENT_DATE()-180 AND CURRENT_DATE()
+QUALIFY(
+    rn0 = 1
+    AND
+    request_type IS NOT NULL
 )
-
-SELECT
-  *
-FROM
-  profile_changes
-WHERE
-  -- We only want changes to the training status where the API available to Lead Providers has been used. This where clause limits the output to only those events.
-  request_type IS NOT NULL

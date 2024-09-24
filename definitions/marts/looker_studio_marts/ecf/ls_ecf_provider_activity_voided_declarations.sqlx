@@ -34,7 +34,10 @@ WITH ecf_inductions AS(
     ,participant_type
     ,user_id
     ,cohort
+    ,created_at
+    ,DATETIME(start_date) AS start_datetime
     ,DATE(start_date) AS start_date
+    ,IFNULL(DATETIME(end_date), DATETIME(2050,12,31,00,00,00)) AS end_datetime
     ,IFNULL(DATE(end_date), DATE(2050,12,31)) AS end_date
   FROM
     ${ref('ecf_inductions')}
@@ -56,6 +59,7 @@ SELECT
   ,key_updated
   ,new_value
   ,previous_value
+  ,ROW_NUMBER() OVER(PARTITION BY request_uuid ORDER BY ecf_inductions.start_datetime DESC, ecf_inductions.end_datetime DESC) AS rn0
 FROM
   ${ref('participant_declarations_field_updates_cpd')} AS declarations
 LEFT JOIN
@@ -64,16 +68,7 @@ ON
   lead_providers.id = declarations.request_user_id
 -- Join on ecf_inductions CTE and de-duplicate where multiple induction records are valid around the date of the event. We use the last record valid on the date.
 LEFT JOIN
-  (
-    SELECT
-        *
-      ,ROW_NUMBER() OVER(PARTITION BY participant_profile_id ORDER BY end_date DESC) AS rn0
-    FROM
-      ecf_inductions
-    QUALIFY(
-      rn0 = 1
-    )
-  ) AS ecf_inductions
+  ecf_inductions
 ON
   ecf_inductions.participant_profile_id = declarations.participant_profile_id
   AND
@@ -86,3 +81,6 @@ WHERE
   declarations.type NOT LIKE '%NPQ'
   AND
   DATE(occurred_at) BETWEEN CURRENT_DATE()-180 AND CURRENT_DATE()
+QUALIFY(
+    rn0 = 1
+)
