@@ -1,0 +1,86 @@
+config {
+    type: "table",
+    bigquery: {
+        partitionBy: "event_date",
+        clusterBy: ["cpd_lead_provider_name"]
+    },
+    description: "This mart contains successful (200 status code) API requests made by a Lead Provider on the API path ending in 'void' to void a declaration. \n \
+	This mart includes changes where the occurred_at date is in the last 180 days only. \n \
+	The purpose of this mart is to support ECF Contract Management in monitoring Lead Provider made changes, namely, the voiding of declarations. \n \
+	The data within this mart will be used in the ECF Contract Management Dashboard to provide a high level count of changes made by the Lead Provider on an Event Date as well as key information that can assist in their conversations with LPs.",
+    columns: {
+      event_date: "The date the change was made in the service. This is called occurred_at in the source data table and renamed to event_date in the mart.",
+      event_date_delta: "The number of days between the event_date and the current date.",
+      cpd_lead_provider_name: "The name of the lead provider who performed the action. This is determined by the request_user_id which is captured in the service and mapped against the cpd_lead_provider_id in cpd_lead_providers_latest. This connection has been confirmed as correct by LPDOB.",
+      declaration_id: "The declaration ID of the voided declaration.",
+	  declaration_type: "The type of the declaration that has been voided by this change. There are no filters applied to the types that can be included. The values can be: started, retained-1, retained-2, retained-3, retained-4, extended-1, extended-2, extended-3 or completed.",
+	  participant_cohort: "The cohort of the participant this voided declaration relates to. This is determined from the participants induction record which was valid at the time this change was made. If a participant's cohort has subsequently changed, this value will not reflect the latest value.",
+	  participant_profile_id: "The participant profile ID of the participant related to this voided declaration.",
+	  user_id: "The user ID taken from the teacher profile associated with the participant profile for the participant related to the voided declaration.",
+	  participant_type: "The type of the participant that relates to the voided declaration. The value can be either ECT or Mentor.",
+	  request_uuid: "The unique identifier for the API request that triggered the voiding of the declaration. This UUID is only usable by LPDOB or developers if the request needs to be reviewed. In this mart this value is unique and a distinct count of this field is used to determine how many actions of this type have been conducted by a lead provider on the event date.",
+	  request_path: "The full API path used by the lead provider to void the declaration. The path contains the declaration ID but always ends with 'void'.",
+	  key_updated: "The name of the field in the table participant_declarations_latest_cpd that was changed by the API request. This is always state as that is the only field a lead provider can amend via the 'void' API path.",
+	  new_value: "The new value for state for the voided declaration. Depending on the previous value this field can contain voided, awaiting_clawback or clawed_back.",
+	  previous_value: "The previous value for state for the voided declaration. This can be either submitted, eligible, ineligible, payable or paid."
+    }
+}
+
+-- Gather ECF Induction Records to be able to join User ID, Participant Type & Cohort onto participants within the script without needing to join on Participant Profiles and Teacher Profiles separately.
+WITH ecf_inductions AS(
+  SELECT
+     induction_record_id
+    ,participant_profile_id
+    ,participant_type
+    ,user_id
+    ,cohort
+    ,created_at
+    ,DATETIME(start_date) AS start_datetime
+    ,DATE(start_date) AS start_date
+    ,IFNULL(DATETIME(end_date), DATETIME(2050,12,31,00,00,00)) AS end_datetime
+    ,IFNULL(DATE(end_date), DATE(2050,12,31)) AS end_date
+  FROM
+    ${ref('ecf_inductions')}
+)
+
+-- Gather voided declarations triggered by Lead Provider API actions. The field we check for updates is 'state'. We also join on ecf_inductions in order to obtain the participant's user_id and participant_type.
+SELECT
+   DATE(occurred_at) AS event_date
+  ,DATE_DIFF(CURRENT_DATE(), DATE(occurred_at), DAY) AS event_date_delta
+  ,lead_providers.name AS cpd_lead_provider_name
+  ,entity_id AS declaration_id
+  ,declaration_type
+  ,ecf_inductions.cohort AS participant_cohort
+  ,declarations.participant_profile_id
+  ,ecf_inductions.user_id
+  ,ecf_inductions.participant_type AS participant_type
+  ,request_uuid
+  ,request_path
+  ,key_updated
+  ,new_value
+  ,previous_value
+  ,ROW_NUMBER() OVER(PARTITION BY request_uuid ORDER BY ecf_inductions.start_datetime DESC, ecf_inductions.end_datetime DESC) AS rn0
+FROM
+  ${ref('participant_declarations_field_updates_cpd')} AS declarations
+LEFT JOIN
+  ${ref('cpd_lead_providers_latest_cpd')} AS lead_providers
+ON
+  lead_providers.id = declarations.request_user_id
+-- Join on ecf_inductions CTE and de-duplicate where multiple induction records are valid around the date of the event. We use the last record valid on the date.
+LEFT JOIN
+  ecf_inductions
+ON
+  ecf_inductions.participant_profile_id = declarations.participant_profile_id
+  AND
+  DATE(declarations.occurred_at) BETWEEN ecf_inductions.start_date AND ecf_inductions.end_date
+WHERE
+  request_path LIKE '%void'
+  AND
+  key_updated = 'state'
+  AND
+  declarations.type NOT LIKE '%NPQ'
+  AND
+  DATE(occurred_at) BETWEEN CURRENT_DATE()-180 AND CURRENT_DATE()
+QUALIFY(
+    rn0 = 1
+)

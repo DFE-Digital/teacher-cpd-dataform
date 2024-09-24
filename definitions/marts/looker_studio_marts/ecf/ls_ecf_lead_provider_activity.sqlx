@@ -1,0 +1,163 @@
+config {
+    type: "table",
+    bigquery: {
+        partitionBy: "event_date",
+        clusterBy: ["cpd_lead_provider_name"]
+    },
+    description: "This mart contains a summary of Lead Provider made changes across 8 change types, broken down by event date (the date the change was made in the service). The change types are; submitted declarations, voided declarations, partnerships created, partnerships changed, participants withdrawn, deferred or resumed and schedules changed. Each of these changes have been made by the corresponding Lead Provider by API requests. \n \
+	This mart enables ECF Contract Management to review lead provider changes (known as activity by the Contract Managers) over a given time period to identify unexpected versus expected behaviour by reviewing the volumes of changes and whether they align with what the Contract Management team are expecting to see. \n \
+	The date range included within this mart is the last 180 days including the current date. \n \
+	This mart relies upon 6 others and these are: \n \
+	ecf_declarations for the count of declarations submitted, \n \
+	ls_ecf_provider_activity_voided_declarations for the count of declarations voided, \n \
+	ls_ecf_provider_activity_training_status_changes for the count of training status changes via withdraw, defer and resume API paths., \n \
+	ls_ecf_provider_activity_partnership_creations for the count of partnerships created, \n \
+	ls_ecf_provider_activity_partnership_changes for the count of delivery partner changes made to partnerships, \n \
+	ls_ecf_provider_activity_schedule_changes for the count of schedule changes.",
+    columns: {
+      event_date: "The date the change was made in the service. This is called occurred_at in the source data table and renamed to event_date in the mart.",
+      event_date_delta: "The number of days between the event_date and the current date.",
+      cpd_lead_provider_name: "The name of the lead provider who performed the actions contained within the summarised columns.",
+	    declarations_submitted: "The count of distinct declaration_id from ecf_declarations where the created_at date is the event_date.",
+	    declarations_voided: "The count of distinct request_uuid (API request unique identifier) from ls_ecf_provider_activity_voided_declarations where the occurred_at date of the change is the event date.",
+	    partnerships_created: "The count of distinct request_uuid (API request unique identifier) from ls_ecf_provider_activity_partnership_creations where the created_at date of the change is the event date.",
+	    partnerships_changed: "The count of distinct request_uuid (API request unique identifier) from ls_ecf_provider_activity_partnership_changes where the occurred_at date of the change is the event date.",
+	    participants_withdrawn: "The count of distinct request_uuid (API request unique identifier) from ls_ecf_provider_activity_training_status_changes where the occurred_at date of the change is the event date and the request_type is withdraw.",
+	    participants_deferred: "The count of distinct request_uuid (API request unique identifier) from ls_ecf_provider_activity_training_status_changes where the occurred_at date of the change is the event date and the request_type is defer.",
+	    participants_resumed: "The count of distinct request_uuid (API request unique identifier) from ls_ecf_provider_activity_training_status_changes where the occurred_at date of the change is the event date and the request_type is resume.",
+	    schedules_changed: "The count of distinct request_uuid (API request unique identifier) from ls_ecf_provider_activity_schedule_changes where the occurred_at date of the change is the event date."	  
+    }
+}
+
+-- Create table of dates in the last X number of days to be used for filtering data later on and to act as part of the table foundation.
+--- Currently set to last 180 days.
+WITH last_X_days AS (
+  SELECT 
+    event_date
+  FROM
+    UNNEST(GENERATE_DATE_ARRAY(CURRENT_DATE()-180, CURRENT_DATE())) AS event_date
+),
+
+-- Create table of lead providers containing their name and CPD ID which also doubles as the request_user_id.
+lead_providers AS (
+  SELECT
+     id AS lead_provider_id -- Also acts as the link for request_user_id
+    ,name AS cpd_lead_provider_name
+  FROM
+    ${ref('cpd_lead_providers_latest_cpd')}
+  WHERE
+	-- Exlcude Lead Providers no longer relevant as per instruction from NE
+    name NOT IN ('Capita', 'Teacher Development Trust', 'LLSE', 'Church of England', 'School-Led Network')
+  GROUP BY
+    id, name
+),
+
+-- Create reference table of metrics that the script is to generate data for. This list will need to be amended accordingly if metrics need to be added or removed.
+--- By using this in the final output it improves query performance by streamlining the joins to avoid redundant duplication.
+metrics AS (
+  SELECT
+    'declarations_submitted' AS metric_name
+  UNION ALL
+  SELECT
+    'declarations_voided' AS metric_name
+  UNION ALL
+  SELECT
+    'partnerships_created' AS metric_name
+  UNION ALL
+  SELECT
+    'partnerships_changed' AS metric_name
+  UNION ALL
+  SELECT
+    'participants_withdrawn' AS metric_name
+  UNION ALL
+  SELECT
+    'participants_deferred' AS metric_name
+  UNION ALL
+  SELECT
+    'participants_resumed' AS metric_name
+  UNION ALL
+  SELECT
+    'schedules_changed' AS metric_name
+),
+
+-- Create the table foundation which all other data will be joined to later on. This CTE consists of a cross join between dates in the last_X_days CTE, metric_name from the above CTE and lead_provider from the CTE above which contains only the desired LPs.
+table_foundation AS (
+  SELECT 
+     event_date
+    ,DATE_DIFF(CURRENT_DATE(), event_date, DAY) AS event_date_delta
+    ,cpd_lead_provider_name
+    ,metric_name
+  FROM 
+    last_X_days
+  CROSS JOIN
+    lead_providers
+  CROSS JOIN
+    metrics
+)
+
+SELECT
+   tf.event_date
+  ,tf.event_date_delta
+  ,tf.cpd_lead_provider_name
+  ,COUNT(DISTINCT declarations.declaration_id) AS declarations_submitted
+  ,COUNT(DISTINCT voided_declarations.request_uuid) AS declarations_voided
+  ,COUNT(DISTINCT prt_create.partnership_id) AS partnerships_created
+  ,COUNT(DISTINCT prt_changes.request_uuid) AS partnerships_changed
+  ,COUNT(DISTINCT CASE WHEN ts_changes.request_type = 'withdraw' THEN ts_changes.request_uuid ELSE NULL END) AS participants_withdrawn
+  ,COUNT(DISTINCT CASE WHEN ts_changes.request_type = 'defer' THEN ts_changes.request_uuid ELSE NULL END) AS participants_deferred
+  ,COUNT(DISTINCT CASE WHEN ts_changes.request_type = 'resume' THEN ts_changes.request_uuid ELSE NULL END) AS participants_resumed
+  ,COUNT(DISTINCT schedule_changes.request_uuid) AS schedules_changed
+FROM
+  table_foundation AS tf
+LEFT JOIN
+ ${ref('ecf_declarations')} AS declarations
+ON
+  declarations.cpd_lead_provider_name = tf.cpd_lead_provider_name
+  AND
+  declarations.declaration_created_at_date = tf.event_date
+  AND
+  tf.metric_name = 'declarations_submitted'
+LEFT JOIN
+  ${ref('ls_ecf_provider_activity_voided_declarations')} AS voided_declarations
+ON
+  voided_declarations.event_date = tf.event_date
+  AND
+  voided_declarations.cpd_lead_provider_name = tf.cpd_lead_provider_name
+  AND
+  tf.metric_name = 'declarations_voided'
+LEFT JOIN
+  ${ref('ls_ecf_provider_activity_training_status_changes')} AS ts_changes
+ON
+  ts_changes.event_date = tf.event_date
+  AND
+  ts_changes.cpd_lead_provider_name = tf.cpd_lead_provider_name
+  AND
+  tf.metric_name IN ('participants_withdrawn', 'participants_deferred', 'participants_resumed')
+LEFT JOIN
+  ${ref('ls_ecf_provider_activity_partnership_creations')} AS prt_create
+ON
+  prt_create.event_date = tf.event_date
+  AND
+  prt_create.cpd_lead_provider_name = tf.cpd_lead_provider_name
+  AND
+  tf.metric_name = 'partnerships_created'
+LEFT JOIN 
+  ${ref('ls_ecf_provider_activity_partnership_changes')} AS prt_changes
+ON
+  prt_changes.event_date = tf.event_date
+  AND
+  prt_changes.cpd_lead_provider_name = tf.cpd_lead_provider_name
+  AND
+  tf.metric_name = 'partnerships_changed'
+LEFT JOIN
+  ${ref('ls_ecf_provider_activity_schedule_changes')} AS schedule_changes
+ON
+  schedule_changes.event_date = tf.event_date
+  AND
+  schedule_changes.cpd_lead_provider_name = tf.cpd_lead_provider_name
+  AND
+  tf.metric_name = 'schedules_changed'
+GROUP BY
+   tf.event_date
+  ,tf.event_date_delta
+  ,tf.cpd_lead_provider_name

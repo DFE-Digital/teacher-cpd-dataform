@@ -1,0 +1,63 @@
+config {
+    type: "table",
+    bigquery: {
+        partitionBy: "event_date",
+        clusterBy: ["cpd_lead_provider_name"]
+    },
+    description: "This mart contains successful (200 status code) API requests made by a Lead Provider on the API path containing 'partnerships/ecf' to create a partnership between them, a school and a delivery partner. This mart captures the majority of created partnerships; there are some providers who still use an alternative method of providing a csv for uploading which this mart does not contain. \n \
+	This mart includes creations where the created_at date is in the last 180 days only. \n \
+	The purpose of this mart is to support ECF Contract Management in monitoring Lead Provider made changes, namely, the creation of partnerships. \n \
+	The data within this mart will be used in the ECF Contract Management Dashboard to provide a high level count of changes made by the Lead Provider on an Event Date as well as key information that can assist in their conversations with LPs.",
+    columns: {
+      event_date: "The date the change was made in the service. This is called occurred_at in the source data table and renamed to event_date in the mart.",
+      event_date_delta: "The number of days between the event_date and the current date.",
+      cpd_lead_provider_name: "The name of the lead provider who performed the action. This is determined by the request_user_id which is captured in the service and mapped against the cpd_lead_provider_id in cpd_lead_providers_latest. This connection has been confirmed as correct by LPDOB.",
+	    partnership_id: "The ID of the created partnership.",
+	    school_urn: "The Unique Reference Number (URN) of the school involved in the newly created partnership with the lead provider. The URN is determined by looking at schools_latest where the ID is the school_id provided by the LP at the time the partnership was created.",
+	    delivery_partner_name: "The name of the delivery partner listed on the newly created partnership by the lead provider.",
+	    request_uuid: "The unique identifier for the API request that triggered the creation of this partnership. This UUID is only usable by LPDOB or developers if the request needs to be reviewed. In this mart this value is unique and a distinct count of this field is used to determine how many actions of this type have been conducted by a lead provider on the event date.",
+	    request_path: "The full API path used by the lead provider to create the partnership. The path can vary but should always include 'partnerships/ecf'.",
+	    cohort: "The cohort associated with the created partnership. This field is set by the LP during the API request to create the partnership."
+    }
+}
+
+-- Gather Partnership Creations conducted by Lead Providers over the API method. A limited number of LPs use an alternative CSV upload method to create partnerships but the activity captured in this CTE is believed to be the majority by the ECF Reg & SRM teams.
+--- We also include the School URN and Cohort in this CTE which is required in the final output for display in the dashboard.
+SELECT
+   DATE(partnerships.created_at) AS event_date
+  ,DATE_DIFF(CURRENT_DATE(), DATE(partnerships.created_at), DAY) AS event_date_delta
+  ,lead_providers.name AS cpd_lead_provider_name
+  ,partnerships.id AS partnership_id
+  ,schools.urn AS school_urn
+  ,dp.name AS delivery_partner_name
+  ,partnerships.request_uuid
+  ,partnerships.request_path
+  ,cohorts.start_year AS cohort
+  -- Some partnership IDs are duplicated in the versioned data due to having the same created_at date. This RN allows us to only bring through the last record on a a given created_at date achieved via the Qualify statement below.    
+  ,ROW_NUMBER() OVER(PARTITION BY partnerships.id, DATE(partnerships.created_at) ORDER BY partnerships.created_at DESC) AS rn0
+FROM
+  ${ref('partnerships_version_cpd')} AS partnerships
+LEFT JOIN 
+  ${ref('schools_latest_cpd')} AS schools
+ON
+  schools.id = partnerships.school_id
+LEFT JOIN
+  ${ref('cpd_lead_providers_latest_cpd')} AS lead_providers
+ON
+  lead_providers.id = partnerships.request_user_id
+LEFT JOIN
+  ${ref('delivery_partners_latest_cpd')} AS dp
+ON
+  dp.id = partnerships.delivery_partner_id
+LEFT JOIN
+  ${ref('cohorts_latest_cpd')} AS cohorts
+ON
+  cohorts.id = partnerships.cohort_id
+WHERE
+  --- Usually there would be an additional clauses for challenged_at IS NULL and relationship = FALSE. However, at the point of creation via the LP API route they will always be NULL & FALSE and therefore not required here.
+  partnerships.request_path LIKE'%partnerships/ecf%'
+  AND
+  DATE(partnerships.created_at) BETWEEN CURRENT_DATE()-180 AND CURRENT_DATE()
+QUALIFY(
+  rn0 = 1
+)

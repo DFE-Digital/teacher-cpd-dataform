@@ -113,6 +113,7 @@ WITH
   ecf_participant_declarations AS (
   SELECT
     e_ind.* EXCEPT(active, rn0),
+    DATE(e_dec.created_at) AS declaration_created_at_date,
     e_dec.id as declaration_id,
     e_dec.declaration_type,
     e_dec.declaration_date,
