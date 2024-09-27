@@ -45,7 +45,9 @@ WITH
       '13f9f767fabfcb2cafc16f366b72660e',
       '3b0872b43cd564d2133dbbff6fa1a4cf',
       'ad6a40fda446b96f3212cdb57d2e98e6',
-      'c1fdb72bd593d9eda54f8e95e9724884')),
+      'c1fdb72bd593d9eda54f8e95e9724884',
+      '8bee2f527391c8891cbaee1775670f46')
+),
   request_response_fields AS (
   SELECT
     eep.request_uuid,
