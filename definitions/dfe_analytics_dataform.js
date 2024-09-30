@@ -6,6 +6,7 @@ dfeAnalyticsDataform({
     bqEventsTableName: 'events',
     bqDatasetName: 'ecf_events_production',
     urlRegex: 'manage-training-for-early-career-teachers.education.gov.uk',
+    hiddenPolicyTagLocation: "projects/ecf-bq/locations/europe-west2/taxonomies/6302091323314055162/policyTags/301313311867345339",
     dataSchema: [{
             entityTableName: "api_requests",
             description: "",
@@ -299,7 +300,8 @@ dfeAnalyticsDataform({
             }, {
                 keyName: "sent_to",
                 dataType: "string",
-                description: ""
+                description: "",
+                hidden: true
             }, {
                 keyName: "sent_at",
                 dataType: "timestamp",
@@ -473,7 +475,7 @@ dfeAnalyticsDataform({
                 keyName: "works_in_nursery",
                 dataType: "boolean",
                 description: ""
-            },{
+            }, {
                 keyName: "referred_by_return_to_teaching_adviser",
                 dataType: "boolean",
                 description: ""
@@ -1039,7 +1041,8 @@ dfeAnalyticsDataform({
             }, {
                 keyName: "primary_contact_email",
                 dataType: "string",
-                description: ""
+                description: "",
+                hidden: true
             }, {
                 keyName: "school_phase_name",
                 dataType: "string",
@@ -1071,7 +1074,8 @@ dfeAnalyticsDataform({
             }, {
                 keyName: "secondary_contact_email",
                 dataType: "string",
-                description: ""
+                description: "",
+                hidden: true
             }, {
                 keyName: "section_41_approved",
                 dataType: "boolean",
@@ -1139,7 +1143,7 @@ dfeAnalyticsDataform({
                 keyName: "participant_declaration_id",
                 dataType: "string",
                 description: ""
-            },  {
+            }, {
                 keyName: "statement_id",
                 dataType: "string",
                 description: ""
@@ -1156,7 +1160,7 @@ dfeAnalyticsDataform({
                 keyName: "email_id",
                 dataType: "string",
                 description: ""
-            },  {
+            }, {
                 keyName: "name_id",
                 dataType: "string",
                 description: ""
@@ -1181,7 +1185,7 @@ dfeAnalyticsDataform({
                 keyName: "delivered_at",
                 dataType: "timestamp",
                 description: ""
-            },  {
+            }, {
                 keyName: "from",
                 dataType: "string",
                 description: "",
@@ -1190,11 +1194,13 @@ dfeAnalyticsDataform({
                 keyName: "to",
                 dataType: "string",
                 description: "",
-                alias: "to_email"
+                alias: "to_email",
+                hidden: true
             }, {
                 keyName: "personalisation",
                 dataType: "string",
-                description: ""
+                description: "",
+                hidden: true
             }, {
                 keyName: "status",
                 dataType: "string",
