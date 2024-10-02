@@ -5,7 +5,7 @@ config {
         partitionBy: "DATE(school_cohort_created_at)",
         clusterBy: ["cohort"]
     },
-    description: "This mart underpins the 2024 ECF Registration dashboard. It pulls together the engagement of schools and their lead providers during the registration process across each academic year (one record per school per academic year) showing both that year and additionally pulling in a copy of the prior year's engagement into the same record to allow for comparison year-on-year within the same record. It joins the school profile data we hold in the service with GIAS data about schools (coming from a static snapshot) to evaluate the school's eligibility for funding and joins in: the details of the schools' school induction tutors (SITs), the self-reported school cohort data reporting the induction programme selected by the school for the relevant academic year (collected when SITs register their school's induction programmes during the registration period), the partnerships with lead providers in the given academic year (reported by lead providers) and the number of participants (ECTs and mentors) that have been registered at that school for the academic year",
+    description: "This mart underpins the 2024 ECF Registration dashboard. It pulls together the engagement of schools and their lead providers during the registration process across each academic year (one record per school per academic year) showing both that year and additionally pulling in a copy of the prior year's engagement into the same record to allow for comparison year-on-year within the same record. It joins the school profile data we hold in the service with GIAS data about schools (coming from a static snapshot) to evaluate the school's eligibility for funding and joins in: the details of the schools' school induction tutors (SITs), the self-reported school cohort data reporting the induction programme selected by the school for the relevant academic year (collected when SITs register their school's induction programmes during the registration period), the partnerships with lead providers in the given academic year (reported by lead providers) and the number of participants (ECTs and mentors) that have been registered at that school for the academic year during the registration window between May and October",
     columns: {
         school_id: "ID of the associated school",
         cohort: "The academic year automatically generated in the mart to ensure there is a record for each school in each cohort",
@@ -36,12 +36,12 @@ config {
         partnerships_prior_lp: "Previous year - The name of the Lead Provider in partnership with the school in this cohort",
         partnerships_prior_dp: "Previous year - The name of the Delivery Partner in partnership with the school in this cohort",
         partnerships_prior_partnership_time: "Previous Year - When the partnership record was generated, corresponding with when the Lead Provider reported their relationship with the school",
-        mentor_count: "The number of new mentors (non-transferred mentors from that cohort) registered that year in the registration period for that school",
-        ect_count: "The number of new ects (non-transferred ects from that cohort) registered that year in the registration period for that school",
-        participant_count: "The number of new participants (non-transferred participants from that cohort) registered that year in the registration period for that school",
-        prev_mentor_count: "Previous Year - The number of new mentors (non-transferred mentors from that cohort) registered that year in the registration period for that school",
-        prev_ect_count: "Previous Year - The number of new ects (non-transferred ects from that cohort) registered that year in the registration period for that school",
-        prev_part_count: "Previous Year - The number of new participants (non-transferred participants from that cohort) registered that year in the registration period for that school"
+        mentor_count: "The number of new mentors (non-transferred mentors from that cohort) registered that between May and October that year in the registration period for that school",
+        ect_count: "The number of new ects (non-transferred ects from that cohort) registered that year between May and October for that school",
+        participant_count: "The number of new participants (non-transferred participants from that cohort) registered that year between May and October for that school",
+        prev_mentor_count: "Previous Year - The number of new mentors (non-transferred mentors from that cohort) registered that year between May and October for that school",
+        prev_ect_count: "Previous Year - The number of new ects (non-transferred ects from that cohort )registered that year between May and October for that school",
+        prev_part_count: "Previous Year - The number of new participants (non-transferred participants from that cohort) registered that year between May and October for that school"
     }
 }
 
