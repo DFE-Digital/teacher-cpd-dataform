@@ -95,6 +95,10 @@ dfeAnalyticsDataform({
                 dataType: "timestamp",
                 description: ""
             }, {
+                keyName: "payments_frozen_at",
+                dataType: "timestamp",
+                description: ""
+            }, {
                 keyName: "registration_start_date",
                 dataType: "timestamp",
                 description: ""
