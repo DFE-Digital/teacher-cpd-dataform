@@ -46,7 +46,8 @@ WITH
     ecfid.lead_provider_name,
     ecfid.delivery_partner_name,
     ecfid.appropriate_body_name,
-    ecfid.cohort_rolled_over_21_24
+    ecfid.cohort_rolled_over_21_24,
+    ecfid.eligible_for_funding
   FROM
     ${ref(`ecf_inductions_dedupe`)} ecfid
   LEFT JOIN
@@ -55,7 +56,8 @@ WITH
     ecfid.participant_profile_id = ppl.id
   WHERE
     ecfid.participant_type LIKE '%ECT'
-    AND induction_programme_type = 'full_induction_programme')
+    AND (induction_programme_type = 'full_induction_programme'
+    OR induction_programme_type = 'core_induction_programme') )
 SELECT
   *
 FROM
