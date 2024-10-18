@@ -7,16 +7,18 @@ config {
         partitionBy: "statement_date",
         clusterBy: ["cpd_lead_provider_name"]
     },
-    description: "This mart produces 2 banding values for each declaration in the 2024 statement cohort relating to participants that have rolled over from the 2021 cohort. The 2021 banding value (A-D) and 2024 banding value (A-C) are used by the SRM team to calculate any financial adjustment required when paying providers in 2024. \n \
+    description: "Due to the unique circumstances arising from participants being rolled over to the 2024 cohort from 2021 the financial amount payable to lead providers for declarations relating to these participants needs to be reviewed by the ECF SRM team. \n \
+    The financial values per band in 2021 were different to what they are in 2024 and any delta will need to manually adjusted by the SRM Team. They determine this difference by the difference in banding applied which this mart calculates per declaration recieved. \n \
+    This mart produces 2 banding values for each declaration in the 2024 statement cohort relating to participants that have rolled over from the 2021 cohort. The 2021 banding value (A-D) and 2024 banding value (A-C) are used by the SRM team to calculate any financial adjustment required when paying providers in 2024. \n \
     Each banding carries a financial value and that value differs from the 2021 contract to the 2024 contract. This mart enables the SRM team to see which banding would have been applied if paid from the 2021 statement cohort and which bandng applies in the 2024 statement cohort. \n \
     The mart also includes the statement date (date at which the declaration will be paid) so that the SRM team can isolate the current statement date which is determined as the next date for payment. \n \
     Declarations states present in this mart are eligible, payable, paid, voided, awaiting_clawback and clawed_back as the SRM team also need to assess if a manual adjustment is needed when clawing back any funds. \n \
     When a declaration is voided by a Lead Provider, the statement date is updated in the service the date at which it will be clawed back. The SRM team are aware that when this occurs the declaration will not be visible on the statement date it was originally paid and they must take appropriate exports from the associated dashboard for historical records.",
     columns: {
-        banding_qualifier_2021: "The number of declarations paid in the 2021 statement cohort for the declaration type with the lead provider. This number determines which banding the latest declaration falls within if it had been submitted in the 2021 statement cohort.",
+        banding_qualifier_2021: "The number of declarations paid in the 2021 statement cohort for the declaration type with the lead provider. The value is the total number for the declaration type with the lead provider in the statement cohort. This number determines which banding the latest declaration falls within if it had been submitted in the 2021 statement cohort.",
         target_2021: "The upper participant volume valid in the 2021 statement cohort/contract for lead providers that when exceeded triggered a Band D financial rate.",
         banding_2021: "The banding value based on the 2021 banding qualifier for the new declaration related to the rolled over participant",
-        banding_qualifer_2024: "The number of declarations eligible, payable or paid in the 2024 statement cohort for the declaration type with the lead provider. This number determines which banding the latest declaration falls within for the 2024 statement cohort.",
+        banding_qualifer_2024: "The number of declarations eligible, payable or paid in the 2024 statement cohort for the declaration type with the lead provider. The value is the total number for the declaration type with the lead provider in the statement cohort. This number determines which banding the latest declaration falls within for the 2024 statement cohort.",
         banding_2024: "The banding value based on the 2024 banding qualifier for the new declaration related to the rolled over participant.",
         is_current_statement: "TRUE/FALSE if the statement date associated with the new declaration is for the next statement date due for payment.",
         statement_date: "The date of when the declaration is expected to be paid. This date is always the first of the month in which it will be paid, however, the actual payment date may be later in the month.",
@@ -48,6 +50,7 @@ WITH bandings_2021 AS (
     (
     -- No further changes are being made to the 2021 statement cohort so only paid declarations will be valid. Any in an eligible or payable state will need to be reraised or the participant to be transferred.
       (declarations.state = 'paid' AND declarations.statement_cohort = 2021)
+    -- The OR element captures any funded declarations (e/p/p) for rolled over participants and includes them in the 2021 banding qualifier count. This is because the statement cohort associated with these declarations will be 2024 but should be included in the 2021 count to be wholistic. 
       OR
       (declarations.funded_declaration = TRUE AND declarations.cohort_rolled_over_21_24 = TRUE)
     )
@@ -123,7 +126,7 @@ bandings_2024_ext AS (
   FROM
     bandings_2024
   ORDER BY
-    statement_date ASC -- Required so that the sum statement above is acting across the correct sequence of rows.
+   statement_date ASC -- Required so that the sum statement above is acting across the correct sequence of rows.
 ),
 
 -- Gather all declarations in the 2024 statement cohort for rolled over participants that need to assessed.
