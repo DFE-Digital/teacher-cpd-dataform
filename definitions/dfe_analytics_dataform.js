@@ -1352,23 +1352,6 @@ dfeAnalyticsDataform({
                 dataType: "timestamp",
                 description: ""
             }]
-        },
-        {
-            entityTableName: "analytics_appropriate_bodies",
-            description: "",
-            keys: [{
-                keyName: "appropriate_body_id",
-                dataType: "string",
-                description: ""
-            }, {
-                keyName: "body_type",
-                dataType: "string",
-                description: ""
-            }, {
-                keyName: "name",
-                dataType: "string",
-                description: ""
-            }]
         }
     ]
 });
