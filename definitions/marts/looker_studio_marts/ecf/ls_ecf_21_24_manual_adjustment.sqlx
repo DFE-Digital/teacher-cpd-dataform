@@ -124,9 +124,11 @@ bandings_2024_ext AS (
       -- This is because at each financial statement point the number of relevant participants is all of them including those paid in previous financial statements.
     ,SUM(statement_date_banding_qualifier) OVER(PARTITION BY cpd_lead_provider_name, declaration_type ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) AS cumulative_banding_qualifier
   FROM
-    bandings_2024
-  ORDER BY
-   statement_date ASC -- Required so that the sum statement above is acting across the correct sequence of rows.
+    (
+      SELECT *
+      FROM bandings_2024
+      ORDER BY statement_date ASC -- Required so that the sum statement above is acting across the correct sequence of rows.
+    )
 ),
 
 -- Gather all declarations in the 2024 statement cohort for rolled over participants that need to assessed.
@@ -172,10 +174,7 @@ SELECT
     WHEN bandings_2024_ext.cumulative_banding_qualifier > 0 THEN 'A'
     ELSE NULL
    END AS banding_2024
-  ,CASE 
-    WHEN mad.statement_date >= CURRENT_DATE() AND mad.statement_date = MIN(mad.statement_date) OVER(PARTITION BY mad.statement_date) THEN TRUE
-    ELSE FALSE
-   END AS is_current_statement
+  ,bandings_2024_ext.is_current_statement
   ,mad.*
 FROM
   manual_adjustment_declarations mad
