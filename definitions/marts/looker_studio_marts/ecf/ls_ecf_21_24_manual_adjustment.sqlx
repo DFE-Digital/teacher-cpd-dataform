@@ -167,14 +167,20 @@ SELECT
     WHEN bandings_2021.banding_qualifier > 0 THEN 'A'
     ELSE NULL
    END AS banding_2021
-  ,bandings_2024_ext.cumulative_banding_qualifier AS banding_qualifer_2024
+  -- Banding qualifier can be NULL if the lead provider has no funded-declarations in the statement cohort as of the statement date.
+  --- We replace NULL with 0 to avoid voided declarations from failing to appear in the dashboard.
+  ,IFNULL(bandings_2024_ext.cumulative_banding_qualifier, 0) AS banding_qualifer_2024
   ,CASE
     WHEN bandings_2024_ext.cumulative_banding_qualifier > 4000 THEN 'C'
     WHEN bandings_2024_ext.cumulative_banding_qualifier > 2000 THEN 'B'
-    WHEN bandings_2024_ext.cumulative_banding_qualifier > 0 THEN 'A'
-    ELSE NULL
+    ELSE 'A'
    END AS banding_2024
-  ,bandings_2024_ext.is_current_statement
+  -- If the banding 2024 flag is NULL for is_current_month; which can be due to the LP having no funded-declarations valid when a voided declaration is raised.
+  ,IFNULL(bandings_2024_ext.is_current_statement, 
+    CASE 
+      WHEN mad.statement_date >= CURRENT_DATE() AND mad.statement_date = MIN(mad.statement_date) OVER(PARTITION BY mad.statement_date) THEN TRUE
+      ELSE FALSE
+    END) AS is_current_statement
   ,mad.*
 FROM
   manual_adjustment_declarations mad
