@@ -92,7 +92,7 @@ bandings_2024 AS (
      PARSE_DATE('%B %Y', statements.name) AS statement_date
     -- This logic assumes that there will only be one statement_date in the future as when a declaration is submitted it is tagged against the next statement period and not any further in time.
     ,CASE 
-      WHEN PARSE_DATE('%B %Y', statements.name) > CURRENT_DATE() THEN TRUE
+      WHEN LAST_DAY(PARSE_DATE('%B %Y', statements.name)) >= CURRENT_DATE() THEN TRUE
       ELSE FALSE
      END AS is_current_statement
     ,declarations.cpd_lead_provider_name
@@ -178,7 +178,7 @@ SELECT
   -- If the banding 2024 flag is NULL for is_current_month; which can be due to the LP having no funded-declarations valid when a voided declaration is raised.
   ,IFNULL(bandings_2024_ext.is_current_statement, 
     CASE 
-      WHEN mad.statement_date >= CURRENT_DATE() AND mad.statement_date = MIN(mad.statement_date) OVER(PARTITION BY mad.statement_date) THEN TRUE
+      WHEN LAST_DAY(mad.statement_date) >= CURRENT_DATE() AND LAST_DAY(mad.statement_date) = MIN(LAST_DAY(mad.statement_date)) OVER(PARTITION BY mad.statement_date) THEN TRUE
       ELSE FALSE
     END) AS is_current_statement
   ,mad.*
