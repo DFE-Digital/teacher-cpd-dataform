@@ -7,50 +7,50 @@ dfeAnalyticsDataform({
     bqDatasetName: 'ecf_events_production',
     urlRegex: 'manage-training-for-early-career-teachers.education.gov.uk',
     hiddenPolicyTagLocation: "projects/ecf-bq/locations/europe-west2/taxonomies/6302091323314055162/policyTags/301313311867345339",
+    customEventSchema: [{
+        eventType: "persist_api_request",
+        description: "Custom event set-up for API Requests as of 04/11/2024",
+        keys: [{
+            keyName: "cpd_lead_provider_id",
+            dataType: "string",
+            description: ""
+        }, {
+            keyName: "request_body",
+            dataType: "string",
+            description: ""
+        }, {
+            keyName: "request_headers",
+            dataType: "string",
+            description: ""
+        }, {
+            keyName: "request_method",
+            alias: "api_request_method",
+            dataType: "string",
+            description: ""
+        }, {
+            keyName: "request_path",
+            alias: "api_request_path",
+            dataType: "string",
+            description: ""
+        }, {
+            keyName: "response_body",
+            dataType: "string",
+            description: ""
+        }, {
+            keyName: "response_headers",
+            dataType: "string",
+            description: ""
+        }, {
+            keyName: "status_code",
+            dataType: "integer",
+            description: ""
+        }, {
+            keyName: "user_description",
+            dataType: "string",
+            description: ""
+        }]
+    }],
     dataSchema: [{
-            entityTableName: "api_requests",
-            description: "",
-            keys: [{
-                keyName: "cpd_lead_provider_id",
-                dataType: "string",
-                description: ""
-            }, {
-                keyName: "request_body",
-                dataType: "string",
-                description: ""
-            }, {
-                keyName: "request_headers",
-                dataType: "string",
-                description: ""
-            }, {
-                keyName: "request_method",
-                alias: "api_request_method",
-                dataType: "string",
-                description: ""
-            }, {
-                keyName: "request_path",
-                alias: "api_request_path",
-                dataType: "string",
-                description: ""
-            }, {
-                keyName: "response_body",
-                dataType: "string",
-                description: ""
-            }, {
-                keyName: "response_headers",
-                dataType: "string",
-                description: ""
-            }, {
-                keyName: "status_code",
-                dataType: "integer",
-                description: ""
-            }, {
-                keyName: "user_description",
-                dataType: "string",
-                description: ""
-            }]
-        },
-        {
             entityTableName: "appropriate_bodies",
             description: "",
             keys: [{

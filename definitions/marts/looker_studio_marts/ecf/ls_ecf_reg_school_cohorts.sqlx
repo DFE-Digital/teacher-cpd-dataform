@@ -238,7 +238,7 @@ FROM (
   SELECT
     DISTINCT(start_year) AS reg_year,
     CAST(CONCAT(start_year,'-05-01') AS date) AS reg_start_date,
-    CAST(CONCAT(start_year,'-10-31') AS date) AS reg_end_date
+    CAST(CONCAT(start_year,'-11-30') AS date) AS reg_end_date
   FROM
     ${ref("cohorts_latest_cpd")}) AS start_years
 CROSS JOIN
