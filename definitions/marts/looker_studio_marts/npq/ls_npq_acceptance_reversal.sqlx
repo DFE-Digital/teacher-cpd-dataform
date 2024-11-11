@@ -18,24 +18,9 @@ config {
 WITH acceptance_reversion AS (
   SELECT
     status_changes.entity_id AS application_ecf_id
-    ,courses.name AS npq_course_name
-    ,lp.name AS lead_provider_name
-    ,cohorts.start_year AS cohort
     ,COUNT(DISTINCT request_uuid) AS accepted_reversal_count
   FROM
     ${ref('npq_applications_field_updates_cpd')} AS status_changes
-  LEFT JOIN
-    ${ref('npq_courses_latest_cpd')} AS courses
-  ON
-    courses.id = status_changes.npq_course_id
-  LEFT JOIN
-    ${ref('npq_lead_providers_latest_cpd')} AS lp
-  ON
-    lp.id = status_changes.npq_lead_provider_id
-  LEFT JOIN
-    ${ref('cohorts_latest_cpd')} AS cohorts
-  ON
-    cohorts.id = status_changes.cohort_id
   WHERE
     status_changes.key_updated = 'lead_provider_approval_status'
     AND
