@@ -256,7 +256,7 @@ dfeAnalyticsDataform({
             description: "",
         }, {
             keyName: "course_group_id",
-            dataType: "integer",
+            dataType: "string",
             description: "",
         }, {
             keyName: "ecf_id",
@@ -736,7 +736,7 @@ dfeAnalyticsDataform({
         description: "",
         keys: [{
             keyName: "statement_id",
-            dataType: "integer",
+            dataType: "string",
             description: ""
         }, {
             keyName: "state",
@@ -744,7 +744,7 @@ dfeAnalyticsDataform({
             description: ""
         }, {
             keyName: "declaration_id",
-            dataType: "integer",
+            dataType: "string",
             description: ""
         }, {
             keyName: "ecf_id",
