@@ -12,15 +12,15 @@ dfeAnalyticsDataform({
             description: "",
             keys: [{
                 keyName: "user_id",
-                dataType: "integer",
+                dataType: "string",
                 description: ""
             },{
                 keyName: "course_id",
-                dataType: "integer",
+                dataType: "string",
                 description: ""
             },{
                 keyName: "lead_provider_id",
-                dataType: "integer",
+                dataType: "string",
                 description: ""
             },{
                 keyName: "ecf_id",
@@ -132,15 +132,15 @@ dfeAnalyticsDataform({
                 description: ""
             },{
                 keyName: "private_childcare_provider_id",
-                dataType: "integer",
+                dataType: "string",
                 description: ""
             },{
                 keyName: "itt_provider_id",
-                dataType: "integer",
+                dataType: "string",
                 description: ""
             },{
                 keyName: "school_id",
-                dataType: "integer",
+                dataType: "string",
                 description: ""
             },{
                 keyName: "teacher_catchment_iso_country_code",
@@ -156,7 +156,7 @@ dfeAnalyticsDataform({
                 description: ""
             },{
                 keyName: "cohort_id",
-                dataType: "integer",
+                dataType: "string",
                 description: ""
             },{
                 keyName: "funded_place",
@@ -168,7 +168,7 @@ dfeAnalyticsDataform({
                 description: ""
             },{
                 keyName: "schedule_id",
-                dataType: "integer",
+                dataType: "string",
                 description: ""
             },{
                 keyName: "referred_by_return_to_teaching_adviser",
@@ -184,11 +184,11 @@ dfeAnalyticsDataform({
             description: "This table contains the status changes for training_status on the application.",
             keys: [{
                 keyName: "application_id",
-                dataType: "integer",
+                dataType: "string",
                 description: ""
             }, {
                 keyName: "lead_provider_id",
-                dataType: "integer",
+                dataType: "string",
                 description: ""
             }, {
                 keyName: "state",
@@ -272,7 +272,7 @@ dfeAnalyticsDataform({
             description: ""
         }, {
             keyName: "application_id",
-            dataType: "integer",
+            dataType: "string",
             description: ""
         }, {
             keyName: "superseded_by_id",
@@ -280,11 +280,11 @@ dfeAnalyticsDataform({
             description: ""
         }, {
             keyName: "lead_provider_id",
-            dataType: "integer",
+            dataType: "string",
             description: ""
         }, {
             keyName: "cohort_id",
-            dataType: "integer",
+            dataType: "string",
             description: ""
         }, {
             keyName: "declaration_type",
@@ -392,7 +392,7 @@ dfeAnalyticsDataform({
         description: "",
         keys: [{
             keyName: "user_id",
-            dataType: "integer",
+            dataType: "string",
             description: ""
         }, {
             keyName: "ecf_id",
@@ -420,7 +420,7 @@ dfeAnalyticsDataform({
             description: ""
         }, {
             keyName: "declaration_id",
-            dataType: "integer",
+            dataType: "string",
             description: ""
         }, {
             keyName: "qualified_teachers_api_request_successful",
@@ -444,7 +444,7 @@ dfeAnalyticsDataform({
             description: ""
         }, {
             keyName: "participant_outcome_id",
-            dataType: "integer",
+            dataType: "string",
             description: ""
         }, {
             keyName: "request_path",
@@ -575,11 +575,11 @@ dfeAnalyticsDataform({
         description: "",
         keys: [{
             keyName: "course_group_id",
-            dataType: "integer",
+            dataType: "string",
             description: ""
         }, {
             keyName: "cohort_id",
-            dataType: "integer",
+            dataType: "string",
             description: ""
         }, {
             keyName: "name",
@@ -712,11 +712,11 @@ dfeAnalyticsDataform({
             description: ""
         }, {
             keyName: "cohort_id",
-            dataType: "integer",
+            dataType: "string",
             description: ""
         }, {
             keyName: "lead_provider_id",
-            dataType: "integer",
+            dataType: "string",
             description: ""
         }, {
             keyName: "marked_as_paid_at",
