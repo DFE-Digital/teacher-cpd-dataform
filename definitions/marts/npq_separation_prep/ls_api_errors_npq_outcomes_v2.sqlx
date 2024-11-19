@@ -68,7 +68,7 @@ ON
 INNER JOIN
   ${ref(`declarations_latest_npq`)} dec
 ON
-  npqo.participant_declaration_id = CAST(dec.id AS INT)
+  npqo.participant_declaration_id = dec.id
 LEFT JOIN
   ${ref('applications_latest_npq')} AS app
 ON

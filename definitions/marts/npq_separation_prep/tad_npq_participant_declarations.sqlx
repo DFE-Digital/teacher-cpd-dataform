@@ -48,7 +48,7 @@ FROM
 LEFT JOIN
   ${ref(`lead_providers_latest_npq`)} AS lead_providers
 ON
-  dec.lead_provider_id = CAST(lead_providers.id AS INT)
+  dec.lead_provider_id = lead_providers.id
 LEFT JOIN
   ${ref('applications_latest_npq')} AS applications
 ON
