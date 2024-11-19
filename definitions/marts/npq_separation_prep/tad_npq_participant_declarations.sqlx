@@ -30,7 +30,7 @@ config {
 
 
 SELECT
-  dec.id as declaration_id,
+  dec.ecf_id as declaration_id,
   dec.created_at,
   dec.updated_at,
   course.identifier AS course_identifier,
