@@ -1,10 +1,10 @@
 config {
     schema: "TAD",
     database: "ecf-bq",
-    name: "teacher_profiles",
+    name: "npq_user_profiles",
     type: "table",
     assertions: {
-        uniqueKey: ["teacher_profile_id"]
+        uniqueKey: ["user_id"]
     },
     bigquery: {
         partitionBy: "DATE(created_at)"
@@ -15,10 +15,10 @@ config {
 }
 
 SELECT
-  id as teacher_profile_id,
+  id AS user_id,
+  ecf_id AS user_ecf_id,
   trn,
-  user_id,
   created_at,
   updated_at
 FROM
-  ${ref(`teacher_profiles_latest_cpd`)}
+  ${ref(`users_latest_npq`)}
