@@ -1,0 +1,64 @@
+config {
+    schema: "TAD",
+    database: "ecf-bq",
+    name: "participant_declarations_npq",
+    type: "table",
+    assertions: {
+        uniqueKey: ["declaration_id"]
+    },
+    bigquery: {
+        partitionBy: "DATE(created_at)",
+        clusterBy: ["type","course_identifier","lead_provider_name","state"]
+    },
+    description: "This table contains all declaration records for NPQ participants",
+    columns: {
+        declaration_id: "UID",
+        created_at: "Date this entity was created, according to the latest version of the data received from the database.",
+        updated_at: "Date this entity was last updated something in the database, according to the latest version of the data received from the database.",
+        course_identifier: "Use this field to join to NPQ enrolments (declaration_course_identifier)",
+        lead_provider_name: "The name of the Lead Provider who submitted the declaration.",
+        declaration_date: "Date evidence was received.",
+        declaration_type: "The declaration type which for NPQ can be started, retained-1, retained-2 or completed.",
+        application_ecf_id: "ID used to link to NPQ Enrolments (application_ecf_id)",
+        user_id: "ID of the user who has been declared against. Use this to join with User Profiles (user_ecf_id) and Teacher Profiles (user_id). If the user has no ECF presence they will not appear in Teacher Profiles.",
+        state: "The current state of the declaration.",
+        last_streamed_event_occurred_at: "Timestamp of the event that we think provided us with the latest version of this entity.",
+        last_streamed_event_type: "Event type of the event that we think provided us with the latest version of this entity. Either entity_created, entity_updated, entity_destroyed or entity_imported."
+
+    }
+}
+
+
+SELECT
+  dec.id as declaration_id,
+  dec.created_at,
+  dec.updated_at,
+  course.identifier AS course_identifier,
+  dec.lead_provider_id,
+  lead_providers.name AS lead_provider_name,
+  declaration_date,
+  declaration_type,
+  applications.ecf_id AS application_ecf_id,
+  users.ecf_id AS user_id,
+  state,
+  dec.last_streamed_event_occurred_at,
+  dec.last_streamed_event_type
+FROM
+  ${ref(`declarations_latest_npq`)} AS dec
+LEFT JOIN
+  ${ref(`lead_providers_latest_npq`)} AS lead_providers
+ON
+  dec.lead_provider_id = CAST(lead_providers.id AS INT)
+LEFT JOIN
+  ${ref('applications_latest_npq')} AS applications
+ON
+  CAST(applications.id AS INT) = dec.application_id
+LEFT JOIN
+  ${ref('courses_latest_npq')} AS course
+ON
+  CAST(course.id AS INT) = applications.course_id
+LEFT JOIN
+  ${ref('users_latest_npq')} AS users
+ON
+  CAST(users.id AS INT) = applications.user_id
+
