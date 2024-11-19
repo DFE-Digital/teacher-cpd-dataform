@@ -759,6 +759,10 @@ dfeAnalyticsDataform({
             dataType: "string",
             description: ""
         }, {
+            keyName: "trn",
+            dataType: "integer",
+            description: ""
+        }, {
             keyName: "trn_verified",
             dataType: "boolean",
             description: ""
