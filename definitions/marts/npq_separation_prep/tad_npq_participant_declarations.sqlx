@@ -52,13 +52,13 @@ ON
 LEFT JOIN
   ${ref('applications_latest_npq')} AS applications
 ON
-  CAST(applications.id AS INT) = dec.application_id
+ applications.id = dec.application_id
 LEFT JOIN
   ${ref('courses_latest_npq')} AS course
 ON
-  CAST(course.id AS INT) = applications.course_id
+  course.id = applications.course_id
 LEFT JOIN
   ${ref('users_latest_npq')} AS users
 ON
-  CAST(users.id AS INT) = applications.user_id
+  users.id = applications.user_id
 

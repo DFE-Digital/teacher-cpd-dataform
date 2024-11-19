@@ -34,4 +34,4 @@ FROM
 LEFT JOIN
     ${ref('declarations_latest_npq')} AS dec
 ON
-    CAST(dec.id AS INT) = outcomes.declaration_id
+    dec.id = outcomes.declaration_id

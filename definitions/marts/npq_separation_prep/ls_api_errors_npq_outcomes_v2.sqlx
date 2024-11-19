@@ -64,7 +64,7 @@ FROM
 INNER JOIN
   npqapirequests npqar
 ON
-  CAST(npqo.id AS INT) = npqar.participant_outcome_id
+  npqo.id = npqar.participant_outcome_id
 INNER JOIN
   ${ref(`declarations_latest_npq`)} dec
 ON
@@ -72,8 +72,8 @@ ON
 LEFT JOIN
   ${ref('applications_latest_npq')} AS app
 ON
-  CAST(app.id AS INT) = dec.application_id
+  app.id = dec.application_id
 LEFT JOIN
   ${ref('users_latest_npq')} AS users
 ON
-  CAST(users.id AS INT) = app.user_id
+  users.id = app.user_id

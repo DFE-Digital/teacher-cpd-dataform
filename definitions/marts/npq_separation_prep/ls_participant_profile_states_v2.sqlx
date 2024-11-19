@@ -84,11 +84,11 @@ npq_output AS (
   LEFT JOIN
     ${ref('applications_latest_npq')} AS app
   ON
-    CAST(app.id AS INT) = ppsl.application_id
+    app.id = ppsl.application_id
   LEFT JOIN
     ${ref('users_latest_npq')} AS users
   ON
-    CAST(users.id AS INT) = app.user_id
+    users.id = app.user_id
   LEFT JOIN
     ${ref('npq_enrolments')} AS enr
   ON
