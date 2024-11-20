@@ -69,7 +69,6 @@ config {
         count_of_fails: "Counts the number of Failed outcome states for a participant.",
         cohort_id: "ID of cohort.",
         npq_lead_provider_id: "ID of Lead Provider.",
-        participant_identity_id: "This is the ID associated with the email a participant uses to sign up. As a participant can have multiple emails, this doesn't accurately represent a single profile.",
         primary_establishment: "Records whether the user's establishment at time of registration was a primary establishment or not. Based on GIAS data.",
         school_ukprn: "UKPRN of the participant's establishment ",
         teacher_catchment: "The catchment zone the participant works in within the UK i.e. England, Wales, Northern Ireland etc. International applicants recorded as 'another'.",
