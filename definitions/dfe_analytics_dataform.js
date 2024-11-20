@@ -131,23 +131,6 @@ dfeAnalyticsDataform({
             }]
         },
         {
-            entityTableName: "declaration_states",
-            description: "",
-            keys: [{
-                keyName: "participant_declaration_id",
-                dataType: "string",
-                description: ""
-            }, {
-                keyName: "state",
-                dataType: "string",
-                description: ""
-            }, {
-                keyName: "state_reason",
-                dataType: "string",
-                description: ""
-            }]
-        },
-        {
             entityTableName: "delivery_partners",
             description: "",
             keys: [{
