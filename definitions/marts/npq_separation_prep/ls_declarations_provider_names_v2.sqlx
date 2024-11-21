@@ -163,7 +163,7 @@ npq_declarations AS (
   LEFT JOIN
     ${ref('cohorts_latest_npq')} AS stm_cohort
   ON
-    cohort.id = dec.cohort_id
+    stm_cohort.id = dec.cohort_id
   LEFT JOIN
     ${ref('lead_providers_latest_npq')} AS lp
   ON
