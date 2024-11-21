@@ -8,7 +8,7 @@ config {
     },
     bigquery: {
         partitionBy: "DATE(created_at)",
-        clusterBy: ["type","course_identifier","lead_provider_name","state"]
+        clusterBy: ["course_identifier","lead_provider_name","state"]
     },
     description: "This table contains all declaration records for NPQ participants",
     columns: {
