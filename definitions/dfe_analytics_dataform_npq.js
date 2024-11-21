@@ -178,6 +178,10 @@ dfeAnalyticsDataform({
                 keyName: "accepted_at",
                 dataType: "timestamp",
                 description: ""
+            },{
+                keyName: "raw_application_data",
+                dataType: "json",
+                description: ""
             }]
     }, {
             entityTableName: "application_states",
