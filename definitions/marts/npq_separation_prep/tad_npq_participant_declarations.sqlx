@@ -21,7 +21,7 @@ config {
         declaration_type: "The declaration type which for NPQ can be started, retained-1, retained-2 or completed.",
         application_id: "ID used to link to NPQ Enrolments (application_id)",
         user_id: "ID from the new NPQ Service (as of 28/11/2024) for the user who has been declared against. Use this to link to User Profiles (user_id).",
-        ecf_user_id: "ECF ID of the user who has been declared against. Use this to join with Teacher Profiles (user_id). If the user has no ECF presence or only appeared in NPQ data after 27/11/2024, they will not appear in Teacher Profiles.",
+        participant_user_id: "ECF ID of the user who has been declared against. Use this to join with Teacher Profiles (user_id). If the user has no ECF presence or only appeared in NPQ data after 27/11/2024, they will not appear in Teacher Profiles.",
         state: "The current state of the declaration.",
         last_streamed_event_occurred_at: "Timestamp of the event that we think provided us with the latest version of this entity.",
         last_streamed_event_type: "Event type of the event that we think provided us with the latest version of this entity. Either entity_created, entity_updated, entity_destroyed or entity_imported."
@@ -41,7 +41,7 @@ SELECT
   declaration_type,
   applications.id AS application_id,
   users.id AS user_id
-  users.ecf_id AS ecf_user_id,
+  users.ecf_id AS participant_user_id,
   state,
   dec.last_streamed_event_occurred_at,
   dec.last_streamed_event_type
