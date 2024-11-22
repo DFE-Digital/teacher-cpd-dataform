@@ -17,7 +17,7 @@ config {
 
 WITH acceptance_reversion AS (
   SELECT
-    status_changes.entity_id AS application_ecf_id
+    status_changes.entity_id AS application_id
     ,COUNT(DISTINCT request_uuid) AS accepted_reversal_count
   FROM
     ${ref('applications_field_updates_npq')} AS status_changes
@@ -43,6 +43,6 @@ FROM
 INNER JOIN
   acceptance_reversion AS ar
 ON
-  ar.application_ecf_id = npq.application_ecf_id
+  ar.application_id = npq.application_id
 WHERE
   ar.accepted_reversal_count > 0
