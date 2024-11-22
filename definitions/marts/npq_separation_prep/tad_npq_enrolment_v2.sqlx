@@ -15,7 +15,7 @@ config {
         application_id: "This is the unique id for an NPQ application. We join this field on the application_id field in the declarations table to identify declarations paired with this application",
         teacher_profile_trn: "This TRN is sourced through user profiles which are dependent on the application having been accepted by a Lead Provider. If the application has been made but has yet to be accepted the TRN field will be blank despite a valid TRN verified field. ",
         user_profile_id: "This User ID is sourced through user profiles which are dependent on the application having been accepted by a Lead Provider. If the application has been made but has yet to be accepted the User ID field will be blank.",
-        ecf_user_id: "This User ID is sourced through user profiles which are dependent on the application having been accepted by a Lead Provider. If the application has been made but has yet to be accepted the ECF User ID field will be blank. This field can be used to join on ECF Teacher Profiles should they have an ECF profile or were present in NPQ data prior to 28/11/2024.",
+        ecf_user_id: "This is the user_id that matches the user_ids created pre-separation in the ECF Teacher Profiles. This field can be used to join on ECF Teacher Profiles should they have an ECF profile or were present in NPQ data prior to 28/11/2024. This user_id is sourced from the NPQ User Profile.",
         application_trn: "This is the TRN provided at the point of application",
         trn_auto_verified: "This refers to whether the TRN provided in the application process was verified",
         headteacher_status: "Indicates whether the participant is a headteacher in their first five years.",
