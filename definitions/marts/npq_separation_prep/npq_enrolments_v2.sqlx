@@ -25,7 +25,7 @@ config {
         school_postcode: "Postcode of participant's school",
         course_name: "Text name of NPQ course.",
         provider_name: "Name of lead provider.",
-        user_profile_id: "The ID of the user profile on the application used to join with users from the new NPQ Service.",
+        user_id: "The ID of the user profile on the application used to join with users from the new NPQ Service.",
         ecf_user_id: "This comes from the user profile associated with the application. This or trn_verified is the preferred representation of a single user as it transcends programme. ecf_user_id is not PII. This field can be used to join on Teacher Profiles as long as it was created prior to 28/11/2024.",
         targeted_delivery_funding_eligibility: "Indicates whether this NPQ participant is eligible for targeted delivery uplift payment. This following establishments are eligible: 1)state-funded secondary schools and state-funded 16 to 19 educational settings with 1 to 600 pupils will receive a grant payment of £200; 2) state-funded primary schools with more than 150 pupils will receive a grant payment of £200; 3) state-funded primary schools with 1 to 150 pupils will receive a grant payment of £800.",
         number_of_pupils: "Pupil count based on GIAS data at time of registration.",
@@ -92,7 +92,7 @@ WITH npq_app AS (
     ,app.on_submission_trn AS application_trn
     ,users.trn AS trn_verified
     ,users.trn_auto_verified
-    ,users.id AS user_profile_id
+    ,users.id AS user_id
     ,users.ecf_id AS ecf_user_id
     ,app.created_at AS application_created_at
     ,app.updated_at
