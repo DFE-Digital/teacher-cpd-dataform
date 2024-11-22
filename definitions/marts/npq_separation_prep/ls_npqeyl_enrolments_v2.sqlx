@@ -1,7 +1,7 @@
 config {
     type: "table",
     assertions: {
-        uniqueKey: ["application_ecf_id"]
+        uniqueKey: ["application_id"]
     },
     bigquery: {
         partitionBy: "",
@@ -9,7 +9,7 @@ config {
     },
     description: "This mart provides a report of all Early Years Leadership NPQs (NPQEYL). The table links to fields from GIAS and Ofsted establishments and feeds into the NPQEYL dashboard.",
     columns: {
-        application_ecf_id: "ID of each unique application. Declarations are joined to the application using this id.",
+        application_id: "ID of each unique application. Declarations are joined to the application using this id.",
         application_trn: "This is the TRN provided at the point of application.",
         trn_verified: "This is the TRN sourced from the teacher's profile via participant profiles",
         trn_auto_verified: "This refers to whether the TRN provided in the application process was verified.",
