@@ -17,27 +17,26 @@ config {
         created_at: "Timestamp when the declaration was created.",
         updated_at: "Timestamp of when any updates occured to the declaration.",
         course_identifier: "Identifier for ECF or NPQ course declaration is associated with.",
-        cpd_lead_provider_id: "ID of Lead Provider that has made the declaration.",
+        lead_provider_id: "ID of Lead Provider that has made the declaration.",
         declaration_date: "Date evidence was received.",
         declaration_type: "The name of the stage the declaration has been made against.",
-        delivery_partner_id: "ID of the ECF Delivery Partner associated with the Lead Provider-participant combo.",
-        evidence_held: "Details any evidence provided with the declaration.",
-        mentor_user_id: "User ID of the mentor associated with the declared-against ECT",
+        delivery_partner_id: "ECF ONLY: ID of the ECF Delivery Partner associated with the Lead Provider-participant combo.",
+        evidence_held: "ECF ONLY: Details any evidence provided with the declaration.",
+        mentor_user_id: "ECF ONLY: User ID of the mentor associated with the declared-against ECT",
         profile_id: "ID of the participant's profile. For ECF programme this is the participant_profile_id, for NPQ Users this is the user_id from the new service.",
         pupil_premium: "ECF ONLY: Boolean for pupil premium eligibility.",
         sparsity_uplift: "ECF ONLY: Boolean for sparsity uplift eligibility.",
         state: "State of the declaration. Can be submitted, eligible, payable, paid, ineligible, voided, awaiting_clawback, and clawed_back.",
         superseded_by_id: "The ID of the declaration which superseded the current record. Typically this value is not null when the state is voided, awaiting_clawback or clawed_back and a new declaration has been submitted.",
-        type: "Says if it belongs to either the ECF or NPQ programme.",
-        user_id: "Used ID of the participant being declared against.",
+        ecf_user_id: "User ID of the participant being declared against. For NPQ, this field may contain values not present in ECF Teacher Profiles user_id if they only exist post 27/11/2024. All values for NPQ will exist in users_latest_npq.ecf_id",
         last_streamed_event_occurred_at: "Timestamp of when this record was most recently imported or updated.",
         last_streamed_event_type: "Whether the most recent event was this entity being imported or updated.",
-        cohort: "Participant's cohort from either NPQ applications or ecf_indcutions_dedupe.",
+        cohort: "Participant's cohort from either NPQ applications or ecf_inductions_dedupe.",
         schedule_identifier: "Participant's schedule from either NPQ applications or ecf_indcutions_dedupe.",
-        statement_cohort: "Cohort from the financial statement a declaration is stored against.",
+        statement_cohort: "Cohort from the financial statement a declaration is stored against for ECF and the cohort against the declaration for NPQ.",
         cpd_lp_name: "Name of Lead Provider for NPQ or ECF course",
         cpd_dp_name: "Name of Delivery Partner for ECF course",
-        programme: "Shortening of 'type'. Says if it belongs to either the ECF or NPQ programme."
+        programme: "Either ECF or NPQ based on which source the data originates from."
     }
 }
 
@@ -78,8 +77,7 @@ ecf_declarations AS (
     dec.sparsity_uplift,
     dec.state,
     dec.superseded_by_id,
-    dec.type,
-    dec.user_id,
+    dec.user_id AS ecf_user_id,
     dec.cohort_id,
     dec.last_streamed_event_occurred_at,
     dec.last_streamed_event_type,
@@ -123,16 +121,15 @@ npq_declarations AS (
     dec.lead_provider_id AS lead_provider_id,
     dec.declaration_date,
     dec.declaration_type,
-    '' AS delivery_partner_id,
-    '' AS evidence_held,
-    '' AS mentor_user_id,
+    CAST(NULL AS STRING) AS delivery_partner_id,
+    CAST(NULL AS STRING) AS evidence_held,
+    CAST(NULL AS STRING) AS mentor_user_id,
     app.user_id AS profile_id,
     CAST(NULL AS BOOL) AS pupil_premium_uplift,
     CAST(NULL AS BOOL) AS sparsity_uplift,
     dec.state,
     dec.superseded_by_id,
-    'NPQ' AS type,
-    users.ecf_id AS user_id,
+    users.ecf_id AS ecf_user_id,
     app.cohort_id,
     dec.last_streamed_event_occurred_at,
     dec.last_streamed_event_type,
@@ -140,14 +137,14 @@ npq_declarations AS (
     sched.identifier AS schedule_identifier,
     stm_cohort.start_year AS statement_cohort,
     lp.name AS cpd_lp_name,
-    '' AS cpd_dp_name,
+    CAST(NULL AS STRING) AS cpd_dp_name,
     'NPQ' AS programme
   FROM
     ${ref('declarations_latest_npq')} AS dec
   LEFT JOIN
     ${ref('applications_latest_npq')} AS app
   ON
-    app.id = dec.application_id
+    dec.application_id = app.id
   LEFT JOIN
     ${ref('users_latest_npq')} AS users
   ON 
@@ -190,8 +187,7 @@ SELECT
   sparsity_uplift,
   state,
   superseded_by_id,
-  type,
-  user_id,
+  ecf_user_id,
   cohort_id,
   last_streamed_event_occurred_at,
   last_streamed_event_type,
@@ -220,8 +216,7 @@ SELECT
   sparsity_uplift,
   state,
   superseded_by_id,
-  type,
-  user_id,
+  ecf_user_id,
   cohort_id,
   last_streamed_event_occurred_at,
   last_streamed_event_type,
