@@ -30,7 +30,7 @@ WITH acceptance_reversion AS (
 
 SELECT
    npq.application_ecf_id
-  ,npq.participant_profile_id
+  ,npq.application_id
   ,npq.ecf_user_id
   ,npq.application_status AS current_application_status
   ,npq.cohort
