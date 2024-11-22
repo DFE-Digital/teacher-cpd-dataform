@@ -32,8 +32,8 @@ WITH
     ppsl.id,
     ppsl.created_at,
     ppsl.updated_at,
-    ppsl.cpd_lead_provider_id,
-    ppsl.participant_profile_id,
+    ppsl.cpd_lead_provider_id AS lead_provider_id,
+    ppsl.participant_profile_id AS profile_id,
     ppsl.reason,
     ppsl.state,
     ppsl.last_streamed_event_occurred_at,
@@ -68,7 +68,7 @@ npq_output AS (
     ppsl.created_at,
     ppsl.updated_at,
     ppsl.lead_provider_id,
-    enr.ecf_user_id,
+    enr.ecf_user_id AS profile_id,
     ppsl.reason,
     ppsl.state,
     ppsl.last_streamed_event_occurred_at,
@@ -99,37 +99,11 @@ npq_output AS (
 
 
 SELECT
-  id,
-  created_at,
-  updated_at,
-  cpd_lead_provider_id AS lead_provider_id,
-  participant_profile_id AS profile_id,
-  reason,
-  state,
-  last_streamed_event_occurred_at,
-  last_streamed_event_type,
-  cohort,
-  schedule_identifier,
-  cpd_lp_name,
-  participant_type,
-  programme
+  *
 FROM
   ecf_output
 UNION ALL
 SELECT
-  id,
-  created_at,
-  updated_at,
-  lead_provider_id,
-  ecf_user_id AS profile_id,
-  reason,
-  state,
-  last_streamed_event_occurred_at,
-  last_streamed_event_type,
-  cohort,
-  schedule_identifier,
-  cpd_lp_name,
-  participant_type,
-  programme
+  *
 FROM
   npq_output
