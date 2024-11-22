@@ -32,7 +32,7 @@ config {
         last_streamed_event_occurred_at: "Timestamp of when this record was most recently imported or updated.",
         last_streamed_event_type: "Whether the most recent event was this entity being imported or updated.",
         cohort: "Participant's cohort from either NPQ applications or ecf_inductions_dedupe.",
-        schedule_identifier: "Participant's schedule from either NPQ applications or ecf_indcutions_dedupe.",
+        schedule_identifier: "Participant's schedule from either NPQ applications or ecf_inductions_dedupe.",
         statement_cohort: "Cohort from the financial statement a declaration is stored against for ECF and the cohort against the declaration for NPQ.",
         cpd_lp_name: "Name of Lead Provider for NPQ or ECF course",
         cpd_dp_name: "Name of Delivery Partner for ECF course",
