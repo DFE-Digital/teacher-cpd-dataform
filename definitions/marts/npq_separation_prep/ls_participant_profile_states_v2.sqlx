@@ -92,7 +92,7 @@ npq_output AS (
   LEFT JOIN
     ${ref('npq_enrolments')} AS enr
   ON
-    enr.application_ecf_id = app.ecf_id
+    enr.application_id = app.ecf_id
   QUALIFY(
     ROW_NUMBER() OVER (PARTITION BY ppsl.application_id ORDER BY ppsl.created_at DESC) = 1
   )
