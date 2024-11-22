@@ -67,7 +67,6 @@ npq_output AS (
     ppsl.id,
     ppsl.created_at,
     ppsl.updated_at,
-    app.ecf_id,
     ppsl.lead_provider_id,
     enr.ecf_user_id,
     ppsl.reason,
@@ -92,7 +91,7 @@ npq_output AS (
   LEFT JOIN
     ${ref('npq_enrolments')} AS enr
   ON
-    enr.application_id = app.ecf_id
+    enr.application_id = app.id
   QUALIFY(
     ROW_NUMBER() OVER (PARTITION BY ppsl.application_id ORDER BY ppsl.created_at DESC) = 1
   )
@@ -121,7 +120,7 @@ SELECT
   id,
   created_at,
   updated_at,
-  CAST(lead_provider_id AS STRING) AS lead_provider_id,
+  lead_provider_id,
   ecf_user_id AS profile_id,
   reason,
   state,
