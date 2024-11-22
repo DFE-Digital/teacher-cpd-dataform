@@ -4,7 +4,7 @@ const dfeAnalyticsDataform = require("dfe-analytics-dataform");
 dfeAnalyticsDataform({
     eventSourceName: "npq",
     bqEventsTableName: 'events',
-    bqDatasetName: 'npq_events_separation',
+    bqDatasetName: 'npq_events_staging',
     urlRegex: 'manage-training-for-early-career-teachers.education.gov.uk',
     hiddenPolicyTagLocation: "projects/ecf-bq/locations/europe-west2/taxonomies/6302091323314055162/policyTags/301313311867345339",
     dataSchema: [{
@@ -13,19 +13,19 @@ dfeAnalyticsDataform({
             keys: [{
                 keyName: "user_id",
                 dataType: "string",
-                description: ""
+                description: "The numerical ID used to join to the users table on the id column."
             },{
                 keyName: "course_id",
                 dataType: "string",
-                description: ""
+                description: "The numerical ID used to join to the courses table on the id column."
             },{
                 keyName: "lead_provider_id",
                 dataType: "string",
-                description: ""
+                description: "The numerical ID used to join to the lead providers table on the id column."
             },{
                 keyName: "ecf_id",
                 dataType: "string",
-                description: ""
+                description: "The GUID for the application. This can be used to join to existing ECF NPQ applications until they are removed. Lead Providers will use this field when calling the API for a specific application."
             },{
                 keyName: "headteacher_status",
                 dataType: "string",
@@ -63,10 +63,6 @@ dfeAnalyticsDataform({
                 dataType: "string",
                 description: ""
             },{
-                keyName: "DEPRECATED_private_childcare_provider_urn",
-                dataType: "string",
-                description: ""
-            },{
                 keyName: "works_in_nursery",
                 dataType: "boolean",
                 description: ""
@@ -99,10 +95,6 @@ dfeAnalyticsDataform({
                 dataType: "string",
                 description: ""
             },{
-                keyName: "DEPRECATED_itt_provider",
-                dataType: "string", // NEED TO VERIFY DTYPE
-                description: ""
-            },{
                 keyName: "lead_mentor",
                 dataType: "boolean",
                 description: ""
@@ -133,15 +125,15 @@ dfeAnalyticsDataform({
             },{
                 keyName: "private_childcare_provider_id",
                 dataType: "string",
-                description: ""
+                description: "The numeric ID used for joining to private childcare providers table on the id column."
             },{
                 keyName: "itt_provider_id",
                 dataType: "string",
-                description: ""
+                description: "The numeric ID used for joining to itt providers table on the id column."
             },{
                 keyName: "school_id",
                 dataType: "string",
-                description: ""
+                description: "The numeric ID used for joining to the schools table on the id column."
             },{
                 keyName: "teacher_catchment_iso_country_code",
                 dataType: "string",
@@ -157,7 +149,7 @@ dfeAnalyticsDataform({
             },{
                 keyName: "cohort_id",
                 dataType: "string",
-                description: ""
+                description: "The numeric ID used for joining to the cohorts table on the id column."
             },{
                 keyName: "funded_place",
                 dataType: "boolean",
@@ -169,7 +161,7 @@ dfeAnalyticsDataform({
             },{
                 keyName: "schedule_id",
                 dataType: "string",
-                description: ""
+                description: "The numeric ID used for joining to the schedules table on the id column."
             },{
                 keyName: "referred_by_return_to_teaching_adviser",
                 dataType: "boolean",
@@ -179,8 +171,16 @@ dfeAnalyticsDataform({
                 dataType: "timestamp",
                 description: ""
             },{
-                keyName: "raw_application_data",
-                dataType: "json",
+                keyName: "on_submission_trn",
+                dataType: "string",
+                description: ""
+            },{
+                keyName: "senco_in_role",
+                dataType: "string",
+                description: ""
+            },{
+                keyName: "senco_start_date",
+                dataType: "string",
                 description: ""
             }]
     }, {
@@ -273,7 +273,7 @@ dfeAnalyticsDataform({
         keys: [{
             keyName: "ecf_id",
             dataType: "string",
-            description: ""
+            description: "The GUID for the declaration. This can be used to link to existing records in ECF NPQ declarations and will be used by the Lead Providers when calling the API on a specific declaration."
         }, {
             keyName: "application_id",
             dataType: "string",
@@ -281,7 +281,7 @@ dfeAnalyticsDataform({
         }, {
             keyName: "superseded_by_id",
             dataType: "string",
-            description: ""
+            description: "The ID of the declaration that replaces the current record."
         }, {
             keyName: "lead_provider_id",
             dataType: "string",
@@ -429,11 +429,11 @@ dfeAnalyticsDataform({
         }, {
             keyName: "qualified_teachers_api_request_successful",
             dataType: "boolean",
-            description: ""
+            description: "TRUE/FALSE if the outcome was successfully sent to the Database of Qualified Teachers (DQT). Field is populated by the service."
         }, {
             keyName: "sent_to_qualified_teachers_api_at",
             dataType: "timestamp",
-            description: ""
+            description: "The timestamp of when the outcome was sent to the Database of Qualified Teachers (DQT)."
         }, {
             keyName: "ecf_id",
             dataType: "string",
@@ -441,7 +441,7 @@ dfeAnalyticsDataform({
         }]
     }, {
         entityTableName: "participant_outcome_api_requests",
-        description: "",
+        description: "Table of API requests made by Lead Providers to add a participant outcome to their completed declaration.",
         keys: [{
             keyName: "ecf_id",
             dataType: "string",
@@ -757,11 +757,11 @@ dfeAnalyticsDataform({
         }]
     }, {
         entityTableName: "users",
-        description: "",
+        description: "This table contains a mapping between User ID (numeric) and TRN for users of the NPQ Service. Closest ECF equivalent is Teacher Profiles.",
         keys: [{
             keyName: "ecf_id",
             dataType: "string",
-            description: ""
+            description: "The GUID for the user. This can be used to link to ECF Teacher Profiles on user_id and will be used by Lead providers to call APIs on specific users."
         }, {
             keyName: "trn",
             dataType: "integer",
@@ -805,7 +805,7 @@ dfeAnalyticsDataform({
         }, {
             keyName: "notify_user_for_future_reg",
             dataType: "boolean",
-            description: ""
+            description: "TRUE/FALSE if the user requests to be notified about future registration windows."
         }, {
             keyName: "email_updates_status",
             dataType: "string",
