@@ -9,7 +9,8 @@ config {
     bigquery: {
         partitionBy: "DATE(created_at)"
     },
-    description: "This table contains the mapping of user_id to TRN. There is not a perfect 1-to-1 relationship between user_id and TRN, there are cases of multiple records of user ids for a single TRN. There are no recorded cases of multiple TRNs for a single urn. The user_id of NPQ participants who first participated post 27/11/2024 will not appear in this table, instead please refer to NPQ User Profiles.",
+    description: "This table contains the mapping of user_id to TRN. There is not a perfect 1-to-1 relationship between user_id and TRN, there are cases of multiple records of user ids for a single TRN. There are no recorded cases of multiple TRNs for a single urn. \n \
+    The user_id of NPQ participants who first appeared in NPQ data post 27/11/2024 will not appear in this table, instead please refer to NPQ User Profiles. These participants will not have had a Teacher Profile before 27/11/2024 and will only exist as users in the NPQ User Profiles Table.",
     columns: {
     }
 }
