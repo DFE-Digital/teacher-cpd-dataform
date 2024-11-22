@@ -26,8 +26,8 @@ SELECT
   outcomes.created_at,
   outcomes.updated_at,
   outcomes.completion_date,
-  -- outcomes.declaration_id,
-  dec.ecf_id AS declaration_id,
+  outcomes.declaration_id,
+  dec.ecf_id AS declaration_ecf_id,
   outcomes.state
 FROM
   ${ref(`participant_outcomes_latest_npq`)} AS outcomes

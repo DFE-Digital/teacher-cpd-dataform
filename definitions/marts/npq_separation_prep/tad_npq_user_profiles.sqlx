@@ -16,7 +16,7 @@ config {
 
 SELECT
   id AS user_id,
-  ecf_id AS user_ecf_id,
+  ecf_id AS ecf_user_id,
   trn,
   created_at,
   updated_at
