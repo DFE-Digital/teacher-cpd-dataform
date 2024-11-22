@@ -1,0 +1,170 @@
+config {
+    type: "table",
+    assertions: {
+        uniqueKey: ["application_id"]
+    },
+    bigquery: {
+        partitionBy: "",
+        clusterBy: ["setting_type", "final_la_name", "schedule_and_cohort", "funding_source"]
+    },
+    description: "This mart provides a report of all Early Years Leadership NPQs (NPQEYL). The table links to fields from GIAS and Ofsted establishments and feeds into the NPQEYL dashboard.",
+    columns: {
+        application_id: "ID of each unique application. Declarations are joined to the application using this id.",
+        application_trn: "This is the TRN provided at the point of application.",
+        trn_verified: "This is the TRN sourced from the teacher's profile via participant profiles",
+        trn_auto_verified: "This refers to whether the TRN provided in the application process was verified.",
+        application_created_at: "Refers to the date the application was created.",
+        headteacher_status: "Indicates whether the participant is a headteacher in their first five years.",
+        eligible_for_funding: "Indicates whether the applicant is eligible for funding for their course.",
+        funding_choice: "If a participant is not eligible for funding, this indicates the source of the funding for their NPQ. Possible fields: Another, School, Self, Trust.",
+        school_urn: "The unique reference number of the participant's school. Private childcare participants do not need a URN.",
+        school_name: "Name of participant's school.",
+        high_pupil_premium: "This indicates whether the uplift payment for high pupil premium is applicable to this participant's started declaration. Pupil premium funding is allocated to eligible schools based on the number of 1) pupils who are recorded as eligible for free school meals, or have been recorded as eligible in the past 6 years (referred to as Ever 6 FSM); 2) children previously looked after by a local authority or other state care, including children adopted from state care or equivalent from outside England and Wales.",
+        la_name: "Name of local authority.",
+        school_postcode: "Postcode of participant's school",
+        course_name: "Text name of NPQ course.",
+        declaration_course_identifier: "Shorthand of NPQ course. This is sourced from npq_courses_latest table (not declarations) but it is used to match against declarations along with the application_ecf_id",
+        provider_name: "Name of lead provider. There is a text modification in the mart code for Best Practice Network and Leadership Learning South East.",
+        ecf_user_id: "This comes from the Users table ecf_id column which is the GUID format. This can be used to link to ECF Teacher Profiles if the participant existed in the service prior to 27/11/2024.",
+        targeted_delivery_funding_eligibility: "Indicates whether this NPQ participant is eligible for targeted delivery uplift payment. This following establishments are eligible: 1)state-funded secondary schools and state-funded 16 to 19 educational settings with 1 to 600 pupils will receive a grant payment of £200; 2) state-funded primary schools with more than 150 pupils will receive a grant payment of £200; 3) state-funded primary schools with 1 to 150 pupils will receive a grant payment of £800.",
+        number_of_pupils: "Pupil count based on GIAS data at time of registration.",
+        works_in_childcare: "Indicates whether the participant works in childcare.",
+        kind_of_nursery: "If the participant works in a nursery, indicates which type of nursery. Possible fields: Local authority maintained nursery, Preschool class as part of school, Private nursery, Another Early Years Setting.",
+        private_childcare_provider_urn: "The unique reference number given to the employer of participants who work in private childcare.",
+        funding_eligiblity_status_code: "Indicates the funding status of a participant.",
+        cohort: "The cohort/academic year corresponding to when the participant started their course. Possible fields: 2021 onwards.",
+        course_identifier: "Shorthand of NPQ course. This comes from the participant's latest declaration.",
+        latest_state: "State of participant's latest declaration. Latest declaration is determined using the field declaration_date as this is the date when the evidence for the declaration is provided.",
+        latest_declaration_type: "Type of participant's latest declaration.",
+        latest_cpd_lead_provider_name: "Name of Lead Provider associated with participant's latest declaration.",
+        latest_declaration_date: "Date evidence was submitted for participant's latest declaration.",
+        latest_declaration_updated_at: "Date participant's latest declaration was updated",
+        participant_profile_id: "The participant profile ID provided with a participant's declaration(s).",
+        application_status: "Indicates whether the application has been approved by the lead provider.Possible fields: Pending, Accepted, Rejected.",
+        updated_at: "Refers to the latest updated date for the application record.",
+        employer_name: "Shows the entered employer name of non-school users. Text field.",
+        employment_role: "Shows the employment role of non-school users. Text field.",
+        employment_type: "For non-school users, shows the type of institution they are employed in. Possible fields: Local authority supply teachers, Local authority virtual school, Young offender institute, Hospital school, Other.",
+        declaration_user_id: "This is the user ID provided with a participant's declaration(s). User ID also exists independently in other tables.",
+        training_status: "Pulled from participant profile which is created when application is accepted by lead provider.",
+        schedule_identifier: "This indicates which sub-cohort or tranche the participant commenced training within an annual cohort. For NPQ, the schedule identifier also distinguishes between the leadership and specialist NPQ types. Pulled from participant profile which is created when application is accepted by lead provider.",
+        started_declaration_id: "ID of the participant's started declaration.",
+        started_declaration_state: "State of the participant's started declaration.",
+        started_declaration_date: "Date evidence was submitted for participant's started declaration.",
+        funded_start_declaration: "True if the declaration is in an eligible, payable, or paid state.",
+        retained1_declaration_id: "ID of the participant's retained-1 declaration.",
+        retained1_declaration_state: "State of the participant's retained-1 declaration.",
+        retained1_declaration_date: "Date evidence was submitted for participant's retained-1 declaration.",
+        funded_retained1_declaration: "True if the declaration is in an eligible, payable, or paid state.",
+        retained2_declaration_id: "ID of the participant's retained-2 declaration.",
+        retained2_declaration_state: "State of the participant's retained-2 declaration.",
+        retained2_declaration_date: "Date evidence was submitted for participant's retained-2 declaration.",
+        funded_retained2_declaration: "True if the declaration is in an eligible, payable, or paid state.",
+        completed_declaration_id: "ID of the participant's completed declaration.",
+        completed_declaration_state: "State of the participant's completed declaration.",
+        funded_completed_declaration: "True if the declaration is in an eligible, payable, or paid state.",
+        completed_declaration_date: "Date evidence was submitted for participant's completed declaration.",
+        latest_outcome_state: "State of participant's latest outcome for their NPQ. Outcomes are joined in on the participant's completed declaration. Possible fields: Passed, Failed, Voided.",
+        latest_outcome_date: "Date of completion for the participant's latest outcome.",
+        count_of_fails: "Counts the number of Failed outcome states for a participant.",
+        cohort_id: "ID of cohort.",
+        npq_lead_provider_id: "ID of Lead Provider.",
+        primary_establishment: "Records whether the user's establishment at time of registration was a primary establishment or not. Based on GIAS data.",
+        school_ukprn: "UKPRN of the participant's establishment ",
+        teacher_catchment: "The catchment zone the participant works in within the UK i.e. England, Wales, Northern Ireland etc. International applicants recorded as 'another'.",
+        teacher_catchment_country: "The country the participant works in.",
+        teacher_catchment_iso_country_code: "The ISO code for the country the participant works in.",
+        tsf_primary_eligibility: "TRUE/FALSE for whether a school is eligible for TSF (£200) owing to it being a primary establishment.",
+        tsf_primary_plus_eligibility: "TRUE/ FALSE for whether a school is eligible for the base £200 as well as the additional £600 based on whether they are a primary school and have fewer than 150 pupils. Pupil count based on GIAS data at time of registration.",
+        works_in_nursery: "Indicates whether the participant works in a nursery.",
+        works_in_school: "Indicates whether the participant works in a school. ",
+        latest_user_id: "This field pulls the first non-NULL field from profile_user_id, declaration_user_id, and ecf_user_id.",
+        schedule_and_cohort: "Calculated field combining the cohort and schedule_identifier fields into one field. ",
+        funding_source: "Calculated field that replaces all NULL values in funding_choice with 'DfE'.",
+        phase_of_education: "Phase of education of an establishment as stored in GIAS/Ofsted.",
+        setting_type: "Calculated field that uses a combination of the kind_of_nursery field from the application with the establishment_type and establishment_subtype fields from GIAS and Ofsted.",
+        establishment_subtype: "Establishment subtype as stored in GIAS/Ofsted.",
+        final_la_name: "Calculated field that coalesces the la_name fields from the application, GIAS, and Ofsted."
+    }
+}
+
+WITH
+  early_years_settings AS (
+  SELECT
+    establishment_urn,
+    phase_of_education,
+    establishment_type,
+    establishment_subtype,
+    la_name,
+    gor_name
+  FROM
+    ${ref('all_gias_ofsted_establishments')}
+  WHERE
+    data_source LIKE 'Ofsted%'),
+  gias_settings AS (
+  SELECT
+    establishment_urn,
+    phase_of_education,
+    establishment_type,
+    establishment_subtype,
+    la_name,
+    gor_name
+  FROM
+    ${ref('all_gias_ofsted_establishments')}
+  WHERE
+    data_source LIKE 'GIAS%'),
+  final_table AS (
+  SELECT
+    npq_e.*,
+    CASE
+      WHEN schedule_identifier IS NULL THEN CONCAT(cohort,' - Pending/Rejected')
+    ELSE
+    CONCAT (cohort, ' - ', RIGHT(schedule_identifier, 6))
+  END
+    AS schedule_and_cohort,
+    CASE
+      WHEN funding_choice IS NULL THEN 'DfE'
+    ELSE
+    funding_choice
+  END
+    AS funding_source,
+    COALESCE(eys.phase_of_education,gias.phase_of_education) AS phase_of_education,
+    COALESCE(eys.establishment_type, gias.establishment_type) AS establishment_type,
+    COALESCE(eys.establishment_subtype,gias.establishment_subtype) AS establishment_subtype,
+    COALESCE(npq_e.la_name,eys.la_name,gias.la_name) AS final_la_name,
+  FROM
+    ${ref("npq_enrolments_v2")} npq_e
+  LEFT JOIN
+    early_years_settings eys
+  ON
+    npq_e.private_childcare_provider_urn = eys.establishment_urn
+  LEFT JOIN
+    gias_settings gias
+  ON
+    npq_e.school_urn = gias.establishment_urn
+  WHERE
+    npq_e.course_name = 'NPQ Early Years Leadership (NPQEYL)')
+SELECT
+  *,
+  CASE
+    WHEN kind_of_nursery = 'another_early_years_setting' THEN COALESCE(establishment_type,'Another Early Years setting')
+    WHEN kind_of_nursery = 'local_authority_maintained_nursery'
+  AND establishment_type ='Academies' THEN 'School setting'
+    WHEN kind_of_nursery = 'local_authority_maintained_nursery' AND establishment_type LIKE 'Child%' THEN establishment_type
+    WHEN kind_of_nursery = 'local_authority_maintained_nursery'
+  AND establishment_subtype = 'Local authority nursery school' THEN 'Local authority maintained nursery'
+    WHEN kind_of_nursery = 'local_authority_maintained_nursery' AND establishment_type = 'Local authority maintained schools' THEN 'School setting'
+    WHEN kind_of_nursery = 'local_authority_maintained_nursery'
+  AND establishment_type IS NULL THEN 'Local authority maintained nursery'
+    WHEN kind_of_nursery = 'preschool_class_as_part_of_school' THEN 'School setting - Preschool class as part of school'
+    WHEN kind_of_nursery = 'private_nursery' THEN COALESCE(establishment_type,'Private nursery')
+    WHEN kind_of_nursery IS NULL AND establishment_type LIKE 'Child%' THEN establishment_type
+    WHEN kind_of_nursery IS NULL
+  AND establishment_subtype = 'Local authority nursery school' THEN 'Local authority maintained nursery'
+    WHEN kind_of_nursery IS NULL AND establishment_type IS NOT NULL THEN 'School setting'
+  ELSE
+  COALESCE(kind_of_nursery,establishment_type)
+END
+  AS setting_type
+FROM
+  final_table

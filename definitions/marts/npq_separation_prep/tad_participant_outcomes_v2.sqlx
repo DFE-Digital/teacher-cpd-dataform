@@ -1,0 +1,37 @@
+config {
+    schema: "TAD",
+    database: "ecf-bq",
+    name: "participant_outcomes_v2",
+    type: "table",
+    assertions: {
+        uniqueKey: ["outcome_id"]
+    },
+    bigquery: {
+        partitionBy: "DATE(created_at)",
+        clusterBy: ["state"]
+    },
+    description: "This table contains all course outcomes and is relevant for NPQ participants only",
+    columns: {
+        outcome_id: "UID",
+        created_at: "Date this entity was created according to the latest version of the data received from the database.",
+        updated_at: "Date this entity was last updated something in the database, according to the latest version of the data received from the database.",
+        participant_declaration_id: "Field used to join with relevant declarations"
+
+    }
+}
+
+
+SELECT
+  outcomes.id as outcome_id,
+  outcomes.created_at,
+  outcomes.updated_at,
+  outcomes.completion_date,
+  outcomes.declaration_id AS participant_declaration_id,
+  -- dec.ecf_id AS declaration_ecf_id, # To be reviewed post separation if GUID is required for exposure.
+  outcomes.state
+FROM
+  ${ref(`participant_outcomes_latest_npq`)} AS outcomes
+LEFT JOIN
+    ${ref('declarations_latest_npq')} AS dec
+ON
+    dec.id = outcomes.declaration_id

@@ -1,0 +1,48 @@
+config {
+    type: "table",
+    assertions: {
+        uniqueKey: ["application_ecf_id"]
+    },
+    bigquery: {
+        clusterBy: ["cohort", "provider_name", "short_course_name"]
+    },
+    description: "This mart produces a table of applications that have had at least one instance where the accepted approval status has been reversed to pending. \n \
+    The data produced from this mart allows for NPQ Contract Management to monitor the volume of this activity as well as what then happens to the approval status of the application via the current_application_status column. \n \
+    The volume of applications where this activity has occurred can be aggregated at cohort, lead provider, course and current application status levels.",
+    columns: {
+        current_application_status: "The current application status as per the service.",
+        accepted_reversal_count: "The number of times the application status of the application has been reverted from accepted to pending."
+    }
+}
+
+WITH acceptance_reversion AS (
+  SELECT
+    status_changes.entity_id AS application_id
+    ,COUNT(DISTINCT request_uuid) AS accepted_reversal_count
+  FROM
+    ${ref('applications_field_updates_npq')} AS status_changes
+  WHERE
+    status_changes.key_updated = 'lead_provider_approval_status'
+    AND
+    status_changes.previous_value = 'accepted'
+  GROUP BY ALL
+)
+
+SELECT
+   npq.application_ecf_id
+  ,npq.application_id
+  ,npq.ecf_user_id
+  ,npq.application_status AS current_application_status
+  ,npq.cohort
+  ,npq.course_name
+  ,npq.short_course_name
+  ,npq.provider_name
+  ,ar.accepted_reversal_count
+FROM
+  ${ref('npq_enrolments_v2')} AS npq
+INNER JOIN
+  acceptance_reversion AS ar
+ON
+  ar.application_id = npq.application_id
+WHERE
+  ar.accepted_reversal_count > 0
