@@ -39,7 +39,7 @@ SELECT
   ,npq.provider_name
   ,ar.accepted_reversal_count
 FROM
-  ${ref('npq_enrolments')} AS npq
+  ${ref('npq_enrolments_v2')} AS npq
 INNER JOIN
   acceptance_reversion AS ar
 ON

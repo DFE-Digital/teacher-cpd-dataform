@@ -89,7 +89,7 @@ npq_output AS (
   ON
     users.id = app.user_id
   LEFT JOIN
-    ${ref('npq_enrolments')} AS enr
+    ${ref('npq_enrolments_v2')} AS enr
   ON
     enr.application_id = app.id
   QUALIFY(
