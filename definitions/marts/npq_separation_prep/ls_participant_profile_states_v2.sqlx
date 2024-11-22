@@ -12,7 +12,7 @@ config {
         id: "Unique ID of the record being pulled from the participant_profile_states table.",
         created_at: "Timestamp of when the record being pulled from participant_profile_states was created. Since participants can go through different training statuses, only the most recently created record for each participant is pulled.",
         updated_at: "Timestamp of when the record being pulled from participant_profile_states was updated.",
-        cpd_lead_provider_id: "ID of the Lead Provider linked to the participant in participant_profile_states.",
+        lead_provider_id: "ID of the Lead Provider linked to the participant in participant_profile_states for ECF or applications for NPQ.",
         profile_id: "ID of each participant's profile. For ECF programme this is the participant_profile_id, for NPQ this is the user_id.",
         reason: "Explains why a participant is in a certain state.",
         state: "This is the participant's training_status. It can be active, deferred, or withdrawn.",
@@ -20,7 +20,7 @@ config {
         last_streamed_event_type: "Whether the most recent event for this record from participant_profile_states was it being imported or updated.",
         cohort: "Participant's cohort from either npq_enrolments or ecf_indcutions_dedupe.",
         schedule_identifier: "Participant's schedule from either npq_enrolments or ecf_indcutions_dedupe.",
-        cpd_lp_name: "Name of the Lead Provider linked to the participant in participant_profile_states.",
+        cpd_lp_name: "Name of the Lead Provider linked to the participan.",
         participant_type: "Details if a participant is an ECT, Mentor, or NPQ.",
         programme: "Details if a participant is associated with the ECF or NPQ programmes",
     }
