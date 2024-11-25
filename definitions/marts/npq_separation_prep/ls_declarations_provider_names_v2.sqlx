@@ -9,7 +9,7 @@ config {
     },
     bigquery: {
         partitionBy: "DATE(declaration_date)",
-        clusterBy: ["programme", "cpd_lp_name", "course_identifier", "type"]
+        clusterBy: ["programme", "cpd_lp_name", "course_identifier"]
     },
     description: "This mart produces a report showing the most recent 'state' for each declaration across ECF and NPQ and links it to the names of the Lead Providers. The final report feeds into the CPD - Self-Serve Data dashboard",
     columns: {
