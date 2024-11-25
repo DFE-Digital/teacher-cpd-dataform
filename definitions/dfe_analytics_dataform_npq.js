@@ -818,6 +818,10 @@ dfeAnalyticsDataform({
             keyName: "archived_at",
             dataType: "timestamp",
             description: ""
+        }, {
+            keyName: "significantly_updated_at",
+            dataType: "timestamp",
+            description: ""
         }]
     }]
 });
