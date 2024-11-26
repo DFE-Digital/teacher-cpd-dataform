@@ -107,7 +107,10 @@ WITH npq_app AS (
       ELSE courses.name
      END AS short_course_name
     ,app.lead_provider_id
-    ,lp.name AS provider_name    
+    ,CASE 
+        WHEN lp.name = 'University College London (UCL) Institute of Education' THEN 'UCL Institute of Education'
+        ELSE lp.name
+     END AS provider_name    
     ,sched.identifier AS schedule_identifier
     ,schools.urn AS school_urn
     ,schools.name AS school_name
