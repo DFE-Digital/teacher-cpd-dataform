@@ -350,7 +350,7 @@ SELECT
   ,npq_dec_ret1.* EXCEPT(application_id)
   ,npq_dec_ret2.* EXCEPT(application_id)
   ,npq_dec_comp.* EXCEPT(application_id)
-  ,npq_fails.count_of_fails
+  ,IFNULL(npq_fails.count_of_fails, 0) AS count_of_fails
   ,npq_outcomes.latest_outcome_state
   ,npq_outcomes.latest_outcome_date
 FROM
