@@ -89,8 +89,11 @@ WITH npq_app AS (
   SELECT
      app.id AS application_id
     ,app.ecf_id AS application_ecf_id
-    ,app.on_submission_trn AS application_trn
-    ,users.trn AS trn_verified
+    ,users.trn AS application_trn
+    ,CASE
+        WHEN users.trn_verified = TRUE THEN users.trn 
+        ELSE NULL 
+     END AS trn_verified
     ,users.trn_auto_verified
     ,users.id AS user_id
     ,users.ecf_id AS ecf_user_id
