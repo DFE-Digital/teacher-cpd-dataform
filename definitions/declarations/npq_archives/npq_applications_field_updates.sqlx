@@ -1,0 +1,5 @@
+config {
+    type: "declaration",
+    schema: "npq_archives",
+    name: "npq_applications_field_updates_archive"
+}
