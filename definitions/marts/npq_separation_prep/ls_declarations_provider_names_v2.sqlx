@@ -41,7 +41,7 @@ config {
 }
 
 WITH
-  statement_information AS (
+  ecf_statement_information AS (
   /*This section pulls together statement info for all declarations from the tables statement_line_items and statements and gives the cohort associated with the statement that each declaration was made against*/
   SELECT
     DISTINCT stat_li.participant_declaration_id,
@@ -58,6 +58,24 @@ WITH
     stat.cohort_id=cohort.id
   GROUP BY
     stat_li.participant_declaration_id
+),
+
+npq_statement_information AS (
+  SELECT
+     DISTINCT sli.declaration_id
+    ,MAX(coh.start_year) AS statement_cohort
+  FROM
+    ${ref('statement_items_latest_npq')} AS sli
+  LEFT JOIN
+    ${ref('statements_latest_npq')} AS stm
+  ON
+    stm.id = sli.statement_id
+  LEFT JOIN
+    ${ref('cohorts_latest_npq')} AS coh
+  ON
+    coh.id = stm.cohort_id
+  GROUP BY
+    sli.declaration_id
 ),
 
 ecf_declarations AS (
@@ -94,12 +112,12 @@ ecf_declarations AS (
     AS programme
   FROM
     ${ref("participant_declarations_latest_cpd")} dec
-  INNER JOIN
+  LEFT JOIN
     ${ref("ecf_inductions_dedupe")} ecfid
   USING
     (participant_profile_id)
   LEFT JOIN
-    statement_information state_info
+    ecf_statement_information state_info
   ON
     dec.id=state_info.participant_declaration_id
   LEFT JOIN
@@ -110,6 +128,8 @@ ecf_declarations AS (
     ${ref("delivery_partners_latest_cpd")} dpl
   ON
     dec.delivery_partner_id = dpl.ID
+  WHERE
+    dec.course_identifier NOT LIKE '%npq%'
 ),
 
 npq_declarations AS (
@@ -135,7 +155,7 @@ npq_declarations AS (
     dec.last_streamed_event_type,
     cohort.start_year AS cohort,
     sched.identifier AS schedule_identifier,
-    stm_cohort.start_year AS statement_cohort,
+    stm.statement_cohort,
     lp.name AS cpd_lp_name,
     CAST(NULL AS STRING) AS cpd_dp_name,
     'NPQ' AS programme
@@ -158,10 +178,6 @@ npq_declarations AS (
   ON
     cohort.id = app.cohort_id
   LEFT JOIN
-    ${ref('cohorts_latest_npq')} AS stm_cohort
-  ON
-    stm_cohort.id = dec.cohort_id
-  LEFT JOIN
     ${ref('lead_providers_latest_npq')} AS lp
   ON
     lp.id = dec.lead_provider_id
@@ -169,6 +185,10 @@ npq_declarations AS (
     ${ref('courses_latest_npq')} AS courses
   ON
     courses.id = app.course_id
+  LEFT JOIN
+    npq_statement_information AS stm
+  ON
+    stm.declaration_id = dec.id
 )
 
 SELECT 
