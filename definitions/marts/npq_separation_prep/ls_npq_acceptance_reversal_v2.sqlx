@@ -29,15 +29,11 @@ WITH acceptance_reversion AS (
   GROUP BY ALL
   UNION ALL
   SELECT
-     app.id AS application_id
+     status_changes.new_id AS application_id
     ,status_changes.entity_id AS application_ecf_id
     ,COUNT(DISTINCT request_uuid) AS accepted_reversal_count
   FROM
-    ${ref('npq_applications_field_updates_cpd')} AS status_changes
-LEFT JOIN
-    ${ref('applications_latest_npq')} AS app
-  ON
-    status_changes.entity_id = app.ecf_id
+    ${ref('npq_applications_field_updates_archive')} AS status_changes
   WHERE
     status_changes.key_updated = 'lead_provider_approval_status'
     AND
