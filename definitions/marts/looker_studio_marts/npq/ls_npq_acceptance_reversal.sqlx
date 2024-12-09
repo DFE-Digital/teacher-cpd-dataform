@@ -17,10 +17,23 @@ config {
 
 WITH acceptance_reversion AS (
   SELECT
-    status_changes.entity_id AS application_ecf_id
+     status_changes.entity_id AS application_id
+    ,status_changes.ecf_id AS application_ecf_id
     ,COUNT(DISTINCT request_uuid) AS accepted_reversal_count
   FROM
-    ${ref('npq_applications_field_updates_cpd')} AS status_changes
+    ${ref('applications_field_updates_npq')} AS status_changes
+  WHERE
+    status_changes.key_updated = 'lead_provider_approval_status'
+    AND
+    status_changes.previous_value = 'accepted'
+  GROUP BY ALL
+  UNION ALL
+  SELECT
+     status_changes.new_id AS application_id
+    ,status_changes.entity_id AS application_ecf_id
+    ,COUNT(DISTINCT request_uuid) AS accepted_reversal_count
+  FROM
+    ${ref('npq_applications_field_updates_archive')} AS status_changes
   WHERE
     status_changes.key_updated = 'lead_provider_approval_status'
     AND
@@ -30,7 +43,7 @@ WITH acceptance_reversion AS (
 
 SELECT
    npq.application_ecf_id
-  ,npq.participant_profile_id
+  ,npq.application_id
   ,npq.ecf_user_id
   ,npq.application_status AS current_application_status
   ,npq.cohort
@@ -39,10 +52,10 @@ SELECT
   ,npq.provider_name
   ,ar.accepted_reversal_count
 FROM
-  ${ref('npq_enrolments')} AS npq
+  ${ref('npq_enrolments_v2')} AS npq
 INNER JOIN
   acceptance_reversion AS ar
 ON
-  ar.application_ecf_id = npq.application_ecf_id
+  ar.application_id = npq.application_id
 WHERE
   ar.accepted_reversal_count > 0
