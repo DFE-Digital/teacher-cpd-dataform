@@ -9,7 +9,7 @@ config {
     },
     bigquery: {
         partitionBy: "DATE(declaration_date)",
-        clusterBy: ["programme", "cpd_lp_name", "course_identifier", "type"]
+        clusterBy: ["programme", "cpd_lp_name", "course_identifier"]
     },
     description: "This mart produces a report showing the most recent 'state' for each declaration across ECF and NPQ and links it to the names of the Lead Providers. The final report feeds into the CPD - Self-Serve Data dashboard",
     columns: {
@@ -17,32 +17,31 @@ config {
         created_at: "Timestamp when the declaration was created.",
         updated_at: "Timestamp of when any updates occured to the declaration.",
         course_identifier: "Identifier for ECF or NPQ course declaration is associated with.",
-        cpd_lead_provider_id: "ID of Lead Provider that has made the declaration.",
+        lead_provider_id: "ID of Lead Provider that has made the declaration.",
         declaration_date: "Date evidence was received.",
         declaration_type: "The name of the stage the declaration has been made against.",
-        delivery_partner_id: "ID of the ECF Delivery Partner associated with the Lead Provider-participant combo.",
-        evidence_held: "Details any evidence provided with the declaration.",
-        mentor_user_id: "User ID of the mentor associated with the declared-against ECT",
-        participant_profile_id: "ID of the participant's profile.",
-        pupil_premium: "Boolean for pupil premium eligibility.",
-        sparsity_uplift: "Boolean for sparsity uplift eligibility.",
+        delivery_partner_id: "ECF ONLY: ID of the ECF Delivery Partner associated with the Lead Provider-participant combo.",
+        evidence_held: "ECF ONLY: Details any evidence provided with the declaration.",
+        mentor_user_id: "ECF ONLY: User ID of the mentor associated with the declared-against ECT",
+        profile_id: "ID of the participant's profile. For ECF programme this is the participant_profile_id, for NPQ Users this is the user_id from the new service.",
+        pupil_premium: "ECF ONLY: Boolean for pupil premium eligibility.",
+        sparsity_uplift: "ECF ONLY: Boolean for sparsity uplift eligibility.",
         state: "State of the declaration. Can be submitted, eligible, payable, paid, ineligible, voided, awaiting_clawback, and clawed_back.",
-        superseded_by_id: "NEED PROPER DEFINITION",
-        type: "Says if it belongs to either the ECF or NPQ programme.",
-        user_id: "Used ID of the participant being declared against.",
+        superseded_by_id: "The ID of the declaration which superseded the current record. Typically this value is not null when the state is voided, awaiting_clawback or clawed_back and a new declaration has been submitted.",
+        ecf_user_id: "User ID of the participant being declared against. For NPQ, this field may contain values not present in ECF Teacher Profiles user_id if they only exist post 27/11/2024. All values for NPQ will exist in users_latest_npq.ecf_id",
         last_streamed_event_occurred_at: "Timestamp of when this record was most recently imported or updated.",
         last_streamed_event_type: "Whether the most recent event was this entity being imported or updated.",
-        cohort: "Participant's cohort from either npq_enrolments or ecf_indcutions_dedupe.",
-        schedule_identifier: "Participant's schedule from either npq_enrolments or ecf_indcutions_dedupe.",
-        statement_cohort: "Cohort from the financial statement a declaration is stored against.",
+        cohort: "Participant's cohort from either NPQ applications or ecf_inductions_dedupe.",
+        schedule_identifier: "Participant's schedule from either NPQ applications or ecf_inductions_dedupe.",
+        statement_cohort: "Cohort from the financial statement a declaration is stored against for ECF and the cohort against the declaration for NPQ.",
         cpd_lp_name: "Name of Lead Provider for NPQ or ECF course",
         cpd_dp_name: "Name of Delivery Partner for ECF course",
-        programme: "Shortening of 'type'. Says if it belongs to either the ECF or NPQ programme."
+        programme: "Either ECF or NPQ based on which source the data originates from."
     }
 }
 
 WITH
-  statement_information AS (
+  ecf_statement_information AS (
   /*This section pulls together statement info for all declarations from the tables statement_line_items and statements and gives the cohort associated with the statement that each declaration was made against*/
   SELECT
     DISTINCT stat_li.participant_declaration_id,
@@ -58,44 +57,194 @@ WITH
   ON
     stat.cohort_id=cohort.id
   GROUP BY
-    stat_li.participant_declaration_id)
-SELECT
-  dec.*,
-  COALESCE(ecfid.cohort,npqe.cohort) AS cohort,
-  COALESCE(ecfid.schedule_identifier,npqe.schedule_identifier) AS schedule_identifier,
-  state_info.statement_cohort,
-  COALESCE(lpl.name,npqlpl.name) AS cpd_lp_name,
-  dpl.name AS cpd_dp_name,
-  CASE
-    WHEN dec.course_identifier LIKE 'npq%' THEN 'NPQ'
-    WHEN dec.course_identifier LIKE 'ecf%' THEN 'ECF'
-  ELSE
-  'Other'
-END
-  AS programme
+    stat_li.participant_declaration_id
+),
+
+npq_statement_information AS (
+  SELECT
+     DISTINCT sli.declaration_id
+    ,MAX(coh.start_year) AS statement_cohort
+  FROM
+    ${ref('statement_items_latest_npq')} AS sli
+  LEFT JOIN
+    ${ref('statements_latest_npq')} AS stm
+  ON
+    stm.id = sli.statement_id
+  LEFT JOIN
+    ${ref('cohorts_latest_npq')} AS coh
+  ON
+    coh.id = stm.cohort_id
+  GROUP BY
+    sli.declaration_id
+),
+
+ecf_declarations AS (
+  SELECT
+    dec.id,
+    dec.created_at,
+    dec.updated_at,
+    dec.course_identifier,
+    dec.cpd_lead_provider_id AS lead_provider_id,
+    dec.declaration_date,
+    dec.declaration_type,
+    dec.delivery_partner_id,
+    dec.evidence_held,
+    dec.mentor_user_id,
+    dec.participant_profile_id AS profile_id,
+    dec.pupil_premium_uplift,
+    dec.sparsity_uplift,
+    dec.state,
+    dec.superseded_by_id,
+    dec.user_id AS ecf_user_id,
+    dec.cohort_id,
+    dec.last_streamed_event_occurred_at,
+    dec.last_streamed_event_type,
+    ecfid.cohort AS cohort,
+    ecfid.schedule_identifier,
+    state_info.statement_cohort,
+    lpl.name AS cpd_lp_name,
+    dpl.name AS cpd_dp_name,
+    CASE
+      WHEN dec.course_identifier LIKE 'ecf%' THEN 'ECF'
+    ELSE
+    'Other'
+  END
+    AS programme
+  FROM
+    ${ref("participant_declarations_latest_cpd")} dec
+  LEFT JOIN
+    ${ref("ecf_inductions_dedupe")} ecfid
+  USING
+    (participant_profile_id)
+  LEFT JOIN
+    ecf_statement_information state_info
+  ON
+    dec.id=state_info.participant_declaration_id
+  LEFT JOIN
+    ${ref("lead_providers_latest_cpd")} lpl
+  USING
+    (cpd_lead_provider_id)
+  LEFT JOIN
+    ${ref("delivery_partners_latest_cpd")} dpl
+  ON
+    dec.delivery_partner_id = dpl.ID
+  WHERE
+    dec.course_identifier NOT LIKE '%npq%'
+),
+
+npq_declarations AS (
+  SELECT
+    dec.id,
+    dec.created_at,
+    dec.updated_at,
+    courses.identifier AS course_identifier,
+    dec.lead_provider_id AS lead_provider_id,
+    dec.declaration_date,
+    dec.declaration_type,
+    CAST(NULL AS STRING) AS delivery_partner_id,
+    CAST(NULL AS STRING) AS evidence_held,
+    CAST(NULL AS STRING) AS mentor_user_id,
+    app.user_id AS profile_id,
+    CAST(NULL AS BOOL) AS pupil_premium_uplift,
+    CAST(NULL AS BOOL) AS sparsity_uplift,
+    dec.state,
+    dec.superseded_by_id,
+    users.ecf_id AS ecf_user_id,
+    app.cohort_id,
+    dec.last_streamed_event_occurred_at,
+    dec.last_streamed_event_type,
+    cohort.start_year AS cohort,
+    sched.identifier AS schedule_identifier,
+    stm.statement_cohort,
+    lp.name AS cpd_lp_name,
+    CAST(NULL AS STRING) AS cpd_dp_name,
+    'NPQ' AS programme
+  FROM
+    ${ref('declarations_latest_npq')} AS dec
+  LEFT JOIN
+    ${ref('applications_latest_npq')} AS app
+  ON
+    dec.application_id = app.id
+  LEFT JOIN
+    ${ref('users_latest_npq')} AS users
+  ON 
+    users.id = app.user_id
+  LEFT JOIN
+    ${ref('schedules_latest_npq')} AS sched
+  ON
+    sched.id = app.schedule_id
+  LEFT JOIN
+    ${ref('cohorts_latest_npq')} AS cohort
+  ON
+    cohort.id = app.cohort_id
+  LEFT JOIN
+    ${ref('lead_providers_latest_npq')} AS lp
+  ON
+    lp.id = dec.lead_provider_id
+  LEFT JOIN
+    ${ref('courses_latest_npq')} AS courses
+  ON
+    courses.id = app.course_id
+  LEFT JOIN
+    npq_statement_information AS stm
+  ON
+    stm.declaration_id = dec.id
+)
+
+SELECT 
+  id,
+  created_at,
+  updated_at,
+  course_identifier,
+  lead_provider_id,
+  declaration_date,
+  declaration_type,
+  delivery_partner_id,
+  evidence_held,
+  mentor_user_id,
+  profile_id,
+  pupil_premium_uplift,
+  sparsity_uplift,
+  state,
+  superseded_by_id,
+  ecf_user_id,
+  cohort_id,
+  last_streamed_event_occurred_at,
+  last_streamed_event_type,
+  cohort,
+  schedule_identifier,
+  statement_cohort,
+  cpd_lp_name,
+  cpd_dp_name,
+  programme
 FROM
-  ${ref("participant_declarations_latest_cpd")} dec
-LEFT JOIN
-  ${ref("ecf_inductions_dedupe")} ecfid
-USING
-  (participant_profile_id)
-LEFT JOIN
-  ${ref("npq_enrolments")} npqe
-ON
-  dec.participant_profile_id = npqe.application_ecf_id
-LEFT JOIN
-  statement_information state_info
-ON
-  dec.id=state_info.participant_declaration_id
-LEFT JOIN
-  ${ref("lead_providers_latest_cpd")} lpl
-USING
-  (cpd_lead_provider_id)
-LEFT JOIN
-  ${ref("npq_lead_providers_latest_cpd")} npqlpl
-USING
-  (cpd_lead_provider_id)
-LEFT JOIN
-  ${ref("delivery_partners_latest_cpd")} dpl
-ON
-  dec.delivery_partner_id = dpl.id
+  ecf_declarations
+UNION ALL
+SELECT
+  id,
+  created_at,
+  updated_at,
+  course_identifier,
+  lead_provider_id,
+  declaration_date,
+  declaration_type,
+  delivery_partner_id,
+  evidence_held,
+  mentor_user_id,
+  profile_id,
+  pupil_premium_uplift,
+  sparsity_uplift,
+  state,
+  superseded_by_id,
+  ecf_user_id,
+  cohort_id,
+  last_streamed_event_occurred_at,
+  last_streamed_event_type,
+  cohort,
+  schedule_identifier,
+  statement_cohort,
+  cpd_lp_name,
+  cpd_dp_name,
+  programme
+FROM
+  npq_declarations
