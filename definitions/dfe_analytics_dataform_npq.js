@@ -4,7 +4,7 @@ const dfeAnalyticsDataform = require("dfe-analytics-dataform");
 dfeAnalyticsDataform({
     eventSourceName: "npq",
     bqEventsTableName: 'events',
-    bqDatasetName: 'npq_events_staging',
+    bqDatasetName: 'npq_events_production',
     urlRegex: 'manage-training-for-early-career-teachers.education.gov.uk',
     hiddenPolicyTagLocation: "projects/ecf-bq/locations/europe-west2/taxonomies/6302091323314055162/policyTags/301313311867345339",
     dataSchema: [{

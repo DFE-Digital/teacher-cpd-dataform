@@ -40,38 +40,38 @@ WITH
   SELECT
     provider_name,
     short_course_name,
-    COUNT(DISTINCT application_ecf_id) AS applications,
+    COUNT(DISTINCT application_id) AS applications,
     COUNT(DISTINCT
       CASE
-        WHEN application_status = 'accepted' THEN application_ecf_id
+        WHEN application_status = 'accepted' THEN application_id
       ELSE
       NULL
     END
       ) AS accepted_applications,
     COUNT(DISTINCT
       CASE
-        WHEN application_status = 'accepted' AND funded_place = 'true' THEN application_ecf_id
+        WHEN application_status = 'accepted' AND funded_place = TRUE THEN application_id
       ELSE
       NULL
     END
       ) AS accepted_funded_applications,
     COUNT(DISTINCT
       CASE
-        WHEN application_status = 'pending' THEN application_ecf_id
+        WHEN application_status = 'pending' THEN application_id
       ELSE
       NULL
     END
       ) AS pending_applications,
     COUNT(DISTINCT
       CASE
-        WHEN application_status = 'rejected' THEN application_ecf_id
+        WHEN application_status = 'rejected' THEN application_id
       ELSE
       NULL
     END
       ) AS rejected_applications,
     COUNT(DISTINCT
       CASE
-        WHEN funded_start_declaration IS TRUE THEN application_ecf_id
+        WHEN funded_start_declaration IS TRUE THEN application_id
       ELSE
       NULL
     END
@@ -82,8 +82,6 @@ WITH
     cohort = 2024
     AND 
     funding_choice IS NULL
-    AND
-    valid_application = TRUE
   GROUP BY
     provider_name,
     short_course_name

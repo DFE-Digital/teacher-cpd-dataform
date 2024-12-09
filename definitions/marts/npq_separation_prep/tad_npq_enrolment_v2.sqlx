@@ -87,4 +87,4 @@ SELECT
   tsf_primary_plus_eligibility,
   works_in_school
 FROM
-  ${ref(`npq_enrolments_v2`)}
+  ${ref(`npq_enrolments`)}

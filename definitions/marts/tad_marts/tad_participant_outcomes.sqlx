@@ -29,4 +29,4 @@ SELECT
   participant_declaration_id,
   state
 FROM
-  ${ref(`participant_outcomes_latest_cpd`)}
+  ${ref(`npq_participant_outcomes_archive`)}

@@ -13,7 +13,7 @@ config {
         latest_outcome_sent: "Timestamp of when a participant's most recent outcome was sent over the API.",
         latest_state: "The state of a participant's most recent outcome. In this table, all states should be 'passed'",
         declaration_id: "ID of the 'completed' declaration associated with the participant's outcome.",
-        user_id: "The participant's user_id stored against their 'completed' declaration",
+        ecf_user_id: "The participant's ECF User ID (GUID) that can be used to link to ECF Teacher Profiles if they existed before NPQ separation and to NPQ users table on ecf_id.",
         error_message: "The error code and reason why the outcome couldn't be processed.",
         days_error_open: "How long since the error was raised. Calculated by finding the difference between the current timestamp and the created_at field from participant_outcome_api_requests_latest_cpd"
     }
@@ -23,13 +23,13 @@ WITH
   npqoutcomes AS (
   SELECT
     id,
-    participant_declaration_id,
+    declaration_id AS participant_declaration_id,
     updated_at,
     created_at,
     sent_to_qualified_teachers_api_at,
     state
   FROM
-    ${ref(`participant_outcomes_latest_cpd`)}
+    ${ref(`participant_outcomes_latest_npq`)}
   WHERE
     sent_to_qualified_teachers_api_at IS NOT NULL),
   npqapirequests AS (
@@ -42,18 +42,18 @@ WITH
     created_at,
     (ROW_NUMBER() OVER (PARTITION BY participant_outcome_id ORDER BY created_at DESC)) AS rn2
   FROM
-    ${ref(`participant_outcome_api_requests_latest_cpd`)} QUALIFY rn2=1
-    AND status_code NOT IN (200,
+    ${ref(`participant_outcome_api_requests_latest_npq`)} QUALIFY rn2=1
+    AND CAST(status_code AS INT) NOT IN (200,
       204))
 SELECT
   npqo.id AS participant_outcome_id,
   npqo.sent_to_qualified_teachers_api_at AS latest_outcome_sent,
   npqo.state AS latest_state,
   dec.id AS declaration_id,
-  dec.user_id,
+  users.ecf_id AS ecf_user_id,
   CASE
-    WHEN status_code=400 THEN 'Error 400: Add TRN - Participant profile is missing a TRN'
-    WHEN status_code=404 THEN 'Error 404: Check TRN - TRA did not recognise TRN currently linked to participant profile'
+    WHEN status_code='400' THEN 'Error 400: Add TRN - User profile is missing a TRN'
+    WHEN status_code='404' THEN 'Error 404: Check TRN - TRA did not recognise TRN currently linked to user.'
   ELSE
   JSON_EXTRACT_SCALAR(npqar.response_body,'$.errors.trn[0]')
 END
@@ -66,6 +66,14 @@ INNER JOIN
 ON
   npqo.id = npqar.participant_outcome_id
 INNER JOIN
-  ${ref(`participant_declarations_latest_cpd`)} dec
+  ${ref(`declarations_latest_npq`)} dec
 ON
   npqo.participant_declaration_id = dec.id
+LEFT JOIN
+  ${ref('applications_latest_npq')} AS app
+ON
+  app.id = dec.application_id
+LEFT JOIN
+  ${ref('users_latest_npq')} AS users
+ON
+  users.id = app.user_id
