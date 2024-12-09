@@ -1,7 +1,7 @@
 config {
     type: "table",
     assertions: {
-        uniqueKey: ["application_ecf_id"]
+        uniqueKey: ["application_id"]
     },
     bigquery: {
         partitionBy: "",
@@ -9,7 +9,7 @@ config {
     },
     description: "This mart provides a report of all Early Years Leadership NPQs (NPQEYL). The table links to fields from GIAS and Ofsted establishments and feeds into the NPQEYL dashboard.",
     columns: {
-        application_ecf_id: "ID of each unique application. Declarations are joined to the application using this id and it is also the participant_profile_id in the declarations table",
+        application_id: "ID of each unique application. Declarations are joined to the application using this id.",
         application_trn: "This is the TRN provided at the point of application.",
         trn_verified: "This is the TRN sourced from the teacher's profile via participant profiles",
         trn_auto_verified: "This refers to whether the TRN provided in the application process was verified.",
@@ -25,7 +25,7 @@ config {
         course_name: "Text name of NPQ course.",
         declaration_course_identifier: "Shorthand of NPQ course. This is sourced from npq_courses_latest table (not declarations) but it is used to match against declarations along with the application_ecf_id",
         provider_name: "Name of lead provider. There is a text modification in the mart code for Best Practice Network and Leadership Learning South East.",
-        ecf_user_id: "This comes from the teacher profile associated with the participant profile. User ID also exists independently in other tables.",
+        ecf_user_id: "This comes from the Users table ecf_id column which is the GUID format. This can be used to link to ECF Teacher Profiles if the participant existed in the service prior to 27/11/2024.",
         targeted_delivery_funding_eligibility: "Indicates whether this NPQ participant is eligible for targeted delivery uplift payment. This following establishments are eligible: 1)state-funded secondary schools and state-funded 16 to 19 educational settings with 1 to 600 pupils will receive a grant payment of £200; 2) state-funded primary schools with more than 150 pupils will receive a grant payment of £200; 3) state-funded primary schools with 1 to 150 pupils will receive a grant payment of £800.",
         number_of_pupils: "Pupil count based on GIAS data at time of registration.",
         works_in_childcare: "Indicates whether the participant works in childcare.",
@@ -46,10 +46,8 @@ config {
         employment_role: "Shows the employment role of non-school users. Text field.",
         employment_type: "For non-school users, shows the type of institution they are employed in. Possible fields: Local authority supply teachers, Local authority virtual school, Young offender institute, Hospital school, Other.",
         declaration_user_id: "This is the user ID provided with a participant's declaration(s). User ID also exists independently in other tables.",
-        profile_user_id: "The ID from a participant's profile. Participant profiles are only generated when an application is accepted by a lead provider.",
         training_status: "Pulled from participant profile which is created when application is accepted by lead provider.",
         schedule_identifier: "This indicates which sub-cohort or tranche the participant commenced training within an annual cohort. For NPQ, the schedule identifier also distinguishes between the leadership and specialist NPQ types. Pulled from participant profile which is created when application is accepted by lead provider.",
-        profile_updated_at: "Refers to the latest updated date for the participant profile.",
         started_declaration_id: "ID of the participant's started declaration.",
         started_declaration_state: "State of the participant's started declaration.",
         started_declaration_date: "Date evidence was submitted for participant's started declaration.",
@@ -71,7 +69,6 @@ config {
         count_of_fails: "Counts the number of Failed outcome states for a participant.",
         cohort_id: "ID of cohort.",
         npq_lead_provider_id: "ID of Lead Provider.",
-        participant_identity_id: "This is the ID associated with the email a participant uses to sign up. As a participant can have multiple emails, this doesn't accurately represent a single profile.",
         primary_establishment: "Records whether the user's establishment at time of registration was a primary establishment or not. Based on GIAS data.",
         school_ukprn: "UKPRN of the participant's establishment ",
         teacher_catchment: "The catchment zone the participant works in within the UK i.e. England, Wales, Northern Ireland etc. International applicants recorded as 'another'.",
@@ -136,7 +133,7 @@ WITH
     COALESCE(eys.establishment_subtype,gias.establishment_subtype) AS establishment_subtype,
     COALESCE(npq_e.la_name,eys.la_name,gias.la_name) AS final_la_name,
   FROM
-    ${ref("npq_enrolments")} npq_e
+    ${ref("npq_enrolments_v2")} npq_e
   LEFT JOIN
     early_years_settings eys
   ON
@@ -146,9 +143,7 @@ WITH
   ON
     npq_e.school_urn = gias.establishment_urn
   WHERE
-    npq_e.course_name = 'NPQ Early Years Leadership (NPQEYL)'
-    AND
-    npq_e.valid_application = TRUE)
+    npq_e.course_name = 'NPQ Early Years Leadership (NPQEYL)')
 SELECT
   *,
   CASE
