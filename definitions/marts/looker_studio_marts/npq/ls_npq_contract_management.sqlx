@@ -50,7 +50,7 @@ WITH
       ) AS accepted_applications,
     COUNT(DISTINCT
       CASE
-        WHEN application_status = 'accepted' AND funded_place = 'true' THEN application_id
+        WHEN application_status = 'accepted' AND funded_place = TRUE THEN application_id
       ELSE
       NULL
     END
