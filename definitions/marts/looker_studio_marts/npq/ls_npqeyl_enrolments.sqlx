@@ -133,7 +133,7 @@ WITH
     COALESCE(eys.establishment_subtype,gias.establishment_subtype) AS establishment_subtype,
     COALESCE(npq_e.la_name,eys.la_name,gias.la_name) AS final_la_name,
   FROM
-    ${ref("npq_enrolments_v2")} npq_e
+    ${ref("npq_enrolments")} npq_e
   LEFT JOIN
     early_years_settings eys
   ON
