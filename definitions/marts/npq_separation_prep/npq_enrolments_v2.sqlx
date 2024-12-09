@@ -11,7 +11,7 @@ config {
     columns: {
         application_id: "ID of each unique application in the new NPQ Service. Declarations are joined to the application using this id",
         application_ecf_id: "ECF ID of each unique application. This is the GUID version which can be found in participant_declarations_latest_cpd if created before 28/11/2024.",
-        application_trn: "This is the TRN provided at the point of application.",
+        application_trn: "This is the first TRN associated with the user who made the application. The user profile is created when the applicant first applies and the TRN field is populated with the value provided before any verification takes place. We use the first record on the users table to determine the TRN provided at the time of application.",
         trn_verified: "This is the TRN sourced from the User Profile",
         trn_auto_verified: "This refers to whether the TRN provided in the application process was verified.",
         application_created_at: "Refers to the date the application was created.",
@@ -83,13 +83,25 @@ config {
     }
 }
 
+-- Gather the first user profile per user_id to obtain the TRN associated with it. This value will be used as the application_trn before any verification checks have taken place.
+WITH first_trns AS (
+  SELECT
+     id AS user_id
+    ,trn AS first_trn
+  FROM
+    ${ref('users_version_npq')}
+  QUALIFY (
+    ROW_NUMBER() OVER(PARTITION BY id ORDER BY valid_from ASC) = 1
+  )
+),
+
 -- Gather all NPQ applications in their latest state and join on the supplimentary information
 --- We join on User, School, Course, Cohort, Lead Provider, Private Childcare Providers and GIAS information within this CTE to be used in the final output.
-WITH npq_app AS (
+npq_app AS (
   SELECT
      app.id AS application_id
     ,app.ecf_id AS application_ecf_id
-    ,users.trn AS application_trn
+    ,first_trns.first_trn AS application_trn
     ,CASE
         WHEN users.trn_verified = TRUE THEN users.trn 
         ELSE NULL 
@@ -153,6 +165,11 @@ WITH npq_app AS (
     ${ref('users_latest_npq')} AS users
   ON
     users.id = app.user_id
+  -- Join on First TRNs to obtain the application_trn.
+  LEFT JOIN
+    first_trns
+  ON
+    first_trns.user_id = app.user_id
   -- Join on Lead Providers for Lead Provider Name
   LEFT JOIN
     ${ref('lead_providers_latest_npq')} AS lp
