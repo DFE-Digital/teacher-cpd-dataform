@@ -1,0 +1,5 @@
+config {
+    type: "declaration",
+    schema: "npq_archives",
+    name: "TAD_npq_enrolment_archive"
+}
