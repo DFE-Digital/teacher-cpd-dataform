@@ -44,7 +44,7 @@ WITH
   ecf_statement_information AS (
   /*This section pulls together statement info for all declarations from the tables statement_line_items and statements and gives the cohort associated with the statement that each declaration was made against*/
   SELECT
-    DISTINCT stat_li.participant_declaration_id,
+    stat_li.participant_declaration_id,
     MIN(cohort.start_year) AS statement_cohort
   FROM
     ${ref(`statement_line_items_latest_cpd`)} stat_li
@@ -62,7 +62,7 @@ WITH
 
 npq_statement_information AS (
   SELECT
-     DISTINCT sli.declaration_id
+     sli.declaration_id
     ,MAX(coh.start_year) AS statement_cohort
   FROM
     ${ref('statement_items_latest_npq')} AS sli
