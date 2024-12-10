@@ -21,7 +21,7 @@ For help understanding the tables and data model streamed into BigQuery, please 
 
 ### Who maintains and contributes to the project 
 
-Emma Harvey and Emilio Campa 
+Emma Harvey and Tony Page 
 
 ## How-To Guides
 #### Mart Creation
