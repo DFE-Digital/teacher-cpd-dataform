@@ -44,8 +44,8 @@ WITH
     /*This section creates a list of all submitted/eligible/payable/paid declarations for a participant, pulls in details from their current induction record, and then joins on the two static tables ecf_schedule_milestone_mapping and ecf_schedule_milestone_mapping_condensed to later make comparisons against the declaration_date of each participant*/
     SELECT
       dec_cpd.id AS declaration_id,
-      dec_cpd.user_id,
-      dec_cpd.participant_profile_id,
+      dec_cpd.ecf_user_id,
+      dec_cpd.profile_id AS participant_profile_id,
       ecf_id.induction_record_id,
       ecf_id.cohort,
       ecf_id.schedule_identifier,
@@ -86,7 +86,7 @@ WITH
     LEFT JOIN
       ${ref(`ecf_inductions_dedupe`)} AS ecf_id
     ON
-      dec_cpd.participant_profile_id=ecf_id.participant_profile_id
+      dec_cpd.profile_id=ecf_id.participant_profile_id
     LEFT JOIN
       ${ref('ecf_schedule_milestone_mapping')} AS schedule_milestones
     ON
@@ -291,7 +291,7 @@ FROM
 INNER JOIN
   full_cohort_checker_output b
 ON
-  a.participant_profile_id = b.participant_profile_id
+  a.profile_id = b.participant_profile_id
 LEFT JOIN
   full_cohort_checker_output c
 ON

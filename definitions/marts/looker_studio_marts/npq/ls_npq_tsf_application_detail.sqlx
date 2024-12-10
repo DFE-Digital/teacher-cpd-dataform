@@ -47,28 +47,6 @@ config {
     }
 }
 /*** NPQ TSF Looker Studio Data Mart ***/
-/*
-  Objective:
-    To produce list of NPQ applications for Grant Funding that can be aggregated at School URN level to be assessed for eligibility for TSF.
-
-  Instructions:
-    To obtain list of eligible & included applications:
-      is_included = 1
-    
-    To obtain list of currently not included applications that meet review criteria:
-      is_included = 0
-      AND
-      is_excluded = 0
-      AND(
-        pupils_at_reg_chk = 1
-        OR
-        gias_pupils_chk = 1
-        OR
-        gias_phase_chk = 1
-        OR
-        spec_est_chk = 1
-      )
-*/
 
 --- Get all applications that meet specified criteria.
 WITH
