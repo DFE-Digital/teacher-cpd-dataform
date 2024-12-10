@@ -11,7 +11,7 @@ config {
     columns: {
         application_id: "ID of each unique application in the new NPQ Service. Declarations are joined to the application using this id",
         application_ecf_id: "ECF ID of each unique application. This is the GUID version which can be found in participant_declarations_latest_cpd if created before 28/11/2024.",
-        application_trn: "This is the first TRN associated with the user who made the application. The user profile is created when the applicant first applies and the TRN field is populated with the value provided before any verification takes place. We use the first record on the users table to determine the TRN provided at the time of application.",
+        application_trn: "This is either the application_trn as per the NPQ Application record in the ECF Service prior to separation, or the first TRN associated with the user profile at the time the application was created. The user profile is created when the applicant first applies and the TRN field is populated with the value provided before any verification takes place. We use the valid record on the users table to determine the TRN provided at the time of application as this is overwritten in the user profile with the verified TRN if it is different. If a user re-applies after their user profile is created the service does not record their entered TRN again but instead uses the one on file.",
         trn_verified: "This is the TRN sourced from the User Profile",
         trn_auto_verified: "This refers to whether the TRN provided in the application process was verified.",
         application_created_at: "Refers to the date the application was created.",
@@ -83,16 +83,28 @@ config {
     }
 }
 
--- Gather the first user profile per user_id to obtain the TRN associated with it. This value will be used as the application_trn before any verification checks have taken place.
-WITH first_trns AS (
+-- Gather the TRNs associated with a user profile per user_id and the dates between which this was valid. This value will be used as the application_trn before any verification checks have taken place.
+WITH user_trns AS (
   SELECT
      id AS user_id
-    ,trn AS first_trn
+    ,trn
+    ,valid_from
+    ,valid_to
   FROM
     ${ref('users_version_npq')}
   QUALIFY (
-    ROW_NUMBER() OVER(PARTITION BY id ORDER BY valid_from ASC) = 1
+    ROW_NUMBER() OVER(PARTITION BY trn ORDER BY valid_from ASC) = 1
   )
+),
+
+-- NPQ Application records in the ECF Service Data prior to separation.
+--- Used to obtain application_trn associated with the application prior to separation where this information needs to calculated differently.
+previous_application_trns AS (
+  SELECT
+     id AS application_ecf_id
+    ,teacher_reference_number AS application_trn
+  FROM
+    ${ref('npq_applications_archive')}
 ),
 
 -- Gather all NPQ applications in their latest state and join on the supplimentary information
@@ -101,7 +113,7 @@ npq_app AS (
   SELECT
      app.id AS application_id
     ,app.ecf_id AS application_ecf_id
-    ,first_trns.first_trn AS application_trn
+    ,COALESCE(pr_trn.application_trn, CAST(user_trns.trn AS STRING)) AS application_trn
     ,CASE
         WHEN users.trn_verified = TRUE THEN users.trn 
         ELSE NULL 
@@ -165,11 +177,18 @@ npq_app AS (
     ${ref('users_latest_npq')} AS users
   ON
     users.id = app.user_id
-  -- Join on First TRNs to obtain the application_trn.
+  -- Join on User TRNs to obtain the first trn valid at the time of application to be used as application_trn.
   LEFT JOIN
-    first_trns
+    user_trns
   ON
-    first_trns.user_id = app.user_id
+    user_trns.user_id = app.user_id
+    AND
+    DATE(app.created_at) BETWEEN DATE(user_trns.valid_from) AND IFNULL(DATE(user_trns.valid_to), DATE(2050,12,31))
+  -- Join on Previous Application TRNs
+  LEFT JOIN
+    previous_application_trns AS pr_trn
+  ON
+    pr_trn.application_ecf_id = app.ecf_id
   -- Join on Lead Providers for Lead Provider Name
   LEFT JOIN
     ${ref('lead_providers_latest_npq')} AS lp
