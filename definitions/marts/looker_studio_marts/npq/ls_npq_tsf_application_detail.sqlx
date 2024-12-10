@@ -54,13 +54,13 @@ WITH
   SELECT
     CASE
       -- Manually amend ecf_user_id for TRN 1137983 as participant profile has been deleted in service but application was not re-assigned. Only known case in the data.  
-      WHEN application_trn = 1137983 THEN 'b29059a6-f50c-4963-83d1-1ff43c992ddb'
+      WHEN application_trn = '1137983' THEN 'b29059a6-f50c-4963-83d1-1ff43c992ddb'
       ELSE ecf_user_id
     END AS ecf_user_id,
     application_trn,
     -- Manually amend the trn_verfified for TRN 1137983 as participant profile has been deleted in service but application was not re-assigned. Only known case in the data. 
     CASE
-      WHEN application_trn = 1137983 THEN 1137983
+      WHEN application_trn = '1137983' THEN 1137983
       ELSE trn_verified
     END AS trn_verified,
     cohort,
