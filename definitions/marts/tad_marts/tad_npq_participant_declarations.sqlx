@@ -16,6 +16,7 @@ config {
         declaration_ecf_id: "This field contains the historical declaration_id that will have been created in the old data model pre-separation. This field is available in the new model but not used to join on other tables.  You can use this field if you want to map historical data that pre-dates the ECF & NPQ separation (27/12/2024).",
         created_at: "Date this entity was created, according to the latest version of the data received from the database.",
         updated_at: "Date this entity was last updated something in the database, according to the latest version of the data received from the database.",
+        lead_provider_id: "Please note values in this field will not match the same numerical value available in your historical snapshots but the lead provider has not changed.",
         lead_provider_name: "The name of the Lead Provider who submitted the declaration.",
         declaration_date: "Date evidence was received.",
         declaration_type: "The declaration type which for NPQ can be started, retained-1, retained-2 or completed.",
