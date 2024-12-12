@@ -12,17 +12,14 @@ config {
     },
     description: "This table contains all declaration records for NPQ participants",
     columns: {
-        declaration_id: "UID",
+        declaration_id: "This is the unique id for an NPQ declarations. This field was entirely generated post-separation in the new NPQ data model. We join this field on the declaration_id field in the outcomes table to identify outcomes paired with this declaration. This field will not map onto historical declaration_ids generated prior to NPQ Separation (27/11/2024). If you would like to map historical declaration_ids please use the declaration_ecf_id field that hosts historical declaration_ids",
+        declaration_ecf_id: "This field contains the historical declaration_id that will have been created in the old data model pre-separation. This field is available in the new model but not used to join on other tables.  You can use this field if you want to map historical data that pre-dates the ECF & NPQ separation (27/12/2024).",
         created_at: "Date this entity was created, according to the latest version of the data received from the database.",
         updated_at: "Date this entity was last updated something in the database, according to the latest version of the data received from the database.",
-        course_identifier: "Identifier of the NPQ course the declaration relates to.",
         lead_provider_name: "The name of the Lead Provider who submitted the declaration.",
         declaration_date: "Date evidence was received.",
         declaration_type: "The declaration type which for NPQ can be started, retained-1, retained-2 or completed.",
-        // application_id: "ID used to link to NPQ Enrolments (application_id)",
-        application_ecf_id: " ID used to link to NPQ Enrolments (application_id)",
-        // user_id: "ID from the new NPQ Service (as of 28/11/2024) for the user who has been declared against. Use this to link to User Profiles (user_id).",
-        participant_user_id: "ECF ID of the user who has been declared against. Use this to join with Teacher Profiles (user_id). If the user has no ECF presence or only appeared in NPQ data after 27/11/2024, they will not appear in Teacher Profiles.",
+        application_id: "This is the ID generated for applications in the new separated NPQ Environment. This field should be used to join on application_id when joining with enrolment data. This field will not map onto historical application_ids generated prior to NPQ Separation (27/11/2024).",
         state: "The current state of the declaration.",
         last_streamed_event_occurred_at: "Timestamp of the event that we think provided us with the latest version of this entity.",
         last_streamed_event_type: "Event type of the event that we think provided us with the latest version of this entity. Either entity_created, entity_updated, entity_destroyed or entity_imported."
@@ -33,17 +30,14 @@ config {
 
 SELECT
   dec.id as declaration_id,
+  dec.ecf_id as declaration_ecf_id,
+  dec.application_id,
   dec.created_at,
   dec.updated_at,
-  course.identifier AS course_identifier,
   dec.lead_provider_id,
   lead_providers.name AS lead_provider_name,
   declaration_date,
   declaration_type,
-  -- applications.id AS application_id,
-  applications.ecf_id AS application_ecf_id,
-  -- users.id AS user_id
-  users.ecf_id AS participant_user_id,
   state,
   dec.last_streamed_event_occurred_at,
   dec.last_streamed_event_type
@@ -53,16 +47,3 @@ LEFT JOIN
   ${ref(`lead_providers_latest_npq`)} AS lead_providers
 ON
   dec.lead_provider_id = lead_providers.id
-LEFT JOIN
-  ${ref('applications_latest_npq')} AS applications
-ON
- applications.id = dec.application_id
-LEFT JOIN
-  ${ref('courses_latest_npq')} AS course
-ON
-  course.id = applications.course_id
-LEFT JOIN
-  ${ref('users_latest_npq')} AS users
-ON
-  users.id = applications.user_id
-
