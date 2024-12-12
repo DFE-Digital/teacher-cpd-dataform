@@ -35,7 +35,7 @@ config {
         employer_name: "Shows the entered employer name of non-school users. Text field.",
         employment_role: "Shows the employment role of non-school users. Text field.",
         employment_type: "For non-school users, shows the type of institution they are employed in. Possible fields: Local authority supply teachers, Local authority virtual school, Young offender institute, Hospital school, Other",
-        training_status: "Pulled from participant profile which is created when application is accepted by lead provider ",
+        training_status: "The training status of a given participant, updated on their application record",
         schedule_identifier: "This indicates which sub-cohort or tranche the participant commenced training within an annual cohort. For NPQ, the schedule identifier also distinguishes between the leadership and specialist NPQ types. Pulled from participant profile which is created when application is accepted by lead provider",
         lead_provider_id: "Pulled from the NPQ application record. Please note values in this field will not match the same numerical value available in your historical snapshots but the lead provider has not changed.",
         primary_establishment: "Records whether the user's establishment at time of registration was a primary establishment or not. Based on GIAS data.",
