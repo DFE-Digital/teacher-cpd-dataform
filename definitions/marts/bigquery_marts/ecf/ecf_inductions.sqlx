@@ -43,7 +43,9 @@ config {
         core_induction_materials_provider: "If a school offers CIP, this shows which Lead Provider they are getting their CIP materials from.",
         mentor_completion_date: "The date a mentor completed training.",
         mentor_completion_reason: "The reason the mentor_completion_date field is filled.Possible values: completed_during_early_roll_out, completed_declaration_received.",
-        cohort_rolled_over_21_24: "TRUE/FALSE flag streamed from the service as 'cohort_changed_after_payments_frozen' for whether a participant has been moved from the 2021 cohort to the 2024 cohort. This flag is updated by SITs in the service for applicable ECTs."
+        cohort_rolled_over_21_24: "TRUE/FALSE flag streamed from the service as 'cohort_changed_after_payments_frozen' for whether a participant has been moved from the 2021 cohort to the 2024 cohort. This flag is updated by SITs in the service for applicable ECTs.",
+        pre_challenge_lead_provider_name: "This is the lead provider associated with the induction record regardless of whether this partnership has been challenged. This field should only be used if you need the provider name regardless of challenge status",
+        pre_challenge_delivery_partner_name: "This is the delivery partner associated with the induction record regardless of whether this partnership has been challenged. This field should only be used if you need the delivery partner name regardless of challenge status"
     }
 }
 
@@ -145,7 +147,9 @@ FROM
     sparsity_incentive,
     (ROW_NUMBER() OVER (PARTITION BY school_id, start_year ORDER BY updated_at DESC)) AS rn1
   FROM
-    ${ref("pupil_premiums_latest_cpd")} QUALIFY rn1 = 1),
+    ${ref("pupil_premiums_latest_cpd")}
+  QUALIFY
+    rn1 = 1),
   induction_programme_details AS (
   SELECT
     *
@@ -194,16 +198,16 @@ FROM
     cohort_changed_after_payments_frozen AS cohort_rolled_over_21_24,
     CASE
       WHEN challenged_at IS NOT NULL THEN 'No lead provider'
-    ELSE
-    ecf_partners.lead_provider_name
+      ELSE ecf_partners.lead_provider_name
   END
     AS lead_provider_name,
+    ecf_partners.lead_provider_name AS pre_challenge_lead_provider_name,
     CASE
       WHEN challenged_at IS NOT NULL THEN 'No delivery partner'
-    ELSE
-    ecf_partners.delivery_partner_name
+      ELSE ecf_partners.delivery_partner_name
   END
     AS delivery_partner_name,
+    ecf_partners.delivery_partner_name AS pre_challenge_delivery_partner_name,
     eligible_for_funding,
     -- trn_validated,
     -- trn_validated_reason,

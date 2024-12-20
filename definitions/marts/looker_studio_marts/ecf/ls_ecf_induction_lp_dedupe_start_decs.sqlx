@@ -14,6 +14,7 @@ config {
         participant_profile_id: "The table participant_declarations_latest needs to be joined to ecf_inductions using participant_profile_id. Deduplication of user_ids has turned some of them into “ghost” IDs but the participant_profile_id still links correctly. Participant profiles are automatically generated for ECTs/Mentors when induction tutors register the ECT/Mentor details. Meaning a participant_profile_id (and full participant_profile) should be available for each ECF participant with an induction record. ECF participants have one participant_profile for each type of participation (ECT or Mentor).",
         induction_programme_id: "ID of the induction programme specific to the school offering it.",
         induction_programme_type: "The induction programme the school offers (FIP / CIP / DIY) : potential values: full_induction_programme core_induction_programme, design_our_own, school_funded_fip.",
+        lead_provider_name: "This is pulled from the pre_challenge_lead_provider_name field in ecf_inductions. It's a requirement of the KPIs that even those partnerships that were eventually challenged, but where a started declaration (or completed) was raised, should be included. The logic of the dashboard ensures a declaration (started or completed in that order) is available so there's no risk of accidental duplicates of participants with challenged partnerships.",
         school_name: "Name of the participant's school.",
         school_urn: "URN of the participant's school.",
         schedule_identifier: "This indicates which sub-cohort or tranche the participant commenced training within an annual cohort. For ECF, the schedule identifier also indicates if a participant is following a non-standard training route at any point (e.g. extended or reduced).",
@@ -28,13 +29,13 @@ config {
         created_at: "When this induction record was generated.",
         updated_at: "When this induction record was updated.",
         completion_date: "The date an ECT completed their induction. This field is always NULL for mentors",
-        cohort_id: "The ID of the participant's cohort.",
+        cohort_id: "The ID of the participant's cohort. This is the cohort id stamped on the induction record of the participant but the cohort used in the associated dashboard is pulled from the started declaration (or completed declaration where there is no started declaration)",
         user_id: "This comes from the teacher profile associated with the participant profile.",
         participant_type: "Longform version of either ECT or Mentor",
         induction_record_created_at: "When this induction record was generated.",
         partnership_id: "ID for the Lead Provider-School partnership for a given cohort.",
         TRN: "This comes from a participant's teacher profile.",
-        cohort: "The cohort/academic year corresponding to when the participant started their course. Possible fields: 2021 onwards.",
+        cohort: "The cohort/academic year corresponding to when the participant started their course. Possible fields: 2021 onwards. This is pulled from the started declaration of the participant (or the completed declaration if no started declaration is available). This is because the cohort might have changed at induction record level for a participant but the declaration will still be associated with the cohort that was accurate when the declaration was raised.",
         school_id: "ID of the participant's school.",
         high_pupil_premium: "This indicates whether the uplift payment for X is applicable to this participant's started declaration",
         sparsity_incentive: "This indicates whether the uplift payment for X is applicable to this participant's started declaration",
@@ -63,135 +64,148 @@ config {
 }
 
 WITH
---  This logic is roughly identical to ecf_inductions_dedupe with the addition of lead provider in the partition by statement.It identifies one induction record per participant & LP. It prioritizes induction records with a completed training status > active training status > other training status and then prioritizes by latest start date and the latest created record.
+  --  This logic is roughly identical to ecf_inductions_dedupe with the addition of lead provider in the partition by statement.It identifies one induction record per participant & LP. It prioritizes induction records with a completed training status > active training status > other training status and then prioritizes by latest start date and the latest created record.
   lp_inductions_dedupe AS (
+SELECT
+  *,
+  CASE
+    WHEN participant_type LIKE 'ParticipantProfile::ECT' THEN 'ECT'
+    WHEN participant_type LIKE 'ParticipantProfile::Mentor' THEN 'Mentor'
+    ELSE NULL
+END
+  AS participant_course,
+  (ROW_NUMBER() OVER (PARTITION BY pre_challenge_lead_provider_name, participant_type, user_id ORDER BY active DESC, start_date DESC, created_at DESC)) AS rn0
+FROM (
   SELECT
     *,
     CASE
-      WHEN participant_type LIKE 'ParticipantProfile::ECT' THEN 'ECT'
-      WHEN participant_type LIKE 'ParticipantProfile::Mentor' THEN 'Mentor'
-    ELSE
-    NULL
+      WHEN induction_status = 'completed' THEN 2
+      WHEN induction_status = 'active' THEN 1
+      ELSE 0
   END
-    AS participant_course,
-    (ROW_NUMBER() OVER (PARTITION BY lead_provider_name, participant_type, user_id ORDER BY active DESC, start_date DESC, created_at DESC)) AS rn0
-  FROM (
-    SELECT
-      *,
-      CASE
-        WHEN induction_status = 'completed' THEN 2
-        WHEN induction_status = 'active' THEN 1
-      ELSE
-      0
-    END
-      AS active
-    FROM
-      ${ref("ecf_inductions")} ) T1 QUALIFY rn0=1),
---  This CTE pulls and ranks all ECF declarations (using the heirarchies set out below) to enable us to join in the preferred declaration to the deduped induction records above
-  ecf_declarations_expanded AS (
-  SELECT
-    dec_cpd.*,
-    cpd_lead_providers.name AS cpd_lead_provider_name,
-    delivery_partners.name AS delivery_partner_name,
-    CASE
-      WHEN state LIKE 'paid' THEN 7
-      WHEN state LIKE 'payable' THEN 6
-      WHEN state LIKE 'eligible' THEN 5
-      WHEN state LIKE 'submitted' THEN 4
-      WHEN state LIKE 'clawed_back' THEN 3
-      WHEN state LIKE 'awaiting_clawback' THEN 2
-      WHEN state LIKE 'voided' THEN 1
-    ELSE
-    0
-  END
-    AS state_heirarchy,
-    CASE
-      WHEN state = 'paid' THEN TRUE
-      WHEN state = 'eligible' THEN TRUE
-      WHEN state = 'payable' THEN TRUE
-    ELSE
-    FALSE
-  END
-    AS funded_declaration,
-    CASE
-      WHEN course_identifier LIKE 'ecf-induction' THEN 'ECT'
-      WHEN course_identifier LIKE 'ecf-mentor' THEN 'Mentor'
-    ELSE
-    NULL
-  END
-    AS participant_course
+    AS active
   FROM
-    ${ref(`participant_declarations_latest_cpd`)} AS dec_cpd
-  LEFT JOIN
-    ${ref(`cpd_lead_providers_latest_cpd`)} AS cpd_lead_providers
-  ON
-    dec_cpd.cpd_lead_provider_id=cpd_lead_providers.id
-  LEFT JOIN
-    ${ref(`delivery_partners_latest_cpd`)} AS delivery_partners
-  ON
-    dec_cpd.delivery_partner_id=delivery_partners.id
-  WHERE
-    course_identifier LIKE 'ecf%'),
+    ${ref("ecf_inductions")} ) T1
+QUALIFY
+  rn0=1),
+  --  This CTE pulls and ranks all ECF declarations (using the heirarchies set out below) to enable us to join in the preferred declaration to the deduped induction records above
+  ecf_declarations_expanded AS (
+SELECT
+  dec_cpd.*,
+  cpd_lead_providers.name AS cpd_lead_provider_name,
+  delivery_partners.name AS delivery_partner_name,
+  cohorts.start_year as cohort,
+  CASE
+    WHEN state LIKE 'paid' THEN 7
+    WHEN state LIKE 'payable' THEN 6
+    WHEN state LIKE 'eligible' THEN 5
+    WHEN state LIKE 'submitted' THEN 4
+    WHEN state LIKE 'clawed_back' THEN 3
+    WHEN state LIKE 'awaiting_clawback' THEN 2
+    WHEN state LIKE 'voided' THEN 1
+    ELSE 0
+END
+  AS state_heirarchy,
+  CASE
+    WHEN state = 'paid' THEN TRUE
+    WHEN state = 'eligible' THEN TRUE
+    WHEN state = 'payable' THEN TRUE
+    ELSE FALSE
+END
+  AS funded_declaration,
+  CASE
+    WHEN course_identifier LIKE 'ecf-induction' THEN 'ECT'
+    WHEN course_identifier LIKE 'ecf-mentor' THEN 'Mentor'
+    ELSE NULL
+END
+  AS participant_course
+FROM
+  ${ref(`participant_declarations_latest_cpd`)} AS dec_cpd
+LEFT JOIN
+  ${ref(`cpd_lead_providers_latest_cpd`)} AS cpd_lead_providers
+ON
+  dec_cpd.cpd_lead_provider_id=cpd_lead_providers.id
+LEFT JOIN
+  ${ref(`delivery_partners_latest_cpd`)} AS delivery_partners
+ON
+  dec_cpd.delivery_partner_id=delivery_partners.id
+LEFT JOIN
+  ${ref(`cohorts_latest_cpd`)} AS cohorts
+ON
+  dec_cpd.cohort_id=cohorts.id
+WHERE
+  course_identifier LIKE 'ecf%'),
   -- This uses the heirarchies established in the expanded declaration mart above to identify a single start declaration for each participant + course combination
   ecf_dec_start AS(
-  SELECT
-    id AS started_declaration_id,
-    participant_profile_id AS started_participant_profile_id,
-    declaration_type AS started_declaration_type,
-    created_at AS started_declaration_created_at,
-    state AS start_declaration_state,
-    funded_declaration AS funded_start_declaration,
-    declaration_date AS started_declaration_date,
-    cpd_lead_provider_name AS started_cpd_lead_provider_name,
-    delivery_partner_name AS started_delivery_partner_name,
-    participant_course,
-    (ROW_NUMBER() OVER (PARTITION BY participant_profile_id, course_identifier ORDER BY state_heirarchy DESC)) AS rn5
-  FROM
-    ecf_declarations_expanded ecf_dec_0
-  WHERE
-    declaration_type = 'started' QUALIFY rn5=1),
+SELECT
+  id AS started_declaration_id,
+  participant_profile_id AS started_participant_profile_id,
+  declaration_type AS started_declaration_type,
+  created_at AS started_declaration_created_at,
+  state AS start_declaration_state,
+  funded_declaration AS funded_start_declaration,
+  declaration_date AS started_declaration_date,
+  cpd_lead_provider_name AS started_cpd_lead_provider_name,
+  delivery_partner_name AS started_delivery_partner_name,
+  participant_course,
+  cohort as started_cohort,
+  (ROW_NUMBER() OVER (PARTITION BY participant_profile_id, course_identifier ORDER BY state_heirarchy DESC)) AS rn5
+FROM
+  ecf_declarations_expanded ecf_dec_0
+WHERE
+  declaration_type = 'started'
+QUALIFY
+  rn5=1),
   -- This uses the heirarchies established in the expanded declaration mart above to identify a single completed declaration for each participant + course combination
   ecf_dec_completed AS(
-  SELECT
-    id AS completed_declaration_id,
-    participant_profile_id AS completed_participant_profile_id,
-    declaration_type AS completed_declaration_type,
-    created_at AS completed_declaration_created_at,
-    state AS completed_declaration_state,
-    funded_declaration AS funded_completed_declaration,
-    declaration_date AS completed_declaration_date,
-    cpd_lead_provider_name AS completed_cpd_lead_provider_name,
-    delivery_partner_name AS completed_delivery_partner_name,
-    participant_course,
-    (ROW_NUMBER() OVER (PARTITION BY participant_profile_id, course_identifier ORDER BY state_heirarchy DESC)) AS rn5
-  FROM
-    ecf_declarations_expanded ecf_dec_0
-  WHERE
-    declaration_type = 'completed' QUALIFY rn5=1),
---  This joins the started and completed declaration information onto the deduped induction records
-  lp_ecf_golden_thread AS (
-  SELECT
-    lp_inductions_dedupe.*,
-    ecf_dec_start.* EXCEPT(started_participant_profile_id,
-      participant_course, rn5),
-    ecf_dec_completed.* EXCEPT(completed_participant_profile_id,
-      participant_course, rn5)
-  FROM
-    lp_inductions_dedupe
-  LEFT JOIN
-    ecf_dec_start
-  ON
-    lp_inductions_dedupe.participant_profile_id=ecf_dec_start.started_participant_profile_id
-    AND lp_inductions_dedupe.participant_course=ecf_dec_start.participant_course
-  LEFT JOIN
-    ecf_dec_completed
-  ON
-    lp_inductions_dedupe.participant_profile_id=ecf_dec_completed.completed_participant_profile_id
-    AND lp_inductions_dedupe.participant_course=ecf_dec_completed.participant_course)
-
-
 SELECT
-  *,
+  id AS completed_declaration_id,
+  participant_profile_id AS completed_participant_profile_id,
+  declaration_type AS completed_declaration_type,
+  created_at AS completed_declaration_created_at,
+  state AS completed_declaration_state,
+  funded_declaration AS funded_completed_declaration,
+  declaration_date AS completed_declaration_date,
+  cpd_lead_provider_name AS completed_cpd_lead_provider_name,
+  delivery_partner_name AS completed_delivery_partner_name,
+  participant_course,
+  cohort as completed_cohort,
+  (ROW_NUMBER() OVER (PARTITION BY participant_profile_id, course_identifier ORDER BY state_heirarchy DESC)) AS rn5
+FROM
+  ecf_declarations_expanded ecf_dec_0
+WHERE
+  declaration_type = 'completed'
+QUALIFY
+  rn5=1),
+  --  This joins the started and completed declaration information onto the deduped induction records
+  lp_ecf_golden_thread AS (
+SELECT
+  lp_inductions_dedupe.* EXCEPT(lead_provider_name,
+    pre_challenge_lead_provider_name,
+    pre_challenge_delivery_partner_name,
+    cohort),
+  COALESCE(started_cohort,completed_cohort) AS cohort,
+  pre_challenge_lead_provider_name AS lead_provider_name,
+  ecf_dec_start.* EXCEPT(started_participant_profile_id,
+    participant_course,
+    rn5),
+  ecf_dec_completed.* EXCEPT(completed_participant_profile_id,
+    participant_course,
+    rn5)
+FROM
+  lp_inductions_dedupe
+LEFT JOIN
+  ecf_dec_start
+ON
+  lp_inductions_dedupe.participant_profile_id=ecf_dec_start.started_participant_profile_id
+  AND lp_inductions_dedupe.participant_course=ecf_dec_start.participant_course
+LEFT JOIN
+  ecf_dec_completed
+ON
+  lp_inductions_dedupe.participant_profile_id=ecf_dec_completed.completed_participant_profile_id
+  AND lp_inductions_dedupe.participant_course=ecf_dec_completed.participant_course)
+SELECT
+  * ,
   CASE
     WHEN lead_provider_name = 'Ambition Institute' THEN 'Ambition'
     WHEN lead_provider_name = 'Best Practice Network' THEN 'BPN'
@@ -203,8 +217,7 @@ SELECT
     WHEN lead_provider_name = 'Teach First' THEN 'TF'
     WHEN lead_provider_name = 'Teacher Development Trust' THEN 'TDT'
     WHEN lead_provider_name = 'UCL Institute of Education' THEN 'UCL'
-  ELSE
-  lead_provider_name
+    ELSE lead_provider_name
 END
   AS lead_provider_short_name,
   CONCAT("AY",(cohort-2000),"-",(cohort-2000+1)) AS academic_year,
@@ -222,8 +235,7 @@ END
     WHEN started_cpd_lead_provider_name = 'Teach First' THEN 'TF'
     WHEN started_cpd_lead_provider_name = 'Teacher Development Trust' THEN 'TDT'
     WHEN started_cpd_lead_provider_name = 'UCL Institute of Education' THEN 'UCL'
-  ELSE
-  started_cpd_lead_provider_name
+    ELSE started_cpd_lead_provider_name
 END
   AS started_lead_provider_short_name,
   CASE
@@ -237,23 +249,22 @@ END
     WHEN completed_cpd_lead_provider_name = 'Teach First' THEN 'TF'
     WHEN completed_cpd_lead_provider_name = 'Teacher Development Trust' THEN 'TDT'
     WHEN completed_cpd_lead_provider_name = 'UCL Institute of Education' THEN 'UCL'
-  ELSE
-  completed_cpd_lead_provider_name
+    ELSE completed_cpd_lead_provider_name
 END
   AS completed_lead_provider_short_name,
   (completed_declaration_state IN ('payable',
-    'paid') and REGEXP_CONTAINS(schedule_identifier,'reduced')) AS reduced_schedule_criteria_check,
+      'paid')
+    AND REGEXP_CONTAINS(schedule_identifier,'reduced')) AS reduced_schedule_criteria_check,
   CASE
     WHEN REGEXP_CONTAINS(schedule_identifier,'replacement') THEN TRUE
-  ELSE
-  FALSE
+    ELSE FALSE
 END
   AS replacement_mentor_check,
   CASE
     WHEN lead_provider_name = started_cpd_lead_provider_name THEN TRUE
-    WHEN lead_provider_name = completed_cpd_lead_provider_name and REGEXP_CONTAINS(schedule_identifier,'reduced') THEN TRUE
-  ELSE
-  FALSE
+    WHEN lead_provider_name = completed_cpd_lead_provider_name
+  AND REGEXP_CONTAINS(schedule_identifier,'reduced') THEN TRUE
+    ELSE FALSE
 END
   AS induction_start_dec_same_lp
 FROM
