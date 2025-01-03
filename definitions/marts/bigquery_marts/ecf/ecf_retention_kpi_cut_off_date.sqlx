@@ -127,8 +127,9 @@ partnership_history AS (
   ON
     delivery_partners.id = partnership_versions.delivery_partner_id
   WHERE 
-    partnership_versions.challenged_at IS NULL -- If not null then partnership is not valid.
-    AND
+    -- Section commented out as CRM team confirmed they wish to see LPs & DPs that were associated prior to being challenged.
+        -- partnership_versions.challenged_at IS NULL -- If not null then partnership is not valid. 
+        -- AND
     partnership_versions.relationship = FALSE
     AND
     DATETIME(2024,07,31,23,59,59) BETWEEN DATETIME(partnership_versions.valid_from) AND IFNULL(DATETIME(partnership_versions.valid_to), DATETIME(2050,12,31,00,00,00))

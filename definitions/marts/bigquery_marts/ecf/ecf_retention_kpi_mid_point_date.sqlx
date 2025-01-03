@@ -121,9 +121,10 @@ partnership_history AS (
     ${ref('delivery_partners_latest_cpd')} AS delivery_partners
   ON
     delivery_partners.id = partnership_versions.delivery_partner_id
-  WHERE 
-    partnership_versions.challenged_at IS NULL -- If not null then partnership is not valid.
-    AND
+  WHERE
+    -- Section commented out as the CRM team confirmed they wish to see LPs and DPs that were partnered before being challenged. 
+    -- partnership_versions.challenged_at IS NULL -- If not null then partnership is not valid.
+    -- AND
     partnership_versions.relationship = FALSE
     AND
     DATETIME(2024,07,31,23,59,59) BETWEEN DATETIME(partnership_versions.valid_from) AND IFNULL(DATETIME(partnership_versions.valid_to), DATETIME(2050,12,31,00,00,00))
