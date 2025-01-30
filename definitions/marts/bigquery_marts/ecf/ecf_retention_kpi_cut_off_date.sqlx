@@ -210,7 +210,7 @@ started_declarations AS (
     AND
     course_identifier LIKE 'ecf%'
     AND
-    declaration_versions.state IN ('paid', 'payable', 'eligible')
+    declaration_versions.state IN ('paid', 'payable')
   QUALIFY( -- This ensures only 1 record is returned per date and the ROW_NUMBER() statement above qualifies the last version as number 1.
       rn0 = 1
   )
@@ -383,7 +383,7 @@ latest_declarations AS (
     ON
       delivery_partners.id = declarations.delivery_partner_id
     WHERE 
-      state IN ('paid', 'payable', 'eligible')
+      state IN ('paid', 'payable')
       AND
       course_identifier LIKE 'ecf%'
     QUALIFY(
