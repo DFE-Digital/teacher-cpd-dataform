@@ -94,7 +94,7 @@ SELECT
   dec_cpd.*,
   cpd_lead_providers.name AS cpd_lead_provider_name,
   delivery_partners.name AS delivery_partner_name,
-  cohorts.start_year as cohort,
+  cohorts.start_year AS cohort,
   CASE
     WHEN state LIKE 'paid' THEN 7
     WHEN state LIKE 'payable' THEN 6
@@ -148,7 +148,7 @@ SELECT
   cpd_lead_provider_name AS started_cpd_lead_provider_name,
   delivery_partner_name AS started_delivery_partner_name,
   participant_course,
-  cohort as started_cohort,
+  cohort AS started_cohort,
   (ROW_NUMBER() OVER (PARTITION BY participant_profile_id, course_identifier ORDER BY state_heirarchy DESC)) AS rn5
 FROM
   ecf_declarations_expanded ecf_dec_0
@@ -169,7 +169,7 @@ SELECT
   cpd_lead_provider_name AS completed_cpd_lead_provider_name,
   delivery_partner_name AS completed_delivery_partner_name,
   participant_course,
-  cohort as completed_cohort,
+  cohort AS completed_cohort,
   (ROW_NUMBER() OVER (PARTITION BY participant_profile_id, course_identifier ORDER BY state_heirarchy DESC)) AS rn5
 FROM
   ecf_declarations_expanded ecf_dec_0
@@ -184,7 +184,8 @@ SELECT
     pre_challenge_lead_provider_name,
     pre_challenge_delivery_partner_name,
     cohort),
-  COALESCE(started_cohort,completed_cohort) AS cohort,
+--   ##This pulls a final cohort to use for the participant, it first checks if a cohort exists on the start declaration, then completed declaration and finally pulls the cohort from the participant profile if not available on the declarations. ##
+  COALESCE(started_cohort,completed_cohort,lp_inductions_dedupe.cohort) AS cohort,
   pre_challenge_lead_provider_name AS lead_provider_name,
   ecf_dec_start.* EXCEPT(started_participant_profile_id,
     participant_course,
@@ -205,7 +206,7 @@ ON
   lp_inductions_dedupe.participant_profile_id=ecf_dec_completed.completed_participant_profile_id
   AND lp_inductions_dedupe.participant_course=ecf_dec_completed.participant_course)
 SELECT
-  * ,
+  *,
   CASE
     WHEN lead_provider_name = 'Ambition Institute' THEN 'Ambition'
     WHEN lead_provider_name = 'Best Practice Network' THEN 'BPN'
