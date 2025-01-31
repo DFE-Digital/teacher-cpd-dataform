@@ -761,10 +761,6 @@ dfeAnalyticsDataform({
                 dataType: "string",
                 description: ""
             }, {
-                keyName: "npq_course_id",
-                dataType: "string",
-                description: ""
-            }, {
                 keyName: "school_ukprn",
                 dataType: "string",
                 description: ""
