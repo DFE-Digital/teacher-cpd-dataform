@@ -1,0 +1,5 @@
+config {
+    type: "declaration",
+    schema: "static_tables",
+    name: "npq_average_declaration_conversion_rates_starts"
+}
