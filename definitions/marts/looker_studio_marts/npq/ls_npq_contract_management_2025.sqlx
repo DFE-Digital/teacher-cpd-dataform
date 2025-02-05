@@ -1,0 +1,168 @@
+config {
+    type: "table",
+    bigquery: {
+        partitionBy: "",
+        clusterBy: ["provider_name", "short_course_name"]
+    },
+    description: "This mart is made to assist NPQ Contract Managers with Lead Provider conversations related to the 2025 Contract beginning on 10/02/2025. \n \
+    It creates a table that outlines the number of DfE-funded applications, acceptance rates, starts, and predicted allocation % for each Lead Provider and their courses. \n \
+    The 2025 contract is the first to use the model of funding allocation per provider rather than participant volume targets, as such, the concept of remaining spaces no longer exists. This table does not contain the financial allocation nor the predicted amount based on declarations being submitted, these can be viewed in the QA query QA_ls_npq_contract_management_2025. \n \
+    There are 2 sets of predicted percentages; one is based on the number of accepted funded applications, the other based on funded starts. The percentage is the amount of the allocation per provider-course combination as supplied by the Contract Management team that is to be consumed based on the average percentage declarations received per either accepted funded applications or funded starts.",
+    columns: {
+        provider_name: "Name of the provider.",
+        short_course_name: "Shortened name of the course.",
+        applications: "Number of DfE-funded applications for that provider-course combo.",
+        accepted_applications: "Number of accepted DfE-funded applications for that provider-course combo.",
+        pending_applications: "Number of pending DfE-funded applications for that provider-course combo.",
+        rejected_applications: "Number of rejected DfE-funded applications for that provider-course combo.",
+        starts: "Number of DfE-funded starts for that provider-course combo.",
+        expected_participants: "The number of participants expected to be accepted into a funded place for the provider-course combo. These values were provided by the NPQ Contract Management Team",
+        predicted_allocation_percentage_applications: "The predicted percentage of the funding allocation that will be consumed based on the number of accepted funded applications for the provider-course combo.",
+        total_predicted_allocation_percentage_applications: "The predicted percentage of the funding allocation that will be consumed based on the number of accepted funded applications for the provider as a whole.",
+        predicted_allocation_percentage_starts: "The predicted percentage of the funding allocation that will be consumed based on the number of funded starts for the provider-course combo.",
+        total_predicted_allocation_percentage_starts: "The predicted percentage of the funding allocation that will be consumed based on the number of funded starts for the provider as a whole."
+    }
+}
+
+
+WITH lead_provider_targets AS (
+  SELECT
+     exp_vol.*
+    ,lp.name AS lead_provider
+  FROM
+    ${ref('npq_2025_expected_volumes')} AS exp_vol
+  LEFT JOIN
+    ${ref('lead_providers_latest_npq')} AS lp
+  ON
+    lp.id = CAST(exp_vol.lead_provider_id AS STRING)
+),
+
+lead_provider_intake AS (
+  SELECT
+    provider_name,
+    short_course_name,
+    COUNT(DISTINCT application_id) AS applications,
+    COUNT(DISTINCT
+      CASE
+        WHEN application_status = 'accepted' THEN application_id
+      ELSE
+      NULL
+    END
+      ) AS accepted_applications,
+    COUNT(DISTINCT
+      CASE
+        WHEN application_status = 'accepted' AND funded_place = TRUE THEN application_id
+      ELSE
+      NULL
+    END
+      ) AS accepted_funded_applications,
+    COUNT(DISTINCT
+      CASE
+        WHEN application_status = 'pending' THEN application_id
+      ELSE
+      NULL
+    END
+      ) AS pending_applications,
+    COUNT(DISTINCT
+      CASE
+        WHEN application_status = 'rejected' THEN application_id
+      ELSE
+      NULL
+    END
+      ) AS rejected_applications,
+    COUNT(DISTINCT
+      CASE
+        WHEN funded_start_declaration IS TRUE THEN application_id
+      ELSE
+      NULL
+    END
+      ) AS starts
+  FROM
+   ${ref('npq_enrolments')}
+  WHERE
+    cohort = 2025
+    AND 
+    funding_choice IS NULL
+    AND
+    eligible_for_funding = TRUE
+  GROUP BY
+    provider_name,
+    short_course_name
+  ORDER BY
+    provider_name ASC,
+    short_course_name ASC
+),
+
+combined_data AS (
+  SELECT
+     intake.*
+    ,targets.participants AS expected_participants
+    ,dec_conversion.declaration_count AS expected_declarations_per_participant
+    ,ppp.amount AS price_per_participant
+    
+    ,(CEILING(intake.accepted_funded_applications * dec_conversion.funded_starts_percentage) +
+      CEILING(intake.accepted_funded_applications * dec_conversion.funded_retained1_percentage) +
+      CEILING(intake.accepted_funded_applications * dec_conversion.funded_retained2_percentage) +
+      CEILING(intake.accepted_funded_applications * dec_conversion.funded_completes_percentage)) AS predicted_declarations_applications
+
+    ,(CEILING(intake.starts * dec_conversion_starts.funded_starts_percentage) +
+      CEILING(intake.starts * dec_conversion_starts.funded_retained1_percentage) +
+      CEILING(intake.starts * dec_conversion_starts.funded_retained2_percentage) +
+      CEILING(intake.starts * dec_conversion_starts.funded_completes_percentage)) AS predicted_declarations_starts
+    
+    ,targets.allocation AS expected_allocation
+  FROM
+    lead_provider_intake intake
+  INNER JOIN
+    lead_provider_targets targets
+  ON
+    intake.provider_name = targets.lead_provider
+    AND 
+    intake.short_course_name = targets.short_course_name
+  LEFT JOIN
+    ${ref('npq_average_declaration_conversion_rates')} AS dec_conversion
+  ON
+    dec_conversion.short_course_name = intake.short_course_name
+  LEFT JOIN
+    ${ref('npq_average_declaration_conversion_rates_starts')} AS dec_conversion_starts
+  ON
+    dec_conversion_starts.short_course_name = intake.short_course_name
+  LEFT JOIN
+    ${ref('npq_2025_price_per_participant')} AS ppp
+  ON
+    ppp.short_course_name = intake.short_course_name
+    AND
+    ppp.lead_provider_id = targets.lead_provider_id
+),
+
+extended_data AS (
+  SELECT 
+    *
+    ,CEILING(combined_data.predicted_declarations_applications * (price_per_participant / expected_declarations_per_participant)) AS predicted_allocation_applications   
+    ,CEILING(combined_data.predicted_declarations_starts * (price_per_participant / expected_declarations_per_participant)) AS predicted_allocation_starts    
+  FROM combined_data
+)
+
+SELECT
+   provider_name
+  ,short_course_name
+  ,applications
+  ,accepted_applications
+  ,accepted_funded_applications
+  ,pending_applications
+  ,rejected_applications
+  ,starts
+  ,expected_participants
+  ,CASE 
+    WHEN predicted_allocation_applications > 0 AND expected_allocation > 0 THEN predicted_allocation_applications / expected_allocation
+    ELSE 0
+   END AS predicted_allocation_percentage_applications
+  ,SUM(predicted_allocation_applications) OVER(PARTITION BY provider_name) / SUM(expected_allocation) OVER(PARTITION BY provider_name) AS total_predicted_allocation_percentage_applications
+
+  ,CASE 
+    WHEN predicted_allocation_starts > 0 AND expected_allocation > 0 THEN predicted_allocation_starts / expected_allocation
+    ELSE 0
+   END AS predicted_allocation_percentage_starts
+  ,SUM(predicted_allocation_starts) OVER(PARTITION BY provider_name) / SUM(expected_allocation) OVER(PARTITION BY provider_name) AS total_predicted_allocation_percentage_starts
+FROM
+  extended_data
