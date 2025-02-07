@@ -7,7 +7,8 @@ config {
     description: "This mart is made to assist NPQ Contract Managers with Lead Provider conversations related to the 2025 Contract beginning on 10/02/2025. \n \
     It creates a table that outlines the number of DfE-funded applications, acceptance rates, starts, and predicted allocation % for each Lead Provider and their courses. \n \
     The 2025 contract is the first to use the model of funding allocation per provider rather than participant volume targets, as such, the concept of remaining spaces no longer exists. This table does not contain the financial allocation nor the predicted amount based on declarations being submitted, these can be viewed in the QA query QA_ls_npq_contract_management_2025. \n \
-    There are 2 sets of predicted percentages; one is based on the number of accepted funded applications, the other based on funded starts. The percentage is the amount of the allocation per provider-course combination as supplied by the Contract Management team that is to be consumed based on the average percentage declarations received per either accepted funded applications or funded starts.",
+    There are 2 sets of predicted percentages; one is based on the number of accepted funded applications, the other based on funded starts. The percentage is the amount of the allocation per provider-course combination as supplied by the Contract Management team that is to be consumed based on the average percentage declarations received per either accepted funded applications or funded starts. \n \
+    Baseline Conversion Rates Queries: npq_course_funded_%_comparison & npq_course_funded_%_comparison_starts",
     columns: {
         provider_name: "Name of the provider.",
         short_course_name: "Shortened name of the course.",
@@ -99,6 +100,7 @@ combined_data AS (
     ,targets.participants AS expected_participants
     ,dec_conversion.declaration_count AS expected_declarations_per_participant
     ,ppp.amount AS price_per_participant
+    ,ppp.amount / dec_conversion.declaration_count AS price_per_declaration
     
     ,(CEILING(intake.accepted_funded_applications * dec_conversion.funded_starts_percentage) +
       CEILING(intake.accepted_funded_applications * dec_conversion.funded_retained1_percentage) +
@@ -138,8 +140,8 @@ combined_data AS (
 extended_data AS (
   SELECT 
     *
-    ,CEILING(combined_data.predicted_declarations_applications * (price_per_participant / expected_declarations_per_participant)) AS predicted_allocation_applications   
-    ,CEILING(combined_data.predicted_declarations_starts * (price_per_participant / expected_declarations_per_participant)) AS predicted_allocation_starts    
+    ,CEILING(predicted_declarations_applications * price_per_declaration) AS predicted_allocation_applications   
+    ,CEILING(predicted_declarations_starts * price_per_declaration) AS predicted_allocation_starts    
   FROM combined_data
 )
 
@@ -157,12 +159,12 @@ SELECT
     WHEN predicted_allocation_applications > 0 AND expected_allocation > 0 THEN predicted_allocation_applications / expected_allocation
     ELSE 0
    END AS predicted_allocation_percentage_applications
-  ,SUM(predicted_allocation_applications) OVER(PARTITION BY provider_name) / SUM(expected_allocation) OVER(PARTITION BY provider_name) AS total_predicted_allocation_percentage_applications
+  ,(SUM(predicted_allocation_applications) OVER(PARTITION BY provider_name)) / (SUM(expected_allocation) OVER(PARTITION BY provider_name)) AS total_predicted_allocation_percentage_applications
 
   ,CASE 
     WHEN predicted_allocation_starts > 0 AND expected_allocation > 0 THEN predicted_allocation_starts / expected_allocation
     ELSE 0
    END AS predicted_allocation_percentage_starts
-  ,SUM(predicted_allocation_starts) OVER(PARTITION BY provider_name) / SUM(expected_allocation) OVER(PARTITION BY provider_name) AS total_predicted_allocation_percentage_starts
+  ,(SUM(predicted_allocation_starts) OVER(PARTITION BY provider_name)) / (SUM(expected_allocation) OVER(PARTITION BY provider_name)) AS total_predicted_allocation_percentage_starts
 FROM
   extended_data
