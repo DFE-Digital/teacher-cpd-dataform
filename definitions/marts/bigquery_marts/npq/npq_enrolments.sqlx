@@ -92,6 +92,8 @@ WITH user_trns AS (
     ,valid_to
   FROM
     ${ref('users_version_npq')}
+  WHERE
+    trn IS NOT NULL
   QUALIFY (
     ROW_NUMBER() OVER(PARTITION BY id ORDER BY valid_from ASC) = 1
   )
