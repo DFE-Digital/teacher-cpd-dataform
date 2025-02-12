@@ -80,8 +80,6 @@ WITH
     ${ref("npq_enrolments")}
   WHERE
     cohort = 2024
-    AND 
-    funding_choice IS NULL
     AND
     eligible_for_funding = TRUE
   GROUP BY
