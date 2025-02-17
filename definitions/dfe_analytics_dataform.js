@@ -5,6 +5,7 @@ dfeAnalyticsDataform({
     eventSourceName: "cpd",
     bqEventsTableName: 'events',
     bqDatasetName: 'ecf_events_production',
+    expirationDays: false,
     urlRegex: 'manage-training-for-early-career-teachers.education.gov.uk',
     hiddenPolicyTagLocation: "projects/ecf-bq/locations/europe-west2/taxonomies/6302091323314055162/policyTags/301313311867345339",
     customEventSchema: [{
