@@ -24,7 +24,7 @@ dfeAnalyticsDataform({
                 {
                     keyName: "establishment_number",
                     dataType: "integer",
-                    description: "A unique identifier given too all appropriate bodies from DQT"
+                    description: "A unique identifier given to all appropriate bodies from DQT"
                 },
                 {
                     keyName: "dfe_sign_in_organisation_id",
