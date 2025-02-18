@@ -64,9 +64,9 @@ SELECT
     last_streamed_event_type),
   abs.legacy_id AS ab_legacy_id
 FROM
-  ${ref(`teachers_latest_ecf2`)} AS teachers
-LEFT JOIN
   ${ref(`induction_periods_latest_ecf2`)} AS induction_periods
+LEFT JOIN
+  ${ref(`teachers_latest_ecf2`)} AS teachers
 ON
   teachers.id = induction_periods.teacher_id
 LEFT JOIN
