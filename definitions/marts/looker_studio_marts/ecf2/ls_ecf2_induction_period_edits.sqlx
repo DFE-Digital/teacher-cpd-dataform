@@ -7,7 +7,7 @@ config {
         partitionBy: "DATE(update_timestamp)",
         clusterBy: ["appropriate_body_name"]
     },
-    description: "This mart is designed to show the updates that have been made to induction periods using the RIAB service. It uses the ecf2_teacher_induction_periods mart as a base and adds on the updates that have been made for each induction_period. It is filtered to only records which have been updated",
+    description: "This mart is designed to show the updates that have been made to induction periods using the RIAB service. In order to do this it only includes 'update_entity' events and events triggered by a web_request. Creations and deletions are not included in this mart. It uses the ecf2_teacher_induction_periods mart as a base and adds on the updates that have been made for each induction_period. It is filtered to only records which have been updated",
     columns: {
         induction_period_id: "ID of single registered induction period",
         number_of_terms: "Number of terms served in the induction period",
@@ -33,7 +33,8 @@ WITH
     previous_value,
     new_value AS updated_value
   FROM
-    ${ref(`induction_periods_field_updates_ecf2`)})
+    ${ref(`induction_periods_field_updates_ecf2`)}
+  WHERE event_type = 'update_entity' and request_path is not null)
 SELECT
   induction_period_id,
   teacher_id,

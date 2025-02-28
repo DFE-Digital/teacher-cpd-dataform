@@ -38,7 +38,7 @@ config {
 
   -- This CTE identifies whether the first version of an induction period that we hold the data for was imported into the ECF App or whether it was created by an AB user or Support Team member using the new service.
 WITH
-  induction_origins AS (
+  induction_period_creator AS (
   SELECT
     id,
     CASE
@@ -46,27 +46,21 @@ WITH
       WHEN request_path LIKE '%admin%' THEN 'admin_created'
       ELSE 'user_created'
   END
-    AS record_origin
+    AS record_creator
   FROM
     ${ref(`induction_periods_version_ecf2`)} AS induction_versions
   QUALIFY
     ROW_NUMBER() OVER (PARTITION BY id ORDER BY valid_from) = 1),
   -- This CTE identifies whether an induction period has been edited by an support admin and/or by a service user (AB)
-  induction_changes AS (
+  induction_period_editors AS (
 SELECT
-  DISTINCT entity_id,
-  SUM(CASE
-      WHEN request_path LIKE '%admin%' THEN 1
-      ELSE 0
-  END
-    ) OVER (PARTITION BY entity_id) AS admin_updates,
-  SUM(CASE
-      WHEN request_path NOT LIKE '%admin%' THEN 1
-      ELSE 0
-  END
-    ) OVER (PARTITION BY entity_id) AS non_admin_updates
+  id,
+  LOGICAL_OR(request_path LIKE '%admin%') AS admin_updates,
+  LOGICAL_OR(request_path NOT LIKE '%admin%') AS non_admin_updates
 FROM
-  ${ref(`induction_periods_field_updates_ecf2`)} AS induction_updates)
+  ${ref(`induction_periods_version_ecf2`)} AS induction_updates
+WHERE event_type = "update_entity" and request_path is not null
+GROUP BY id)
 SELECT
   induction_periods.id AS induction_period_id,
   induction_periods.* EXCEPT (teacher_id,
@@ -97,14 +91,14 @@ SELECT
     last_streamed_event_occurred_at,
     last_streamed_event_type),
   abs.legacy_id AS ab_legacy_id,
-  record_origin,
+  record_creator,
   CASE
-    WHEN non_admin_updates IS NOT NULL AND non_admin_updates >0 THEN TRUE
+    WHEN non_admin_updates IS NOT NULL AND non_admin_updates is True THEN TRUE
     ELSE FALSE
 END
   AS non_admin_update_flag,
   CASE
-    WHEN admin_updates IS NOT NULL AND admin_updates >0 THEN TRUE
+    WHEN admin_updates IS NOT NULL AND admin_updates is True THEN TRUE
     ELSE FALSE
 END
   AS admin_update_flag
@@ -119,10 +113,10 @@ LEFT JOIN
 ON
   induction_periods.appropriate_body_id = abs.id
 LEFT JOIN
-  induction_origins
+  induction_period_creator
 ON
-  induction_periods.id = induction_origins.id
+  induction_periods.id = induction_period_creator.id
 LEFT JOIN
-  induction_changes
+  induction_period_editors
 ON
-  induction_periods.id = induction_changes.entity_id
+  induction_periods.id = induction_period_editors.id
