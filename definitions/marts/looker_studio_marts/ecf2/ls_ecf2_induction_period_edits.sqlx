@@ -1,0 +1,58 @@
+config {
+    type: "table",
+    assertions: {
+        uniqueKey: ["induction_period_id"]
+    },
+    bigquery: {
+        partitionBy: "DATE(update_timestamp)",
+        clusterBy: ["appropriate_body_name"]
+    },
+    description: "This mart is designed to show the updates that have been made to induction periods using the RIAB service. In order to do this it only includes 'update_entity' events and events triggered by a web_request. Creations and deletions are not included in this mart. It uses the ecf2_teacher_induction_periods mart as a base and adds on the updates that have been made for each induction_period. It is filtered to only records which have been updated",
+    columns: {
+        induction_period_id: "ID of single registered induction period",
+        number_of_terms: "Number of terms served in the induction period",
+        started_on: "Date an induction period was started on",
+        finished_on: "Date and time an extension was updated",
+        induction_programme: "The programme type for an induction period; Full Induction, Core Induction, Do it Yourself",
+        qts_awarded_on: "Date an ECT was awarded their QTS",
+        outcome: "ECT's overall induction outcome"
+    }
+}
+
+WITH
+  induction_updates AS (
+  SELECT
+    entity_id,
+    occurred_at,
+    CASE
+      WHEN request_path LIKE '%admin%' THEN TRUE
+      ELSE FALSE
+  END
+    AS admin_update,
+    key_updated AS field_updated,
+    previous_value,
+    new_value AS updated_value
+  FROM
+    ${ref(`induction_periods_field_updates_ecf2`)}
+  WHERE event_type = 'update_entity' and request_path is not null)
+SELECT
+  induction_period_id,
+  teacher_id,
+  appropriate_body_name,
+  induction_programme,
+  started_on,
+  finished_on,
+  number_of_terms,
+  outcome,
+  qts_awarded_on,
+  field_updated,
+  induction_updates.occurred_at AS update_timestamp,
+  previous_value,
+  updated_value,
+  admin_update
+FROM
+  ${ref(`ecf2_teacher_induction_periods`)} induction_period_data
+INNER JOIN
+  induction_updates
+ON
+  induction_period_data.induction_period_id = induction_updates.entity_id
