@@ -1,7 +1,7 @@
 config {
     type: "table",
     assertions: {
-        uniqueKey: ["induction_period_id"]
+        uniqueKey: ["update_id"]
     },
     bigquery: {
         partitionBy: "DATE(update_timestamp)",
@@ -23,6 +23,7 @@ WITH
   induction_updates AS (
   SELECT
     entity_id,
+    update_id,
     occurred_at,
     CASE
       WHEN request_path LIKE '%admin%' THEN TRUE
@@ -45,6 +46,7 @@ SELECT
   number_of_terms,
   outcome,
   qts_awarded_on,
+  update_id,
   field_updated,
   induction_updates.occurred_at AS update_timestamp,
   previous_value,
