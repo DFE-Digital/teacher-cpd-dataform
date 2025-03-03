@@ -101,6 +101,7 @@ ecf_declarations AS (
     dec.last_streamed_event_type,
     ecfid.cohort AS cohort,
     ecfid.schedule_identifier,
+    ecfid.TRN AS trn_verified,
     state_info.statement_cohort,
     lpl.name AS cpd_lp_name,
     dpl.name AS cpd_dp_name,
@@ -150,6 +151,11 @@ npq_declarations AS (
     dec.state,
     dec.superseded_by_id,
     users.ecf_id AS ecf_user_id,
+    CASE 
+      WHEN users.trn_verified = TRUE THEN users.trn 
+      ELSE NULL 
+    END AS trn_verified,
+    app.id AS application_id,
     app.cohort_id,
     dec.last_streamed_event_occurred_at,
     dec.last_streamed_event_type,
@@ -203,6 +209,7 @@ SELECT
   evidence_held,
   mentor_user_id,
   profile_id,
+  trn_verified,
   pupil_premium_uplift,
   sparsity_uplift,
   state,
@@ -216,7 +223,8 @@ SELECT
   statement_cohort,
   cpd_lp_name,
   cpd_dp_name,
-  programme
+  programme,
+  CAST(NULL AS STRING) AS application_id
 FROM
   ecf_declarations
 UNION ALL
@@ -232,6 +240,7 @@ SELECT
   evidence_held,
   mentor_user_id,
   profile_id,
+  trn_verified,
   pupil_premium_uplift,
   sparsity_uplift,
   state,
@@ -245,6 +254,7 @@ SELECT
   statement_cohort,
   cpd_lp_name,
   cpd_dp_name,
-  programme
+  programme,
+  application_id
 FROM
   npq_declarations
