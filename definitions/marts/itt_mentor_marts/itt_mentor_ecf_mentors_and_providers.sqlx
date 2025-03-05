@@ -15,7 +15,7 @@ config {
         provider_name: "Name of the organisation (provider) which received direct funding from DfE to train this teacher to be an ECF mentor.\nFull name, e.g. Ambition Institute",
         first_started_funded_mentor_training_on: "Date when this mentor first started ECF mentor training for which this provider which was funded directly by DfE",
         first_completed_mentor_training_with_this_lead_provider_on: "Date when this ECF mentor first completed ECF mentor training with this provider, if this provider was funded directly by DfE for the period of training which immediately resulted in completion",
-        mentor_completion_reasons: "The reason(s) why this ECF mentor was recorded as having completed training for which this provider received funding directly from DfE. Should be either completed_declaration_received (normally) or completed_during_early_roll_out (need to ask Emma/Nathan about this! Not comfortable sharing the reason unless we know what it means). If more than one completion for different reasons then they will be displayed as a comma-separated list."
+        mentor_completion_reasons: "The reason(s) why this ECF mentor was recorded as having completed training for which this provider received funding directly from DfE. Should be either completed_declaration_received (if they made a declaration via the digital service in order to claim funding) or completed_during_early_roll_out (if they completed during the early rollout period before providers started making declarations in AY2021-22). If more than one completion for different reasons then they will be displayed as a comma-separated list."
     }
 }
 
