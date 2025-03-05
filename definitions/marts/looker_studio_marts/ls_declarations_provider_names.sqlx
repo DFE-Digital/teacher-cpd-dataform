@@ -36,7 +36,9 @@ config {
         statement_cohort: "Cohort from the financial statement a declaration is stored against for ECF and the cohort against the declaration for NPQ.",
         cpd_lp_name: "Name of Lead Provider for NPQ or ECF course",
         cpd_dp_name: "Name of Delivery Partner for ECF course",
-        programme: "Either ECF or NPQ based on which source the data originates from."
+        programme: "Either ECF or NPQ based on which source the data originates from.",
+        application_id: "NPQ ONLY. The unique identifier of the application the declaration relates to. A unique count of this field provides the number of NPQ courses included within the data.",
+        verified_trn: "The TRN of the participant that has been verified by the Database of Qualified Teachers (DQT)."
     }
 }
 
@@ -101,6 +103,7 @@ ecf_declarations AS (
     dec.last_streamed_event_type,
     ecfid.cohort AS cohort,
     ecfid.schedule_identifier,
+    ecfid.TRN AS verified_trn,
     state_info.statement_cohort,
     lpl.name AS cpd_lp_name,
     dpl.name AS cpd_dp_name,
@@ -150,6 +153,11 @@ npq_declarations AS (
     dec.state,
     dec.superseded_by_id,
     users.ecf_id AS ecf_user_id,
+    CASE 
+      WHEN users.trn_verified = TRUE THEN users.trn 
+      ELSE NULL 
+    END AS verified_trn,
+    app.id AS application_id,
     app.cohort_id,
     dec.last_streamed_event_occurred_at,
     dec.last_streamed_event_type,
@@ -203,6 +211,7 @@ SELECT
   evidence_held,
   mentor_user_id,
   profile_id,
+  verified_trn,
   pupil_premium_uplift,
   sparsity_uplift,
   state,
@@ -216,7 +225,8 @@ SELECT
   statement_cohort,
   cpd_lp_name,
   cpd_dp_name,
-  programme
+  programme,
+  CAST(NULL AS STRING) AS application_id
 FROM
   ecf_declarations
 UNION ALL
@@ -232,6 +242,7 @@ SELECT
   evidence_held,
   mentor_user_id,
   profile_id,
+  verified_trn,
   pupil_premium_uplift,
   sparsity_uplift,
   state,
@@ -245,6 +256,7 @@ SELECT
   statement_cohort,
   cpd_lp_name,
   cpd_dp_name,
-  programme
+  programme,
+  application_id
 FROM
   npq_declarations
