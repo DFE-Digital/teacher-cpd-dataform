@@ -1,0 +1,49 @@
+config {
+    schema: "itt_mentor",
+    database: "ecf-bq",
+    name: "ecf_mentors_and_providers",
+    type: "table",
+    assertions: {
+        uniqueKey: ["mentor_trn", "provider_name"]
+    },
+    bigquery: {
+        partitionBy: "first_completed_mentor_training_with_this_lead_provider_on"
+    },
+    description: "Summary data about the relationship between each Early Careers Framework (ECF) mentor and each organisation (provider) which received direct funding from DfE for training them to be an ECF mentor.\nEach row is a relationship between one mentor and one such provider.\nIntended to be shared with the ITT Mentor GCP project to analyse overlaps between teachers who have been trained by the same provider to be both ECF and Initial Teacher Training (ITT) mentors.",
+    columns: {
+        mentor_trn: "Teacher Reference Number (TRN) of the mentor - a teacher - who this provider received funding to train as an ECF mentor",
+        provider_name: "Name of the organisation (provider) which received direct funding from DfE to train this teacher to be an ECF mentor.\nFull name, e.g. Ambition Institute",
+        first_started_funded_mentor_training_on: "Date when this mentor first started ECF mentor training for which this provider which was funded directly by DfE",
+        first_completed_mentor_training_with_this_lead_provider_on: "Date when this ECF mentor first completed ECF mentor training with this provider, if this provider was funded directly by DfE for the period of training which immediately resulted in completion",
+        mentor_completion_reasons: "The reason(s) why this ECF mentor was recorded as having completed training for which this provider received funding directly from DfE. Should be either completed_declaration_received (normally) or completed_during_early_roll_out (need to ask Emma/Nathan about this! Not comfortable sharing the reason unless we know what it means). If more than one completion for different reasons then they will be displayed as a comma-separated list."
+    }
+}
+
+SELECT
+  COALESCE(induction.TRN, declaration.TRN) AS mentor_trn, /* Attempt to obtain TRN from either table in case it's null in one but not the other */
+  declaration.cpd_lead_provider_name AS provider_name, /* Remove CPD-specific jargon of lead providers here */
+  MIN(declaration.start_date) AS first_started_funded_mentor_training_on,
+  MIN(
+  IF
+    ( declaration.mentor_completion_reason IN ("completed_during_early_roll_out",
+        "completed_declaration_received")
+        /* i.e. not started_not_completed */
+        , COALESCE(declaration.mentor_completion_date, CAST(declaration.end_date AS DATE)), NULL )) AS first_completed_mentor_training_with_this_lead_provider_on,
+  STRING_AGG(DISTINCT declaration.mentor_completion_reason, ", " ORDER BY declaration.mentor_completion_reason) AS mentor_completion_reasons
+FROM
+  ${ref("ecf_inductions")} AS induction
+LEFT JOIN
+  ${ref("ecf_declarations")} AS declaration
+USING
+  (induction_record_id,
+    participant_type)
+WHERE
+  induction.participant_type = "ParticipantProfile::Mentor"
+  AND funded_declaration
+  AND COALESCE(induction.TRN, declaration.TRN) IS NOT NULL
+  AND declaration.state IN ("paid",
+    "payable",
+    "eligible") /* Only include declaration states that indicate that someone has decided this period of training should be funded, even if it hasn't been paid yet */
+GROUP BY
+  mentor_trn,
+  cpd_lead_provider_name
