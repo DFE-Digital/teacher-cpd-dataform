@@ -109,11 +109,13 @@ WITH
     delivery_partner_name AS latest_dp_name,
     declaration_date AS latest_dec_date,
     created_at as latest_dec_created_at,
-    participant_course AS latest_part_course,
-    (ROW_NUMBER() OVER (PARTITION BY participant_profile_id, course_identifier ORDER BY type_hierarchy desc, state_hierarchy DESC)) AS rn2
+    participant_course AS latest_part_course
   FROM
-    ecf_declarations_expanded QUALIFY rn2 = 1),
-  ecf_dec_start AS(
+    ecf_declarations_expanded
+  QUALIFY
+    ROW_NUMBER() OVER (PARTITION BY participant_profile_id, course_identifier ORDER BY type_hierarchy desc, state_hierarchy DESC) = 1
+  ),
+  ecf_dec_start AS (
   SELECT
     id AS started_dec_id,
     user_id AS started_dec_user_id,
@@ -125,14 +127,14 @@ WITH
     declaration_date AS started_dec_date,
     created_at as started_dec_created_at,
     cpd_lead_provider_name AS started_cpd_lp_name,
-    delivery_partner_name AS started_dp_name,
-    (ROW_NUMBER() OVER (PARTITION BY participant_profile_id,
-    /*cpd_lead_provider_id,*/
-    course_identifier, declaration_type ORDER BY state_hierarchy DESC)) AS rn5
+    delivery_partner_name AS started_dp_name
   FROM
     ecf_declarations_expanded ecf_dec_0
   WHERE
-    declaration_type = 'started' QUALIFY rn5=1),
+    declaration_type = 'started'
+  QUALIFY
+    ROW_NUMBER() OVER (PARTITION BY participant_profile_id, /*cpd_lead_provider_id,*/ course_identifier, declaration_type ORDER BY state_hierarchy DESC) = 1
+  ),
   ecf_dec_ret1 AS(
   SELECT
     id AS ret1_dec_id,
@@ -145,15 +147,15 @@ WITH
     declaration_date AS ret1_dec_date,
     created_at as ret1_dec_created_at,
     cpd_lead_provider_name AS ret1_cpd_lp_name,
-    delivery_partner_name AS ret1_dp_name,
-    (ROW_NUMBER() OVER (PARTITION BY participant_profile_id,
-    /*cpd_lead_provider_id,*/
-    course_identifier, declaration_type ORDER BY state_hierarchy DESC)) AS rn6
+    delivery_partner_name AS ret1_dp_name
   FROM
     ecf_declarations_expanded ecf_dec_1
   WHERE
-    declaration_type = 'retained-1' QUALIFY rn6=1),
-  ecf_dec_ret2 AS(
+    declaration_type = 'retained-1'
+  QUALIFY
+    ROW_NUMBER() OVER (PARTITION BY participant_profile_id, /*cpd_lead_provider_id,*/ course_identifier, declaration_type ORDER BY state_hierarchy DESC) = 1
+  ),
+  ecf_dec_ret2 AS (
   SELECT
     id AS ret2_dec_id,
     user_id AS ret2_dec_user_id,
@@ -165,15 +167,15 @@ WITH
     declaration_date AS ret2_dec_date,
     created_at as ret2_dec_created_at,
     cpd_lead_provider_name AS ret2_cpd_lp_name,
-    delivery_partner_name AS ret2_dp_name,
-    (ROW_NUMBER() OVER (PARTITION BY participant_profile_id,
-    /*cpd_lead_provider_id,*/
-    course_identifier, declaration_type ORDER BY state_hierarchy DESC)) AS rn7
+    delivery_partner_name AS ret2_dp_name
   FROM
     ecf_declarations_expanded ecf_dec_2
   WHERE
-    declaration_type = 'retained-2' QUALIFY rn7=1),
-  ecf_dec_ret3 AS(
+    declaration_type = 'retained-2'
+  QUALIFY
+    ROW_NUMBER() OVER (PARTITION BY participant_profile_id, /*cpd_lead_provider_id,*/ course_identifier, declaration_type ORDER BY state_hierarchy DESC) = 1
+  ),
+  ecf_dec_ret3 AS (
   SELECT
     id AS ret3_dec_id,
     user_id AS ret3_dec_user_id,
@@ -185,15 +187,15 @@ WITH
     declaration_date AS ret3_dec_date,
     created_at as ret3_dec_created_at,
     cpd_lead_provider_name AS ret3_cpd_lp_name,
-    delivery_partner_name AS ret3_dp_name,
-    (ROW_NUMBER() OVER (PARTITION BY participant_profile_id,
-    /*cpd_lead_provider_id,*/
-    course_identifier, declaration_type ORDER BY state_hierarchy DESC)) AS rn8
+    delivery_partner_name AS ret3_dp_name
   FROM
     ecf_declarations_expanded ecf_dec_3
   WHERE
-    declaration_type = 'retained-3' QUALIFY rn8=1),
-  ecf_dec_ret4 AS(
+    declaration_type = 'retained-3'
+  QUALIFY
+    ROW_NUMBER() OVER (PARTITION BY participant_profile_id, /*cpd_lead_provider_id,*/ course_identifier, declaration_type ORDER BY state_hierarchy DESC) = 1
+  ),
+  ecf_dec_ret4 AS (
   SELECT
     id AS ret4_dec_id,
     user_id AS ret4_dec_user_id,
@@ -205,15 +207,15 @@ WITH
     declaration_date AS ret4_dec_date,
     created_at as ret4_dec_created_at,
     cpd_lead_provider_name AS ret4_cpd_lp_name,
-    delivery_partner_name AS ret4_dp_name,
-    (ROW_NUMBER() OVER (PARTITION BY participant_profile_id,
-    /*cpd_lead_provider_id,*/
-    course_identifier, declaration_type ORDER BY state_hierarchy DESC)) AS rn9
+    delivery_partner_name AS ret4_dp_name
   FROM
     ecf_declarations_expanded ecf_dec_4
   WHERE
-    declaration_type = 'retained-4' QUALIFY rn9=1),
-  ecf_dec_ext1 AS(
+    declaration_type = 'retained-4'
+  QUALIFY
+    ROW_NUMBER() OVER (PARTITION BY participant_profile_id, /*cpd_lead_provider_id,*/ course_identifier, declaration_type ORDER BY state_hierarchy DESC) = 1
+  ),
+  ecf_dec_ext1 AS (
   SELECT
     id AS ext1_dec_id,
     user_id AS ext1_dec_user_id,
@@ -225,15 +227,15 @@ WITH
     declaration_date AS ext1_dec_date,
     created_at as ext1_dec_created_at,
     cpd_lead_provider_name AS ext1_cpd_lp_name,
-    delivery_partner_name AS ext1_dp_name,
-    (ROW_NUMBER() OVER (PARTITION BY participant_profile_id,
-    /*cpd_lead_provider_id,*/
-    course_identifier, declaration_type ORDER BY state_hierarchy DESC)) AS rn10
+    delivery_partner_name AS ext1_dp_name
   FROM
     ecf_declarations_expanded ecf_dec_extended_1
   WHERE
-    declaration_type LIKE 'extended-1%' QUALIFY rn10=1),
-  ecf_dec_ext2 AS(
+    declaration_type LIKE 'extended-1%'
+  QUALIFY
+    ROW_NUMBER() OVER (PARTITION BY participant_profile_id, /*cpd_lead_provider_id,*/ course_identifier, declaration_type ORDER BY state_hierarchy DESC) = 1
+  ),
+  ecf_dec_ext2 AS (
   SELECT
     id AS ext2_dec_id,
     user_id AS ext2_dec_user_id,
@@ -245,15 +247,15 @@ WITH
     declaration_date AS ext2_dec_date,
     created_at as ext2_dec_created_at,
     cpd_lead_provider_name AS ext2_cpd_lp_name,
-    delivery_partner_name AS ext2_dp_name,
-    (ROW_NUMBER() OVER (PARTITION BY participant_profile_id,
-    /*cpd_lead_provider_id,*/
-    course_identifier, declaration_type ORDER BY state_hierarchy DESC)) AS rn11
+    delivery_partner_name AS ext2_dp_name
   FROM
     ecf_declarations_expanded ecf_dec_extended_2
   WHERE
-    declaration_type LIKE 'extended-2%' QUALIFY rn11=1),
-  ecf_dec_ext3 AS(
+    declaration_type LIKE 'extended-2%'
+  QUALIFY
+    ROW_NUMBER() OVER (PARTITION BY participant_profile_id, /*cpd_lead_provider_id,*/ course_identifier, declaration_type ORDER BY state_hierarchy DESC) = 1
+  ),
+  ecf_dec_ext3 AS (
   SELECT
     id AS ext3_dec_id,
     user_id AS ext3_dec_user_id,
@@ -265,15 +267,15 @@ WITH
     declaration_date AS ext3_dec_date,
     created_at as ext3_dec_created_at,
     cpd_lead_provider_name AS ext3_cpd_lp_name,
-    delivery_partner_name AS ext3_dp_name,
-    (ROW_NUMBER() OVER (PARTITION BY participant_profile_id,
-    /*cpd_lead_provider_id,*/
-    course_identifier, declaration_type ORDER BY state_hierarchy DESC)) AS rn12
+    delivery_partner_name AS ext3_dp_name
   FROM
     ecf_declarations_expanded ecf_dec_extended_3
   WHERE
-    declaration_type LIKE 'extended-3%' QUALIFY rn12=1),
-  ecf_dec_comp AS(
+    declaration_type LIKE 'extended-3%'
+  QUALIFY
+    ROW_NUMBER() OVER (PARTITION BY participant_profile_id, /*cpd_lead_provider_id,*/ course_identifier, declaration_type ORDER BY state_hierarchy DESC) = 1
+  ),
+  ecf_dec_comp AS (
   SELECT
     id AS completed_dec_id,
     user_id AS completed_dec_user_id,
@@ -285,26 +287,17 @@ WITH
     declaration_date AS completed_dec_date,
     created_at as completed_dec_created_at,
     cpd_lead_provider_name AS completed_cpd_lp_name,
-    delivery_partner_name AS completed_dp_name,
-    (ROW_NUMBER() OVER (PARTITION BY participant_profile_id,
-    /*cpd_lead_provider_id,*/
-    course_identifier, declaration_type ORDER BY state_hierarchy DESC)) AS rn13
+    delivery_partner_name AS completed_dp_name
   FROM
     ecf_declarations_expanded ecf_dec_fin
   WHERE
-    declaration_type = 'completed' QUALIFY rn13=1),
+    declaration_type = 'completed'
+  QUALIFY
+    ROW_NUMBER() OVER (PARTITION BY participant_profile_id, /*cpd_lead_provider_id,*/ course_identifier, declaration_type ORDER BY state_hierarchy DESC) = 1
+  ),
   ecf_full_dec AS (
   SELECT
-    * EXCEPT (rn2,
-      rn5,
-      rn6,
-      rn7,
-      rn8,
-      rn9,
-      rn10,
-      rn11,
-      rn12,
-      rn13)
+    *
   FROM
     ecf_dec_latest
   LEFT JOIN

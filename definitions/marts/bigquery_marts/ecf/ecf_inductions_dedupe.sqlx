@@ -61,8 +61,7 @@ config {
 
   */
 SELECT
-  *,
-  (ROW_NUMBER() OVER (PARTITION BY participant_type, user_id ORDER BY active DESC, start_date DESC, created_at DESC)) AS rn0
+  *
 FROM (
   SELECT
     *,
@@ -74,4 +73,6 @@ FROM (
   END
     AS active
   FROM
-    ${ref("ecf_inductions")}) T1 QUALIFY rn0=1
+    ${ref("ecf_inductions")})
+QUALIFY
+  ROW_NUMBER() OVER (PARTITION BY participant_type, user_id ORDER BY active DESC, start_date DESC, created_at DESC) = 1
