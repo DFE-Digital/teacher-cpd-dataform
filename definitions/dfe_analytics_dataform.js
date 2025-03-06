@@ -700,11 +700,11 @@ dfeAnalyticsDataform({
             }, {
                 keyName: "mentor_completion_date",
                 dataType: "date",
-                description: ""
+                description: "The date a mentor completed training. When a declaration is submitted for a mentor the mentor_completion_date will equal the declaration_date. When a declaration is voided the completed date will be cleared. Completed dates for early roll-out mentors will be set to 19 April 2021 regardless of any completed declarations.",
             }, {
                 keyName: "mentor_completion_reason",
                 dataType: "string",
-                description: ""
+                description: "The reason the mentor_completion_date field is filled. Possible values: completed_during_early_roll_out, completed_declaration_received, started_not_completed (if the training this declaration is for is deemed 'complete' but the overall ECF mentor training is not complete).",
             }, {
                 keyName: "mentor_profile_id",
                 dataType: "string",

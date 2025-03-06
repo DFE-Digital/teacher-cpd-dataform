@@ -4,8 +4,7 @@ config {
     name: "ecf_mentors_and_providers",
     type: "table",
     assertions: {
-        uniqueKey: ["mentor_trn", "provider_name"],
-        rowConditions: ["mentor_completion_reason NOT LIKE '%,%'"] /* Check that there is only ever 1 completion reason per mentor for each provider - if there is ever more than one we need to explain this in the metadata */
+        uniqueKey: ["mentor_trn", "provider_name"]
     },
     bigquery: {
         partitionBy: "first_completed_mentor_training_with_this_lead_provider_on"
@@ -16,7 +15,7 @@ config {
         provider_name: "Name of the organisation (provider) which received direct funding from DfE to train this teacher to be an ECF mentor.\nFull name, e.g. Ambition Institute",
         first_started_funded_mentor_training_on: "Date when this mentor first started ECF mentor training for which this provider which was funded directly by DfE",
         first_completed_mentor_training_with_this_lead_provider_on: "Date when this ECF mentor first completed ECF mentor training with this provider, if this provider was funded directly by DfE for the period of training which immediately resulted in completion",
-        mentor_completion_reason: "The reason why this ECF mentor was recorded as having completed training for which this provider received funding directly from DfE. Should be either completed_declaration_received (if they made a declaration via the digital service in order to claim funding) or completed_during_early_roll_out (if they completed during the early rollout period before providers started making declarations in AY2021-22)."
+        last_took_part_in_mentor_training_with_this_lead_provider_on: "Date when this ECF mentor most recently took part in ECF mentor training with this provider for any period of training funded directly by DfE. Does not necessarily indicate that the mentor completed the training."
     }
 }
 
@@ -29,8 +28,10 @@ SELECT
     ( declaration.mentor_completion_reason IN ("completed_during_early_roll_out",
         "completed_declaration_received")
         /* i.e. not started_not_completed */
-        , COALESCE(declaration.mentor_completion_date, CAST(declaration.end_date AS DATE)), NULL )) AS first_completed_mentor_training_with_this_lead_provider_on,
-  STRING_AGG(DISTINCT declaration.mentor_completion_reason, ", " ORDER BY declaration.mentor_completion_reason) AS mentor_completion_reason
+        , COALESCE(CAST(declaration.declaration_date AS DATE), declaration.mentor_completion_date), NULL) ) AS first_completed_mentor_training_with_this_lead_provider_on,
+        /* Use declaration_date over mentor_completion_date if available as it's more reliable for mentors who completed during early roll out but somehow managed to complete again after early roll out finished */
+  MAX(
+    COALESCE(CAST(declaration.declaration_date AS DATE), declaration.mentor_completion_date) ) AS last_took_part_in_mentor_training_with_this_lead_provider_on
 FROM
   ${ref("ecf_inductions")} AS induction
 LEFT JOIN
