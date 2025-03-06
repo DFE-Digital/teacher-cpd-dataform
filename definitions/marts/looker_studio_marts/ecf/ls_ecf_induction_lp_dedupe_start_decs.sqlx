@@ -7,7 +7,7 @@ config {
         partitionBy: "DATE(induction_record_created_at)",
         clusterBy: ["cohort", "participant_type", "induction_status", "training_status"]
     },
-    description: "This mart is used for the ECF Contract Managers dashboard. The mart identifies the latest induction records for a given participant + LP combo which can then help us to determine if the participant began their training with that LP and whether their participation with that LP qualifies for the KPIs set out by the SRM team. It dedupes ECF Inductions at the lead provider level (as well as user_id and participant_type) using nearly identitcal deduping logic as the ecf_induction_dedupe mart (with the addition of grouping at LP level) and joins in started and completed declaration info for those records. In order to determine the preferred declaration for each declaration type we've determined a preferred state_heirarchy:paid>payable>eligible>submitted>clawed_back>awaiting_clawback>voided.",
+    description: "This mart is used for the ECF Contract Managers dashboard. The mart identifies the latest induction records for a given participant + LP combo which can then help us to determine if the participant began their training with that LP and whether their participation with that LP qualifies for the KPIs set out by the SRM team. It dedupes ECF Inductions at the lead provider level (as well as user_id and participant_type) using nearly identitcal deduping logic as the ecf_induction_dedupe mart (with the addition of grouping at LP level) and joins in started and completed declaration info for those records. In order to determine the preferred declaration for each declaration type we've determined a preferred state_hierarchy:paid>payable>eligible>submitted>clawed_back>awaiting_clawback>voided.",
     columns: {
         induction_record_id: "ID of individual induction record",
         external_id: "",
@@ -105,7 +105,7 @@ SELECT
     WHEN state LIKE 'voided' THEN 1
     ELSE 0
 END
-  AS state_heirarchy,
+  AS state_hierarchy,
   CASE
     WHEN state = 'paid' THEN TRUE
     WHEN state = 'eligible' THEN TRUE
@@ -149,7 +149,7 @@ SELECT
   delivery_partner_name AS started_delivery_partner_name,
   participant_course,
   cohort AS started_cohort,
-  (ROW_NUMBER() OVER (PARTITION BY participant_profile_id, course_identifier ORDER BY state_heirarchy DESC)) AS rn5
+  (ROW_NUMBER() OVER (PARTITION BY participant_profile_id, course_identifier ORDER BY state_hierarchy DESC)) AS rn5
 FROM
   ecf_declarations_expanded ecf_dec_0
 WHERE
@@ -170,7 +170,7 @@ SELECT
   delivery_partner_name AS completed_delivery_partner_name,
   participant_course,
   cohort AS completed_cohort,
-  (ROW_NUMBER() OVER (PARTITION BY participant_profile_id, course_identifier ORDER BY state_heirarchy DESC)) AS rn5
+  (ROW_NUMBER() OVER (PARTITION BY participant_profile_id, course_identifier ORDER BY state_hierarchy DESC)) AS rn5
 FROM
   ecf_declarations_expanded ecf_dec_0
 WHERE
