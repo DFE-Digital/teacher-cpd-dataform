@@ -566,6 +566,14 @@ dfeAnalyticsDataform({
                 keyName: "cohort_id",
                 dataType: "string",
                 description: ""
+            }, {
+                keyName: "voided_at",
+                dataType: "timestamp",
+                description: ""
+            }, {
+                keyName: "voided_by_user_id",
+                dataType: "string",
+                description: ""
             }]
         },
         {
