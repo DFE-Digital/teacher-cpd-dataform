@@ -21,7 +21,7 @@ For help understanding the tables and data model streamed into BigQuery, please 
 
 ### Who maintains and contributes to the project 
 
-Emma Harvey and Tony Page 
+Emma Harvey and Theo Phillips
 
 ## How-To Guides
 #### Mart Creation
@@ -40,6 +40,6 @@ https://github.com/DFE-Digital/teacher-cpd-dataform/blob/master/reference/best_p
 ### Data Models
 #### CPD Service Data Model
 https://github.com/DFE-Digital/teacher-cpd-dataform/blob/master/Explanation/data_models/cpd_service_data_model.md
-#### CPD Data Team Structural Logic Heirarchy
-https://github.com/DFE-Digital/teacher-cpd-dataform/blob/master/Explanation/data_models/cpd_data_data_heirarchy.md
+#### CPD Data Team Structural Logic Hierarchy
+https://github.com/DFE-Digital/teacher-cpd-dataform/blob/master/Explanation/data_models/cpd_data_data_hierarchy.md
 

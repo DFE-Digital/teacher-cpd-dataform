@@ -22,11 +22,12 @@ WITH
     eligible_for_funding,
     trn_verified AS trn_validated,
     manually_validated AS manual_validation_required,
-    (ROW_NUMBER() OVER (PARTITION BY participant_profile_id ORDER BY updated_at DESC)) AS rn0
   FROM
-    ${ref("analytics_participants_latest_cpd")} QUALIFY rn0=1)
+    ${ref("analytics_participants_latest_cpd")}
+  QUALIFY ROW_NUMBER() OVER (PARTITION BY participant_profile_id ORDER BY updated_at DESC) = 1
+  )
 SELECT
-  * EXCEPT(rn0)
+  *
 FROM
   latest_eligibility
 UNION ALL

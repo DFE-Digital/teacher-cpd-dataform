@@ -33,8 +33,6 @@ SELECT
   ,partnerships.request_uuid
   ,partnerships.request_path
   ,cohorts.start_year AS cohort
-  -- Some partnership IDs are duplicated in the versioned data due to having the same created_at date. This RN allows us to only bring through the last record on a a given created_at date achieved via the Qualify statement below.    
-  ,ROW_NUMBER() OVER(PARTITION BY partnerships.id, DATE(partnerships.created_at) ORDER BY partnerships.created_at DESC) AS rn0
 FROM
   ${ref('partnerships_version_cpd')} AS partnerships
 LEFT JOIN 
@@ -58,6 +56,6 @@ WHERE
   partnerships.request_path LIKE'%partnerships/ecf%'
   AND
   DATE(partnerships.created_at) BETWEEN CURRENT_DATE()-180 AND CURRENT_DATE()
-QUALIFY(
-  rn0 = 1
-)
+QUALIFY
+  -- Some partnership IDs are duplicated in the versioned data due to having the same created_at date. This QUALIFY allows us to only bring through the last record on a a given created_at date.
+  ROW_NUMBER() OVER(PARTITION BY partnerships.id, DATE(partnerships.created_at) ORDER BY partnerships.created_at DESC) = 1

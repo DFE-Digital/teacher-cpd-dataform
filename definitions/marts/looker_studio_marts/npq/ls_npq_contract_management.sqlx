@@ -93,7 +93,7 @@ SELECT
   targets.target,
   targets.target-intake.applications AS applications_remainder,
   targets.target-intake.starts AS starts_remainder,
-  (ROW_NUMBER() OVER()) AS row_number_id
+  ROW_NUMBER() OVER() AS row_number_id
 FROM
   lead_provider_intake intake
 LEFT JOIN

@@ -45,10 +45,11 @@ WITH
 --   LEFT JOIN (
 --     SELECT
 --       induction_coordinator_profile_id,
---       school_id,
---       (ROW_NUMBER() OVER (PARTITION BY school_id ORDER BY created_at DESC)) AS rn0
+--       school_id
 --     FROM
---       ${ref(`induction_coordinator_profiles_schools_latest_cpd`)} QUALIFY rn0=1) AS scp
+--       ${ref(`induction_coordinator_profiles_schools_latest_cpd`)}
+--     QUALIFY ROW_NUMBER() OVER (PARTITION BY school_id ORDER BY created_at DESC) = 1
+--     ) AS scp
 --   ON
 --     icp_df.id=scp.induction_coordinator_profile_id),
   schools_partnerships AS (
@@ -60,8 +61,7 @@ WITH
     lp_latest.name AS lead_provider,
     challenge_reason AS partnership_challenge_reason,
     challenged_at AS partnership_challenge_time,
-    sp_latest.created_at AS partnership_time,
-    (ROW_NUMBER() OVER (PARTITION BY school_id ORDER BY sp_latest.created_at DESC)) AS rn1
+    sp_latest.created_at AS partnership_time
   FROM
     ${ref(`partnerships_latest_cpd`)} AS sp_latest
   LEFT JOIN
@@ -73,23 +73,27 @@ WITH
   ON
     sp_latest.lead_provider_id=lp_latest.id
   WHERE
-    relationship = False QUALIFY rn1=1),
+    relationship = False
+  QUALIFY ROW_NUMBER() OVER (PARTITION BY school_id ORDER BY sp_latest.created_at DESC) = 1
+  ),
   school_induction_programmes AS (
   SELECT
     school_id,
     induction_programme_choice,
-    core_induction_programme_id AS chosen_cip,
-    (ROW_NUMBER() OVER (PARTITION BY school_id ORDER BY created_at DESC)) AS rn2
+    core_induction_programme_id AS chosen_cip
   FROM
-    ${ref(`school_cohorts_latest_cpd`)} QUALIFY rn2=1),
+    ${ref(`school_cohorts_latest_cpd`)}
+  QUALIFY ROW_NUMBER() OVER (PARTITION BY school_id ORDER BY created_at DESC) = 1
+  ),
   pupil_premiums AS (
   SELECT
     school_id,
     pupil_premium_incentive,
-    sparsity_incentive,
-    (ROW_NUMBER() OVER (PARTITION BY school_id ORDER BY created_at DESC)) AS rn3
+    sparsity_incentive
   FROM
-    ${ref(`pupil_premiums_latest_cpd`)} QUALIFY rn3=1)
+    ${ref(`pupil_premiums_latest_cpd`)}
+  QUALIFY ROW_NUMBER() OVER (PARTITION BY school_id ORDER BY created_at DESC) = 1
+  )
 
 SELECT
   id AS school_id,

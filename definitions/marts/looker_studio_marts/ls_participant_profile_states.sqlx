@@ -57,9 +57,8 @@ WITH
     ${ref(`ecf_inductions_dedupe`)} ecfid
   USING
     (participant_profile_id) 
-  QUALIFY (
+  QUALIFY 
     ROW_NUMBER() OVER (PARTITION BY ppsl.participant_profile_id ORDER BY ppsl.created_at DESC) = 1
-  )
 ),
 
 npq_output AS (
@@ -92,9 +91,8 @@ npq_output AS (
     ${ref('npq_enrolments')} AS enr
   ON
     enr.application_id = app.id
-  QUALIFY(
+  QUALIFY
     ROW_NUMBER() OVER (PARTITION BY ppsl.application_id ORDER BY ppsl.created_at DESC) = 1
-  )
 )
 
 

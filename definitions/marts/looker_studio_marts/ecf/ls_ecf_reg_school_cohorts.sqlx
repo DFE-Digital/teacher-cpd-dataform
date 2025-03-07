@@ -88,26 +88,22 @@ LEFT JOIN (
     school_id,
     created_at,
     -- #This is a running sum of previous sits FOR the school TO check IF this IS the FIRST time they've had a sit OR they're replacing a former sit#
-    COUNT( * ) OVER(PARTITION BY school_id ORDER BY created_at ASC) AS total_sits,
-    (ROW_NUMBER() OVER(PARTITION BY school_id ORDER BY created_at DESC)) AS rn0
+    COUNT( * ) OVER(PARTITION BY school_id ORDER BY created_at ASC) AS total_sits
   FROM
     ${ref("induction_coordinator_profiles_schools_latest_cpd")}
   QUALIFY
-    rn0 = 1) AS scp
+    ROW_NUMBER() OVER(PARTITION BY school_id ORDER BY created_at DESC) = 1
+  ) AS scp
 ON
   icp_df.id = scp.induction_coordinator_profile_id),
   --#This pulls the latest school partnership created FOR a given cohort, it's reported BY lead providers, it filters OUT relationships that are NOT active#
-  schools_partnerships AS(
-SELECT
-  cohort_partnerships.*EXCEPT(rn1),
-FROM (
+  schools_partnerships AS (
   SELECT
     school_id,
     start_year AS partnership_cohort,
     dp_latest.name AS delivery_partner,
     lp_latest.name AS lead_provider,
-    sp_latest.created_at AS partnership_time,
-    (ROW_NUMBER() OVER(PARTITION BY school_id, start_year ORDER BY sp_latest.created_at DESC)) AS rn1
+    sp_latest.created_at AS partnership_time
   FROM
     ${ref("partnerships_latest_cpd")} sp_latest
   LEFT JOIN
@@ -126,19 +122,16 @@ FROM (
     relationship = FALSE
     and challenge_reason is null
   QUALIFY
-    rn1 = 1) cohort_partnerships),
+    ROW_NUMBER() OVER(PARTITION BY school_id, start_year ORDER BY sp_latest.created_at DESC) = 1
+  ),
   --#This pulls the latest school_cohort record createFOR a given school AND cohort(academic year) AS reported BY SITs #
-  school_cohorts AS(
-SELECT
-  cohort_school_induction_programmes.*EXCEPT(rn2),
-FROM (
+  school_cohorts AS (
   SELECT
     school_id,
     start_year AS school_cohorts_cohort,
     induction_programme_choice,
     core_induction_programme_id AS chosen_cip,
-    school_cohorts.created_at AS school_cohort_created_at,
-    (ROW_NUMBER() OVER(PARTITION BY school_id, start_year ORDER BY school_cohorts.created_at DESC)) AS rn2
+    school_cohorts.created_at AS school_cohort_created_at
   FROM
     ${ref("school_cohorts_latest_cpd")} school_cohorts
   LEFT JOIN
@@ -146,7 +139,7 @@ FROM (
   ON
     school_cohorts.cohort_id = cohorts.id
   QUALIFY
-    rn2 = 1) cohort_school_induction_programmes),
+    ROW_NUMBER() OVER(PARTITION BY school_id, start_year ORDER BY school_cohorts.created_at DESC) = 1),
   --#This pulls the latest list of gias schools to determine IF a school meets the requirements TO be eligible FOR funding #
   eligible_gias_schools AS(
 SELECT

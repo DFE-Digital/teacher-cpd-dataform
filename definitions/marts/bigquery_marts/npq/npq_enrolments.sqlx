@@ -7,7 +7,7 @@ config {
         partitionBy: "DATE(application_created_at)",
         clusterBy: ["cohort", "provider_name", "course_name", "application_status"]
     },
-    description: "This table is designed around NPQ Applications with each application constituting a single record. Participant details have been joined into the application record. Since user profiles are only generated when an application is accepted by a lead provider, gaps in key fields (like schedule) can be the result of a pending application. We also join in declarations to create a 'golden thread' of NPQ participation for each application, splitting out declarations across the different declaration types. In the rare cases that multiple declarations exist for the same type of declaration, we've determined a preferred state_heirarchy:paid>payable>eligible>submitted>clawed_back>awaiting_clawback>voided. For the latest declaration we've also incorporated a type heirarchy, prioritising declarations from further along in the golden thread.",
+    description: "This table is designed around NPQ Applications with each application constituting a single record. Participant details have been joined into the application record. Since user profiles are only generated when an application is accepted by a lead provider, gaps in key fields (like schedule) can be the result of a pending application. We also join in declarations to create a 'golden thread' of NPQ participation for each application, splitting out declarations across the different declaration types. In the rare cases that multiple declarations exist for the same type of declaration, we've determined a preferred state_hierarchy:paid>payable>eligible>submitted>clawed_back>awaiting_clawback>voided. For the latest declaration we've also incorporated a type hierarchy, prioritising declarations from further along in the golden thread.",
     columns: {
         application_id: "ID of each unique application in the new NPQ Service. Declarations are joined to the application using this id",
         application_ecf_id: "ECF ID of each unique application. This is the GUID version which can be found in participant_declarations_latest_cpd if created before 28/11/2024.",
@@ -256,7 +256,7 @@ npq_fails AS (
 ),
 
 -- Gather all NPQ Declarations and assign hierarchies at state and type. Also calculate funded_declaration bool based on state.
-npq_dec_base_heirarchy AS(
+npq_dec_base_hierarchy AS(
   SELECT
      dec.*
     ,lp.name AS lead_provider_name
@@ -269,7 +269,7 @@ npq_dec_base_heirarchy AS(
       WHEN state LIKE 'awaiting_clawback' THEN 2
       WHEN state LIKE 'voided' THEN 1
       ELSE 0
-     END AS state_heirarchy
+     END AS state_hierarchy
     ,CASE
       WHEN declaration_type LIKE 'completed' THEN 12
       WHEN declaration_type LIKE 'extended-6' THEN 11
@@ -284,7 +284,7 @@ npq_dec_base_heirarchy AS(
       WHEN declaration_type LIKE 'retained-1' THEN 2
       WHEN declaration_type LIKE 'started' THEN 1
       ELSE 0
-     END AS type_heirarchy
+     END AS type_hierarchy
     ,CASE
       WHEN state = 'paid' THEN TRUE
       WHEN state = 'eligible' THEN TRUE
@@ -309,9 +309,9 @@ npq_dec_latest AS (
     ,declaration_date AS latest_declaration_date
     ,updated_at AS latest_declaration_updated_at
   FROM
-    npq_dec_base_heirarchy 
+    npq_dec_base_hierarchy 
   QUALIFY (
-    ROW_NUMBER() OVER(PARTITION BY application_id ORDER BY type_heirarchy DESC, state_heirarchy DESC, declaration_date DESC) = 1
+    ROW_NUMBER() OVER(PARTITION BY application_id ORDER BY type_hierarchy DESC, state_hierarchy DESC, declaration_date DESC) = 1
   )
 ),
 
@@ -324,11 +324,11 @@ npq_dec_start AS (
     ,declaration_date AS started_declaration_date
     ,funded_declaration AS funded_start_declaration
   FROM
-    npq_dec_base_heirarchy
+    npq_dec_base_hierarchy
   WHERE
     declaration_type = 'started' 
   QUALIFY (
-    ROW_NUMBER() OVER(PARTITION BY application_id ORDER BY type_heirarchy DESC, state_heirarchy DESC, declaration_date DESC) = 1
+    ROW_NUMBER() OVER(PARTITION BY application_id ORDER BY type_hierarchy DESC, state_hierarchy DESC, declaration_date DESC) = 1
   )
 ),
 
@@ -341,11 +341,11 @@ npq_dec_ret1 AS (
     ,declaration_date AS retained1_declaration_date
     ,funded_declaration AS funded_retained1_declaration
   FROM
-    npq_dec_base_heirarchy
+    npq_dec_base_hierarchy
   WHERE
     declaration_type = 'retained-1' 
   QUALIFY (
-    ROW_NUMBER() OVER(PARTITION BY application_id ORDER BY type_heirarchy DESC, state_heirarchy DESC, declaration_date DESC) = 1
+    ROW_NUMBER() OVER(PARTITION BY application_id ORDER BY type_hierarchy DESC, state_hierarchy DESC, declaration_date DESC) = 1
   )
 ),
 
@@ -358,11 +358,11 @@ npq_dec_ret2 AS (
     ,declaration_date AS retained2_declaration_date
     ,funded_declaration AS funded_retained2_declaration
   FROM
-    npq_dec_base_heirarchy
+    npq_dec_base_hierarchy
   WHERE
     declaration_type = 'retained-2' 
   QUALIFY (
-    ROW_NUMBER() OVER(PARTITION BY application_id ORDER BY type_heirarchy DESC, state_heirarchy DESC, declaration_date DESC) = 1
+    ROW_NUMBER() OVER(PARTITION BY application_id ORDER BY type_hierarchy DESC, state_hierarchy DESC, declaration_date DESC) = 1
   )
 ),
 
@@ -375,11 +375,11 @@ npq_dec_comp AS (
     ,declaration_date AS completed_declaration_date
     ,funded_declaration AS funded_completed_declaration
   FROM
-    npq_dec_base_heirarchy
+    npq_dec_base_hierarchy
   WHERE
     declaration_type = 'completed' 
   QUALIFY (
-    ROW_NUMBER() OVER(PARTITION BY application_id ORDER BY type_heirarchy DESC, state_heirarchy DESC, declaration_date DESC) = 1
+    ROW_NUMBER() OVER(PARTITION BY application_id ORDER BY type_hierarchy DESC, state_hierarchy DESC, declaration_date DESC) = 1
   )
 )
 

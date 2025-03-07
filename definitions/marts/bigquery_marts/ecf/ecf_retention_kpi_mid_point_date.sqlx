@@ -110,7 +110,6 @@ partnership_history AS (
     ,IFNULL(DATETIME(partnership_versions.valid_to), DATETIME(2050,12,31,00,00,00)) AS valid_to
     ,lead_providers.name AS lead_provider_name
     ,delivery_partners.name AS delivery_partner_name
-    ,ROW_NUMBER() OVER(PARTITION BY partnership_versions.id, IFNULL(DATE(partnership_versions.valid_to), DATE(2050,12,31)) ORDER BY IFNULL(DATETIME(partnership_versions.valid_to), DATETIME(2050,12,31,00,00,00)) DESC, partnership_versions.created_at DESC) as rn2
   FROM
    ${ref('partnerships_version_cpd')} AS partnership_versions
   LEFT JOIN
@@ -128,9 +127,8 @@ partnership_history AS (
     partnership_versions.relationship = FALSE
     AND
     DATETIME(2024,07,31,23,59,59) BETWEEN DATETIME(partnership_versions.valid_from) AND IFNULL(DATETIME(partnership_versions.valid_to), DATETIME(2050,12,31,00,00,00))
-  QUALIFY(
-    rn2 = 1
-  )
+  QUALIFY
+    ROW_NUMBER() OVER(PARTITION BY partnership_versions.id, IFNULL(DATE(partnership_versions.valid_to), DATE(2050,12,31)) ORDER BY IFNULL(DATETIME(partnership_versions.valid_to), DATETIME(2050,12,31,00,00,00)) DESC, partnership_versions.created_at DESC) = 1
 ),
 
 --- Gather started & completed declarations at each of the mid-point dates for review as part of the retention KPI mechanism.
@@ -160,8 +158,6 @@ started_declarations AS (
       THEN TRUE
       ELSE FALSE
      END AS has_started_declaration
-    -- Returned rows are sequenced by the mid_point_date, declaration_id and valid_to date of the version for the declaration. The order is specified as last version valid per valid_to date.
-    ,ROW_NUMBER() OVER(PARTITION BY mid_point_dates.mid_point_date, declaration_versions.id, IFNULL(DATE(declaration_versions.valid_to), DATE(2050,12,31)) ORDER BY IFNULL(DATETIME(declaration_versions.valid_to), DATETIME(2050,12,31,00,00,00)) DESC, declaration_versions.created_at DESC) AS rn0
   FROM
     ${ref('participant_declarations_version_cpd')} AS declaration_versions
 
@@ -203,9 +199,11 @@ started_declarations AS (
     course_identifier LIKE 'ecf%'
     AND
     declaration_versions.state IN ('paid', 'payable')
-  QUALIFY( -- This ensures only 1 record is returned per date and the ROW_NUMBER() statement above qualifies the last version as number 1.
-      rn0 = 1
-  )
+  QUALIFY
+    -- Returned rows are sequenced by the mid_point_date, declaration_id and valid_to date of the version for the declaration. The order is specified as last version valid per valid_to date.
+    -- This ensures only 1 record is returned per date and the ROW_NUMBER() statement below qualifies the last version as number 1.
+    ROW_NUMBER() OVER(PARTITION BY mid_point_dates.mid_point_date, declaration_versions.id, IFNULL(DATE(declaration_versions.valid_to), DATE(2050,12,31)) ORDER BY IFNULL(DATETIME(declaration_versions.valid_to), DATETIME(2050,12,31,00,00,00)) DESC, declaration_versions.created_at DESC) = 1
+  
 ),
 
 --- Gather induction record versions as at each mid-point date for joining later on to started_declarations.
@@ -222,7 +220,6 @@ induction_snapshots AS (
     ,partnership_history.lead_provider_name
     ,partnership_history.delivery_partner_name
     ,DATE(2024,07,31) AS mid_point_date
-    ,ROW_NUMBER() OVER(PARTITION BY participant_profile_id ORDER BY DATETIME(end_date) DESC, DATETIME(induction_history.valid_to) DESC,  induction_history.created_at DESC) AS rn1
   FROM
     induction_history
   LEFT JOIN
@@ -239,9 +236,8 @@ induction_snapshots AS (
     DATETIME(2024,07,31,23,59,59) BETWEEN DATETIME(induction_history.valid_from) AND DATETIME(induction_history.valid_to)
     AND
     DATE(start_date) <= DATE(2024,07,31)
-  QUALIFY(
-    rn1 = 1
-  )
+  QUALIFY
+    ROW_NUMBER() OVER(PARTITION BY participant_profile_id ORDER BY DATETIME(end_date) DESC, DATETIME(induction_history.valid_to) DESC,  induction_history.created_at DESC) = 1
   UNION ALL
   SELECT
      induction_history.*
@@ -249,7 +245,6 @@ induction_snapshots AS (
     ,partnership_history.lead_provider_name
     ,partnership_history.delivery_partner_name
     ,DATE(2025,07,31) AS mid_point_date
-    ,ROW_NUMBER() OVER(PARTITION BY participant_profile_id ORDER BY DATETIME(end_date) DESC, DATETIME(induction_history.valid_to) DESC,  induction_history.created_at DESC) AS rn1
   FROM
     induction_history
   LEFT JOIN
@@ -266,9 +261,8 @@ induction_snapshots AS (
     DATETIME(2025,07,31,23,59,59) BETWEEN DATETIME(induction_history.valid_from) AND DATETIME(induction_history.valid_to)
     AND
     DATE(start_date) <= DATE(2025,07,31)
-  QUALIFY(
-    rn1 = 1
-  )
+  QUALIFY
+    ROW_NUMBER() OVER(PARTITION BY participant_profile_id ORDER BY DATETIME(end_date) DESC, DATETIME(induction_history.valid_to) DESC,  induction_history.created_at DESC) = 1
 ),
 
 --- Gather information on replaced/superceded mentors.
@@ -320,9 +314,8 @@ replaced_mentors AS (
     withdrawn_mentors.participant_profile_id != ect_induction_snapshot.mentor_profile_id
     AND
     new_mentor_induction_snapshot.training_status = 'active'
-  QUALIFY(
+  QUALIFY
     replaced_mentor_indicator = 1
-  )
 ),
 
 --- Gather the last declaration for each participant at the various mid-point dates
@@ -332,7 +325,6 @@ latest_declarations AS (
       ,lead_providers.name AS lead_provider_name
       ,delivery_partners.name AS delivery_partner_name
       ,mid_point_dates.mid_point_date
-      ,ROW_NUMBER() OVER(PARTITION BY participant_profile_id, mid_point_date ORDER BY declaration_date DESC) AS rn0
     FROM 
       ${ref('participant_declarations_latest_cpd')} AS declarations
     LEFT JOIN
@@ -351,9 +343,8 @@ latest_declarations AS (
       state IN ('paid', 'payable')
       AND
       course_identifier LIKE 'ecf%'
-    QUALIFY(
-      rn0 = 1
-    )
+    QUALIFY
+      ROW_NUMBER() OVER(PARTITION BY participant_profile_id, mid_point_date ORDER BY declaration_date DESC) = 1
 ),
 
 --- Extend the started declarations with induction record and replaced mentor markers
@@ -361,7 +352,7 @@ latest_declarations AS (
   -- Where the Lead Provider or Delivery Partner is NULL on the relevant induction record we review the last funded (e/p/p) declaration raised as of the mid-point date for these values.
 starts_extended AS (
   SELECT
-    started_declarations.* EXCEPT(rn0)
+    started_declarations.*
     ,induction_snapshots.participant_type
     ,induction_snapshots.induction_record_id
     ,induction_snapshots.induction_programme_id
