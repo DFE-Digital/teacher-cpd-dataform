@@ -569,11 +569,11 @@ dfeAnalyticsDataform({
             }, {
                 keyName: "voided_at",
                 dataType: "timestamp",
-                description: ""
+                description: "Populated if voided by a DfE user only (finance or admin console)"
             }, {
                 keyName: "voided_by_user_id",
                 dataType: "string",
-                description: ""
+                description: "DfE user that voided the declaration via the finance/admin console"
             }]
         },
         {
