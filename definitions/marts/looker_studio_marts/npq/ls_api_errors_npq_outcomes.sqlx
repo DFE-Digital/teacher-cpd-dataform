@@ -20,7 +20,7 @@ config {
 }
 
 WITH
-  npqoutcomes AS (
+  npq_outcomes AS (
   SELECT
     id,
     declaration_id AS participant_declaration_id,
@@ -32,48 +32,49 @@ WITH
     ${ref(`participant_outcomes_latest_npq`)}
   WHERE
     sent_to_qualified_teachers_api_at IS NOT NULL),
-  npqapirequests AS (
+  npq_api_requests AS (
   SELECT
     id,
     participant_outcome_id,
     status_code,
     response_body,
     updated_at,
-    created_at,
-    (ROW_NUMBER() OVER (PARTITION BY participant_outcome_id ORDER BY created_at DESC)) AS rn2
+    created_at
   FROM
-    ${ref(`participant_outcome_api_requests_latest_npq`)} QUALIFY rn2=1
-    AND CAST(status_code AS INT) NOT IN (200,
-      204))
+    ${ref(`participant_outcome_api_requests_latest_npq`)}
+  QUALIFY
+    ROW_NUMBER() OVER (PARTITION BY participant_outcome_id ORDER BY created_at DESC) = 1
+    AND CAST(status_code AS INT) NOT IN (200, 204)
+  )
 SELECT
-  npqo.id AS participant_outcome_id,
-  npqo.sent_to_qualified_teachers_api_at AS latest_outcome_sent,
-  npqo.state AS latest_state,
-  dec.id AS declaration_id,
+  npq_outcomes.id AS participant_outcome_id,
+  npq_outcomes.sent_to_qualified_teachers_api_at AS latest_outcome_sent,
+  npq_outcomes.state AS latest_state,
+  declarations.id AS declaration_id,
   users.ecf_id AS ecf_user_id,
   CASE
     WHEN status_code='400' THEN 'Error 400: Add TRN - User profile is missing a TRN'
     WHEN status_code='404' THEN 'Error 404: Check TRN - TRA did not recognise TRN currently linked to user.'
   ELSE
-  JSON_EXTRACT_SCALAR(npqar.response_body,'$.errors.trn[0]')
+  JSON_EXTRACT_SCALAR(npq_api_requests.response_body,'$.errors.trn[0]')
 END
   AS error_message,
-  (TIMESTAMP_DIFF(CURRENT_TIMESTAMP,npqar.created_at,day)) AS days_error_open
+  (TIMESTAMP_DIFF(CURRENT_TIMESTAMP,npq_api_requests.created_at, DAY)) AS days_error_open
 FROM
-  npqoutcomes npqo
+  npq_outcomes
 INNER JOIN
-  npqapirequests npqar
+  npq_api_requests
 ON
-  npqo.id = npqar.participant_outcome_id
+  npq_outcomes.id = npq_api_requests.participant_outcome_id
 INNER JOIN
-  ${ref(`declarations_latest_npq`)} dec
+  ${ref(`declarations_latest_npq`)} declarations
 ON
-  npqo.participant_declaration_id = dec.id
+  npq_outcomes.participant_declaration_id = declarations.id
 LEFT JOIN
-  ${ref('applications_latest_npq')} AS app
+  ${ref('applications_latest_npq')} AS applications
 ON
-  app.id = dec.application_id
+  applications.id = declarations.application_id
 LEFT JOIN
   ${ref('users_latest_npq')} AS users
 ON
-  users.id = app.user_id
+  users.id = applications.user_id

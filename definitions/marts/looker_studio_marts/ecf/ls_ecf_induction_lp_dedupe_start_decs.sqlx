@@ -7,7 +7,7 @@ config {
         partitionBy: "DATE(induction_record_created_at)",
         clusterBy: ["cohort", "participant_type", "induction_status", "training_status"]
     },
-    description: "This mart is used for the ECF Contract Managers dashboard. The mart identifies the latest induction records for a given participant + LP combo which can then help us to determine if the participant began their training with that LP and whether their participation with that LP qualifies for the KPIs set out by the SRM team. It dedupes ECF Inductions at the lead provider level (as well as user_id and participant_type) using nearly identitcal deduping logic as the ecf_induction_dedupe mart (with the addition of grouping at LP level) and joins in started and completed declaration info for those records. In order to determine the preferred declaration for each declaration type we've determined a preferred state_heirarchy:paid>payable>eligible>submitted>clawed_back>awaiting_clawback>voided.",
+    description: "This mart is used for the ECF Contract Managers dashboard. The mart identifies the latest induction records for a given participant + LP combo which can then help us to determine if the participant began their training with that LP and whether their participation with that LP qualifies for the KPIs set out by the SRM team. It dedupes ECF Inductions at the lead provider level (as well as user_id and participant_type) using nearly identitcal deduping logic as the ecf_induction_dedupe mart (with the addition of grouping at LP level) and joins in started and completed declaration info for those records. In order to determine the preferred declaration for each declaration type we've determined a preferred state_hierarchy:paid>payable>eligible>submitted>clawed_back>awaiting_clawback>voided.",
     columns: {
         induction_record_id: "ID of individual induction record",
         external_id: "",
@@ -73,8 +73,7 @@ SELECT
     WHEN participant_type LIKE 'ParticipantProfile::Mentor' THEN 'Mentor'
     ELSE NULL
 END
-  AS participant_course,
-  (ROW_NUMBER() OVER (PARTITION BY pre_challenge_lead_provider_name, participant_type, user_id ORDER BY active DESC, start_date DESC, created_at DESC)) AS rn0
+  AS participant_course
 FROM (
   SELECT
     *,
@@ -87,7 +86,8 @@ FROM (
   FROM
     ${ref("ecf_inductions")} ) T1
 QUALIFY
-  rn0=1),
+  ROW_NUMBER() OVER (PARTITION BY pre_challenge_lead_provider_name, participant_type, user_id ORDER BY active DESC, start_date DESC, created_at DESC) = 1
+),
   --  This CTE pulls and ranks all ECF declarations (using the heirarchies set out below) to enable us to join in the preferred declaration to the deduped induction records above
   ecf_declarations_expanded AS (
 SELECT
@@ -105,7 +105,7 @@ SELECT
     WHEN state LIKE 'voided' THEN 1
     ELSE 0
 END
-  AS state_heirarchy,
+  AS state_hierarchy,
   CASE
     WHEN state = 'paid' THEN TRUE
     WHEN state = 'eligible' THEN TRUE
@@ -148,14 +148,14 @@ SELECT
   cpd_lead_provider_name AS started_cpd_lead_provider_name,
   delivery_partner_name AS started_delivery_partner_name,
   participant_course,
-  cohort AS started_cohort,
-  (ROW_NUMBER() OVER (PARTITION BY participant_profile_id, course_identifier ORDER BY state_heirarchy DESC)) AS rn5
+  cohort AS started_cohort
 FROM
   ecf_declarations_expanded ecf_dec_0
 WHERE
   declaration_type = 'started'
 QUALIFY
-  rn5=1),
+  ROW_NUMBER() OVER (PARTITION BY participant_profile_id, course_identifier ORDER BY state_hierarchy DESC) = 1
+),
   -- This uses the heirarchies established in the expanded declaration mart above to identify a single completed declaration for each participant + course combination
   ecf_dec_completed AS(
 SELECT
@@ -169,14 +169,14 @@ SELECT
   cpd_lead_provider_name AS completed_cpd_lead_provider_name,
   delivery_partner_name AS completed_delivery_partner_name,
   participant_course,
-  cohort AS completed_cohort,
-  (ROW_NUMBER() OVER (PARTITION BY participant_profile_id, course_identifier ORDER BY state_heirarchy DESC)) AS rn5
+  cohort AS completed_cohort
 FROM
   ecf_declarations_expanded ecf_dec_0
 WHERE
   declaration_type = 'completed'
 QUALIFY
-  rn5=1),
+  ROW_NUMBER() OVER (PARTITION BY participant_profile_id, course_identifier ORDER BY state_hierarchy DESC) = 1
+),
   --  This joins the started and completed declaration information onto the deduped induction records
   lp_ecf_golden_thread AS (
 SELECT
@@ -188,11 +188,9 @@ SELECT
   COALESCE(started_cohort,completed_cohort,lp_inductions_dedupe.cohort) AS cohort,
   pre_challenge_lead_provider_name AS lead_provider_name,
   ecf_dec_start.* EXCEPT(started_participant_profile_id,
-    participant_course,
-    rn5),
+    participant_course),
   ecf_dec_completed.* EXCEPT(completed_participant_profile_id,
-    participant_course,
-    rn5)
+    participant_course)
 FROM
   lp_inductions_dedupe
 LEFT JOIN
