@@ -24,7 +24,10 @@ config {
         outcome: "ECT's overall induction outcome",
         induction_period_created_at: "Date and time an induction period was created by an AB",
         induction_period_updated_at: "Date and time an induction period was updated by an AB",
-        trn: "A unique 7-digit Teacher Reference Number",
+        trn: {
+            description: "A unique 7-digit Teacher Reference Number",
+            bigqueryPolicyTags: ["projects/ecf-bq/locations/europe-west2/taxonomies/6302091323314055162/policyTags/301313311867345339"]
+        },
         induction_start_date_submitted_to_trs_at: "Date and time an induction start date was submitted to TRS for an ECT",
         trs_induction_status: "Overall induction status held on the TRS",
         trs_initial_teacher_training_end_date: "Date an ECT finished their ITT held on TRS",

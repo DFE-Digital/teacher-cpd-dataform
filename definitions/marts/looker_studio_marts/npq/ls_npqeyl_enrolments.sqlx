@@ -10,8 +10,14 @@ config {
     description: "This mart provides a report of all Early Years Leadership NPQs (NPQEYL). The table links to fields from GIAS and Ofsted establishments and feeds into the NPQEYL dashboard.",
     columns: {
         application_id: "ID of each unique application. Declarations are joined to the application using this id.",
-        application_trn: "This is the TRN provided at the point of application.",
-        trn_verified: "This is the TRN sourced from the teacher's profile via participant profiles",
+        application_trn: {
+            description: "This is the TRN provided at the point of application",
+            bigqueryPolicyTags: ["projects/ecf-bq/locations/europe-west2/taxonomies/6302091323314055162/policyTags/301313311867345339"]
+        },
+        trn_verified: {
+            description: "This is the TRN sourced from the teacher's profile via participant profiles",
+            bigqueryPolicyTags: ["projects/ecf-bq/locations/europe-west2/taxonomies/6302091323314055162/policyTags/301313311867345339"]
+        },
         trn_auto_verified: "This refers to whether the TRN provided in the application process was verified.",
         application_created_at: "Refers to the date the application was created.",
         headteacher_status: "Indicates whether the participant is a headteacher in their first five years.",

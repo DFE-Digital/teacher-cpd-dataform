@@ -12,7 +12,10 @@ config {
         declaration_id: "The unique identifier of the declaration.",
         participant_profile_id: "The id of the participant associated with the declaration.",
         user_id: "This comes from the teacher profile associated with the participant profile.",
-        TRN: "This comes from a participant's teacher profile.",
+        trn: {
+            description: "This comes from a participant's teacher profile.",
+            bigqueryPolicyTags: ["projects/ecf-bq/locations/europe-west2/taxonomies/6302091323314055162/policyTags/301313311867345339"]
+        },
         declaration_type: "The type of declaration which can be started, retained-1/2/3/4, extended-1/2/3 or completed.",
         declaration_state: "The state of the declaration which for this mart can only be funded (eligible/payable/paid)",
         declaration_type_hierarchy: "A number from 1 to 9 based on started to completed declaration types to enable sorting in the correct sequence regardless of declaration date.",

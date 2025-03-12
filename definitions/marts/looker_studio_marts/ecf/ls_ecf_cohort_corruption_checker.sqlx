@@ -35,7 +35,10 @@ config {
         cpd_dp_name: "Name of Delivery Partner for ECF course",
         programme: "Shortening of 'type'. Says if it belongs to either the ECF or NPQ programme.",
         suggested_cohort_from_declaration: "Calculates where a declaration date falls in the declaration milestone window across an entire cohor and therefore the suggested cohort.",
-        check_source: "Details which (if any) of the checks a declaration belongs to."
+        check_source: "Details which (if any) of the checks a declaration belongs to.",
+        verified_trn: {
+            bigqueryPolicyTags: ["projects/ecf-bq/locations/europe-west2/taxonomies/6302091323314055162/policyTags/301313311867345339"]
+        },
     }
 }
 

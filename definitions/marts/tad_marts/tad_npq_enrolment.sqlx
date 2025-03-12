@@ -13,9 +13,15 @@ config {
     description: "This table is designed around NPQ Applications with each application constituting a single record. Participant details have been joined into the application record.",
     columns: {
         application_id: "This is the unique id for an NPQ application. We join this field on the participant_profile_id field in the declarations table to identify declarations paired with this application",
-        teacher_profile_trn: "This TRN is sourced through participant profiles which are dependent on the application having been accepted by a Lead Provider. If the application has been made but has yet to be accepted the TRN field will be blank despite a valid TRN verified field. ",
+        teacher_profile_trn: {
+            description: "This TRN is sourced through participant profiles which are dependent on the application having been accepted by a Lead Provider. If the application has been made but has yet to be accepted the TRN field will be blank despite a valid TRN verified field.",
+            bigqueryPolicyTags: ["projects/ecf-bq/locations/europe-west2/taxonomies/6302091323314055162/policyTags/301313311867345339"]
+        },
         participant_user_id: "This User ID is sourced through teacher profiles which are dependent on the application having been accepted by a Lead Provider. If the application has been made but has yet to be accepted the User ID field will be blank. ",
-        application_trn: "This is the TRN provided at the point of application",
+        application_trn: {
+            description: "This is the TRN provided at the point of application",
+            bigqueryPolicyTags: ["projects/ecf-bq/locations/europe-west2/taxonomies/6302091323314055162/policyTags/301313311867345339"]
+        },
         trn_auto_verified: "This refers to whether the TRN provided in the application process was verified",
         headteacher_status: "Indicates whether the participant is a headteacher in their first five years.",
         eligible_for_funding: "Indicates whether the applicant is eligible for funding for their course.",
