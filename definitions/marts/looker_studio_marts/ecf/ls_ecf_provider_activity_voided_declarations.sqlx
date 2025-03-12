@@ -59,7 +59,6 @@ SELECT
   ,key_updated
   ,new_value
   ,previous_value
-  ,ROW_NUMBER() OVER(PARTITION BY request_uuid ORDER BY ecf_inductions.start_datetime DESC, ecf_inductions.end_datetime DESC) AS rn0
 FROM
   ${ref('participant_declarations_field_updates_cpd')} AS declarations
 LEFT JOIN
@@ -81,6 +80,5 @@ WHERE
   declarations.type NOT LIKE '%NPQ'
   AND
   DATE(occurred_at) BETWEEN CURRENT_DATE()-180 AND CURRENT_DATE()
-QUALIFY(
-    rn0 = 1
-)
+QUALIFY
+  ROW_NUMBER() OVER(PARTITION BY request_uuid ORDER BY ecf_inductions.start_datetime DESC, ecf_inductions.end_datetime DESC) = 1

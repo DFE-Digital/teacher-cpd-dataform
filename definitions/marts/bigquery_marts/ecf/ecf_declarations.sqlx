@@ -4,7 +4,7 @@ config {
         partitionBy: "",
         clusterBy: ["cohort", "participant_course", "cpd_lead_provider_name","declaration_type"]
     },
-    description: "This mart joins the latest induction record for a given ECF participant (found in the ecf_inductions_dedupe mart) with the relevant ecf declarations for that participant resulting in one row per declaration per participant. In order to determine the preferred declaration for each declaration type (if multiple records exist for the same declaration type) we've determined a preferred state_heirarchy:paid>payable>eligible>submitted>clawed_back>awaiting_clawback>voided ",
+    description: "This mart joins the latest induction record for a given ECF participant (found in the ecf_inductions_dedupe mart) with the relevant ecf declarations for that participant resulting in one row per declaration per participant. In order to determine the preferred declaration for each declaration type (if multiple records exist for the same declaration type) we've determined a preferred state_hierarchy:paid>payable>eligible>submitted>clawed_back>awaiting_clawback>voided ",
     columns: {
         induction_record_id: "ID of individual induction record",
         participant_course: "This is a shortened version of participant_type",
@@ -52,7 +52,7 @@ WITH
     ELSE
     0
   END
-    AS state_heirarchy,
+    AS state_hierarchy,
     CASE
       WHEN declaration_type LIKE 'completed' THEN 12
       WHEN declaration_type LIKE 'extended-6' THEN 11
@@ -69,7 +69,7 @@ WITH
     ELSE
     0
   END
-    AS type_heirarchy,
+    AS type_hierarchy,
     CASE
       WHEN dec_cpd.state = 'paid' THEN TRUE
       WHEN dec_cpd.state = 'eligible' THEN TRUE
@@ -110,33 +110,25 @@ WITH
   ON
     cohorts.id = stm.cohort_id
   WHERE
-    course_identifier LIKE 'ecf%'),
-  ecf_participant_declarations AS (
-  SELECT
-    e_ind.* EXCEPT(active, rn0),
-    DATE(e_dec.created_at) AS declaration_created_at_date,
-    e_dec.id as declaration_id,
-    e_dec.declaration_type,
-    e_dec.declaration_date,
-    e_dec.state,
-    e_dec.funded_declaration,
-    e_dec.cpd_lead_provider_name,
-    e_dec.delivery_partner_name AS cpd_delivery_partner_name,
-    e_dec.statement_id,
-    e_dec.statement_cohort,
-   (ROW_NUMBER() OVER (PARTITION BY e_ind.participant_profile_id, e_dec.course_identifier, e_dec.declaration_type ORDER BY e_dec.state_heirarchy DESC, e_dec.declaration_date desc)) AS rn1 
-  FROM
-    ecf_inductions_expanded e_ind
-  LEFT JOIN
-   ecf_declarations_expanded e_dec
-  ON
-    e_ind.participant_profile_id=e_dec.participant_profile_id
-    AND e_ind.participant_course=e_dec.participant_course
-  QUALIFY
-  rn1=1
-)
+    course_identifier LIKE 'ecf%')
 SELECT
-  *
-   EXCEPT(rn1)
+  e_ind.* EXCEPT(active),
+  DATE(e_dec.created_at) AS declaration_created_at_date,
+  e_dec.id as declaration_id,
+  e_dec.declaration_type,
+  e_dec.declaration_date,
+  e_dec.state,
+  e_dec.funded_declaration,
+  e_dec.cpd_lead_provider_name,
+  e_dec.delivery_partner_name AS cpd_delivery_partner_name,
+  e_dec.statement_id,
+  e_dec.statement_cohort
 FROM
-  ecf_participant_declarations
+  ecf_inductions_expanded e_ind
+LEFT JOIN
+ ecf_declarations_expanded e_dec
+ON
+  e_ind.participant_profile_id=e_dec.participant_profile_id
+  AND e_ind.participant_course=e_dec.participant_course
+QUALIFY
+  ROW_NUMBER() OVER (PARTITION BY e_ind.participant_profile_id, e_dec.course_identifier, e_dec.declaration_type ORDER BY e_dec.state_hierarchy DESC, e_dec.declaration_date desc) = 1

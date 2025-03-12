@@ -7,7 +7,7 @@ config {
         partitionBy: "DATE(induction_record_created_at)",
         clusterBy: ["cohort", "participant_type", "induction_status", "training_status"]
     },
-    description: " In order to determine the preferred latest induction record for a given participant, this query ranks the induction records for a participant_type & user_id combination (because user_id is shared across ECT & Mentor programmes by a user and we need the latest induction records for involvement in both). It ranks the available induction records for these combinations using the preferred criteria below and filters to the #1 ranked record for each combination using a QUALIFY statement. The ranking criteria for ECTs and Mentors is the same: First, we keep rank the records by induction_status. Completed induction_status is preferred, if there are no completed records for an individual then active induction_status records. If no active records for an individual then all non-active records. This heirarchy is achieved in the subquery by associating a ranking for each induction_status in a new field called 'active' We then rank the records with the most recent start_date. As it's possible for induction records to share the same start_date, we then select the most recently created induction record.",
+    description: " In order to determine the preferred latest induction record for a given participant, this query ranks the induction records for a participant_type & user_id combination (because user_id is shared across ECT & Mentor programmes by a user and we need the latest induction records for involvement in both). It ranks the available induction records for these combinations using the preferred criteria below and filters to the #1 ranked record for each combination using a QUALIFY statement. The ranking criteria for ECTs and Mentors is the same: First, we keep rank the records by induction_status. Completed induction_status is preferred, if there are no completed records for an individual then active induction_status records. If no active records for an individual then all non-active records. This hierarchy is achieved in the subquery by associating a ranking for each induction_status in a new field called 'active' We then rank the records with the most recent start_date. As it's possible for induction records to share the same start_date, we then select the most recently created induction record.",
     columns: {
         induction_record_id: "ID of individual induction record",
         external_id: "",
@@ -55,14 +55,13 @@ config {
   The ranking criteria for ECTs and Mentors is the same:
 
   First, we keep rank the records by induction_status. Completed induction_status is preferred, if there are no completed records for an individual then active induction_status records. If no active records for an individual then all non-active records.
-  This heirarchy is achieved in the subquery by associating a ranking for each induction_status in a new field called 'active'
+  This hierarchy is achieved in the subquery by associating a ranking for each induction_status in a new field called 'active'
 
   We then rank the records with the most recent start_date. As it's possible for induction records to share the same start_date, we then select the most recently created induction record.
 
   */
 SELECT
-  *,
-  (ROW_NUMBER() OVER (PARTITION BY participant_type, user_id ORDER BY active DESC, start_date DESC, created_at DESC)) AS rn0
+  *
 FROM (
   SELECT
     *,
@@ -74,4 +73,6 @@ FROM (
   END
     AS active
   FROM
-    ${ref("ecf_inductions")}) T1 QUALIFY rn0=1
+    ${ref("ecf_inductions")})
+QUALIFY
+  ROW_NUMBER() OVER (PARTITION BY participant_type, user_id ORDER BY active DESC, start_date DESC, created_at DESC) = 1

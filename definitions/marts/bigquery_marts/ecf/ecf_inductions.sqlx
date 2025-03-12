@@ -144,12 +144,11 @@ FROM
     school_id AS source_school_id,
     start_year AS source_start_year,
     pupil_premium_incentive AS high_pupil_premium,
-    sparsity_incentive,
-    (ROW_NUMBER() OVER (PARTITION BY school_id, start_year ORDER BY updated_at DESC)) AS rn1
+    sparsity_incentive
   FROM
     ${ref("pupil_premiums_latest_cpd")}
   QUALIFY
-    rn1 = 1),
+    ROW_NUMBER() OVER (PARTITION BY school_id, start_year ORDER BY updated_at DESC) = 1),
   induction_programme_details AS (
   SELECT
     *

@@ -57,7 +57,6 @@ SELECT
   ,new_schedules.cohort AS new_cohort
   ,prev_schedules.schedule_name AS previous_schedule
   ,prev_schedules.cohort AS previous_cohort
-  ,ROW_NUMBER() OVER(PARTITION BY request_uuid ORDER BY ecf_inductions.start_datetime DESC, ecf_inductions.end_datetime DESC) AS rn0
 FROM 
  ${ref('participant_profiles_field_updates_cpd')} AS profiles
 -- Join on ecf_inductions CTE and de-duplicate where multiple induction records are valid around the date of the event. We use the last record valid on the date.
@@ -110,6 +109,5 @@ WHERE
   type NOT LIKE '%NPQ'
   AND
   DATE(occurred_at) BETWEEN CURRENT_DATE()-180 AND CURRENT_DATE()
-QUALIFY(
-  rn0 = 1
-)
+QUALIFY
+  ROW_NUMBER() OVER(PARTITION BY request_uuid ORDER BY ecf_inductions.start_datetime DESC, ecf_inductions.end_datetime DESC) = 1

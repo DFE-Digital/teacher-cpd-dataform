@@ -63,7 +63,6 @@ SELECT
     ,key_updated
     ,new_value
     ,previous_value
-    ,ROW_NUMBER() OVER(PARTITION BY request_uuid ORDER BY ecf_inductions.start_datetime DESC, ecf_inductions.end_datetime DESC) AS rn0
 FROM 
     ${ref('participant_profiles_field_updates_cpd')} AS profiles
 -- Left Join on ecf_inductions CTE and de-duplicate where multiple induction records are valid around the date of the event. We use the last record valid on the date.
@@ -84,7 +83,7 @@ WHERE
     AND
     DATE(occurred_at) BETWEEN CURRENT_DATE()-180 AND CURRENT_DATE()
 QUALIFY(
-    rn0 = 1
+    ROW_NUMBER() OVER(PARTITION BY request_uuid ORDER BY ecf_inductions.start_datetime DESC, ecf_inductions.end_datetime DESC) = 1
     AND
     request_type IS NOT NULL
 )
