@@ -221,7 +221,7 @@ dfeAnalyticsDataform({
             }, {
                 keyName: "mentor_profile_id",
                 dataType: "string",
-                description: ""
+                description: "Regarding how the addition of a mentor triggers the creation of a new induction record: If the mentor is selected when adding an ECT to the service, then the induction record will be created with the mentor on it. If the mentor is changed/selected later the a new induction record is created"
             }, {
                 keyName: "participant_profile_id",
                 dataType: "string",
