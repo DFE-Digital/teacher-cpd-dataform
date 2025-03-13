@@ -18,7 +18,16 @@ config {
         response_status: "The code associated with the API call. Any non-200 response status is an error.",
         lp_name: "Name of the Lead Provider making the API call.",
         request_body: "Details the call made by the Lead Provider.",
-        response_body: "Details the API response. Usually populated if there are any errors with the API call being made."
+        response_body: "Details the API response. Usually populated if there are any errors with the API call being made.",
+        hidden_DATA: {
+          columns: {
+            key: "Name of a field containing sensitive data included in this API request custom event from dfe-analytics",
+            value: {
+              description: "Contents of this field",
+              bigqueryPolicyTags: ["projects/ecf-bq/locations/europe-west2/taxonomies/6302091323314055162/policyTags/301313311867345339"]
+            }
+          }
+        }
     }
 }
 

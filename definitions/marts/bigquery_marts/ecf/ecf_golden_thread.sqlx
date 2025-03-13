@@ -10,7 +10,11 @@ config {
     description: "This mart joins the latest induction record for a given ECF participant (found in the ecf_inductions_dedupe mart) with a golden thread of ecf declarations (started, retained-1, retained-2, retained-3, retained-4 and completed). In order to determine the preferred declaration for each declaration type we've determined a preferred state_hierarchy:paid>payable>eligible>submitted>clawed_back>awaiting_clawback>voided ",
     columns: {
         induction_record_id: "ID of individual induction record",
-        declaration_participant_profile_id: "ID used to join declarations to each other and used to join with inductions mart"
+        declaration_participant_profile_id: "ID used to join declarations to each other and used to join with inductions mart",
+        trn: {
+            description: "TRN of this participant",
+            bigqueryPolicyTags: ["projects/ecf-bq/locations/europe-west2/taxonomies/6302091323314055162/policyTags/301313311867345339"]
+        },
     }
 }
 

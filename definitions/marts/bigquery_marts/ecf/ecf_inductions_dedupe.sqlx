@@ -33,7 +33,10 @@ config {
         participant_type: "Either ECT or Mentor",
         induction_record_created_at: "When this induction record was generated.",
         partnership_id: "ID for the Lead Provider-School partnership for a given cohort.",
-        TRN: "This comes from a participant's teacher profile.",
+        TRN: {
+            description: "This comes from a participant's teacher profile.",
+            bigqueryPolicyTags: ["projects/ecf-bq/locations/europe-west2/taxonomies/6302091323314055162/policyTags/301313311867345339"]
+        },
         cohort: "The cohort/academic year corresponding to when the participant started their course. Possible fields: 2021 onwards.",
         school_id: "ID of the participant's school.",
         high_pupil_premium: "This indicates whether the uplift payment for X is applicable to this participant's started declaration",
