@@ -36,6 +36,11 @@ dfeAnalyticsDataform({
                     keyName: "legacy_id",
                     dataType: "string",
                     description: "A legacy unique organisation identifier taken from DfE Sign-In"
+                },
+                {
+                    keyName: "dqt_id",
+                    dataType: "string",
+                    description: "A unique DQT identifier taken from DQT for appropriate bodies"
                 }
             ]
         },
