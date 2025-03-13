@@ -15,7 +15,10 @@ config {
     columns: {
         induction_record_id: "ID of individual induction record",
         participant_profile_id: "This field is used to join with declarations and sourced from participant profiles. Participant profiles are automatically generated for ECTs/Mentors when induction tutors register the ECT/Mentor details. (NPQ participant profiles are generated differently). Due to the possibility (even likelihood) of multiple induction records, it's important to join declarations into induction records (instead of the other way around)",
-        TRN: "This comes from a participant profile",
+        TRN: {
+            description: "This comes from a participant profile",
+            bigqueryPolicyTags: ["projects/ecf-bq/locations/europe-west2/taxonomies/6302091323314055162/policyTags/301313311867345339"]
+        },
         user_id: "This comes from the teacher profile associated with the participant profile",
         induction_programme_type: "The induction programme the school offers (FIP / CIP / DIY) : potential values: full_induction_programme core_induction_programme, design_our_own, school_funded_fip ",
         schedule_identifier: "This indicates which sub-cohort or tranche the participant commenced training within an annual cohort. For ECF, the schedule identifier also indicates if a participant is following a non-standard training route at any point (e.g. extended or reduced)",

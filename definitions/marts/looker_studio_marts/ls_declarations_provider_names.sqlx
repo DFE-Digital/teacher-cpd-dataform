@@ -38,7 +38,10 @@ config {
         cpd_dp_name: "Name of Delivery Partner for ECF course",
         programme: "Either ECF or NPQ based on which source the data originates from.",
         application_id: "NPQ ONLY. The unique identifier of the application the declaration relates to. A unique count of this field provides the number of NPQ courses included within the data.",
-        verified_trn: "The TRN of the participant that has been verified by the Database of Qualified Teachers (DQT)."
+        verified_trn: {
+            description: "The TRN of the participant that has been verified by the Database of Qualified Teachers (DQT).",
+            bigqueryPolicyTags: ["projects/ecf-bq/locations/europe-west2/taxonomies/6302091323314055162/policyTags/301313311867345339"]
+        }
     }
 }
 
