@@ -11,7 +11,10 @@ config {
     columns: {
         user_id: "User ID of the ECT.",
         participant_profile_id: "ID of each ECT's profile.",
-        trn: "TRN associated with the ECT's profile.",
+        trn: {
+            description: "TRN associated with the ECT's profile.",
+            bigqueryPolicyTags: ["projects/ecf-bq/locations/europe-west2/taxonomies/6302091323314055162/policyTags/301313311867345339"]
+        },
         participant_type_short: "Shows the participant as an ECT.",
         cohort: "Cohort of the ECT.",
         schedule_identifier: "Schedule of the ECT.",

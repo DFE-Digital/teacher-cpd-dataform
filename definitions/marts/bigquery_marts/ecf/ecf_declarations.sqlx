@@ -10,7 +10,11 @@ config {
         participant_course: "This is a shortened version of participant_type",
         cpd_delivery_partner_name: "The name of the Delivery Partner taken from the declaration record rather than the induction record.",
         statement_id: "The ID of the financial statement which the declaration belongs to.",
-        statement_cohort: "The start_year of the cohort associated with the financial statement the declaration belongs to. This can differ to the participants cohort and is often used when assessing declaration level KPIs as these cannot change whereas a participant can move between academic cohorts."
+        statement_cohort: "The start_year of the cohort associated with the financial statement the declaration belongs to. This can differ to the participants cohort and is often used when assessing declaration level KPIs as these cannot change whereas a participant can move between academic cohorts.",
+        trn: {
+            description: "TRN for the teacher this declaration related to training for",
+            bigqueryPolicyTags: ["projects/ecf-bq/locations/europe-west2/taxonomies/6302091323314055162/policyTags/301313311867345339"]
+        },
     }
 }
 

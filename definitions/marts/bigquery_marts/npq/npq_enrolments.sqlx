@@ -11,8 +11,14 @@ config {
     columns: {
         application_id: "ID of each unique application in the new NPQ Service. Declarations are joined to the application using this id",
         application_ecf_id: "ECF ID of each unique application. This is the GUID version which can be found in participant_declarations_latest_cpd if created before 28/11/2024.",
-        application_trn: "This is either the application_trn as per the NPQ Application record in the ECF Service prior to separation, or the first TRN associated with the user profile at the time the application was created. The user profile is created when the applicant first applies and the TRN field is populated with the value provided before any verification takes place. We use the valid record on the users table to determine the TRN provided at the time of application as this is overwritten in the user profile with the verified TRN if it is different. If a user re-applies after their user profile is created the service does not record their entered TRN again but instead uses the one on file.",
-        trn_verified: "This is the TRN sourced from the User Profile",
+        application_trn: {
+            description: "This is either the application_trn as per the NPQ Application record in the ECF Service prior to separation, or the first TRN associated with the user profile at the time the application was created. The user profile is created when the applicant first applies and the TRN field is populated with the value provided before any verification takes place. We use the valid record on the users table to determine the TRN provided at the time of application as this is overwritten in the user profile with the verified TRN if it is different. If a user re-applies after their user profile is created the service does not record their entered TRN again but instead uses the one on file.",
+            bigqueryPolicyTags: ["projects/ecf-bq/locations/europe-west2/taxonomies/6302091323314055162/policyTags/301313311867345339"]
+        },
+        trn_verified: {
+            description: "This is the TRN sourced from the User Profile",
+            bigqueryPolicyTags: ["projects/ecf-bq/locations/europe-west2/taxonomies/6302091323314055162/policyTags/301313311867345339"]
+        },
         trn_auto_verified: "This refers to whether the TRN provided in the application process was verified.",
         application_created_at: "Refers to the date the application was created.",
         headteacher_status: "Indicates whether the participant is a headteacher in their first five years.",
