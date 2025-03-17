@@ -15,7 +15,7 @@ config {
             description: "Teacher Reference Number (TRN) of the mentor - a teacher - who this provider received funding to train as an ECF mentor",
             bigqueryPolicyTags: ["projects/ecf-bq/locations/europe-west2/taxonomies/6302091323314055162/policyTags/301313311867345339"]
         },
-        provider_name: "Name of the organisation (provider) which received direct funding from DfE to train this teacher to be an ECF mentor.\nFull name, e.g. Ambition Institute",
+        provider_name: "Name of the organisation (provider) which received direct funding from DfE to train this teacher to be an ECF mentor.\nFull name, e.g. Ambition Institute.\nNot necessarily the only organisation involved in training this mentor.",
         first_started_funded_mentor_training_on: "Date when this mentor first started ECF mentor training for which this provider which was funded directly by DfE",
         first_completed_funded_mentor_training_with_this_lead_provider_on: "Date when this ECF mentor first completed ECF mentor training with this provider, if this provider was funded directly by DfE for the period of training which immediately resulted in completion",
         last_took_part_in_funded_mentor_training_with_this_lead_provider_on: "Date when this ECF mentor most recently took part in ECF mentor training with this provider for any period of training funded directly by DfE. Does not necessarily indicate that the mentor completed the training."
@@ -39,11 +39,8 @@ FROM
   ${ref("ecf_declarations")} AS declaration
 WHERE
   participant_course = "Mentor"
-  AND funded_declaration
+  AND funded_declaration /* Only include declaration states that indicate that someone has decided this period of training should be funded, even if it hasn't been paid yet */
   AND TRN IS NOT NULL
-  AND state IN ("paid",
-    "payable",
-    "eligible") /* Only include declaration states that indicate that someone has decided this period of training should be funded, even if it hasn't been paid yet */
 GROUP BY
   TRN,
   cpd_lead_provider_name
