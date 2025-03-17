@@ -13,8 +13,14 @@ config {
       To obtain list of currently not included applications that meet review criteria: is_included = 0 AND is_excluded = 0 AND(pupils_at_reg_chk = 1 OR gias_pupils_chk = 1 OR gias_phase_chk = 1 OR spec_est_chk = 1)",
     columns: {
         ecf_user_id: "This comes from the teacher profile associated with the participant profile. User ID also exists independently in other tables.",
-        application_trn: "This is the TRN provided at the point of application",
-        verified_trn: "This is the TRN from the Teacher Profile associated with the ecf_user_id",
+        application_trn: {
+            description: "This is the TRN provided at the point of application",
+            bigqueryPolicyTags: ["projects/ecf-bq/locations/europe-west2/taxonomies/6302091323314055162/policyTags/301313311867345339"]
+        },
+        verified_trn: {
+            description: "This is the TRN from the Teacher Profile associated with the ecf_user_id",
+            bigqueryPolicyTags: ["projects/ecf-bq/locations/europe-west2/taxonomies/6302091323314055162/policyTags/301313311867345339"]
+        },
         application_id: "ID of each unique application. Declarations are joined to the application using this id and it is also the participant_profile_id in the declarations table",
         course_identifier: "Shorthand of NPQ course. This comes from the participant's latest declaration. EHCO & ASO are excluded from the output.",
         cohort: "The cohort/academic year corresponding to when the participant started their course.",

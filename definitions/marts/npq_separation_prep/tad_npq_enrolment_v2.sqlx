@@ -14,9 +14,15 @@ config {
     columns: {
         application_id: "This is the unique id for an NPQ applications. This field was entirely generated post-separation in the new NPQ data model. We join this field on the application_id field in the declarations table to identify declarations paired with this application. This field will not map onto historical application_ids generated prior to NPQ Separation (27/11/2024). If you would like to map historical application_ids please use the application_ecf_id field that hosts historical application_ids",
         application_ecf_id: "This field contains the historical application_id that will have been created in the old data model pre-separation. This field is available in the new model but not used to join on other tables.  You can use this field if you want to map historical data that pre-dates the ECF & NPQ separation (27/12/2024).",
-        teacher_profile_trn: "This TRN is sourced through user profiles (previously Teacher Profiles). If the application has been made but the TRN has not been fully verified the TRN field will be blank despite a valid TRN auto_verified field.",
+        teacher_profile_trn: {
+            description: "This TRN is sourced through user profiles (previously Teacher Profiles). If the application has been made but the TRN has not been fully verified the TRN field will be blank despite a valid TRN auto_verified field.",
+            bigqueryPolicyTags: ["projects/ecf-bq/locations/europe-west2/taxonomies/6302091323314055162/policyTags/301313311867345339"]
+        },
         participant_user_id: "This is the user_id that matches the user_ids created pre-separation in the ECF Teacher Profiles. This field can be used to join on ECF Teacher Profiles should they have an ECF profile or were present in NPQ data prior to 28/11/2024. This user_id is sourced from the NPQ User Profile.",
-        application_trn: "This is the TRN provided by applicants at the point of application, if a teacher_profile_trn is available that is the preferred source for a TRN as this field could have been incorrectly completed at the time of the application.  The teacher_profile_trn field contains the verified approved TRN for an individual once the appropriate checks have occurred.",
+        application_trn: {
+            description: "This is the TRN provided by applicants at the point of application, if a teacher_profile_trn is available that is the preferred source for a TRN as this field could have been incorrectly completed at the time of the application.  The teacher_profile_trn field contains the verified approved TRN for an individual once the appropriate checks have occurred.",
+            bigqueryPolicyTags: ["projects/ecf-bq/locations/europe-west2/taxonomies/6302091323314055162/policyTags/301313311867345339"]
+        },
         trn_auto_verified: "This refers to whether the TRN provided in the application process was automatically verified in the application process",
         headteacher_status: "Indicates whether the participant is a headteacher in their first five years.",
         eligible_for_funding: "Indicates whether the applicant is eligible for funding for their course.",
