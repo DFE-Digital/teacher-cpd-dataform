@@ -94,33 +94,15 @@ config {
     }
 }
 
-WITH
-  early_years_settings AS (
+WITH gias_estbalishments AS (
   SELECT
-    establishment_urn,
-    phase_of_education,
-    establishment_type,
-    establishment_subtype,
-    la_name,
-    gor_name
+    URN AS establishment_urn,
+    PhaseOfEducation_name AS phase_of_education,
+    EstablishmentTypeGroup_name AS establishment_type,
+    TypeOfEstablishment_name AS establishment_subtype,
+    LA_name AS la_name
   FROM
-    ${ref('all_gias_ofsted_establishments')}
-  WHERE
-    data_source LIKE 'Ofsted%'),
-
-gias_settings AS (
-  SELECT
-    establishment_urn,
-    phase_of_education,
-    establishment_type,
-    establishment_subtype,
-    la_name,
-    gor_name
-  FROM
-    ${ref('all_gias_ofsted_establishments')}
-  WHERE
-    data_source LIKE 'GIAS%'),
-
+    ${ref('establishments')}),
 final_table AS (
     SELECT
       npq_e.*,
@@ -136,18 +118,18 @@ final_table AS (
       funding_choice
     END
       AS funding_source,
-      COALESCE(eys.phase_of_education,gias.phase_of_education) AS phase_of_education,
-      COALESCE(eys.establishment_type, gias.establishment_type) AS establishment_type,
-      COALESCE(eys.establishment_subtype,gias.establishment_subtype) AS establishment_subtype,
-      COALESCE(npq_e.la_name,eys.la_name,gias.la_name) AS final_la_name,
+      COALESCE(ofsted.phase_of_education,gias.phase_of_education) AS phase_of_education,
+      COALESCE(ofsted.establishment_type, gias.establishment_type) AS establishment_type,
+      COALESCE(ofsted.establishment_subtype,gias.establishment_subtype) AS establishment_subtype,
+      COALESCE(npq_e.la_name,ofsted.la_name,gias.la_name) AS final_la_name,
     FROM
       ${ref("npq_enrolments")} npq_e
     LEFT JOIN
-      early_years_settings eys
+      ${ref('npq_ofsted_establishments')} AS ofsted
     ON
-      npq_e.private_childcare_provider_urn = eys.establishment_urn
+      npq_e.private_childcare_provider_urn = ofsted.establishment_urn
     LEFT JOIN
-      gias_settings gias
+      gias_estbalishments AS gias
     ON
       npq_e.school_urn = gias.establishment_urn
     WHERE
