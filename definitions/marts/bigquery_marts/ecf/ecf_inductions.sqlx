@@ -44,8 +44,8 @@ config {
         sparsity_incentive: "This indicates whether the uplift payment for X is applicable to this participant's started declaration",
         core_induction_programme_id: "If a school offers CIP, this will be filled with the ID of their CIP programme.",
         core_induction_materials_provider: "If a school offers CIP, this shows which Lead Provider they are getting their CIP materials from.",
-        mentor_completion_date: "The date a mentor completed training.",
-        mentor_completion_reason: "The reason the mentor_completion_date field is filled.Possible values: completed_during_early_roll_out, completed_declaration_received.",
+        mentor_completion_date: "The date a mentor completed training. When a declaration is submitted for a mentor the mentor_completion_date will equal the declaration_date. When a declaration is voided the completed date will be cleared. Completed dates for early roll-out mentors will be set to 19 April 2021 regardless of any completed declarations.",
+        mentor_completion_reason: "The reason the mentor_completion_date field is filled. Possible values: completed_during_early_roll_out, completed_declaration_received, started_not_completed (if the training this declaration is for is deemed 'complete' but the overall ECF mentor training is not complete).",
         cohort_rolled_over_21_24: "TRUE/FALSE flag streamed from the service as 'cohort_changed_after_payments_frozen' for whether a participant has been moved from the 2021 cohort to the 2024 cohort. This flag is updated by SITs in the service for applicable ECTs.",
         pre_challenge_lead_provider_name: "This is the lead provider associated with the induction record regardless of whether this partnership has been challenged. This field should only be used if you need the provider name regardless of challenge status",
         pre_challenge_delivery_partner_name: "This is the delivery partner associated with the induction record regardless of whether this partnership has been challenged. This field should only be used if you need the delivery partner name regardless of challenge status"

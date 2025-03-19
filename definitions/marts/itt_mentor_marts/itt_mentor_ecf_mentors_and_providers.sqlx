@@ -1,0 +1,46 @@
+config {
+    schema: "itt_mentor",
+    database: "ecf-bq",
+    name: "ecf_mentors_and_providers",
+    type: "table",
+    assertions: {
+        uniqueKey: ["TRN", "provider_name"]
+    },
+    bigquery: {
+        partitionBy: "first_completed_funded_mentor_training_with_this_lead_provider_on"
+    },
+    description: "Summary data about the relationship between each Early Careers Framework (ECF) mentor and each organisation (provider) which received direct funding from DfE for training them to be an ECF mentor.\nEach row is a relationship between one mentor and one such provider.\nIntended to be shared with the ITT Mentor GCP project to analyse overlaps between teachers who have been trained by the same provider to be both ECF and Initial Teacher Training (ITT) mentors.",
+    columns: {
+        TRN: {
+            description: "Teacher Reference Number (TRN) of the mentor - a teacher - who this provider received funding to train as an ECF mentor",
+            bigqueryPolicyTags: ["projects/ecf-bq/locations/europe-west2/taxonomies/6302091323314055162/policyTags/301313311867345339"]
+        },
+        provider_name: "Name of the organisation (provider) which received direct funding from DfE to train this teacher to be an ECF mentor.\nFull name, e.g. Ambition Institute.\nNot necessarily the only organisation involved in training this mentor.",
+        first_started_funded_mentor_training_on: "Date when this mentor first started ECF mentor training for which this provider which was funded directly by DfE",
+        first_completed_funded_mentor_training_with_this_lead_provider_on: "Date when this ECF mentor first completed ECF mentor training with this provider, if this provider was funded directly by DfE for the period of training which immediately resulted in completion",
+        last_took_part_in_funded_mentor_training_with_this_lead_provider_on: "Date when this ECF mentor most recently took part in ECF mentor training with this provider for any period of training funded directly by DfE. Does not necessarily indicate that the mentor completed the training."
+    }
+}
+
+SELECT
+  TRN,
+  cpd_lead_provider_name AS provider_name, /* Remove CPD-specific jargon of lead providers here */
+  CAST(MIN(start_date) AS DATE) AS first_started_funded_mentor_training_on,
+  MIN(
+  IF
+    ( mentor_completion_reason IN ("completed_during_early_roll_out",
+        "completed_declaration_received")
+        /* i.e. not started_not_completed */
+        , COALESCE(CAST(declaration_date AS DATE), mentor_completion_date), NULL) ) AS first_completed_funded_mentor_training_with_this_lead_provider_on,
+        /* Use declaration_date over mentor_completion_date if available as it's more reliable for mentors who completed during early roll out but somehow managed to complete again after early roll out finished */
+  MAX(
+    COALESCE(CAST(declaration_date AS DATE), mentor_completion_date) ) AS last_took_part_in_funded_mentor_training_with_this_lead_provider_on
+FROM
+  ${ref("ecf_declarations")} AS declaration
+WHERE
+  participant_course = "Mentor"
+  AND funded_declaration /* Only include declaration states that indicate that someone has decided this period of training should be funded, even if it hasn't been paid yet */
+  AND TRN IS NOT NULL
+GROUP BY
+  TRN,
+  cpd_lead_provider_name
