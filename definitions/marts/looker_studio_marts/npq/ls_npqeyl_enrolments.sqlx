@@ -10,14 +10,8 @@ config {
     description: "This mart provides a report of all Early Years Leadership NPQs (NPQEYL). The table links to fields from GIAS and Ofsted establishments and feeds into the NPQEYL dashboard.",
     columns: {
         application_id: "ID of each unique application. Declarations are joined to the application using this id.",
-        application_trn: {
-            description: "This is the TRN provided at the point of application",
-            bigqueryPolicyTags: ["projects/ecf-bq/locations/europe-west2/taxonomies/6302091323314055162/policyTags/301313311867345339"]
-        },
-        trn_verified: {
-            description: "This is the TRN sourced from the teacher's profile via participant profiles",
-            bigqueryPolicyTags: ["projects/ecf-bq/locations/europe-west2/taxonomies/6302091323314055162/policyTags/301313311867345339"]
-        },
+        application_trn: "This is the TRN provided at the point of application.",
+        trn_verified: "This is the TRN sourced from the teacher's profile via participant profiles",
         trn_auto_verified: "This refers to whether the TRN provided in the application process was verified.",
         application_created_at: "Refers to the date the application was created.",
         headteacher_status: "Indicates whether the participant is a headteacher in their first five years.",
@@ -95,61 +89,45 @@ config {
 }
 
 WITH
-  latest_early_years_settings AS (
-  SELECT
-    provider_URN AS establishment_urn,
-    'Childcare provider' AS phase_of_education,
-    Provider_Type AS establishment_type,
-    Provider_Subtype AS establishment_subtype,
-    Local_Authority AS la_name
-  FROM
-    ${ref('Ofsted_Establishments_December_2024')} ),
-  early_years_settings_combined AS (
-  SELECT
-    *
-  FROM
-    latest_early_years_settings
-  
-  UNION ALL 
-  -- UNION ALL is used to select all establishments from latest_early_years_settings CTE and establishments in the...  
-  -- ... all_gias_ofsted_establishments table which aren't in the latest_early_years_settings CTE. 
-  -- Both tables are not a complete list of establishments (Some in one aren't contained in the other and vise versa).
+  early_years_settings AS (
   SELECT
     establishment_urn,
     phase_of_education,
     establishment_type,
     establishment_subtype,
-    la_name
+    la_name,
+    gor_name
   FROM
     ${ref('all_gias_ofsted_establishments')}
   WHERE
-    data_source LIKE 'Ofsted%'
-    -- Filters all establishment urns that are not in the latest_early_years_settings 
-    AND establishment_urn NOT IN (
-    SELECT
-      establishment_urn
-    FROM
-      latest_early_years_settings) ),
+    data_source LIKE 'Ofsted%'),
+
   gias_settings AS (
   SELECT
-    URN AS establishment_urn,
-    PhaseOfEducation_name AS phase_of_education,
-    EstablishmentTypeGroup_name AS establishment_type,
-    TypeOfEstablishment_name AS establishment_subtype,
-    LA_name AS la_name
+    establishment_urn,
+    phase_of_education,
+    establishment_type,
+    establishment_subtype,
+    la_name,
+    gor_name
   FROM
-    ${ref('establishments')} ),
-  final_table AS (
+    ${ref('all_gias_ofsted_establishments')}
+  WHERE
+    data_source LIKE 'GIAS%'),
+
+final_table AS (
   SELECT
     npq_e.*,
     CASE
       WHEN schedule_identifier IS NULL THEN CONCAT(cohort,' - Pending/Rejected')
-      ELSE CONCAT (cohort, ' - ', RIGHT(schedule_identifier, 6))
+    ELSE 
+    CONCAT (cohort, ' - ', RIGHT(schedule_identifier, 6))
   END
     AS schedule_and_cohort,
     CASE
       WHEN funding_choice IS NULL THEN 'DfE'
-      ELSE funding_choice
+    ELSE 
+    funding_choice
   END
     AS funding_source,
     COALESCE(eys.phase_of_education,gias.phase_of_education) AS phase_of_education,
@@ -159,7 +137,7 @@ WITH
   FROM
     ${ref("npq_enrolments")} npq_e
   LEFT JOIN
-    early_years_settings_combined eys
+    early_years_settings eys
   ON
     npq_e.private_childcare_provider_urn = eys.establishment_urn
   LEFT JOIN
@@ -168,6 +146,7 @@ WITH
     npq_e.school_urn = gias.establishment_urn
   WHERE
     npq_e.course_name = 'NPQ Early Years Leadership (NPQEYL)')
+
 SELECT
   *,
   CASE
@@ -186,7 +165,8 @@ SELECT
     WHEN kind_of_nursery IS NULL
   AND establishment_subtype = 'Local authority nursery school' THEN 'Local authority maintained nursery'
     WHEN kind_of_nursery IS NULL AND establishment_type IS NOT NULL THEN 'School setting'
-    ELSE COALESCE(kind_of_nursery,establishment_type)
+    ELSE 
+    COALESCE(kind_of_nursery,establishment_type)
 END
   AS setting_type
 FROM
