@@ -60,7 +60,7 @@ SELECT
   LOGICAL_OR(request_path NOT LIKE '%admin%') AS non_admin_updates
 FROM
   ${ref(`induction_periods_version_ecf2`)} AS induction_updates
-WHERE event_type = "update_entity" and request_path is not null
+WHERE event_type = "update_entity"
 GROUP BY id)
 SELECT
   induction_periods.id AS induction_period_id,
