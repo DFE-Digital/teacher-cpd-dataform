@@ -1,8 +1,8 @@
 config {
      database: "ecf-bq",
-    //name: "npq_ofsted_establishments",
+    name: "npq_ofsted_establishments",
     type: "table",
-    //assertions: {uniqueKey: ["estblishment_urn"]},
+    assertions: {uniqueKey: ["establishment_urn"]},
     description: "This mart provides the most recent version of all Ofsted establishments. This mart joins the most recent inspection extract to the all_gias_ofsted_establishments table. Every June and December new extracts should be investigated and added to this mart to ensure the list of all Ofsted estbalihsments is correct. Additional extracts should be saved as a static table added to the mart using UNION ALL and the new list filtered for all establishment urns that are not in the stored in this mart. New extracts of Ofsted establishments can be found here: https://www.gov.uk/government/statistical-data-sets/childcare-providers-and-inspections-management-information",
     columns: {
         establishment_urn: "The unique reference number of the school or establishment inspected by Ofsted.",
