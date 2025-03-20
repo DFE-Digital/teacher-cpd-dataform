@@ -3,11 +3,13 @@ config {
     database: "ecf-bq",
     name: "ecf2_ecf_induction_periods",
     type: "table",
-    assertions: {uniqueKey: ["unique_id"]},
+    assertions: {
+        uniqueKey: ["unique_id"]
+    },
     bigquery: {
         clusterBy: ["appropriate_body_name", "trn"]
     },
-    description: "This table is a record of all induction periods since 1st September 2021 supplemented with any periods completed by teachers before the 1st September 2021 that later began an induction period after 1st September 2021. This table is intended for TAD's analytics where a single row is a single induction period.",
+    description: "This table is a record of: All induction data stored in RIAB (currently all induction periods for ECT's with an overall induction status of in progress. As well as all induction periods from DQT for each teacher that is captured in the subset: The teacher is not stored RIAB and has an induction period start or finish date after 01/09/2021. This table is intended for TAD's analytics where a single row is a single induction period.",
     columns: {
         unique_id: "Unique id is for indentifying different rows in this table, it has no significance to RIAB or static table data extracts.",
         trn: {
@@ -25,12 +27,11 @@ config {
     }
 }
 
-/*TAD require:
-All induction data stored in RIAB (currently all induction periods for ECT's with an overall induction status of in progress)
-All induction periods from DQT for each teacher that is captured in the subset...
+  /*TAD require:
+  All induction data stored in RIAB (currently all induction periods for ECT's with an overall induction status of in progress)
+  All induction periods from DQT for each teacher that is captured in the subset...
   The teacher is not stored RIAB and has an induction period start or finish date after 01/09/2021
-*/
-
+  */
 WITH
   ecf2_induction_periods AS (
   SELECT
@@ -78,7 +79,12 @@ FROM
   ecf2_induction_periods
 UNION ALL
 SELECT
-  ROW_NUMBER() OVER () + (SELECT COUNT(*) FROM ecf2_induction_periods) AS unique_id,  -- Ensures continuity of unique id
+  ROW_NUMBER() OVER () + (
+  SELECT
+    COUNT(*)
+  FROM
+    ecf2_induction_periods) AS unique_id,
+  -- Ensures continuity of unique id
   *
 FROM
   historical_inductions
