@@ -1,5 +1,0 @@
-config {
-    type: "declaration",
-    schema: "static_tables",
-    name: "Ofsted_Establishments_December_2024"
-}
