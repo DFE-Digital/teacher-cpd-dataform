@@ -9,21 +9,21 @@ config {
     bigquery: {
         clusterBy: ["appropriate_body_name", "trn"]
     },
-    description: "This table is a record of: All induction data stored in RIAB (currently all induction periods for ECT's with an overall induction status of in progress. As well as all induction periods from DQT for each teacher that is captured in the subset: The teacher is not stored RIAB and has an induction period start or finish date after 01/09/2021. This table is intended for TAD's analytics where a single row is a single induction period.",
+    description: "This table is a record of all induction periods for an Early Career Teacher (ECT) reported by Appropriate Bodies with an overall induction status of in progress that are stored in the Record Inductions as an Appropriate Body service (RIAB) or the Database of Qualified Teachers (DQT). An overall induction status of in progress is defined as the ECT having at least one induction period which has no finished_on date. Data taken from the DQT is defined using the rule: The teacher is not stored RIAB and has an induction period start or finish date after 01/09/2021. ",
     columns: {
-        unique_id: "Unique id is for indentifying different rows in this table, it has no significance to RIAB or static table data extracts.",
+        unique_id: "Unique id is for identifying different rows in this table, generated to join two tables together. It has no significance to RIAB or static table data extracts.",
         trn: {
             description: "This comes from a participant profile",
             bigqueryPolicyTags: ["projects/ecf-bq/locations/europe-west2/taxonomies/6302091323314055162/policyTags/301313311867345339"]
         },
-        appropriate_body_id: "A uniqune organisation identifier used for identifying appropriate bodies",
-        legacy_appropriate_body_id: "A legacy unique organisation identifier taken from DfE Sign-In used for identifying appropriate bodies.",
+        //appropriate_body_id: "A unique organisation identifier used for identifying appropriate bodies",
+        //legacy_appropriate_body_id: "A legacy unique organisation identifier taken from DfE Sign-In used for identifying appropriate bodies.",
         appropriate_body_name: "The name of the appropriate body, each name has an ID and legacy ID.",
         started_date: "Start date for this induction period",
         finished_on: "End date for this induction period. This is not the completion date for a participant's full induction.",
         number_of_terms: "The number of terms served during the induction period.",
         induction_programme_type: "The induction programme the school offers (FIP / CIP / DIY) : potential values: full_induction_programme core_induction_programme, design_our_own, school_funded_fip ",
-        data_source: "Where the induction period is recorded, possible values: RIAB or historic import (DQT)"
+        data_source: "Where the induction period is held, possible values: RIAB or historic import (DQT)"
     }
 }
 
@@ -72,7 +72,7 @@ WITH
   ON
     historic.appropriate_body_id = abs.legacy_id )
 SELECT
-  -- unique_id does not signify anything. It is used for this table and not associated with RIAB or DQT inductiond data.
+  -- unique_id does not signify anything. It is used for this mart and not associated with RIAB or DQT inductiond period data.
   ROW_NUMBER() OVER () AS unique_id,
   *
 FROM
