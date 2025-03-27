@@ -9,205 +9,205 @@ dfeAnalyticsDataform({
     urlRegex: 'manage-training-for-early-career-teachers.education.gov.uk',
     hiddenPolicyTagLocation: "projects/ecf-bq/locations/europe-west2/taxonomies/6302091323314055162/policyTags/301313311867345339",
     dataSchema: [{
-            entityTableName: "applications",
-            description: "",
-            keys: [{
-                keyName: "user_id",
-                dataType: "string",
-                description: "The numerical ID used to join to the users table on the id column."
-            },{
-                keyName: "course_id",
-                dataType: "string",
-                description: "The numerical ID used to join to the courses table on the id column."
-            },{
-                keyName: "lead_provider_id",
-                dataType: "string",
-                description: "The numerical ID used to join to the lead providers table on the id column."
-            },{
-                keyName: "ecf_id",
-                dataType: "string",
-                description: "The GUID for the application. This can be used to join to existing ECF NPQ applications until they are removed. Lead Providers will use this field when calling the API for a specific application."
-            },{
-                keyName: "headteacher_status",
-                dataType: "string",
-                description: ""
-            },{
-                keyName: "eligible_for_funding",
-                dataType: "boolean",
-                description: ""
-            },{
-                keyName: "funding_choice",
-                dataType: "string",
-                description: ""
-            },{
-                keyName: "ukprn",
-                dataType: "string",
-                description: ""
-            },{
-                keyName: "teacher_catchment",
-                dataType: "string",
-                description: ""
-            },{
-                keyName: "teacher_catchment_country",
-                dataType: "string",
-                description: ""
-            },{
-                keyName: "works_in_school",
-                dataType: "boolean",
-                description: ""
-            },{
-                keyName: "employer_name",
-                dataType: "string",
-                description: ""
-            },{
-                keyName: "employment_role",
-                dataType: "string",
-                description: ""
-            },{
-                keyName: "works_in_nursery",
-                dataType: "boolean",
-                description: ""
-            },{
-                keyName: "works_in_childcare",
-                dataType: "boolean",
-                description: ""
-            },{
-                keyName: "kind_of_nursery",
-                dataType: "string",
-                description: ""
-            },{
-                keyName: "targeted_delivery_funding_eligibility",
-                dataType: "boolean",
-                description: ""
-            },{
-                keyName: "funding_eligiblity_status_code",
-                dataType: "string",
-                description: ""
-            },{
-                keyName: "work_setting",
-                dataType: "string",
-                description: ""
-            },{
-                keyName: "teacher_catchment_synced_to_ecf",
-                dataType: "boolean",
-                description: ""
-            },{
-                keyName: "employment_type",
-                dataType: "string",
-                description: ""
-            },{
-                keyName: "lead_mentor",
-                dataType: "boolean",
-                description: ""
-            },{
-                keyName: "primary_establishment",
-                dataType: "boolean",
-                description: ""
-            },{
-                keyName: "number_of_pupils",
-                dataType: "integer",
-                description: ""
-            },{
-                keyName: "tsf_primary_eligibility",
-                dataType: "boolean",
-                description: ""
-            },{
-                keyName: "tsf_primary_plus_eligibility",
-                dataType: "boolean",
-                description: ""
-            },{
-                keyName: "lead_provider_approval_status",
-                dataType: "string",
-                description: ""
-            },{
-                keyName: "participant_outcome_state",
-                dataType: "string",
-                description: ""
-            },{
-                keyName: "private_childcare_provider_id",
-                dataType: "string",
-                description: "The numeric ID used for joining to private childcare providers table on the id column."
-            },{
-                keyName: "itt_provider_id",
-                dataType: "string",
-                description: "The numeric ID used for joining to itt providers table on the id column."
-            },{
-                keyName: "school_id",
-                dataType: "string",
-                description: "The numeric ID used for joining to the schools table on the id column."
-            },{
-                keyName: "teacher_catchment_iso_country_code",
-                dataType: "string",
-                description: ""
-            },{
-                keyName: "targeted_support_funding_eligibility",
-                dataType: "boolean",
-                description: ""
-            },{
-                keyName: "notes",
-                dataType: "string",
-                description: ""
-            },{
-                keyName: "cohort_id",
-                dataType: "string",
-                description: "The numeric ID used for joining to the cohorts table on the id column."
-            },{
-                keyName: "funded_place",
-                dataType: "boolean",
-                description: ""
-            },{
-                keyName: "training_status",
-                dataType: "string",
-                description: ""
-            },{
-                keyName: "schedule_id",
-                dataType: "string",
-                description: "The numeric ID used for joining to the schedules table on the id column."
-            },{
-                keyName: "referred_by_return_to_teaching_adviser",
-                dataType: "boolean",
-                description: ""
-            },{
-                keyName: "accepted_at",
-                dataType: "timestamp",
-                description: ""
-            },{
-                keyName: "on_submission_trn",
-                dataType: "string",
-                description: ""
-            },{
-                keyName: "senco_in_role",
-                dataType: "string",
-                description: ""
-            },{
-                keyName: "senco_start_date",
-                dataType: "string",
-                description: ""
-            }]
+        entityTableName: "applications",
+        description: "",
+        keys: [{
+            keyName: "user_id",
+            dataType: "string",
+            description: "The numerical ID used to join to the users table on the id column."
+        }, {
+            keyName: "course_id",
+            dataType: "string",
+            description: "The numerical ID used to join to the courses table on the id column."
+        }, {
+            keyName: "lead_provider_id",
+            dataType: "string",
+            description: "The numerical ID used to join to the lead providers table on the id column."
+        }, {
+            keyName: "ecf_id",
+            dataType: "string",
+            description: "The GUID for the application. This can be used to join to existing ECF NPQ applications until they are removed. Lead Providers will use this field when calling the API for a specific application."
+        }, {
+            keyName: "headteacher_status",
+            dataType: "string",
+            description: ""
+        }, {
+            keyName: "eligible_for_funding",
+            dataType: "boolean",
+            description: ""
+        }, {
+            keyName: "funding_choice",
+            dataType: "string",
+            description: ""
+        }, {
+            keyName: "ukprn",
+            dataType: "string",
+            description: ""
+        }, {
+            keyName: "teacher_catchment",
+            dataType: "string",
+            description: ""
+        }, {
+            keyName: "teacher_catchment_country",
+            dataType: "string",
+            description: ""
+        }, {
+            keyName: "works_in_school",
+            dataType: "boolean",
+            description: ""
+        }, {
+            keyName: "employer_name",
+            dataType: "string",
+            description: ""
+        }, {
+            keyName: "employment_role",
+            dataType: "string",
+            description: ""
+        }, {
+            keyName: "works_in_nursery",
+            dataType: "boolean",
+            description: ""
+        }, {
+            keyName: "works_in_childcare",
+            dataType: "boolean",
+            description: ""
+        }, {
+            keyName: "kind_of_nursery",
+            dataType: "string",
+            description: ""
+        }, {
+            keyName: "targeted_delivery_funding_eligibility",
+            dataType: "boolean",
+            description: ""
+        }, {
+            keyName: "funding_eligiblity_status_code",
+            dataType: "string",
+            description: ""
+        }, {
+            keyName: "work_setting",
+            dataType: "string",
+            description: ""
+        }, {
+            keyName: "teacher_catchment_synced_to_ecf",
+            dataType: "boolean",
+            description: ""
+        }, {
+            keyName: "employment_type",
+            dataType: "string",
+            description: ""
+        }, {
+            keyName: "lead_mentor",
+            dataType: "boolean",
+            description: ""
+        }, {
+            keyName: "primary_establishment",
+            dataType: "boolean",
+            description: ""
+        }, {
+            keyName: "number_of_pupils",
+            dataType: "integer",
+            description: ""
+        }, {
+            keyName: "tsf_primary_eligibility",
+            dataType: "boolean",
+            description: ""
+        }, {
+            keyName: "tsf_primary_plus_eligibility",
+            dataType: "boolean",
+            description: ""
+        }, {
+            keyName: "lead_provider_approval_status",
+            dataType: "string",
+            description: ""
+        }, {
+            keyName: "participant_outcome_state",
+            dataType: "string",
+            description: ""
+        }, {
+            keyName: "private_childcare_provider_id",
+            dataType: "string",
+            description: "The numeric ID used for joining to private childcare providers table on the id column."
+        }, {
+            keyName: "itt_provider_id",
+            dataType: "string",
+            description: "The numeric ID used for joining to itt providers table on the id column."
+        }, {
+            keyName: "school_id",
+            dataType: "string",
+            description: "The numeric ID used for joining to the schools table on the id column."
+        }, {
+            keyName: "teacher_catchment_iso_country_code",
+            dataType: "string",
+            description: ""
+        }, {
+            keyName: "targeted_support_funding_eligibility",
+            dataType: "boolean",
+            description: ""
+        }, {
+            keyName: "notes",
+            dataType: "string",
+            description: ""
+        }, {
+            keyName: "cohort_id",
+            dataType: "string",
+            description: "The numeric ID used for joining to the cohorts table on the id column."
+        }, {
+            keyName: "funded_place",
+            dataType: "boolean",
+            description: ""
+        }, {
+            keyName: "training_status",
+            dataType: "string",
+            description: ""
+        }, {
+            keyName: "schedule_id",
+            dataType: "string",
+            description: "The numeric ID used for joining to the schedules table on the id column."
+        }, {
+            keyName: "referred_by_return_to_teaching_adviser",
+            dataType: "boolean",
+            description: ""
+        }, {
+            keyName: "accepted_at",
+            dataType: "timestamp",
+            description: ""
+        }, {
+            keyName: "on_submission_trn",
+            dataType: "string",
+            description: ""
+        }, {
+            keyName: "senco_in_role",
+            dataType: "string",
+            description: ""
+        }, {
+            keyName: "senco_start_date",
+            dataType: "string",
+            description: ""
+        }]
     }, {
-            entityTableName: "application_states",
-            description: "This table contains the status changes for training_status on the application.",
-            keys: [{
-                keyName: "application_id",
-                dataType: "string",
-                description: ""
-            }, {
-                keyName: "lead_provider_id",
-                dataType: "string",
-                description: ""
-            }, {
-                keyName: "state",
-                dataType: "string",
-                description: ""
-            }, {
-                keyName: "reason",
-                dataType: "string",
-                description: ""
-            }, {
-                keyName: "ecf_id",
-                dataType: "string",
-                description: ""
-            }]
+        entityTableName: "application_states",
+        description: "This table contains the status changes for training_status on the application.",
+        keys: [{
+            keyName: "application_id",
+            dataType: "string",
+            description: ""
+        }, {
+            keyName: "lead_provider_id",
+            dataType: "string",
+            description: ""
+        }, {
+            keyName: "state",
+            dataType: "string",
+            description: ""
+        }, {
+            keyName: "reason",
+            dataType: "string",
+            description: ""
+        }, {
+            keyName: "ecf_id",
+            dataType: "string",
+            description: ""
+        }]
     }, {
         entityTableName: "cohorts",
         description: "",
@@ -285,6 +285,14 @@ dfeAnalyticsDataform({
             description: "The ID of the declaration that replaces the current record."
         }, {
             keyName: "lead_provider_id",
+            dataType: "string",
+            description: ""
+        }, {
+            keyName: "delivery_partner_id",
+            dataType: "string",
+            description: ""
+        }, {
+            keyName: "secondary_delivery_partner_id",
             dataType: "string",
             description: ""
         }, {
