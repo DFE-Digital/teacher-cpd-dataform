@@ -3,7 +3,7 @@ config {
     name: "npq_ofsted_establishments",
     type: "table",
     assertions: {uniqueKey: ["establishment_urn"]},
-    description: "This mart provides the most recent version of all Ofsted establishments. This mart appends the most recent inspection extract to the all_gias_ofsted_establishments table. Every June and December new extracts should be investigated and added to this mart to ensure the list of all Ofsted establishments is correct. Additional extracts should be saved as a static table added to the mart using UNION ALL and the new list filtered for all establishment urns that are not in the stored in this mart. New extracts of Ofsted establishments can be found here: https://www.gov.uk/government/statistical-data-sets/childcare-providers-and-inspections-management-information",
+    description: "This mart provides information about the most recent version of all Ofsted establishments. This mart appends the most recent inspection extract to the previous extracts of Ofsted Establishments: all_gias_ofsted_establishments. This mart uses a UNION ALL function to join all Ofsted establishments from the most recent extract to any Ofsted establishments in previous extracts which aren't in the most recent extract. This will ensure the Ofsted list cpatires all schools or establishments. New extracts of Ofsted establishments are added every June or December which can be found here: https://www.gov.uk/government/statistical-data-sets/childcare-providers-and-inspections-management-information",
     columns: {
         establishment_urn: "The unique reference number of the school or establishment inspected by Ofsted.",
         phase_of_education: "Phase of education of an establishment as stored in Ofsted.",
