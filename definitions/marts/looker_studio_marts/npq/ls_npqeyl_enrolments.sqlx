@@ -108,27 +108,20 @@ WITH
       ELSE funding_choice
   END
     AS funding_source,
-    COALESCE(ofsted.phase_of_education,gias.phase_of_education) AS phase_of_education,
-    COALESCE(ofsted.establishment_type, gias.establishment_type) AS establishment_type,
-    COALESCE(ofsted.establishment_subtype,gias.establishment_subtype) AS establishment_subtype,
-    COALESCE(npq_e.la_name,ofsted.la_name,gias.la_name) AS final_la_name,
+    COALESCE(ofsted.phase_of_education,gias.PhaseOfEducation_name) AS phase_of_education,
+    COALESCE(ofsted.establishment_type, gias.EstablishmentTypeGroup_name) AS establishment_type,
+    COALESCE(ofsted.establishment_subtype,gias.TypeOfEstablishment_name) AS establishment_subtype,
+    COALESCE(npq_e.la_name,ofsted.la_name,gias.LA_name) AS final_la_name,
   FROM
     ${ref("npq_enrolments")} npq_e
   LEFT JOIN
     ${ref('npq_ofsted_establishments')} AS ofsted
   ON
     npq_e.private_childcare_provider_urn = ofsted.establishment_urn
-  LEFT JOIN (
-    SELECT
-      URN AS establishment_urn,
-      PhaseOfEducation_name AS phase_of_education,
-      EstablishmentTypeGroup_name AS establishment_type,
-      TypeOfEstablishment_name AS establishment_subtype,
-      LA_name AS la_name
-    FROM
-      ${ref('establishments')} ) AS gias
+  LEFT JOIN 
+      ${ref('establishments')}  AS gias
   ON
-    npq_e.school_urn = gias.establishment_urn
+    npq_e.school_urn = gias.URN
   WHERE
     npq_e.course_name = 'NPQ Early Years Leadership (NPQEYL)')
 SELECT
