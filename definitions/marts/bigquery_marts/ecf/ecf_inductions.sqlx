@@ -17,7 +17,7 @@ config {
         school_name: "Name of the participant's school.",
         school_urn: "URN of the participant's school.",
         schedule_identifier: "This indicates which sub-cohort or tranche the participant commenced training within an annual cohort. For ECF, the schedule identifier also indicates if a participant is following a non-standard training route at any point (e.g. extended or reduced).",
-        mentor_id: "The participant_profile_id of an ECT's mentor. This field is always NULL for mentors.",
+        mentor_id: "The participant_profile_id of an ECT's mentor. This field is always NULL for mentors. Regarding how the addition of a mentor triggers the creation of a new induction record: If the mentor is selected when adding an ECT to the service, then the induction record will be created with the mentor on it. If the mentor is changed/selected later the a new induction record is created",
         appropriate_body_id: "The ID of the appropriate body associated with the school.",
         appropriate_body_name: "The name of the appropriate body associated with the school.",
         start_date: "Start date for this induction record",

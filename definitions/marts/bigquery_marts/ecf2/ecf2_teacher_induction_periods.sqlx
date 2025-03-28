@@ -33,9 +33,9 @@ config {
         trs_initial_teacher_training_end_date: "Date an ECT finished their ITT held on TRS",
         trs_initial_teacher_training_provider_name: "ECT's ITT provider name held on TRS",
         trs_qts_status_description: "ECT's QTS status held on TRS",
-        record_creator: "This identifies where the first version of the induction period came from: whether it was imported prior to the service going live (imported), or if it was created by an AB (user_created) or a Support Team member (admin_created) - Currently, the system is supposed to block admin users from creating induction periods so no records should return this. ",
-        non_admin_update_flag: "This boolean flags if the induction period has been updated by an AB (non-admin) user",
-        admin_update_flag: "This boolean flags if the induction period has been updated by an support team (admin) user"
+        non_admin_update_flag: "This boolean flags if the induction period has been updated by an AB (non-admin or developer) user",
+        admin_update_flag: "This boolean flags if the induction period has been updated by an support team (admin or developer) user",
+        record_creator: "This identifies where the first version of the induction period came from: whether it was imported prior to the service going live (imported), or if it was created by an AB (user_created) or a Support Team member/Developer (admin_created) (indicated by 'admin' in the request_path or by a blank request path)"
     }
 }
 
@@ -46,7 +46,7 @@ WITH
     id,
     CASE
       WHEN event_type = 'import_entity' THEN 'imported'
-      WHEN request_path LIKE '%admin%' THEN 'admin_created'
+      WHEN (request_path LIKE '%admin%' or request_path is null) THEN 'admin_created'
       ELSE 'user_created'
   END
     AS record_creator
@@ -58,11 +58,11 @@ WITH
   induction_period_editors AS (
 SELECT
   id,
-  LOGICAL_OR(request_path LIKE '%admin%') AS admin_updates,
+  LOGICAL_OR(request_path LIKE '%admin%' or request_path is null) AS admin_updates,
   LOGICAL_OR(request_path NOT LIKE '%admin%') AS non_admin_updates
 FROM
   ${ref(`induction_periods_version_ecf2`)} AS induction_updates
-WHERE event_type = "update_entity" and request_path is not null
+WHERE event_type = "update_entity"
 GROUP BY id)
 SELECT
   induction_periods.id AS induction_period_id,
