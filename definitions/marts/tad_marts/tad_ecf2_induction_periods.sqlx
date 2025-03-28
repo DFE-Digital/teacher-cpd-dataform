@@ -13,12 +13,10 @@ config {
     columns: {
         unique_id: "Unique id is for identifying different rows in this table, generated to join two tables together. It has no significance to RIAB or static table data extracts.",
         trn: {
-            description: "This comes from a participant profile",
+            description: "This comes from the teacher profile which we access via the participant profile",
             bigqueryPolicyTags: ["projects/ecf-bq/locations/europe-west2/taxonomies/6302091323314055162/policyTags/301313311867345339"]
         },
-        //appropriate_body_id: "A unique organisation identifier used for identifying appropriate bodies",
-        //legacy_appropriate_body_id: "A legacy unique organisation identifier taken from DfE Sign-In used for identifying appropriate bodies.",
-        appropriate_body_name: "The name of the appropriate body, each name has an ID and legacy ID.",
+        appropriate_body_name: "The name of the appropriate body.",
         started_date: "Start date for this induction period",
         finished_on: "End date for this induction period. This is not the completion date for a participant's full induction.",
         number_of_terms: "The number of terms served during the induction period.",
@@ -36,29 +34,17 @@ WITH
   ecf2_induction_periods AS (
   SELECT
     teachers.trn AS trn,
-    induction_periods.appropriate_body_id AS appropriate_body_id,
-    'N/A' AS legacy_appropriate_body_id,
-    abs.name AS appropriate_body_name,
-    induction_periods.started_on AS started_on,
-    induction_periods.finished_on AS finished_on,
-    CAST(induction_periods.number_of_terms AS INT64) AS number_of_terms,
-    induction_periods.induction_programme AS induction_programme_type,
+    appropriate_body_name AS appropriate_body_name,
+    started_on AS started_on,
+    finished_on AS finished_on,
+    CAST(number_of_terms AS INT64) AS number_of_terms,
+    induction_programme AS induction_programme_type,
     'RIAB' AS data_source
   FROM
-    ${ref(`induction_periods_latest_ecf2`)} AS induction_periods
-  LEFT JOIN
-    ${ref(`teachers_latest_ecf2`)} AS teachers
-  ON
-    teachers.id = induction_periods.teacher_id
-  LEFT JOIN
-    ${ref(`appropriate_bodies_latest_ecf2`)} AS abs
-  ON
-    induction_periods.appropriate_body_id = abs.id ),
+    ${ref(`ecf2_teacher_induction_periods`)}),
   historical_inductions AS (
   SELECT
     CAST(historic.trn AS string) AS trn,
-    'N/A' AS appropriate_body_id,
-    historic.appropriate_body_id AS legacy_appropriate_body_id,
     abs.name AS appropriate_body_name,
     historic.started_on AS started_on,
     historic.finished_on AS finished_on,
