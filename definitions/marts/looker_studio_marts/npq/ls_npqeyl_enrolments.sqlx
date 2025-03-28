@@ -94,7 +94,8 @@ config {
     }
 }
 
-WITH gias_establishments AS (
+WITH
+  gias_establishments AS (
   SELECT
     URN AS establishment_urn,
     PhaseOfEducation_name AS phase_of_education,
@@ -102,103 +103,45 @@ WITH gias_establishments AS (
     TypeOfEstablishment_name AS establishment_subtype,
     LA_name AS la_name
   FROM
-<<<<<<< HEAD
     ${ref('establishments')}),
-ofsted_establishments AS (
-    SELECT 
-        establishment_urn AS establishment_urn,
-        phase_of_education AS phase_of_education,
-        establishment_type AS establishment_type,
-        establishment_subtype AS establishment_subtype,
-        la_name AS la_name
-    FROM
-        ${ref('npq_ofsted_establishments')}
-),
-=======
-    ${ref('all_gias_ofsted_establishments')}
-  WHERE
-    data_source LIKE 'Ofsted%'),
-
-  gias_settings AS (
+  ofsted_establishments AS (
   SELECT
-    establishment_urn,
-    phase_of_education,
-    establishment_type,
-    establishment_subtype,
-    la_name,
-    gor_name
+    establishment_urn AS establishment_urn,
+    phase_of_education AS phase_of_education,
+    establishment_type AS establishment_type,
+    establishment_subtype AS establishment_subtype,
+    la_name AS la_name
   FROM
-    ${ref('all_gias_ofsted_establishments')}
-  WHERE
-    data_source LIKE 'GIAS%'),
-
->>>>>>> refs/heads/master
-final_table AS (
-<<<<<<< HEAD
-    SELECT
-      npq_e.*,
-      CASE
-        WHEN schedule_identifier IS NULL THEN CONCAT(cohort,' - Pending/Rejected')
-      ELSE
-      CONCAT (cohort, ' - ', RIGHT(schedule_identifier, 6))
-    END
-      AS schedule_and_cohort,
-      CASE
-        WHEN funding_choice IS NULL THEN 'DfE'
-      ELSE
-      funding_choice
-    END
-      AS funding_source,
-      COALESCE(ofsted.phase_of_education,gias.phase_of_education) AS phase_of_education,
-      COALESCE(ofsted.establishment_type, gias.establishment_type) AS establishment_type,
-      COALESCE(ofsted.establishment_subtype,gias.establishment_subtype) AS establishment_subtype,
-      COALESCE(npq_e.la_name,ofsted.la_name,gias.la_name) AS final_la_name,
-    FROM
-      ${ref("npq_enrolments")} npq_e
-    LEFT JOIN
-      ofsted_establishments AS ofsted
-    ON
-      npq_e.private_childcare_provider_urn = ofsted.establishment_urn
-    LEFT JOIN
-      gias_establishments AS gias
-    ON
-      npq_e.school_urn = gias.establishment_urn
-    WHERE
-      npq_e.course_name = 'NPQ Early Years Leadership (NPQEYL)')
-      
-=======
+    ${ref('npq_ofsted_establishments')} ),
+  all_establishemts AS (
   SELECT
     npq_e.*,
     CASE
       WHEN schedule_identifier IS NULL THEN CONCAT(cohort,' - Pending/Rejected')
-    ELSE 
-    CONCAT (cohort, ' - ', RIGHT(schedule_identifier, 6))
+      ELSE CONCAT (cohort, ' - ', RIGHT(schedule_identifier, 6))
   END
     AS schedule_and_cohort,
     CASE
       WHEN funding_choice IS NULL THEN 'DfE'
-    ELSE 
-    funding_choice
+      ELSE funding_choice
   END
     AS funding_source,
-    COALESCE(eys.phase_of_education,gias.phase_of_education) AS phase_of_education,
-    COALESCE(eys.establishment_type, gias.establishment_type) AS establishment_type,
-    COALESCE(eys.establishment_subtype,gias.establishment_subtype) AS establishment_subtype,
-    COALESCE(npq_e.la_name,eys.la_name,gias.la_name) AS final_la_name,
+    COALESCE(ofsted.phase_of_education,gias.phase_of_education) AS phase_of_education,
+    COALESCE(ofsted.establishment_type, gias.establishment_type) AS establishment_type,
+    COALESCE(ofsted.establishment_subtype,gias.establishment_subtype) AS establishment_subtype,
+    COALESCE(npq_e.la_name,ofsted.la_name,gias.la_name) AS final_la_name,
   FROM
     ${ref("npq_enrolments")} npq_e
   LEFT JOIN
-    early_years_settings eys
+    ofsted_establishments AS ofsted
   ON
-    npq_e.private_childcare_provider_urn = eys.establishment_urn
+    npq_e.private_childcare_provider_urn = ofsted.establishment_urn
   LEFT JOIN
-    gias_settings gias
+    gias_establishments AS gias
   ON
     npq_e.school_urn = gias.establishment_urn
   WHERE
     npq_e.course_name = 'NPQ Early Years Leadership (NPQEYL)')
-
->>>>>>> refs/heads/master
 SELECT
   *,
   CASE
@@ -217,9 +160,8 @@ SELECT
     WHEN kind_of_nursery IS NULL
   AND establishment_subtype = 'Local authority nursery school' THEN 'Local authority maintained nursery'
     WHEN kind_of_nursery IS NULL AND establishment_type IS NOT NULL THEN 'School setting'
-    ELSE 
-    COALESCE(kind_of_nursery,establishment_type)
+    ELSE COALESCE(kind_of_nursery,establishment_type)
 END
   AS setting_type
 FROM
-  final_table
+  all_establishemts
