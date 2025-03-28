@@ -10,6 +10,7 @@ config {
         establishment_type: "Establishment type as stored in Ofsted.",
         establishment_subtype: "Establishment subtype as stored in Ofsted.",
         la_name: "Name of local authority.",
+        extract_date: "The date of the taken extract, hard coded when we add a new extract. The date 2020-01-01 is hard coded for the historical extract all_gias_ofsted_establishments."
     }
 }
 
