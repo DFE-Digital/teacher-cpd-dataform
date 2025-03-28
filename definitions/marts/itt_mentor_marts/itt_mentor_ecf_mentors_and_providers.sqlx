@@ -1,10 +1,11 @@
 config {
-    schema: "itt_mentor",
+    schema: dataform.projectConfig.schemaSuffix ? "dataform" : "itt_mentor",
     database: "ecf-bq",
     name: "ecf_mentors_and_providers",
     type: "table",
     assertions: {
-        uniqueKey: ["TRN", "provider_name"]
+        uniqueKey: ["TRN", "provider_name"],
+        rowConditions: ['provider_name IN ("Ambition Institute", "Best Practice Network", "Education Development Trust", "National Institute of Teaching", "Teach First", "UCL Institute of Education", "Capita")']
     },
     bigquery: {
         partitionBy: "first_completed_funded_mentor_training_with_this_lead_provider_on"
@@ -23,7 +24,7 @@ config {
 }
 
 SELECT
-  TRN,
+  CAST(TRN AS STRING) AS TRN,
   cpd_lead_provider_name AS provider_name, /* Remove CPD-specific jargon of lead providers here */
   CAST(MIN(start_date) AS DATE) AS first_started_funded_mentor_training_on,
   MIN(
