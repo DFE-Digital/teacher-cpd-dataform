@@ -1,0 +1,41 @@
+config {
+     database: "ecf-bq",
+    name: "npq_ofsted_establishments",
+    type: "table",
+    assertions: {uniqueKey: ["establishment_urn"]},
+    description: "This mart provides information about the most recent version of all Ofsted establishments. This mart appends the most recent inspection extract to the previous extracts of Ofsted Establishments: all_gias_ofsted_establishments. This mart uses a UNION ALL function to join all Ofsted establishments from the most recent extract to any Ofsted establishments in previous extracts which aren't in the most recent extract. This will ensure the Ofsted list cpatires all schools or establishments. New extracts of Ofsted establishments are added every June or December which can be found here: https://www.gov.uk/government/statistical-data-sets/childcare-providers-and-inspections-management-information",
+    columns: {
+        establishment_urn: "The unique reference number of the school or establishment inspected by Ofsted.",
+        phase_of_education: "Phase of education of an establishment as stored in Ofsted.",
+        establishment_type: "Establishment type as stored in Ofsted.",
+        establishment_subtype: "Establishment subtype as stored in Ofsted.",
+        la_name: "Name of local authority.",
+        extract_date: "The date of the taken extract, hard coded when we add a new extract. The date 2020-01-01 is hard coded for the historical extract all_gias_ofsted_establishments."
+    }
+}
+
+WITH all_ofsted_establishments AS (
+  SELECT 
+    provider_URN as establishment_urn,
+    'Childcare provider' AS phase_of_education,
+    Provider_Type AS establishment_type,
+    Provider_Subtype AS establishment_subtype,
+    Local_Authority AS la_name,
+    DATE('2024-12-01') AS extract_date
+  FROM ${ref('Ofsted_Establishments_December_2024')}
+UNION ALL
+SELECT
+    establishment_urn,
+    phase_of_education,
+    establishment_type,
+    establishment_subtype,
+    la_name,
+    DATE('2020-01-01') as extract_date
+  FROM
+     ${ref('all_gias_ofsted_establishments')}
+  WHERE
+    data_source LIKE 'Ofsted%')
+
+SELECT *
+FROM all_ofsted_establishments
+QUALIFY ROW_NUMBER() OVER (PARTITION BY establishment_urn ORDER BY extract_date DESC) = 1
