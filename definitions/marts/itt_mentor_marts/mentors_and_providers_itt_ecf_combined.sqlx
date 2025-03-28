@@ -1,0 +1,77 @@
+config {
+    database: "ecf-bq",
+    name: "mentors_and_providers_itt_ecf_combined",
+    type: "table",
+    assertions: {
+        uniqueKey: ["TRN", "provider_name"]
+    },
+    description: "Summary data about the relationship between each Early Careers Framework (ECF) or Initial Teacher Training (ITT) mentor and each organisation (provider) which received direct funding from DfE for training them to be a mentor.\nEach row is a relationship between one mentor and one such provider.\nIntended to used to analyse overlaps between teachers who have been trained by the same provider to be both ECF and Initial Teacher Training (ITT) mentors.",
+    columns: {
+        TRN: {
+            description: "Teacher Reference Number (TRN) of the mentor - a teacher - who this provider received funding to train as an ITT and/or ECF mentor",
+            bigqueryPolicyTags: ["projects/ecf-bq/locations/europe-west2/taxonomies/6302091323314055162/policyTags/301313311867345339"]
+        },
+        provider_name: "Name of the organisation (provider) which received direct funding from DfE to train this teacher to be an ITT and/or ECF mentor.\nFull name, e.g. Ambition Institute.\nNot necessarily the only organisation involved in training this mentor.",
+        first_started_funded_ecf_mentor_training_on: "Date when this mentor first started ECF mentor training for which this provider which was funded directly by DfE",
+        first_completed_funded_ecf_mentor_training_with_this_lead_provider_on: "Date when this ECF mentor first completed ECF mentor training with this provider, if this provider was funded directly by DfE for the period of training which immediately resulted in completion",
+        last_took_part_in_funded_ecf_mentor_training_with_this_lead_provider_on: "Date when this ECF mentor most recently took part in ECF mentor training with this provider for any period of training funded directly by DfE. Does not necessarily indicate that the mentor completed the training.",
+        earliest_itt_mentor_training_funding_claim_submitted_at: "Date of the earliest claim submitted for each mentor for ITT mentor training with with this provider.",
+        AY_first_started_funded_ecf_mentor_training_in: "first_started_funded_ecf_mentor_training_on as an academic year in format 2030-31",
+        AY_earliest_itt_mentor_training_funding_claim_submitted_in: "earliest_itt_mentor_training_funding_claim_submitted_at as an academic year in format 2030-31"
+    }
+}
+
+SELECT
+  COALESCE(ecf_mentor_provider.TRN, itt_mentor_provider.TRN) AS TRN,
+  COALESCE(ecf_mentor_provider.provider_name, itt_mentor_provider.provider_name) AS provider_name,
+  MIN(first_started_funded_mentor_training_on) AS first_started_funded_ecf_mentor_training_on,
+  MIN(first_completed_funded_mentor_training_with_this_lead_provider_on) AS first_completed_funded_ecf_mentor_training_with_this_lead_provider_on,
+  MAX(last_took_part_in_funded_mentor_training_with_this_lead_provider_on) AS last_took_part_in_funded_ecf_mentor_training_with_this_lead_provider_on,
+  MIN(earliest_claim_submitted_at) AS earliest_itt_mentor_training_funding_claim_submitted_at,
+  CASE
+    WHEN LOGICAL_OR(itt_mentor_provider.TRN IS NOT NULL) AND LOGICAL_AND(ecf_mentor_provider.TRN IS NULL) THEN "Funded for ITT mentor training only"
+    WHEN LOGICAL_AND(itt_mentor_provider.TRN IS NULL) AND LOGICAL_OR(ecf_mentor_provider.TRN IS NOT NULL) THEN "Funded for ECF mentor training only"
+    WHEN MIN(ecf_mentor_provider.first_started_funded_mentor_training_on) < MIN(DATE(itt_mentor_provider.earliest_claim_submitted_at)) THEN
+      CASE
+        WHEN MIN(ecf_mentor_provider.first_started_funded_mentor_training_on) >= MIN(ecf_mentor_provider.first_completed_funded_mentor_training_with_this_lead_provider_on) THEN "First funded for ITT mentor training after completing ECF mentor training with this provider"
+        WHEN MIN(ecf_mentor_provider.first_started_funded_mentor_training_on) < MIN(ecf_mentor_provider.first_completed_funded_mentor_training_with_this_lead_provider_on) THEN "First funded for ITT mentor training before completing ECF mentor training with this provider"
+        WHEN LOGICAL_AND(ecf_mentor_provider.first_completed_funded_mentor_training_with_this_lead_provider_on IS NULL) THEN "First funded for ITT mentor training after starting but not (yet) completing ECF mentor training"
+        ELSE "Error in query logic - please report. First funded for ITT mentor training after ECF mentor training"
+      END
+    WHEN MIN(ecf_mentor_provider.first_started_funded_mentor_training_on) > MIN(DATE(itt_mentor_provider.earliest_claim_submitted_at)) THEN "First funded for ECF mentor training after ITT mentor training"
+    WHEN MIN(ecf_mentor_provider.first_started_funded_mentor_training_on) = MIN(DATE(itt_mentor_provider.earliest_claim_submitted_at)) THEN "First funded for ECF and ITT mentor training on same date"
+    ELSE "Error in query logic - please report"
+END
+  AS mentor_type,
+  CONCAT(
+    EXTRACT(YEAR FROM(MIN(ecf_mentor_provider.first_started_funded_mentor_training_on))) - 
+    IF(EXTRACT(MONTH FROM MIN(ecf_mentor_provider.first_started_funded_mentor_training_on)) < 9, 1, 0),
+    '-',
+    RIGHT(
+        CAST(
+        EXTRACT(YEAR FROM(MIN(ecf_mentor_provider.first_started_funded_mentor_training_on)))
+            - IF(EXTRACT(MONTH FROM MIN(ecf_mentor_provider.first_started_funded_mentor_training_on)) < 9, 1, 0) + 1 AS STRING
+        ), 2
+    )
+    ) AS AY_first_started_funded_ecf_mentor_training_in,
+  CONCAT(
+    EXTRACT(YEAR FROM(MIN(earliest_claim_submitted_at))) - 
+    IF(EXTRACT(MONTH FROM MIN(earliest_claim_submitted_at)) < 9, 1, 0),
+    '-',
+    RIGHT(
+        CAST(
+        EXTRACT(YEAR FROM(MIN(earliest_claim_submitted_at)))
+            - IF(EXTRACT(MONTH FROM MIN(earliest_claim_submitted_at)) < 9, 1, 0) + 1 AS STRING
+        ), 2
+    )
+    ) AS AY_earliest_itt_mentor_training_funding_claim_submitted_in
+FROM
+  ${ref("ecf_mentors_and_providers")} AS ecf_mentor_provider
+FULL JOIN
+  ${ref("itt_mentor_claims")} AS itt_mentor_provider
+ON
+  ecf_mentor_provider.TRN = itt_mentor_provider.TRN
+  AND ecf_mentor_provider.provider_name = itt_mentor_provider.provider_name
+GROUP BY
+  TRN,
+  provider_name
