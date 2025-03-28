@@ -13,80 +13,28 @@ config {
     }
 }
 
--- Extracting information from the Ofsted Establishments December 2024 extract
-WITH ofsted_establishments_December_2024 AS (
+WITH all_ofsted_establishments AS (
   SELECT 
     provider_URN as establishment_urn,
     'Childcare provider' AS phase_of_education,
     Provider_Type AS establishment_type,
     Provider_Subtype AS establishment_subtype,
-    Local_Authority AS la_name
+    Local_Authority AS la_name,
+    DATE('2024-12-01') AS extract_date
   FROM ${ref('Ofsted_Establishments_December_2024')}
-)
-
+UNION ALL
 SELECT
-    *
-  FROM
-    ofsted_establishments_December_2024
-  
-  UNION ALL 
-  -- UNION ALL is used to select all establishments from ofsted_establishments_December_2024 CTE and establishments in the...  
-  -- ... all_gias_ofsted_establishments table which aren't in the ofsted_establishments_December_2024 CTE. 
-  -- Both tables are not a complete list of establishments (Some in one aren't contained in the other and vise versa).
-  SELECT
     establishment_urn,
     phase_of_education,
     establishment_type,
     establishment_subtype,
-    la_name
+    la_name,
+    DATE('2020-01-01') as extract_date
   FROM
      ${ref('all_gias_ofsted_establishments')}
   WHERE
-    data_source LIKE 'Ofsted%'
-    -- Filters all establishment urns that are not in the ofsted_establishments_December_2024 
-    AND establishment_urn NOT IN (
-    SELECT
-      establishment_urn
-    FROM
-      ofsted_establishments_December_2024)
+    data_source LIKE 'Ofsted%')
 
-  /*
-  --To adjust this query to be used with future extracts, it should
-    -- the current most recent extract should be stored as a CTE similar to ofsted_establishments_December_2024
-    -- All following extracts should be appended to the latest extract to ensure the most up to date version of the data is the source (Pulling only from historical extracts if the latest version doesn't contain them)
-        -- The code should follow something like: 
-            -- Most recent extact 
-            -- UNION all 
-            -- second most recent extract where establishment_urn not in most recent extract 
-            -- UNION ALL
-            -- all_gias_ofsted_establishments where establishment_urn not in most recent extract and second most recent extract
-
-  SELECT
-    *
-  FROM
-    ofsted_establishments_June_2025
-  UNION ALL
-  SELECT
-    *
-  FROM
-    ofsted_establishments_December_2024
-    WHERE establishment_urn NOT IN (SELECT establishment_urn FROM ofsted_establishments_June_2025)
-  UNION ALL 
-  SELECT 
-    provider_URN as establishment_urn,
-    'Childcare provider' AS phase_of_education,
-    Provider_Type AS establishment_type,
-    Provider_Subtype AS establishment_subtype,
-    Local_Authority AS la_name
-  FROM ${ref('Ofsted_Establishments_June_2025')} 
-  WHERE establishment_urn NOT IN (
-      SELECT establishment_urn 
-      FROM ofsted_establishments_December_2024
-      UNION ALL
-      SELECT establishment_urn
-      FROM ${ref('all_gias_ofsted_establishments')}) 
-  */
-
-
-
-
+SELECT *
+FROM all_ofsted_establishments
+QUALIFY ROW_NUMBER() OVER (PARTITION BY establishment_urn ORDER BY extract_date DESC) = 1
