@@ -95,24 +95,6 @@ config {
 }
 
 WITH
-  gias_establishments AS (
-  SELECT
-    URN AS establishment_urn,
-    PhaseOfEducation_name AS phase_of_education,
-    EstablishmentTypeGroup_name AS establishment_type,
-    TypeOfEstablishment_name AS establishment_subtype,
-    LA_name AS la_name
-  FROM
-    ${ref('establishments')}),
-  ofsted_establishments AS (
-  SELECT
-    establishment_urn AS establishment_urn,
-    phase_of_education AS phase_of_education,
-    establishment_type AS establishment_type,
-    establishment_subtype AS establishment_subtype,
-    la_name AS la_name
-  FROM
-    ${ref('npq_ofsted_establishments')} ),
   all_establishemts AS (
   SELECT
     npq_e.*,
@@ -133,11 +115,18 @@ WITH
   FROM
     ${ref("npq_enrolments")} npq_e
   LEFT JOIN
-    ofsted_establishments AS ofsted
+    ${ref('npq_ofsted_establishments')} AS ofsted
   ON
     npq_e.private_childcare_provider_urn = ofsted.establishment_urn
-  LEFT JOIN
-    gias_establishments AS gias
+  LEFT JOIN (
+    SELECT
+      URN AS establishment_urn,
+      PhaseOfEducation_name AS phase_of_education,
+      EstablishmentTypeGroup_name AS establishment_type,
+      TypeOfEstablishment_name AS establishment_subtype,
+      LA_name AS la_name
+    FROM
+      ${ref('establishments')} ) AS gias
   ON
     npq_e.school_urn = gias.establishment_urn
   WHERE
