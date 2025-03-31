@@ -43,28 +43,32 @@ SELECT
     ELSE "Error in query logic - please report"
 END
   AS mentor_type,
-  CONCAT(
-    EXTRACT(YEAR FROM(MIN(ecf_mentor_provider.first_started_funded_mentor_training_on))) - 
-    IF(EXTRACT(MONTH FROM MIN(ecf_mentor_provider.first_started_funded_mentor_training_on)) < 9, 1, 0),
-    '-',
-    RIGHT(
-        CAST(
-        EXTRACT(YEAR FROM(MIN(ecf_mentor_provider.first_started_funded_mentor_training_on)))
-            - IF(EXTRACT(MONTH FROM MIN(ecf_mentor_provider.first_started_funded_mentor_training_on)) < 9, 1, 0) + 1 AS STRING
-        ), 2
-    )
-    ) AS AY_first_started_funded_ecf_mentor_training_in,
-  CONCAT(
-    EXTRACT(YEAR FROM(MIN(earliest_claim_submitted_at))) - 
-    IF(EXTRACT(MONTH FROM MIN(earliest_claim_submitted_at)) < 9, 1, 0),
-    '-',
-    RIGHT(
-        CAST(
-        EXTRACT(YEAR FROM(MIN(earliest_claim_submitted_at)))
-            - IF(EXTRACT(MONTH FROM MIN(earliest_claim_submitted_at)) < 9, 1, 0) + 1 AS STRING
-        ), 2
-    )
-    ) AS AY_earliest_itt_mentor_training_funding_claim_submitted_in
+  IFNULL(
+    CONCAT(
+      EXTRACT(YEAR FROM(MIN(ecf_mentor_provider.first_started_funded_mentor_training_on))) - 
+      IF(EXTRACT(MONTH FROM MIN(ecf_mentor_provider.first_started_funded_mentor_training_on)) < 9, 1, 0),
+      '-',
+      RIGHT(
+          CAST(
+          EXTRACT(YEAR FROM(MIN(ecf_mentor_provider.first_started_funded_mentor_training_on)))
+              - IF(EXTRACT(MONTH FROM MIN(ecf_mentor_provider.first_started_funded_mentor_training_on)) < 9, 1, 0) + 1 AS STRING
+          ), 2
+      )
+      ),
+    "Has not received funded ECF mentor training") AS AY_first_started_funded_ecf_mentor_training_in,
+  IFNULL(
+    CONCAT(
+      EXTRACT(YEAR FROM(MIN(earliest_claim_submitted_at))) - 
+      IF(EXTRACT(MONTH FROM MIN(earliest_claim_submitted_at)) < 9, 1, 0),
+      '-',
+      RIGHT(
+          CAST(
+          EXTRACT(YEAR FROM(MIN(earliest_claim_submitted_at)))
+              - IF(EXTRACT(MONTH FROM MIN(earliest_claim_submitted_at)) < 9, 1, 0) + 1 AS STRING
+          ), 2
+      )
+    ),
+    "Has not received funded ITT mentor training") AS AY_earliest_itt_mentor_training_funding_claim_submitted_in
 FROM
   ${ref("ecf_mentors_and_providers")} AS ecf_mentor_provider
 FULL JOIN
