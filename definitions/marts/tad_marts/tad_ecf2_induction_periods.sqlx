@@ -13,15 +13,15 @@ config {
     columns: {
         unique_id: "Unique id is for identifying different rows in this table, generated to join two tables together. It has no significance to RIAB or static table data extracts.",
         trn: {
-            description: "This comes from the teacher profile which we access via the participant profile",
+            description: "This comes from the teacher profile which we access via the participant profile.",
             bigqueryPolicyTags: ["projects/ecf-bq/locations/europe-west2/taxonomies/6302091323314055162/policyTags/301313311867345339"]
         },
         appropriate_body_name: "The name of the Appropriate Body that recorded the induction period served by the ECT.",
-        started_date: "The date reported by the Appropriate Body when the ECT started the induction period",
-        finished_on: "The date reported by the Appropriate Body when the ECT finished the induction period. This is not the completion date for a participant's full induction.",
+        started_date: "The date reported by the Appropriate Body when the ECT started the induction period. This field should not be used to indicate the ECT's start date for their full induction.",
+        finished_on: "The date reported by the Appropriate Body when the ECT finished the induction period. This field should not be used to indicate the ECT's end date for their full induction.",
         number_of_terms: "The number of terms the induction period counts towards induction, as reported by the Appropriate Body.",
         induction_programme_type: "The type of training that a school supported the ECT's induction with for that induction period, as reportedd by the Appropriate Body. Potential values: full_induction_programme core_induction_programme, design_our_own, school_funded_fip ",
-        data_source: "Where the induction period is currently held, possible values: 'RIAB' or 'historic_import' (DQT)"
+        data_source: "Where the induction period is currently held, possible values: 'RIAB' or 'historic_import' (DQT)."
     }
 }
 
