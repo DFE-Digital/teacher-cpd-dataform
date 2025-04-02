@@ -9,31 +9,26 @@ config {
     bigquery: {
         clusterBy: ["appropriate_body_name", "trn"]
     },
-    description: "This table is a record of all induction periods for an Early Career Teacher (ECT) reported by Appropriate Bodies with an overall induction status of in progress that are stored in the Record Inductions as an Appropriate Body service (RIAB) or the Database of Qualified Teachers (DQT). An overall induction status of in progress is defined as the ECT having at least one induction period which has no finished_on date. Data taken from the DQT is defined using the rule: The teacher is not stored RIAB and has an induction period start or finish date after 01/09/2021. ",
+    description: "This table is a record of all induction periods for an Early Career Teacher (ECT) where a proportion of thier induction has been served since 01/09/2021. All induction periods in this data have been reported by Appropriate Bodies. This table combines data stored in the Record Inductions as an Appropriate Body (RIAB) service and the Database of Qualified Teachers (DQT) with the records origin detailed by the data_source field, it's possible values are either 'RIAB' or 'Historic import'. This data contains all ECTs with an at least one in progress or completed induction period on or after 01/09/2021. An in progress induction period is defined by an Appropriate Body having reported a start date and no finish date for a record. This table has been designed specially for TAD's analysis of ECTs induction periods reported by Appropriate Bodies.",
     columns: {
         unique_id: "Unique id is for identifying different rows in this table, generated to join two tables together. It has no significance to RIAB or static table data extracts.",
         trn: {
             description: "This comes from the teacher profile which we access via the participant profile",
             bigqueryPolicyTags: ["projects/ecf-bq/locations/europe-west2/taxonomies/6302091323314055162/policyTags/301313311867345339"]
         },
-        appropriate_body_name: "The name of the appropriate body.",
-        started_date: "Start date for this induction period",
-        finished_on: "End date for this induction period. This is not the completion date for a participant's full induction.",
-        number_of_terms: "The number of terms served during the induction period.",
-        induction_programme_type: "The induction programme the school offers (FIP / CIP / DIY) : potential values: full_induction_programme core_induction_programme, design_our_own, school_funded_fip ",
-        data_source: "Where the induction period is held, possible values: RIAB or historic import (DQT)"
+        appropriate_body_name: "The name of the Appropriate Body that recorded the induction period served by the ECT.",
+        started_date: "The date reported by the Appropriate Body when the ECT started the induction period",
+        finished_on: "The date reported by the Appropriate Body when the ECT finished the induction period. This is not the completion date for a participant's full induction.",
+        number_of_terms: "The number of terms the induction period counts towards induction, as reported by the Appropriate Body.",
+        induction_programme_type: "The type of training that a school supported the ECT's induction with for that induction period, as reportedd by the Appropriate Body. Potential values: full_induction_programme core_induction_programme, design_our_own, school_funded_fip ",
+        data_source: "Where the induction period is currently held, possible values: 'RIAB' or 'historic_import' (DQT)"
     }
 }
 
-  /*TAD require:
-  All induction data stored in RIAB (currently all induction periods for ECT's with an overall induction status of in progress)
-  All induction periods from DQT for each teacher that is captured in the subset...
-  The teacher is not stored RIAB and has an induction period start or finish date after 01/09/2021
-  */
 WITH
   ecf2_induction_periods AS (
   SELECT
-    teachers.trn AS trn,
+    trn AS trn,
     appropriate_body_name AS appropriate_body_name,
     started_on AS started_on,
     finished_on AS finished_on,
@@ -50,7 +45,7 @@ WITH
     historic.finished_on AS finished_on,
     historic.number_of_terms AS number_of_terms,
     historic.induction_programme_choice AS induction_programme_type,
-    'Historic import' AS data_source
+    'historic_import' AS data_source
   FROM
     `static_tables.historical_induction_period_import` AS historic
   LEFT JOIN
@@ -63,6 +58,16 @@ SELECT
   *
 FROM
   ecf2_induction_periods
+WHERE
+-- Selecting all induction records from RIAB for an ECT which either started or finished at least one induction period on or after 01/09/2021.
+  trn IN (
+  SELECT
+    DISTINCT trn
+  FROM
+    ecf2_induction_periods
+  WHERE
+    (started_on >= '2021-09-01'
+      OR finished_on >= '2021-09-01') )
 UNION ALL
 SELECT
   ROW_NUMBER() OVER () + (
@@ -75,6 +80,8 @@ SELECT
 FROM
   historical_inductions
 WHERE
+-- Selecting all induction records from the DQT for an ECT which is not already captured in the RIAB extract and either started or finished at least one induction period on or after 01/09/2021
+
   trn IN (
   SELECT
     DISTINCT trn
@@ -87,4 +94,6 @@ WHERE
     SELECT
       DISTINCT trn
     FROM
-      ecf2_induction_periods) )
+      ecf2_induction_periods
+     WHERE (started_on >= '2021-09-01'
+      OR finished_on >= '2021-09-01')) )
