@@ -21,6 +21,18 @@ config {
     }
 }
 
+/* Permissions setup:
+This definition assumes that an Owner of the Becoming a Teacher (BaT) GCP project has done the following:
+1. In the Becoming a Teacher (BaT) GCP project, create an analytics hub.
+2. Share the BaT itt_mentor_analytics_hub dataset by creating a Listing containing the itt_mentor_claims in this analytics hub.
+3. Give a user with access to the CPD GCP project Analytics Hub Subscriber access to this Listing.
+4. Give the CPD Dataform service account the Fine-Grained Reader role *only* on the BaT BigQuery project (from the project level IAMs screen)
+
+It then assumes that an Owner of the CPD GCP project has done the following:
+1. Subscribe to the Listing shared with them from the BaT analytics hub
+2. Ensure that the itt_mentor_claims declaration in this Dataform repo is pointing to the dataset they imported the Listing to
+*/
+
 SELECT
   COALESCE(ecf_mentor_provider.TRN, itt_mentor_provider.TRN) AS TRN,
   COALESCE(ecf_mentor_provider.provider_name, itt_mentor_provider.provider_name) AS provider_name,
