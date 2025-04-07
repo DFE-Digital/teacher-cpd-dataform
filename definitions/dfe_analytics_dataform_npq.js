@@ -773,7 +773,7 @@ dfeAnalyticsDataform({
             description: "The GUID for the user. This can be used to link to ECF Teacher Profiles on user_id and will be used by Lead providers to call APIs on specific users."
         }, {
             keyName: "trn",
-            dataType: "integer",
+            dataType: "string",
             description: ""
         }, {
             keyName: "trn_verified",

@@ -1120,7 +1120,7 @@ dfeAnalyticsDataform({
                 description: ""
             }, {
                 keyName: "trn",
-                dataType: "integer",
+                dataType: "string",
                 description: ""
             }, {
                 keyName: "user_id",
