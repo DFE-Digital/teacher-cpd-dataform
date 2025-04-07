@@ -9,7 +9,7 @@ config {
     bigquery: {
         clusterBy: ["appropriate_body_name", "trn"]
     },
-    description: "This table is a record of all induction periods for an Early Career Teacher (ECT) where a proportion of thier induction has been served since 01/09/2021. All induction periods in this data have been reported by Appropriate Bodies. This table combines data stored in the Record Inductions as an Appropriate Body (RIAB) service and the Database of Qualified Teachers (DQT) with the records origin detailed by the data_source field, it's possible values are either 'RIAB' or 'Historic import'. This data contains all ECTs with an at least one in progress or completed induction period on or after 01/09/2021. An in progress induction period is defined by an Appropriate Body having reported a start date and no finish date for a record. This table has been designed specially for TAD's analysis of ECTs induction periods reported by Appropriate Bodies.",
+    description: "This table is a record of all induction periods for an Early Career Teacher (ECT) where a proportion of their induction has been served since 01/09/2021. All induction periods in this data have been reported by Appropriate Bodies. This table combines data stored in the Record Inductions as an Appropriate Body (RIAB) service and the Database of Qualified Teachers (DQT) with the records origin detailed by the data_source field, it's possible values are either 'RIAB' or 'Historic import'. This data contains all ECTs with an at least one in progress or completed induction period on or after 01/09/2021. An in progress induction period is defined by an Appropriate Body having reported a start date and no finish date for a record. This table has been designed specially for TAD's analysis of ECTs induction periods reported by Appropriate Bodies.",
     columns: {
         unique_id: "Unique id is for identifying different rows in this table, generated to join two tables together. It has no significance to RIAB or static table data extracts.",
         trn: {
@@ -32,7 +32,7 @@ WITH
     appropriate_body_name AS appropriate_body_name,
     started_on AS started_on,
     finished_on AS finished_on,
-    CAST(number_of_terms AS INT64) AS number_of_terms,
+   number_of_terms AS number_of_terms,
     induction_programme AS induction_programme_type,
     'RIAB' AS data_source
   FROM
@@ -43,7 +43,7 @@ WITH
     abs.name AS appropriate_body_name,
     historic.started_on AS started_on,
     historic.finished_on AS finished_on,
-    historic.number_of_terms AS number_of_terms,
+   historic.number_of_terms AS number_of_terms,
     historic.induction_programme_choice AS induction_programme_type,
     'historic_import' AS data_source
   FROM
