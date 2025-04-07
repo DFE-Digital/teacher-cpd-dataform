@@ -32,7 +32,7 @@ WITH
     appropriate_body_name AS appropriate_body_name,
     started_on AS started_on,
     finished_on AS finished_on,
-   number_of_terms AS number_of_terms,
+    number_of_terms AS number_of_terms,
     induction_programme AS induction_programme_type,
     'RIAB' AS data_source
   FROM
@@ -43,7 +43,7 @@ WITH
     abs.name AS appropriate_body_name,
     historic.started_on AS started_on,
     historic.finished_on AS finished_on,
-   historic.number_of_terms AS number_of_terms,
+    historic.number_of_terms AS number_of_terms,
     historic.induction_programme_choice AS induction_programme_type,
     'historic_import' AS data_source
   FROM
@@ -59,15 +59,15 @@ SELECT
 FROM
   ecf2_induction_periods
 WHERE
--- Selecting all induction records from RIAB for an ECT which either started or finished at least one induction period on or after 01/09/2021.
+  -- Selecting all induction records from RIAB for an ECT which either started or finished at least one induction period on or after 01/09/2021.
   trn IN (
-  SELECT
-    DISTINCT trn
-  FROM
-    ecf2_induction_periods
-  WHERE
-    (started_on >= '2021-09-01'
-      OR finished_on >= '2021-09-01') )
+SELECT
+  DISTINCT trn
+FROM
+  ecf2_induction_periods
+WHERE
+  (started_on >= '2021-09-01'
+    OR finished_on >= '2021-09-01') )
 UNION ALL
 SELECT
   ROW_NUMBER() OVER () + (
@@ -80,20 +80,20 @@ SELECT
 FROM
   historical_inductions
 WHERE
--- Selecting all induction records from the DQT for an ECT which is not already captured in the RIAB extract and either started or finished at least one induction period on or after 01/09/2021
-
+  -- Selecting all induction records from the DQT for an ECT which is not already captured in the RIAB extract and either started or finished at least one induction period on or after 01/09/2021
   trn IN (
+SELECT
+  DISTINCT trn
+FROM
+  historical_inductions
+WHERE
+  (started_on >= '2021-09-01'
+    OR finished_on >= '2021-09-01')
+  AND trn NOT IN (
   SELECT
     DISTINCT trn
   FROM
-    historical_inductions
+    ecf2_induction_periods
   WHERE
     (started_on >= '2021-09-01'
-      OR finished_on >= '2021-09-01')
-    AND trn NOT IN (
-    SELECT
-      DISTINCT trn
-    FROM
-      ecf2_induction_periods
-     WHERE (started_on >= '2021-09-01'
       OR finished_on >= '2021-09-01')) )
