@@ -48,9 +48,9 @@ SELECT
         THEN "Funded for ECF mentor training only"
     WHEN MIN(ecf_mentor_provider.first_started_funded_mentor_training_on) < MIN(DATE(itt_mentor_provider.earliest_claim_submitted_at)) THEN
       CASE
-        WHEN MIN(itt_mentor_provider.earliest_claim_submitted_at) >= MIN(ecf_mentor_provider.first_completed_funded_mentor_training_with_this_lead_provider_on)
+        WHEN MIN(DATE(itt_mentor_provider.earliest_claim_submitted_at)) >= MIN(ecf_mentor_provider.first_completed_funded_mentor_training_with_this_lead_provider_on)
             THEN "First funded for ITT mentor training after completing ECF mentor training with this provider"
-        WHEN MIN(itt_mentor_provider.earliest_claim_submitted_at) < MIN(ecf_mentor_provider.first_completed_funded_mentor_training_with_this_lead_provider_on)
+        WHEN MIN(DATE(itt_mentor_provider.earliest_claim_submitted_at)) < MIN(ecf_mentor_provider.first_completed_funded_mentor_training_with_this_lead_provider_on)
             THEN "First funded for ITT mentor training between starting and completing ECF mentor training with this provider"
         WHEN LOGICAL_AND(ecf_mentor_provider.first_completed_funded_mentor_training_with_this_lead_provider_on IS NULL)
             THEN "First funded for ITT mentor training after starting but not (yet) completing ECF mentor training"
