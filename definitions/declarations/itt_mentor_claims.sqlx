@@ -1,0 +1,5 @@
+config {
+  type: "declaration",
+  schema: "itt_mentor_imported",
+  name: "itt_mentor_claims"
+}
