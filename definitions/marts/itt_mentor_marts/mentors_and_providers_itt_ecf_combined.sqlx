@@ -17,7 +17,8 @@ config {
         last_took_part_in_funded_ecf_mentor_training_with_this_lead_provider_on: "Date when this ECF mentor most recently took part in ECF mentor training with this provider for any period of training funded directly by DfE. Does not necessarily indicate that the mentor completed the training.",
         earliest_itt_mentor_training_funding_claim_submitted_at: "Date of the earliest claim submitted for each mentor for ITT mentor training with with this provider.",
         AY_first_started_funded_ecf_mentor_training_in: "first_started_funded_ecf_mentor_training_on as an academic year in format 2030-31",
-        AY_earliest_itt_mentor_training_funding_claim_submitted_in: "earliest_itt_mentor_training_funding_claim_submitted_at as an academic year in format 2030-31"
+        AY_earliest_itt_mentor_training_funding_claim_submitted_in: "earliest_itt_mentor_training_funding_claim_submitted_at as an academic year in format 2030-31",
+        mentor_type: "Plain text summary of the order in which the mentor was funded for ECF and/or ITT mentor training (if they were)"
     }
 }
 
