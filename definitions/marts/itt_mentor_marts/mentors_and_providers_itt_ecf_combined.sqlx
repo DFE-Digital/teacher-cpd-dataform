@@ -76,19 +76,15 @@ END
       )
       ),
     "Has not received funded ECF mentor training") AS AY_first_started_funded_ecf_mentor_training_in,
-  IFNULL(
-    CONCAT(
-      EXTRACT(YEAR FROM(MIN(earliest_claim_submitted_at))) - 
-      IF(EXTRACT(MONTH FROM MIN(earliest_claim_submitted_at)) < 9, 1, 0),
+  CASE WHEN LOGICAL_AND(itt_mentor_provider.TRN IS NULL) THEN "Has not received funded ITT mentor training"
+    ELSE
+    IFNULL(
+        CONCAT(
+      CAST(MIN(CAST(SPLIT(itt_mentor_provider.claim_academic_year, "/")[0] AS INT64)) AS STRING),
       '-',
-      RIGHT(
-          CAST(
-          EXTRACT(YEAR FROM(MIN(earliest_claim_submitted_at)))
-              - IF(EXTRACT(MONTH FROM MIN(earliest_claim_submitted_at)) < 9, 1, 0) + 1 AS STRING
-          ), 2
-      )
-    ),
-    "Has not received funded ITT mentor training") AS AY_earliest_itt_mentor_training_funding_claim_submitted_in
+      RIGHT(CAST(MIN(CAST(SPLIT(itt_mentor_provider.claim_academic_year, "/")[0] AS INT64)) + 1 AS STRING), 2)
+    ), "Unknown")
+  END AS AY_earliest_itt_mentor_training_funding_claim_submitted_in
 FROM
   ${ref("ecf_mentors_and_providers")} AS ecf_mentor_provider
 FULL JOIN
