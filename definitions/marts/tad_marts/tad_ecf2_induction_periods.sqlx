@@ -13,7 +13,7 @@ config {
     columns: {
         unique_id: "Unique id is for identifying different rows in this table, generated to join two tables together. It has no significance to RIAB or static table data extracts.",
         trn: {
-            description: "This comes from the teacher profile which we access via the participant profile.",
+            description: "This comes from the teacher profile which we access via the participant profile. It has been validated with the teacher's date of birth.",
             bigqueryPolicyTags: ["projects/ecf-bq/locations/europe-west2/taxonomies/6302091323314055162/policyTags/301313311867345339"]
         },
         appropriate_body_name: "The name of the Appropriate Body that recorded the induction period served by the ECT.",
