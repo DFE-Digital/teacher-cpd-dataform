@@ -74,7 +74,6 @@ SELECT
   COUNTIF(retention_status = 'active') AS active_count,
   COUNTIF(retention_status = 'deferred') AS deferred_count,
   COUNTIF(retention_status = 'withdrawn') AS withdrawn_count,
-
   SAFE_DIVIDE( COUNTIF(retention_status IN ('completed',
         'active')), COUNTIF(retention_status IN ('completed',
         'active',
