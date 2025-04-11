@@ -1,0 +1,82 @@
+config {
+    type: "table",
+    assertions: {
+        uniqueKey: ["declaration_id"]
+    },
+    bigquery: {
+        partitionBy: "DATE(created_at)",
+        clusterBy: ["lead_provider_name", "state", "voided_by_finance_tool", "statement_cohort"]
+    },
+    description: "",
+    columns: {
+        declaration_id: "The unique identifier for declarations. Taken from participant_declarations_latest_cpd.",
+        created_at: "Timestamp this entity was first saved in the database, according to the latest version of the data received from the database.",
+        updated_at: "Timestamp this entity was last updated in the database, according to the latest version of the data received from the database.",
+        state: "State of the declaration. Can be submitted, eligible, payable, paid, ineligible, voided, awaiting_clawback, and clawed_back.",
+        voided_at: "Populated if voided by a DfE user only (finance or admin console)",
+        voided_by_user_id: "DfE user that voided the declaration via the finance/admin console",
+        cpd_lead_provider_id: "ID of Lead Provider that has made the declaration.",
+        participant_profile_id: "This field matches the participant profile id of participant profiles within the CPD service. It also matches the application id for NPQ participants which is used as their participant profile id for that NPQ.",
+        lead_provider_name: "The name of the Lead Provider that has made the declaration.",
+        voided_by_finance_tool: "Boolean field indicating whether the declaration was voided through the finance tool. Possible values: true, false",
+        statement_cohort: "Cohort from the financial statement a declaration is stored against for ECF and the cohort against the declaration for NPQ.",
+        declaration_type: "The name of the stage the declaration has been made against."
+    }
+}
+
+SELECT
+  vpd.id AS declaration_id,
+  vpd.created_at,
+  vpd.updated_at,
+  vpd.cpd_lead_provider_id,
+  vpd.participant_profile_id,
+  vpd.state,
+  vpd.declaration_type,
+  vpd.course_identifier,
+  vpd.voided_at,
+  vpd.voided_by_user_id,
+  cpd_lp.name AS lead_provider_name,
+  ls_declarations.statement_cohort,
+IF
+  (vpd.voided_at IS NOT NULL
+    AND vpd.voided_by_user_id IS NOT NULL, TRUE, FALSE) AS voided_by_finance_tool
+FROM
+  ${ref('participant_declarations_latest_cpd')} AS vpd
+LEFT JOIN
+  ${ref(`cpd_lead_providers_latest_cpd`)} AS cpd_lp
+ON
+  vpd.cpd_lead_provider_id = cpd_lp.id
+LEFT JOIN
+  ${ref(`ls_declarations_provider_names`)} AS ls_declarations
+ON
+  vpd.id = ls_declarations.id
+  -- Filtering for the following states as are specifically looking at cases where money has exchanged hands
+WHERE
+  vpd.state IN ('awaiting_clawback',
+    'clawed_back') and vpd.voided_at IS NOT NULL and vpd.voided_by_user_id is not null
+QUALIFY
+  ROW_NUMBER() OVER (PARTITION BY vpd.id ORDER BY vpd.updated_at DESC )=1
+  --  WITH voided_paid_declarations AS (
+  --    SELECT id as declaration_id,
+  --    created_at,
+  --    updated_at,
+  --    cpd_lead_provider_id,
+  --    participant_profile_id,
+  --    state,
+  --    declaration_type,
+  --    course_identifier,
+  --    voided_at,
+  --    voided_by_user_id
+  --    ,IF
+  --       (voided_at IS NOT NULL
+  --         AND voided_by_user_id IS NOT NULL, TRUE, FALSE) AS voided_by_finance_tool
+  --    FROM ${ref('participant_declarations_latest_cpd')}
+  --    -- Filtering for the following states as are specifically looking at cases where money has exchanged hands
+  --    WHERE state IN ('awaiting_clawback','clawed_back')
+  --    QUALIFY ROW_NUMBER() OVER (PARTITION BY id ORDER BY updated_at DESC )=1 )
+  -- SELECT vpd.*,cpd_lp.name as lead_provider_name, ls_declarations.statement_cohort
+  -- FROM voided_paid_declarations as vpd
+  -- LEFT JOIN ${ref(`cpd_lead_providers_latest_cpd`)}  as cpd_lp
+  -- ON vpd.cpd_lead_provider_id = cpd_lp.id
+  -- LEFT JOIN  ${ref(`ls_declarations_provider_names`)} as ls_declarations
+  -- ON vpd.declaration_id = ls_declarations.id
