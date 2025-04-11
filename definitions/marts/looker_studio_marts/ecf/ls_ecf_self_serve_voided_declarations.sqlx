@@ -7,7 +7,7 @@ config {
         partitionBy: "DATE(created_at)",
         clusterBy: ["lead_provider_name", "state", "voided_by_finance_tool", "statement_cohort"]
     },
-    description: "",
+    description: "This is an anti-performance mart containing all paid declarations for an ECF participant which has been voided by DfE finance or internal user through the ECF Self-Serve Voiding tool. Paid declarations voided through this tool are indicated by the 'voided_at' and 'voided_by_user_id' fields being not null. This mart filters for declarations in the states 'awaiting_clawback' and 'clawed_back' to ensure only declarations which were previously in a paid state (where money has been exchanged) are reported on in the dashboard. It feeds in to the ECF - Declarations Voided by Finance Users dashboard.",
     columns: {
         declaration_id: "The unique identifier for declarations. Taken from participant_declarations_latest_cpd.",
         created_at: "Timestamp this entity was first saved in the database, according to the latest version of the data received from the database.",
@@ -54,29 +54,5 @@ ON
 WHERE
   vpd.state IN ('awaiting_clawback',
     'clawed_back') and vpd.voided_at IS NOT NULL and vpd.voided_by_user_id is not null
-QUALIFY
-  ROW_NUMBER() OVER (PARTITION BY vpd.id ORDER BY vpd.updated_at DESC )=1
-  --  WITH voided_paid_declarations AS (
-  --    SELECT id as declaration_id,
-  --    created_at,
-  --    updated_at,
-  --    cpd_lead_provider_id,
-  --    participant_profile_id,
-  --    state,
-  --    declaration_type,
-  --    course_identifier,
-  --    voided_at,
-  --    voided_by_user_id
-  --    ,IF
-  --       (voided_at IS NOT NULL
-  --         AND voided_by_user_id IS NOT NULL, TRUE, FALSE) AS voided_by_finance_tool
-  --    FROM ${ref('participant_declarations_latest_cpd')}
-  --    -- Filtering for the following states as are specifically looking at cases where money has exchanged hands
-  --    WHERE state IN ('awaiting_clawback','clawed_back')
-  --    QUALIFY ROW_NUMBER() OVER (PARTITION BY id ORDER BY updated_at DESC )=1 )
-  -- SELECT vpd.*,cpd_lp.name as lead_provider_name, ls_declarations.statement_cohort
-  -- FROM voided_paid_declarations as vpd
-  -- LEFT JOIN ${ref(`cpd_lead_providers_latest_cpd`)}  as cpd_lp
-  -- ON vpd.cpd_lead_provider_id = cpd_lp.id
-  -- LEFT JOIN  ${ref(`ls_declarations_provider_names`)} as ls_declarations
-  -- ON vpd.declaration_id = ls_declarations.id
+
+
