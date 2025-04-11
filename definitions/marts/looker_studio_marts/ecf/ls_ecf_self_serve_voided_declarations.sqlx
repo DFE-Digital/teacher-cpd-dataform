@@ -7,7 +7,7 @@ config {
         partitionBy: "DATE(created_at)",
         clusterBy: ["lead_provider_name", "state", "voided_by_finance_tool", "statement_cohort"]
     },
-    description: "This is an anti-performance mart containing all paid declarations for an ECF participant which has been voided by DfE finance or internal user through the ECF Self-Serve Voiding tool. Paid declarations voided through this tool are indicated by the 'voided_at' and 'voided_by_user_id' fields being not null. This mart filters for declarations in the states 'awaiting_clawback' and 'clawed_back' to ensure only declarations which were previously in a paid state (where money has been exchanged) are reported on in the dashboard. It feeds in to the ECF - Declarations Voided by Finance Users dashboard.",
+    description: "This mart contains all paid declarations for an ECF participant that have been voided by a DfE finance or internal user through the ECF Self-Serve Voiding tool. Declarations voided via this tool are identified by the 'voided_at' and 'voided_by_user_id' fields being not null. This mart only considers declarations in the states 'awaiting_clawback' and 'clawed_back', to ensure that only declarations previously in a 'paid' state (where money has been exchanged) are reported on in the dashboard. It feeds into the ECF – Declarations Voided by Finance Users dashboard.",
     columns: {
         declaration_id: "The unique identifier for declarations. Taken from participant_declarations_latest_cpd.",
         created_at: "Timestamp this entity was first saved in the database, according to the latest version of the data received from the database.",
