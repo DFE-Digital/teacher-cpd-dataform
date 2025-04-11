@@ -4,7 +4,7 @@ config {
         partitionBy: "",
         clusterBy: ["provider_name", "cohort_number", "short_course_name"]
     },
-    description: "This mart is designed as a cube to easily calculate NPQ retention KPIs for DfE funded applicants. One row represents a lead provier name, cohort number and short course name combination with the metrics: total_application_count, completed_count, active_count, deferred_count, withdrawn_count and retention_kpi_percentage calcualted for each.",
+    description: "This mart is designed as a cube to easily calculate retention KPIs for DfE funded NPQ applicants. One row represents a lead provier name, cohort number and short course name combination with the metrics: total_application_count, completed_count, active_count, deferred_count, withdrawn_count and retention_kpi_percentage calcualted for each.",
     columns: {
         provider_name: "Name of the provider.",
         cohort_number: "A policy orientated cohort identifier to indicate which cohort a DfE funded applicants lies, this field is calcualated through a combination of cohort years and in the years 2021-2023 which 'schedule_identifier' they will be a part of.",
