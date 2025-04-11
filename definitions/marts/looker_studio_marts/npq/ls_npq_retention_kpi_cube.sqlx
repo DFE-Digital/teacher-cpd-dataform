@@ -1,0 +1,87 @@
+config {
+    type: "table",
+    bigquery: {
+        partitionBy: "",
+        clusterBy: ["provider_name", "cohort_number", "short_course_name"]
+    },
+    description: "This mart is designed as a cube to easily calculate NPQ retention KPIs for DfE funded applicants. One row represents a lead provier name, cohort number and short course name combination with the metrics: total_application_count, completed_count, active_count, deferred_count, withdrawn_count and retention_kpi_percentage calcualted for each.",
+    columns: {
+        provider_name: "Name of the provider.",
+        cohort_number: "A policy orientated cohort identifier to indicate which cohort a DfE funded applicants lies, this field is calcualated through a combination of cohort years and in the years 2021-2023 which 'schedule_identifier' they will be a part of.",
+        short_course_name: "Shortened name of the course.",
+        completed_count: "The count of DfE funded applicants which have completed their NPQ course. Completed NPQ courses are defined as where the retention_status is 'eligible', 'payable' or 'paid'.",
+        active_count: "The count of DfE funded applicants which are undertaking their NPQ course.",
+        deferred_count: "The count of DfE funded applicants which have deferred their NPQ course.",
+        withdrawn_count: "The count of DfE funded applicants which have withdrawn from their NPQ course.",
+        total_application_count: "The total number of DfE funded applications recieved",
+        retention_kpi_percentage: "Retention is defined as the retention rate for all completed and active counts, deferred statuses are excluded from this metric. retention_rate = (completed_count+active_count)/(completed_count+active_count+withdrawn)."
+    }
+}
+
+WITH
+  assign_cohort_number AS (
+  SELECT
+    application_id,
+    provider_name,
+    short_course_name,
+    course_identifier,
+    course_name,
+    funded_start_declaration,
+    cohort,
+    schedule_identifier,
+    CASE
+      WHEN cohort = 2021 AND schedule_identifier IN ('npq-aso-november', 'npq-aso-december', 'npq-leadership-autumn', 'npq-specialist-autumn') THEN 'Cohort 1'
+      WHEN cohort = 2021
+    AND schedule_identifier IN ('npq-aso-june',
+      'npq-ehco-june',
+      'npq-leadership-spring',
+      'npq-specialist-spring') THEN 'Cohort 2'
+      WHEN cohort = 2022 AND schedule_identifier IN ('npq-ehco-november', 'npq-ehco-december', 'npq-leadership-autumn', 'npq-specialist-autumn') THEN 'Cohort 3'
+      WHEN cohort = 2022
+    AND schedule_identifier IN ('npq-ehco-march',
+      'npq-ehco-june',
+      'npq-leadership-spring',
+      'npq-specialist-spring') THEN 'Cohort 4'
+      WHEN cohort = 2023 AND schedule_identifier IN ('npq-ehco-november', 'npq-ehco-december', 'npq-leadership-autumn', 'npq-specialist-autumn') THEN 'Cohort 5'
+      WHEN cohort = 2023
+    AND schedule_identifier IN ('npq-ehco-march',
+      'npq-ehco-june',
+      'npq-leadership-spring',
+      'npq-specialist-spring') THEN 'Cohort 6'
+      WHEN cohort = 2024 THEN 'Cohort 7'
+      WHEN cohort = 2025 THEN 'Cohort 8'
+      ELSE 'n/a'
+  END
+    AS cohort_number,
+    COALESCE((CASE
+          WHEN completed_declaration_state IN ('eligible', 'payable', 'paid') THEN 'completed'
+          ELSE NULL
+      END
+        ),training_status) AS retention_status
+  FROM
+    ${ref('npq_enrolments')}
+  WHERE
+    funded_start_declaration IS TRUE )
+SELECT
+  provider_name,
+  cohort_number,
+  short_course_name,
+    COUNTIF(retention_status IN ( 'completed',
+      'active',
+      'deferred',
+      'withdrawn'))AS total_application_count,
+  COUNTIF(retention_status = 'completed') AS completed_count,
+  COUNTIF(retention_status = 'active') AS active_count,
+  COUNTIF(retention_status = 'deferred') AS deferred_count,
+  COUNTIF(retention_status = 'withdrawn') AS withdrawn_count,
+
+  SAFE_DIVIDE( COUNTIF(retention_status IN ('completed',
+        'active')), COUNTIF(retention_status IN ('completed',
+        'active',
+        'withdrawn')) ) * 100 AS retention_kpi_percentage
+FROM
+  assign_cohort_number
+GROUP BY
+  provider_name,
+  cohort_number,
+  short_course_name
