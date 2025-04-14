@@ -4,7 +4,7 @@ config {
         partitionBy: "",
         clusterBy: ["provider_name", "cohort_number", "short_course_name"]
     },
-    description: "This mart is designed as a cube to easily calculate retention KPIs for DfE funded NPQ applicants. One row represents a lead provier name, cohort number and short course name combination with the metrics: total_application_count, completed_count, active_count, deferred_count, withdrawn_count and retention_kpi_percentage calcualted for each.",
+    description: "This mart is designed as a cube to easily calculate retention KPIs for DfE funded NPQ applicants. One row represents a lead provider name, cohort number and short course name combination with the metrics: total_application_count, completed_count, active_count, deferred_count, withdrawn_count and retention_kpi_percentage calcualted for each.",
     columns: {
         provider_name: "Name of the provider.",
         cohort_number: "A policy orientated cohort identifier to indicate which cohort a DfE funded applicants lies, this field is calcualated through a combination of cohort years and in the years 2021-2023 which 'schedule_identifier' they will be a part of.",
@@ -14,7 +14,8 @@ config {
         deferred_count: "The count of DfE funded applicants which have deferred their NPQ course.",
         withdrawn_count: "The count of DfE funded applicants which have withdrawn from their NPQ course.",
         total_application_count: "The total number of DfE funded applications recieved",
-        retention_kpi_percentage: "Retention is defined as the retention rate for all completed and active counts, deferred statuses are excluded from this metric. retention_rate = (completed_count+active_count)/(completed_count+active_count+withdrawn)."
+        retention_numerator: "The calculated numerator of the retention KPI. Retention is defined as the retention rate for all completed and active counts, deferred statuses are excluded from this metric. retention_rate = (completed_count+active_count)/(completed_count+active_count+withdrawn).",
+        retention_denominator: "The calculated denominator of the rentention KPI. Retention is defined as the retention rate for all completed and active counts, deferred statuses are excluded from this metric. retention_rate = (completed_count+active_count)/(completed_count+active_count+withdrawn)."
     }
 }
 
@@ -61,23 +62,48 @@ WITH
   FROM
     ${ref('npq_enrolments')}
   WHERE
-    funded_start_declaration IS TRUE )
+    funded_start_declaration
+  QUALIFY
+    ROW_NUMBER() OVER (PARTITION BY application_id ORDER BY application_created_at DESC ) = 1 )
+    -- whilst duplicates are not expected in this table, the most recently created application will be prioritised if there are duplicates.
 SELECT
   provider_name,
   cohort_number,
   short_course_name,
-    COUNTIF(retention_status IN ( 'completed',
-      'active',
-      'deferred',
-      'withdrawn'))AS total_application_count,
-  COUNTIF(retention_status = 'completed') AS completed_count,
-  COUNTIF(retention_status = 'active') AS active_count,
-  COUNTIF(retention_status = 'deferred') AS deferred_count,
-  COUNTIF(retention_status = 'withdrawn') AS withdrawn_count,
-  SAFE_DIVIDE( COUNTIF(retention_status IN ('completed',
-        'active')), COUNTIF(retention_status IN ('completed',
-        'active',
-        'withdrawn')) ) * 100 AS retention_kpi_percentage
+  COUNT(CASE
+      WHEN retention_status IN ('completed', 'active', 'deferred', 'withdrawn') THEN application_id
+  END
+    ) AS total_application_count,
+  COUNT(
+    CASE
+      WHEN retention_status = 'completed' THEN application_id
+  END
+    ) AS completed_count,
+  COUNT(
+    CASE
+      WHEN retention_status = 'active' THEN application_id
+  END
+    ) AS active_count,
+  COUNT(
+    CASE
+      WHEN retention_status = 'deferred' THEN application_id
+  END
+    ) AS deferred_count,
+  COUNT(
+    CASE
+      WHEN retention_status = 'withdrawn' THEN application_id
+  END
+    ) AS withdrawn_count,
+  COUNT(
+    CASE
+      WHEN retention_status IN ('completed', 'active') THEN application_id
+  END
+    ) AS retention_numerator,
+  COUNT(
+    CASE
+      WHEN retention_status IN ('completed', 'active', 'withdrawn') THEN application_id
+  END
+    ) retention_denominator
 FROM
   assign_cohort_number
 GROUP BY
