@@ -96,7 +96,7 @@ END
 FROM
   ${ref("ecf_mentors_and_providers")} AS ecf_mentor_provider
 FULL JOIN
-  ${ref("itt_mentor_claims")} AS unclawed_back_itt_mentor_provider_claims
+  unclawed_back_itt_mentor_provider_claims
 ON
   ecf_mentor_provider.TRN = unclawed_back_itt_mentor_provider_claims.TRN
   AND ecf_mentor_provider.provider_name = unclawed_back_itt_mentor_provider_claims.provider_name
