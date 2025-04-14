@@ -17,7 +17,7 @@ config {
         next_step: "Path of the next page that was viewed on this service, if it was. If it wasn't, contains the string 'End of session'.",
         pageview_number_in_session: "Number indicating that this pageview was the Nth pageview within this session.",
         previous_page_domain: "Domain of the previous page that was viewed, if it was and if this is available. May be an external site.",
-        time_on_page: "Duration between page_entry_time and the page_entry_time of the next pageview if it exists. NULL otherwise.",
+        time_on_page: "Number of seconds between page_entry_time and the page_entry_time of the next pageview if it exists. NULL otherwise.",
         admin_session: "TRUE if this user was an internal DfE admin user, deduced from whether they viewed any page path containing 'admin' at any point in the session.",
         session_utm_source: "Value of the utm_source UTM parameter for the first pageview in the session, if it was set. Useful to categorise traffic for marketing purposes.",
         session_utm_medium: "Value of the utm_medium UTM parameter for the first pageview in the session, if it was set. Useful to categorise traffic for marketing purposes.",
@@ -52,7 +52,7 @@ FROM
       IFNULL(LEAD(page) OVER pageviews_in_order, "End of session") AS next_step,
       ROW_NUMBER() OVER pageviews_in_order AS pageview_number_in_session,
       previous_page_domain,
-      MAKE_INTERVAL(second => duration) AS time_on_page,
+      duration AS time_on_page,
       LOGICAL_OR(CONTAINS_SUBSTR(page, "admin")) OVER pageviews_in_order AS admin_session
     FROM
       UNNEST(pages_visited_details)

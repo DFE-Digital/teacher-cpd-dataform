@@ -14,7 +14,7 @@ config {
         number_of_exits: "Total number of times a view of page_path on date was the last pageview within a session in session_details.",
         number_of_bounces: "Total number of times a view of page_path on date was both the first and the last pageview within a session in session_details.",
         number_of_unique_views: "Total number of unique authenticated users who viewed page_path on date.",
-        total_time_on_page: "Total time spent 'on' page_path on date, where time 'on' page is defined as the length of time between viewing the page and viewing the next page within the same session (if a next pageview happened within the same session)"
+        total_time_on_page: "Total number of seconds spent 'on' page_path on date, where time 'on' page is defined as the length of time between viewing the page and viewing the next page within the same session (if a next pageview happened within the same session)"
     }
 }
 
