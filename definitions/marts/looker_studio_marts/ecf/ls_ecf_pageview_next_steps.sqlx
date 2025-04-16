@@ -47,11 +47,11 @@ FROM
   UNNEST(ARRAY(
     SELECT
       AS STRUCT
-      page AS page_path,
-      previous_page AS referer_path,
+      REGEXP_REPLACE(page, "([a-zA-Z0-9-]*[0-9]+[a-zA-Z0-9-]*)", "[grouped]") AS page_path,
+      REGEXP_REPLACE(previous_page, "([a-zA-Z0-9-]*[0-9]+[a-zA-Z0-9-]*)", "[grouped]") AS referer_path,
       page_entry_time,
-      IFNULL(LEAD(page) OVER pageviews_in_order, "End of session") AS next_step,
-      IFNULL(LAG(page) OVER pageviews_in_order, "Start of session") AS previous_step,
+      IFNULL(LEAD(REGEXP_REPLACE(page, "([a-zA-Z0-9-]*[0-9]+[a-zA-Z0-9-]*)", "[grouped]")) OVER pageviews_in_order, "End of session") AS next_step,
+      IFNULL(LAG(REGEXP_REPLACE(page, "([a-zA-Z0-9-]*[0-9]+[a-zA-Z0-9-]*)", "[grouped]")) OVER pageviews_in_order, "Start of session") AS previous_step,
       ROW_NUMBER() OVER pageviews_in_order AS pageview_number_in_session,
       previous_page_domain AS referer_domain,
       duration AS time_on_page,
