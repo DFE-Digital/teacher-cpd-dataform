@@ -4,7 +4,7 @@ config {
         partitionBy: "",
         clusterBy: ["provider_name", "cohort_number", "short_course_name"]
     },
-    description: "This mart is designed as a cube to easily calculate retention KPIs for DfE funded NPQ applicants. One row represents a lead provider name, cohort number and short course name combination with the metrics: total_application_count, completed_count, active_count, deferred_count, withdrawn_count and retention_kpi_percentage calculated for each. This was built to be used by the NPQ Contract Management Suite/NPQ Retention KPI dashboard for the use of contract managers.",
+    description: "This mart calculates the number of participants enrolled in an NPQ course with a funded start declaration, grouped by Lead Provider. It is designed for use in the NPQ Retention KPI dashboard within the NPQ Contract Management Suite in Looker Studio. The retention KPI supports performance discussions between Lead Providers and Contract Managers by breaking down retention rates by NPQ course, Policy Cohort, and Lead Provider. It leverages a cube architecture to facilitate the calculation of these KPIs. Participants are considered retained if they have either completed an NPQ course (with a completed_declaration_state of 'eligible', 'payable', or 'paid') or have started but not yet completed their course (with a training_status of 'active').",
     columns: {
         provider_name: "Name of the provider.",
         cohort_number: "A policy orientated cohort identifier to indicate which cohort a DfE funded applicants lies, this field is calculated through a combination of cohort years and in the years 2021-2023 which 'schedule_identifier' they will be a part of.",
@@ -67,10 +67,7 @@ SELECT
   provider_name,
   cohort_number,
   short_course_name,
-  COUNT(CASE
-      WHEN retention_status IS NOT NULL THEN application_id
-  END
-    ) AS total_application_count,
+  COUNT(*) AS total_application_count,
   COUNT(
     CASE
       WHEN retention_status = 'completed' THEN application_id
