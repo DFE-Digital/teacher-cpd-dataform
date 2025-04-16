@@ -4,15 +4,15 @@ config {
         partitionBy: "",
         clusterBy: ["provider_name", "cohort_number", "short_course_name"]
     },
-    description: "This mart is designed as a cube to easily calculate retention KPIs for DfE funded NPQ applicants. One row represents a lead provider name, cohort number and short course name combination with the metrics: total_application_count, completed_count, active_count, deferred_count, withdrawn_count and retention_kpi_percentage calcualted for each.",
+    description: "This mart is designed as a cube to easily calculate retention KPIs for DfE funded NPQ applicants. One row represents a lead provider name, cohort number and short course name combination with the metrics: total_application_count, completed_count, active_count, deferred_count, withdrawn_count and retention_kpi_percentage calculated for each. This was built to be used by the NPQ Contract Management Suite/NPQ Retention KPI dashboard for the use of contract managers.",
     columns: {
         provider_name: "Name of the provider.",
-        cohort_number: "A policy orientated cohort identifier to indicate which cohort a DfE funded applicants lies, this field is calcualated through a combination of cohort years and in the years 2021-2023 which 'schedule_identifier' they will be a part of.",
+        cohort_number: "A policy orientated cohort identifier to indicate which cohort a DfE funded applicants lies, this field is calculated through a combination of cohort years and in the years 2021-2023 which 'schedule_identifier' they will be a part of.",
         short_course_name: "Shortened name of the course.",
-        completed_count: "The count of DfE funded applicants which have completed their NPQ course. Completed NPQ courses are defined as where the retention_status is 'eligible', 'payable' or 'paid'.",
-        active_count: "The count of DfE funded applicants which are undertaking their NPQ course.",
-        deferred_count: "The count of DfE funded applicants which have deferred their NPQ course.",
-        withdrawn_count: "The count of DfE funded applicants which have withdrawn from their NPQ course.",
+        completed_count: "The number of applicates finded by the DfE which have completed their NPQ course. This counts all completed NPQ courses which are defined as where the retention_status is 'eligible', 'payable' or 'paid'.",
+        active_count: "Number of applicants funded by the DfE who are currently undertaking an NPQ course. This counts applicants with an 'active' course status.",
+        deferred_count: "Number of applicants funded by the DfE who have deferred their NPQ course. This counts applicants with a 'deferred' course status.",
+        withdrawn_count: "Number of applicants funded by the DfE who a withdrawn from their NPQ course. This counts applicants with a 'withdrawn' course status.",
         total_application_count: "The total number of DfE funded applications recieved",
         retention_numerator: "The calculated numerator of the retention KPI. Retention is defined as the retention rate for all completed and active counts, deferred statuses are excluded from this metric. retention_rate = (completed_count+active_count)/(completed_count+active_count+withdrawn).",
         retention_denominator: "The calculated denominator of the rentention KPI. Retention is defined as the retention rate for all completed and active counts, deferred statuses are excluded from this metric. retention_rate = (completed_count+active_count)/(completed_count+active_count+withdrawn)."
@@ -62,16 +62,13 @@ WITH
   FROM
     ${ref('npq_enrolments')}
   WHERE
-    funded_start_declaration
-  QUALIFY
-    ROW_NUMBER() OVER (PARTITION BY application_id ORDER BY application_created_at DESC ) = 1 )
-    -- whilst duplicates are not expected in this table, the most recently created application will be prioritised if there are duplicates.
+    funded_start_declaration)
 SELECT
   provider_name,
   cohort_number,
   short_course_name,
   COUNT(CASE
-      WHEN retention_status IN ('completed', 'active', 'deferred', 'withdrawn') THEN application_id
+      WHEN retention_status IS NOT NULL THEN application_id
   END
     ) AS total_application_count,
   COUNT(
