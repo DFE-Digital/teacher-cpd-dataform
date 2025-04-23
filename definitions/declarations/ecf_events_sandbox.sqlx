@@ -1,0 +1,5 @@
+config {
+    type: "declaration",
+    schema: "ecf_events_sandbox",
+    name: "events"
+}

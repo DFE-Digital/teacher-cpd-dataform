@@ -1,0 +1,81 @@
+config {
+    type: "table",
+    assertions: {
+        uniqueKey: ["request_uuid"]
+    },
+    bigquery: {
+        partitionBy: "DATE(occurred_at)",
+        clusterBy: ["request_method", "user_id", "response_status"]
+    },
+    description: "This mart produces a table outlining all Testing API calls that have been made by Lead Providers in the sandbox testing environment. It excludes internal users (identified as those with a NULL user_id) to ensure the focus is more on LP usage. The table outlines the response statuses of those calls to help the LPDOB and Digital Engagement team identify how the LPs are engaging with the new testing API. The final output feeds into the Testing API tabs of the CPD- API Monitoring dashboard.",
+    columns: {
+        occurred_at: "Timestamp of when the API call was made.",
+        user_id: "User ID of the Lead Provider making the API call. NULL user_ids are excluded as they are internal users. These user_ids differ from the user_ids available for LPs in the Production environment and cannot be mapped onto the cpd_lead_provider_id as user_ids for within the Production environment can",
+        request_uuid: "ID of individual request.",
+        request_method: "Method for calling the API. Can be GET, POST, or PUT.",
+        request_path: "The endpoint that is being accessed.",
+        request_query: "Populated by any filters used when making a GET call.",
+        response_status: "The code associated with the API call. Any non-200 response status is an error.",
+        lp_name: "Name of the Lead Provider making the API call.",
+        request_body: "Details the call made by the Lead Provider.",
+        response_body: "Details the API response. Usually populated if there are any errors with the API call being made.",
+        hidden_DATA: {
+            columns: {
+                key: "Name of a field containing sensitive data included in this API request custom event from dfe-analytics",
+                value: {
+                    description: "Contents of this field",
+                    bigqueryPolicyTags: ["projects/ecf-bq/locations/europe-west2/taxonomies/6302091323314055162/policyTags/301313311867345339"]
+                }
+            }
+        }
+    }
+}
+
+WITH
+  api_events AS (
+  SELECT
+    occurred_at,
+    user_id,
+    request_uuid,
+    request_method,
+    request_path,
+    request_query,
+    response_status
+  FROM
+    ${ref("ecf_events_sandbox", "events")}
+  WHERE
+    event_type = 'web_request'
+    AND user_id IS NOT NULL
+    AND request_path LIKE '/api/v%'),
+  request_response_fields AS (
+  SELECT
+    eep.request_uuid,
+    ${data_functions.eventDataExtract('DATA', 'request_body')} AS request_body,
+    ${data_functions.eventDataExtract('DATA', 'response_body')} AS response_body
+  FROM
+    ${ref("ecf_events_sandbox", "events")} AS eep
+  WHERE
+    entity_table_name = 'api_requests'
+  GROUP BY
+    request_uuid,DATA)
+SELECT
+  api_events.*,
+  CASE api_events.user_id
+    WHEN '98600c9f-1ea4-43e5-b217-4cda78ed1091' THEN 'Ambition'
+    WHEN 'd83fde1f-d763-4498-baf0-498d223003f2' THEN 'NiOT'
+    WHEN 'ad88a832-a4e9-420e-8d25-b7f1e33fd73e' THEN 'Capita'
+    WHEN '2af6d829-a540-4b7a-bf48-9a0d21bc036f' THEN 'EDT'
+    WHEN 'b15bbd82-7e44-4abb-8761-df1b88370394' THEN 'Teach First'
+    WHEN 'ccf2e1f5-a876-43a4-9820-c8e93088ebd1' THEN 'BPN'
+    WHEN '8e433f5c-8c1a-462b-a2b6-735738a6a574' THEN 'UCL'
+    ELSE api_events.user_id
+END
+  AS lp_name,
+  rrf.request_body,
+  rrf.response_body
+FROM
+  api_events
+LEFT JOIN
+  request_response_fields rrf
+USING
+  (request_uuid)

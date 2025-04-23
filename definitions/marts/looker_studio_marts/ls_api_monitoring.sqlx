@@ -45,7 +45,7 @@ WITH
       request_user_agent,
       response_content_type)
   FROM
-    ${ref('events')}
+    ${ref("ecf_events_production", "events")}
   WHERE
     event_type = 'web_request'
     AND user_id IS NOT NULL
@@ -67,7 +67,7 @@ WITH
     IF
       (struct_field.key = "response_body", this_value, NULL), ', ') AS response_body
   FROM
-    ${ref('events')} AS eep,
+    ${ref("ecf_events_production", "events")} AS eep,
     UNNEST(eep.DATA) AS struct_field,
     UNNEST(struct_field.value) AS this_value
   WHERE
