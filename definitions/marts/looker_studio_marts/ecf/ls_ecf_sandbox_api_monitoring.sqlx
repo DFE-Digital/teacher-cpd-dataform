@@ -60,14 +60,14 @@ WITH
     request_uuid,DATA)
 SELECT
   api_events.*,
-  CASE
-    WHEN api_events.user_id = '98600c9f-1ea4-43e5-b217-4cda78ed1091' THEN 'Ambition'
-    WHEN api_events.user_id = 'd83fde1f-d763-4498-baf0-498d223003f2' THEN 'NiOT'
-    WHEN api_events.user_id = 'ad88a832-a4e9-420e-8d25-b7f1e33fd73e' THEN 'Capita'
-    WHEN api_events.user_id = '2af6d829-a540-4b7a-bf48-9a0d21bc036f' THEN 'EDT'
-    WHEN api_events.user_id = 'b15bbd82-7e44-4abb-8761-df1b88370394' THEN 'Teach First'
-    WHEN api_events.user_id = 'ccf2e1f5-a876-43a4-9820-c8e93088ebd1' THEN 'BPN'
-    WHEN api_events.user_id = '8e433f5c-8c1a-462b-a2b6-735738a6a574' THEN 'UCL'
+  CASE api_events.user_id
+    WHEN '98600c9f-1ea4-43e5-b217-4cda78ed1091' THEN 'Ambition'
+    WHEN 'd83fde1f-d763-4498-baf0-498d223003f2' THEN 'NiOT'
+    WHEN 'ad88a832-a4e9-420e-8d25-b7f1e33fd73e' THEN 'Capita'
+    WHEN '2af6d829-a540-4b7a-bf48-9a0d21bc036f' THEN 'EDT'
+    WHEN 'b15bbd82-7e44-4abb-8761-df1b88370394' THEN 'Teach First'
+    WHEN 'ccf2e1f5-a876-43a4-9820-c8e93088ebd1' THEN 'BPN'
+    WHEN '8e433f5c-8c1a-462b-a2b6-735738a6a574' THEN 'UCL'
     ELSE api_events.user_id
 END
   AS lp_name,
