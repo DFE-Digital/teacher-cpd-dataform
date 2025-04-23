@@ -1,0 +1,44 @@
+config {
+    type: "incremental",
+    assertions: {
+        uniqueKey: ["page_path", "date"]
+    },
+    bigquery: {
+        partitionBy: "date"
+    },
+    description: "Cube containing aggregable metrics about a particular page_path on a date. Does not include data for the current date because this data is incomplete.",
+    columns: {
+        page_path: "Path of a page on an ECF service, excluding the domain and query string.",
+        date: "Date for which metrics have been calculated",
+        number_of_views: "Total number of non-unique views of page_path which occurred on date.",
+        number_of_exits: "Total number of times a view of page_path on date was the last pageview within a session in session_details.",
+        number_of_bounces: "Total number of times a view of page_path on date was both the first and the last pageview within a session in session_details.",
+        number_of_unique_views: "Total number of unique authenticated users who viewed page_path on date.",
+        total_time_on_page: "Total number of seconds spent 'on' page_path on date, where time 'on' page is defined as the length of time between viewing the page and viewing the next page within the same session (if a next pageview happened within the same session)"
+    }
+}
+
+pre_operations {
+  DECLARE date_checkpoint DEFAULT (
+    ${when(incremental(),
+    `SELECT MAX(date) FROM ${self()}`,
+    `SELECT DATE("2000-01-01")`)}
+  )
+}
+
+SELECT
+  page_path,
+  DATE(page_entry_time) AS date,
+  COUNT(*) AS number_of_views,
+  COUNTIF(next_step = "End of session") AS number_of_exits,
+  COUNTIF(next_step = "End of session" AND pageview_number_in_session = 1) AS number_of_bounces,
+  COUNT(DISTINCT user_id) AS number_of_unique_views,
+  SUM(time_on_page) AS total_time_on_page
+FROM
+  ${ref("ls_ecf_pageview_next_steps")}
+WHERE
+  DATE(page_entry_time) < CURRENT_DATE
+  AND DATE(page_entry_time) > date_checkpoint
+GROUP BY
+  page_path,
+  DATE(page_entry_time)
