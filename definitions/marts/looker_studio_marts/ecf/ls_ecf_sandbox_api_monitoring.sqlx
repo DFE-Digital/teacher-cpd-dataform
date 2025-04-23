@@ -32,64 +32,49 @@ config {
 }
 
 WITH
-  data_cut AS (
+  api_events AS (
   SELECT
-    * EXCEPT (anonymised_user_agent_and_ip,
-      DATA,
-      entity_table_name,
-      environment,
-      event_tags,
-      event_type,
-      namespace,
-      request_referer,
-      request_user_agent,
-      response_content_type)
+    occurred_at,
+    user_id,
+    request_uuid,
+    request_method,
+    request_path,
+    request_query,
+    response_status
   FROM
     ${ref("ecf_events_sandbox", "events")}
   WHERE
     event_type = 'web_request'
     AND user_id IS NOT NULL
-    AND request_path LIKE '/api/v%'
-    AND request_uuid NOT IN ('edc376f322a4dc273b62997804695fb5',
-      '13f9f767fabfcb2cafc16f366b72660e',
-      '3b0872b43cd564d2133dbbff6fa1a4cf',
-      'ad6a40fda446b96f3212cdb57d2e98e6',
-      'c1fdb72bd593d9eda54f8e95e9724884',
-      '8bee2f527391c8891cbaee1775670f46') ),
+    AND request_path LIKE '/api/v%'),
   request_response_fields AS (
   SELECT
     eep.request_uuid,
-    STRING_AGG(DISTINCT
-    IF
-      (struct_field.key = "request_body", this_value, NULL), ', ') AS request_body,
-    STRING_AGG(DISTINCT
-    IF
-      (struct_field.key = "response_body", this_value, NULL), ', ') AS response_body
+    ${data_functions.eventDataExtract('DATA', 'request_body', dynamic = false, dataType = 'string', isArray = false)} AS request_body,
+    ${data_functions.eventDataExtract('DATA', 'response_body', dynamic = false, dataType = 'string', isArray = false)} AS response_body
   FROM
-    ${ref("ecf_events_sandbox","events")} AS eep,
-    UNNEST(eep.DATA) AS struct_field,
-    UNNEST(struct_field.value) AS this_value
+    ${ref("ecf_events_sandbox", "events")} AS eep
   WHERE
     entity_table_name = 'api_requests'
   GROUP BY
-    request_uuid)
+    request_uuid,DATA)
 SELECT
-  dc.*,
+  api_events.*,
   CASE
-    WHEN dc.user_id = '98600c9f-1ea4-43e5-b217-4cda78ed1091' THEN 'Ambition'
-    WHEN dc.user_id = 'd83fde1f-d763-4498-baf0-498d223003f2' THEN 'NiOT'
-    WHEN dc.user_id = 'ad88a832-a4e9-420e-8d25-b7f1e33fd73e' THEN 'Capita'
-    WHEN dc.user_id = '2af6d829-a540-4b7a-bf48-9a0d21bc036f' THEN 'EDT'
-    WHEN dc.user_id = 'b15bbd82-7e44-4abb-8761-df1b88370394' THEN 'Teach First'
-    WHEN dc.user_id = 'ccf2e1f5-a876-43a4-9820-c8e93088ebd1' THEN 'BPN'
-    WHEN dc.user_id = '8e433f5c-8c1a-462b-a2b6-735738a6a574' THEN 'UCL'
-    ELSE dc.user_id
+    WHEN api_events.user_id = '98600c9f-1ea4-43e5-b217-4cda78ed1091' THEN 'Ambition'
+    WHEN api_events.user_id = 'd83fde1f-d763-4498-baf0-498d223003f2' THEN 'NiOT'
+    WHEN api_events.user_id = 'ad88a832-a4e9-420e-8d25-b7f1e33fd73e' THEN 'Capita'
+    WHEN api_events.user_id = '2af6d829-a540-4b7a-bf48-9a0d21bc036f' THEN 'EDT'
+    WHEN api_events.user_id = 'b15bbd82-7e44-4abb-8761-df1b88370394' THEN 'Teach First'
+    WHEN api_events.user_id = 'ccf2e1f5-a876-43a4-9820-c8e93088ebd1' THEN 'BPN'
+    WHEN api_events.user_id = '8e433f5c-8c1a-462b-a2b6-735738a6a574' THEN 'UCL'
+    ELSE api_events.user_id
 END
   AS lp_name,
   rrf.request_body,
   rrf.response_body
 FROM
-  data_cut dc
+  api_events
 LEFT JOIN
   request_response_fields rrf
 USING
