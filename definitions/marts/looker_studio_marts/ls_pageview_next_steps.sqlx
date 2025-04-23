@@ -90,5 +90,6 @@ FROM
       UNNEST(pages_visited_details)
     WINDOW
       pageviews_in_order AS (
+      PARTITION BY application, session_id
       ORDER BY
         page_entry_time ASC))) AS pageview
