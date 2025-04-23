@@ -18,6 +18,9 @@ config {
         referer_domain: "Domain of the previous page that was viewed, if it was and if this is available. May be an external site or an internal pageview from a previous session.",
         page_entry_time: "Time at which this pageview happened.",
         next_step: "Path of the next page that was viewed on this service within this session, if it was. If it wasn't, contains the string 'End of session'.",
+        next_step_for_display: "next_step optimised for display in Sankey diagrams in Looker Studio",
+        first_step: "Path of the first page that was viewed in the session this pageview falls within.",
+        last_step: "Path of the last page that was viewed in the session this pageview falls within.",
         previous_step: "Path of the previous page that was viewed on this service *within this session*, if it was. If it wasn't, contains the string 'End of session'. Not the same as referer_path.",
         pageview_number_in_session: "Number indicating that this pageview was the Nth pageview within this session.",
         time_on_page: "Number of seconds between page_entry_time and the page_entry_time of the next pageview if it exists. NULL otherwise.",
@@ -67,8 +70,8 @@ SELECT
   session_id,
   user_id,
   session_start_timestamp,
-  pageview.* EXCEPT(next_step),
-  IF(next_step = page_path, "Viewed same page again e.g. reload, form (re-)submission", next_step) AS next_step, /* Workaround for Looker Studio Sankey diagrams, which can't accept source and sink nodes which have the same value as each other */
+  pageview.*,
+  IF(next_step = page_path, "Viewed same page again e.g. reload, form (re-)submission", next_step) AS next_step_for_display, /* Workaround for Looker Studio Sankey diagrams, which can't accept source and sink nodes which have the same value as each other */
   utm_source AS session_utm_source,
   utm_medium AS session_utm_medium,
   utm_campaign AS session_utm_campaign
@@ -82,6 +85,8 @@ FROM
       page_entry_time,
       IFNULL(LEAD(REGEXP_REPLACE(page, "([a-zA-Z0-9-]*[0-9]+[a-zA-Z0-9-]*)", "[grouped]")) OVER pageviews_in_order, "End of session") AS next_step,
       IFNULL(LAG(REGEXP_REPLACE(page, "([a-zA-Z0-9-]*[0-9]+[a-zA-Z0-9-]*)", "[grouped]")) OVER pageviews_in_order, "Start of session") AS previous_step,
+      FIRST_VALUE(REGEXP_REPLACE(page, "([a-zA-Z0-9-]*[0-9]+[a-zA-Z0-9-]*)", "[grouped]")) OVER pageviews_in_order AS first_step,
+      LAST_VALUE(REGEXP_REPLACE(page, "([a-zA-Z0-9-]*[0-9]+[a-zA-Z0-9-]*)", "[grouped]")) OVER pageviews_in_order AS last_step,
       ROW_NUMBER() OVER pageviews_in_order AS pageview_number_in_session,
       previous_page_domain AS referer_domain,
       duration AS time_on_page,
