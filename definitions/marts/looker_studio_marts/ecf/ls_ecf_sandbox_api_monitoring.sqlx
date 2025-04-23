@@ -50,8 +50,8 @@ WITH
   request_response_fields AS (
   SELECT
     eep.request_uuid,
-    ${data_functions.eventDataExtract('DATA', 'request_body', dynamic = false, dataType = 'string', isArray = false)} AS request_body,
-    ${data_functions.eventDataExtract('DATA', 'response_body', dynamic = false, dataType = 'string', isArray = false)} AS response_body
+    ${data_functions.eventDataExtract('DATA', 'request_body')} AS request_body,
+    ${data_functions.eventDataExtract('DATA', 'response_body')} AS response_body
   FROM
     ${ref("ecf_events_sandbox", "events")} AS eep
   WHERE
