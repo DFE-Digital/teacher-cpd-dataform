@@ -1,13 +1,15 @@
 config {
     type: "incremental",
     assertions: {
-        uniqueKey: ["session_id", "pageview_number_in_session", "user_id"]
+        uniqueKey: ["application", "session_id", "pageview_number_in_session", "user_id"]
     },
     bigquery: {
-        partitionBy: "DATE(session_start_timestamp)"
+        partitionBy: "DATE(session_start_timestamp)",
+        clusterBy: ["application"]
     },
-    description: "Pageviews that occurred on an ECF service, along with details of previous and next steps users took within their session. Sessions defined Google Analytics style from the dfe-analytics-dataform session_details table. Intended to support a funnel analysis dashboard.",
+    description: "Pageviews that occurred on a CPD service, along with details of previous and next steps users took within their session. Sessions defined Google Analytics style from the dfe-analytics-dataform session_details table. Intended to support a funnel analysis dashboard.",
     columns: {
+        application: "Name of the application that received the request to view this page.",
         session_id: "UID of this session",
         user_id: "ID of the user logged in at some point during this session - if they were. Traffic from separate user_ids is always separated into separate sessions.",
         session_start_timestamp: "Time at which the session began",
@@ -33,17 +35,45 @@ pre_operations {
     `SELECT TIMESTAMP("2000-01-01")`)}
   )
 }
-
+WITH sessions AS (
+  SELECT
+    "Register an ECT" AS application,
+    *
+  FROM
+    ${ref("session_details_cpd")}
+  WHERE
+    session_start_timestamp > session_timestamp_checkpoint
+  UNION ALL (
+    SELECT
+      "ECF 2.0" AS application,
+      *
+    FROM
+      ${ref("session_details_ecf2")}
+    WHERE
+      session_start_timestamp > session_timestamp_checkpoint
+  )
+  UNION ALL (
+      SELECT
+      "Apply for a NPQ" AS application,
+      *
+    FROM
+      ${ref("session_details_npq")}
+    WHERE
+      session_start_timestamp > session_timestamp_checkpoint
+  )
+)
 SELECT
+  application,
   session_id,
   user_id,
   session_start_timestamp,
-  pageview.*,
+  pageview.* EXCEPT(next_step),
+  IF(next_step = page_path, "Viewed same page again e.g. reload, form (re-)submission", next_step) AS next_step, /* Workaround for Looker Studio Sankey diagrams, which can't accept source and sink nodes which have the same value as each other */
   utm_source AS session_utm_source,
   utm_medium AS session_utm_medium,
   utm_campaign AS session_utm_campaign
 FROM
-  ${ref("session_details_cpd")},
+  sessions,
   UNNEST(ARRAY(
     SELECT
       AS STRUCT
@@ -62,5 +92,3 @@ FROM
       pageviews_in_order AS (
       ORDER BY
         page_entry_time ASC))) AS pageview
-WHERE
-  session_start_timestamp > session_timestamp_checkpoint
