@@ -1,14 +1,16 @@
 config {
     type: "incremental",
     assertions: {
-        uniqueKey: ["page_path", "date"]
+        uniqueKey: ["application", "page_path", "date"]
     },
     bigquery: {
-        partitionBy: "date"
+        partitionBy: "date",
+        clusterBy: ["application"]
     },
-    description: "Cube containing aggregable metrics about a particular page_path on a date. Does not include data for the current date because this data is incomplete.",
+    description: "Cube containing aggregable metrics about a particular page_path for an application on a date. Does not include data for the current date because this data is incomplete.",
     columns: {
-        page_path: "Path of a page on an ECF service, excluding the domain and query string.",
+        application: "Name of the application that received requests to view page_path for which metrics have been calculated.",
+        page_path: "Path of a page on a service, excluding the domain and query string.",
         date: "Date for which metrics have been calculated",
         number_of_views: "Total number of non-unique views of page_path which occurred on date.",
         number_of_exits: "Total number of times a view of page_path on date was the last pageview within a session in session_details.",
@@ -27,6 +29,7 @@ pre_operations {
 }
 
 SELECT
+  application,
   page_path,
   DATE(page_entry_time) AS date,
   COUNT(*) AS number_of_views,
@@ -35,10 +38,11 @@ SELECT
   COUNT(DISTINCT user_id) AS number_of_unique_views,
   SUM(time_on_page) AS total_time_on_page
 FROM
-  ${ref("ls_ecf_pageview_next_steps")}
+  ${ref("ls_pageview_next_steps")}
 WHERE
   DATE(page_entry_time) < CURRENT_DATE
   AND DATE(page_entry_time) > date_checkpoint
 GROUP BY
+  application,
   page_path,
   DATE(page_entry_time)
