@@ -40,7 +40,7 @@ pre_operations {
 }
 WITH sessions AS (
   SELECT
-    "Register an ECT" AS application,
+    "Manage Training for Early Career Teachers" AS application,
     *
   FROM
     ${ref("session_details_cpd")}
@@ -48,7 +48,7 @@ WITH sessions AS (
     session_start_timestamp > session_timestamp_checkpoint
   UNION ALL (
     SELECT
-      "ECF 2.0" AS application,
+      "Register Early Career Teachers" AS application,
       *
     FROM
       ${ref("session_details_ecf2")}
@@ -57,7 +57,7 @@ WITH sessions AS (
   )
   UNION ALL (
       SELECT
-      "Apply for a NPQ" AS application,
+      "Apply for a National Professional Qualification" AS application,
       *
     FROM
       ${ref("session_details_npq")}
