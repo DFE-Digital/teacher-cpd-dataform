@@ -27,7 +27,6 @@ WITH
     CASE
       WHEN participant_type LIKE 'ParticipantProfile::ECT' THEN 'ECT'
       WHEN participant_type LIKE 'ParticipantProfile::Mentor' THEN 'Mentor'
-      ELSE NULL
   END
     AS participant_course
   FROM
@@ -43,44 +42,39 @@ WITH
     dec_cpd.*,
     cpd_lead_providers.name AS cpd_lead_provider_name,
     delivery_partners.name AS delivery_partner_name,
-    CASE
-      WHEN state LIKE 'paid' THEN 7
-      WHEN state LIKE 'payable' THEN 6
-      WHEN state LIKE 'eligible' THEN 5
-      WHEN state LIKE 'submitted' THEN 4
-      WHEN state LIKE 'clawed_back' THEN 3
-      WHEN state LIKE 'awaiting_clawback' THEN 2
-      WHEN state LIKE 'voided' THEN 1
+    CASE state
+      WHEN 'paid' THEN 7
+      WHEN 'payable' THEN 6
+      WHEN 'eligible' THEN 5
+      WHEN 'submitted' THEN 4
+      WHEN 'clawed_back' THEN 3
+      WHEN 'awaiting_clawback' THEN 2
+      WHEN 'voided' THEN 1
       ELSE 0
   END
     AS state_hierarchy,
-    CASE
-      WHEN declaration_type LIKE 'completed' THEN 12
-      WHEN declaration_type LIKE 'extended-6' THEN 11
-      WHEN declaration_type LIKE 'extended-5' THEN 10
-      WHEN declaration_type LIKE 'extended-4' THEN 9
-      WHEN declaration_type LIKE 'extended-3' THEN 8
-      WHEN declaration_type LIKE 'extended-2' THEN 7
-      WHEN declaration_type LIKE 'extended-1' THEN 6
-      WHEN declaration_type LIKE 'retained-4' THEN 5
-      WHEN declaration_type LIKE 'retained-3' THEN 4
-      WHEN declaration_type LIKE 'retained-2' THEN 3
-      WHEN declaration_type LIKE 'retained-1' THEN 2
-      WHEN declaration_type LIKE 'started' THEN 1
+    CASE declaration_type
+      WHEN 'completed' THEN 12
+      WHEN 'extended-6' THEN 11
+      WHEN 'extended-5' THEN 10
+      WHEN 'extended-4' THEN 9
+      WHEN 'extended-3' THEN 8
+      WHEN 'extended-2' THEN 7
+      WHEN 'extended-1' THEN 6
+      WHEN 'retained-4' THEN 5
+      WHEN 'retained-3' THEN 4
+      WHEN 'retained-2' THEN 3
+      WHEN 'retained-1' THEN 2
+      WHEN 'started' THEN 1
       ELSE 0
   END
     AS type_hierarchy,
-    CASE
-      WHEN state = 'paid' THEN TRUE
-      WHEN state = 'eligible' THEN TRUE
-      WHEN state = 'payable' THEN TRUE
-      ELSE FALSE
-  END
-    AS funded_declaration,
+    IFNULL(state IN ('paid',
+        'eligible',
+        'payable'), FALSE) AS funded_declaration,
     CASE
       WHEN course_identifier LIKE 'ecf-induction' THEN 'ECT'
       WHEN course_identifier LIKE 'ecf-mentor' THEN 'Mentor'
-      ELSE NULL
   END
     AS participant_course,
     cohorts.start_year AS statement_cohort
@@ -139,7 +133,6 @@ WITH
     declaration_type = 'started'
   QUALIFY
     ROW_NUMBER() OVER (PARTITION BY participant_profile_id,
-    /*cpd_lead_provider_id,*/
     course_identifier, declaration_type ORDER BY state_hierarchy DESC) = 1 ),
   ecf_dec_ret1 AS(
   SELECT
@@ -161,7 +154,6 @@ WITH
     declaration_type = 'retained-1'
   QUALIFY
     ROW_NUMBER() OVER (PARTITION BY participant_profile_id,
-    /*cpd_lead_provider_id,*/
     course_identifier, declaration_type ORDER BY state_hierarchy DESC) = 1 ),
   ecf_dec_ret2 AS (
   SELECT
@@ -183,7 +175,6 @@ WITH
     declaration_type = 'retained-2'
   QUALIFY
     ROW_NUMBER() OVER (PARTITION BY participant_profile_id,
-    /*cpd_lead_provider_id,*/
     course_identifier, declaration_type ORDER BY state_hierarchy DESC) = 1 ),
   ecf_dec_ret3 AS (
   SELECT
@@ -205,7 +196,6 @@ WITH
     declaration_type = 'retained-3'
   QUALIFY
     ROW_NUMBER() OVER (PARTITION BY participant_profile_id,
-    /*cpd_lead_provider_id,*/
     course_identifier, declaration_type ORDER BY state_hierarchy DESC) = 1 ),
   ecf_dec_ret4 AS (
   SELECT
@@ -227,7 +217,6 @@ WITH
     declaration_type = 'retained-4'
   QUALIFY
     ROW_NUMBER() OVER (PARTITION BY participant_profile_id,
-    /*cpd_lead_provider_id,*/
     course_identifier, declaration_type ORDER BY state_hierarchy DESC) = 1 ),
   ecf_dec_ext1 AS (
   SELECT
@@ -249,7 +238,6 @@ WITH
     declaration_type LIKE 'extended-1%'
   QUALIFY
     ROW_NUMBER() OVER (PARTITION BY participant_profile_id,
-    /*cpd_lead_provider_id,*/
     course_identifier, declaration_type ORDER BY state_hierarchy DESC) = 1 ),
   ecf_dec_ext2 AS (
   SELECT
@@ -271,7 +259,6 @@ WITH
     declaration_type LIKE 'extended-2%'
   QUALIFY
     ROW_NUMBER() OVER (PARTITION BY participant_profile_id,
-    /*cpd_lead_provider_id,*/
     course_identifier, declaration_type ORDER BY state_hierarchy DESC) = 1 ),
   ecf_dec_ext3 AS (
   SELECT
@@ -293,7 +280,6 @@ WITH
     declaration_type LIKE 'extended-3%'
   QUALIFY
     ROW_NUMBER() OVER (PARTITION BY participant_profile_id,
-    /*cpd_lead_provider_id,*/
     course_identifier, declaration_type ORDER BY state_hierarchy DESC) = 1 ),
   ecf_dec_comp AS (
   SELECT
@@ -315,7 +301,6 @@ WITH
     declaration_type = 'completed'
   QUALIFY
     ROW_NUMBER() OVER (PARTITION BY participant_profile_id,
-    /*cpd_lead_provider_id,*/
     course_identifier, declaration_type ORDER BY state_hierarchy DESC) = 1 ),
   ecf_full_dec AS (
   SELECT
