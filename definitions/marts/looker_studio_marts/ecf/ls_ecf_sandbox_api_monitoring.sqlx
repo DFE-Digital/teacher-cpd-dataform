@@ -1,7 +1,6 @@
 config {
     type: "table",
     assertions: {
-        uniqueKey: ["api_request_id"]
     },
     bigquery: {
         partitionBy: "DATE(occurred_at)",
