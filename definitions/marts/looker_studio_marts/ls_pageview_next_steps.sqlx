@@ -27,7 +27,8 @@ config {
         admin_session: "TRUE if this user was an internal DfE admin user, deduced from whether they viewed any page path containing 'admin' at any point in the session.",
         session_utm_source: "Value of the utm_source UTM parameter for the first pageview in the session, if it was set. Useful to categorise traffic for marketing purposes.",
         session_utm_medium: "Value of the utm_medium UTM parameter for the first pageview in the session, if it was set. Useful to categorise traffic for marketing purposes.",
-        session_utm_campaign: "Value of the utm_campaign UTM parameter for the first pageview in the session, if it was set. Useful to categorise traffic for marketing purposes."
+        session_utm_campaign: "Value of the utm_campaign UTM parameter for the first pageview in the session, if it was set. Useful to categorise traffic for marketing purposes.",
+        funnels: "Array of strings listing the funnel(s) this step was a part of, if any."
     }
 }
 
