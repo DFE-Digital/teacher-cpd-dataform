@@ -39,6 +39,34 @@ pre_operations {
     `SELECT TIMESTAMP("2000-01-01")`)}
   )
 }
+
+js {
+    /* Specify new funnels to appear on the pre-set funnels dashboard here. */
+    /* Ensure funnelPaths are listed in order in the user journey. */
+    const funnels = [
+        {
+            name: "Register for an NPQ",
+            application: "Apply for a National Professional Qualification",
+            funnelPaths: [
+                "/registration/course-start-date",
+                "/registration/provider-check",
+                "/registration/teacher-catchment",
+                "/registration/work-setting"]
+        },
+        {
+            name: "Register a new ECT",
+            application: "Manage Training for Early Career Teachers",
+            funnelPaths: [
+                "/schools/[grouped]/participants/who",
+                "/schools/[grouped]/participants/who/what-we-need",
+                "/schools/[grouped]/participants/who/name",
+                "/schools/[grouped]/participants/who/trn",
+                "/schools/[grouped]/participants/who/date-of-birth",
+                "/schools/[grouped]/participants/who/confirm-transfer"]
+        }
+    ];
+}
+
 WITH sessions AS (
   SELECT
     "Manage Training for Early Career Teachers" AS application,
@@ -76,31 +104,6 @@ SELECT
   utm_source AS session_utm_source,
   utm_medium AS session_utm_medium,
   utm_campaign AS session_utm_campaign,
-  js {
-    /* Specify new funnels to appear on the pre-set funnels dashboard here. */
-    /* Ensure funnelPaths are listed in order in the user journey. */
-    const funnels = [
-        {
-            name: "Register for an NPQ",
-            application: "Apply for a National Professional Qualification",
-            funnelPaths: [
-                "/registration/course-start-date",
-                "/registration/provider-check",
-                "/registration/teacher-catchment",
-                "/registration/work-setting"]
-        },
-        {
-            name: "Register a new ECT",
-            application: "Manage Training for Early Career Teachers",
-            funnelPaths: [
-                "/schools/[grouped]/participants/who",
-                "/schools/[grouped]/participants/who/what-we-need",
-                "/schools/[grouped]/participants/who/name",
-                "/schools/[grouped]/participants/who/trn",
-                "/schools/[grouped]/participants/who/date-of-birth",
-                "/schools/[grouped]/participants/who/confirm-transfer"]
-        }];
-  }
   ARRAY(
     SELECT funnel FROM (
         ${funnels.map(funnel =>
