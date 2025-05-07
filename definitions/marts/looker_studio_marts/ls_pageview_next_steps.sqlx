@@ -27,7 +27,8 @@ config {
         admin_session: "TRUE if this user was an internal DfE admin user, deduced from whether they viewed any page path containing 'admin' at any point in the session.",
         session_utm_source: "Value of the utm_source UTM parameter for the first pageview in the session, if it was set. Useful to categorise traffic for marketing purposes.",
         session_utm_medium: "Value of the utm_medium UTM parameter for the first pageview in the session, if it was set. Useful to categorise traffic for marketing purposes.",
-        session_utm_campaign: "Value of the utm_campaign UTM parameter for the first pageview in the session, if it was set. Useful to categorise traffic for marketing purposes."
+        session_utm_campaign: "Value of the utm_campaign UTM parameter for the first pageview in the session, if it was set. Useful to categorise traffic for marketing purposes.",
+        funnels: "Array of strings listing the funnel(s) this step was a part of, if any."
     }
 }
 
@@ -38,6 +39,34 @@ pre_operations {
     `SELECT TIMESTAMP("2000-01-01")`)}
   )
 }
+
+js {
+    /* Specify new funnels to appear on the pre-set funnels dashboard here. */
+    /* Ensure funnelPaths are listed in order in the user journey. */
+    const funnels = [
+        {
+            name: "Register for an NPQ",
+            application: "Apply for a National Professional Qualification",
+            funnelPaths: [
+                "/registration/course-start-date",
+                "/registration/provider-check",
+                "/registration/teacher-catchment",
+                "/registration/work-setting"]
+        },
+        {
+            name: "Register a new ECT",
+            application: "Manage Training for Early Career Teachers",
+            funnelPaths: [
+                "/schools/[grouped]/participants/who",
+                "/schools/[grouped]/participants/who/what-we-need",
+                "/schools/[grouped]/participants/who/name",
+                "/schools/[grouped]/participants/who/trn",
+                "/schools/[grouped]/participants/who/date-of-birth",
+                "/schools/[grouped]/participants/who/confirm-transfer"]
+        }
+    ];
+}
+
 WITH sessions AS (
   SELECT
     "Manage Training for Early Career Teachers" AS application,
@@ -74,7 +103,27 @@ SELECT
   IF(next_step = page_path, "Viewed same page again e.g. reload, form (re-)submission", next_step) AS next_step_for_display, /* Workaround for Looker Studio Sankey diagrams, which can't accept source and sink nodes which have the same value as each other */
   utm_source AS session_utm_source,
   utm_medium AS session_utm_medium,
-  utm_campaign AS session_utm_campaign
+  utm_campaign AS session_utm_campaign,
+  ARRAY(
+    SELECT funnel FROM (
+        ${funnels.map(funnel =>
+            `SELECT "${funnel.name}" AS funnel,
+                application = "${funnel.application}"
+                AND (
+                    ${funnel.funnelPaths.map((path, index) => {
+                        /* Exclude (a) onward steps which aren't an expected internal referral and (b) backward steps */
+                        return `(
+                        page_path = "${path}"
+                        ${index > 0 ?
+                            `AND referer_path = "${funnel.funnelPaths[index - 1]}"
+                            AND next_step NOT IN ("${funnel.funnelPaths.slice(0, index).join('", "')}")`
+                        : ''}
+                    )`
+                    }).join('\n OR \n')}
+                )
+                AS next_step_is_in_this_funnel
+        `).join(`\nUNION ALL\n`)})
+    WHERE next_step_is_in_this_funnel) AS funnels
 FROM
   sessions,
   UNNEST(ARRAY(
