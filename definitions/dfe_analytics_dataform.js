@@ -1340,6 +1340,27 @@ dfeAnalyticsDataform({
                 dataType: "timestamp",
                 description: ""
             }]
+        },
+            {
+            entityTableName: "users",
+            description: "",
+            keys: [ {
+                keyName: "full_name",
+                dataType: "string",
+                description: "",
+                hidden: true
+            }, {
+                keyName: "created_at",
+                alias: "user_created_at",
+                dataType: "date",
+                description: ""
+            }, {
+                keyName: "updated_at",
+                alias: "user_updated_at",
+                dataType: "date",
+                description: ""
+            }
+]
         }
     ]
 });
