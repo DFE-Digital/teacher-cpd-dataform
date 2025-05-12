@@ -116,6 +116,10 @@ dfeAnalyticsDataform({
                 dataType: 'date',
                 description: ''
             }, {
+                keyName: 'trs_deactivated',
+                dataType: 'boolean',
+                description: ''
+            }, {
                 keyName: 'trs_qts_status_description',
                 dataType: 'string',
                 description: ''
