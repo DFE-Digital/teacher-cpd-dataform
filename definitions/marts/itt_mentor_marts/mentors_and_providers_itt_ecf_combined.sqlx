@@ -34,31 +34,39 @@ It then assumes that an Owner of the CPD GCP project has done the following:
 2. Ensure that the itt_mentor_claims declaration in this Dataform repo is pointing to the dataset they imported the Listing to
 */
 
+WITH unclawed_back_itt_mentor_provider_claims AS (
+  SELECT
+    * EXCEPT(earliest_claim_current_status)
+  FROM
+    ${ref("itt_mentor_claims")}
+  WHERE
+    earliest_claim_current_status = "paid" /* i.e. not sampling_provider_not_approved or sampling_not_approved as these represent clawbacks */
+)
 SELECT
-  COALESCE(ecf_mentor_provider.TRN, itt_mentor_provider.TRN) AS TRN,
-  COALESCE(ecf_mentor_provider.provider_name, itt_mentor_provider.provider_name) AS provider_name,
+  COALESCE(ecf_mentor_provider.TRN, unclawed_back_itt_mentor_provider_claims.TRN) AS TRN,
+  COALESCE(ecf_mentor_provider.provider_name, unclawed_back_itt_mentor_provider_claims.provider_name) AS provider_name,
   MIN(first_started_funded_mentor_training_on) AS first_started_funded_ecf_mentor_training_on,
   MIN(first_completed_funded_mentor_training_with_this_lead_provider_on) AS first_completed_funded_ecf_mentor_training_with_this_lead_provider_on,
   MAX(last_took_part_in_funded_mentor_training_with_this_lead_provider_on) AS last_took_part_in_funded_ecf_mentor_training_with_this_lead_provider_on,
   MIN(earliest_claim_submitted_at) AS earliest_itt_mentor_training_funding_claim_submitted_at,
   CASE
-    WHEN LOGICAL_OR(itt_mentor_provider.TRN IS NOT NULL) AND LOGICAL_AND(ecf_mentor_provider.TRN IS NULL)
+    WHEN LOGICAL_OR(unclawed_back_itt_mentor_provider_claims.TRN IS NOT NULL) AND LOGICAL_AND(ecf_mentor_provider.TRN IS NULL)
         THEN "Funded for ITT mentor training only"
-    WHEN LOGICAL_AND(itt_mentor_provider.TRN IS NULL) AND LOGICAL_OR(ecf_mentor_provider.TRN IS NOT NULL)
+    WHEN LOGICAL_AND(unclawed_back_itt_mentor_provider_claims.TRN IS NULL) AND LOGICAL_OR(ecf_mentor_provider.TRN IS NOT NULL)
         THEN "Funded for ECF mentor training only"
-    WHEN MIN(ecf_mentor_provider.first_started_funded_mentor_training_on) < MIN(DATE(itt_mentor_provider.earliest_claim_submitted_at)) THEN
+    WHEN MIN(ecf_mentor_provider.first_started_funded_mentor_training_on) < MIN(DATE(unclawed_back_itt_mentor_provider_claims.earliest_claim_submitted_at)) THEN
       CASE
-        WHEN MIN(DATE(itt_mentor_provider.earliest_claim_submitted_at)) >= MIN(ecf_mentor_provider.first_completed_funded_mentor_training_with_this_lead_provider_on)
+        WHEN MIN(DATE(unclawed_back_itt_mentor_provider_claims.earliest_claim_submitted_at)) >= MIN(ecf_mentor_provider.first_completed_funded_mentor_training_with_this_lead_provider_on)
             THEN "First funded for ITT mentor training after completing ECF mentor training with this provider"
-        WHEN MIN(DATE(itt_mentor_provider.earliest_claim_submitted_at)) < MIN(ecf_mentor_provider.first_completed_funded_mentor_training_with_this_lead_provider_on)
+        WHEN MIN(DATE(unclawed_back_itt_mentor_provider_claims.earliest_claim_submitted_at)) < MIN(ecf_mentor_provider.first_completed_funded_mentor_training_with_this_lead_provider_on)
             THEN "First funded for ITT mentor training between starting and completing ECF mentor training with this provider"
         WHEN LOGICAL_AND(ecf_mentor_provider.first_completed_funded_mentor_training_with_this_lead_provider_on IS NULL)
             THEN "First funded for ITT mentor training after starting but not (yet) completing ECF mentor training"
         ELSE "Error in query logic - please report. First funded for ITT mentor training after ECF mentor training"
       END
-    WHEN MIN(ecf_mentor_provider.first_started_funded_mentor_training_on) > MIN(DATE(itt_mentor_provider.earliest_claim_submitted_at))
+    WHEN MIN(ecf_mentor_provider.first_started_funded_mentor_training_on) > MIN(DATE(unclawed_back_itt_mentor_provider_claims.earliest_claim_submitted_at))
         THEN "First funded for ECF mentor training after ITT mentor training"
-    WHEN MIN(ecf_mentor_provider.first_started_funded_mentor_training_on) = MIN(DATE(itt_mentor_provider.earliest_claim_submitted_at))
+    WHEN MIN(ecf_mentor_provider.first_started_funded_mentor_training_on) = MIN(DATE(unclawed_back_itt_mentor_provider_claims.earliest_claim_submitted_at))
         THEN "First funded for ECF and ITT mentor training on same date"
     ELSE "Error in query logic - please report"
 END
@@ -76,22 +84,22 @@ END
       )
       ),
     "Has not received funded ECF mentor training") AS AY_first_started_funded_ecf_mentor_training_in,
-  CASE WHEN LOGICAL_AND(itt_mentor_provider.TRN IS NULL) THEN "Has not received funded ITT mentor training"
+  CASE WHEN LOGICAL_AND(unclawed_back_itt_mentor_provider_claims.TRN IS NULL) THEN "Has not received funded ITT mentor training"
     ELSE
     IFNULL(
         CONCAT(
-      CAST(MIN(CAST(SPLIT(itt_mentor_provider.claim_academic_year, "/")[0] AS INT64)) AS STRING),
+      CAST(MIN(CAST(SPLIT(unclawed_back_itt_mentor_provider_claims.claim_academic_year, "/")[0] AS INT64)) AS STRING),
       '-',
-      RIGHT(CAST(MIN(CAST(SPLIT(itt_mentor_provider.claim_academic_year, "/")[0] AS INT64)) + 1 AS STRING), 2)
+      RIGHT(CAST(MIN(CAST(SPLIT(unclawed_back_itt_mentor_provider_claims.claim_academic_year, "/")[0] AS INT64)) + 1 AS STRING), 2)
     ), "Unknown")
   END AS AY_earliest_itt_mentor_training_funding_claim_submitted_in
 FROM
   ${ref("ecf_mentors_and_providers")} AS ecf_mentor_provider
 FULL JOIN
-  ${ref("itt_mentor_claims")} AS itt_mentor_provider
+  unclawed_back_itt_mentor_provider_claims
 ON
-  ecf_mentor_provider.TRN = itt_mentor_provider.TRN
-  AND ecf_mentor_provider.provider_name = itt_mentor_provider.provider_name
+  ecf_mentor_provider.TRN = unclawed_back_itt_mentor_provider_claims.TRN
+  AND ecf_mentor_provider.provider_name = unclawed_back_itt_mentor_provider_claims.provider_name
 GROUP BY
   TRN,
   provider_name

@@ -1,0 +1,100 @@
+config {
+    type: "incremental",
+    assertions: {
+        uniqueKey: ["application", "session_id", "pageview_number_in_session", "user_id"]
+    },
+    bigquery: {
+        partitionBy: "DATE(session_start_timestamp)",
+        clusterBy: ["application"]
+    },
+    description: "Pageviews that occurred on a CPD service, along with details of previous and next steps users took within their session. Sessions defined Google Analytics style from the dfe-analytics-dataform session_details table. Intended to support a funnel analysis dashboard.",
+    columns: {
+        application: "Name of the application that received the request to view this page.",
+        session_id: "UID of this session",
+        user_id: "ID of the user logged in at some point during this session - if they were. Traffic from separate user_ids is always separated into separate sessions.",
+        session_start_timestamp: "Time at which the session began",
+        page_path: "Path of the page that was viewed, excluding domain and query string.",
+        referer_path: "Path of the previous page that was viewed, if it was. May be an external site or an internal pageview from a previous session. Not the same as previous_step.",
+        referer_domain: "Domain of the previous page that was viewed, if it was and if this is available. May be an external site or an internal pageview from a previous session.",
+        page_entry_time: "Time at which this pageview happened.",
+        next_step: "Path of the next page that was viewed on this service within this session, if it was. If it wasn't, contains the string 'End of session'.",
+        next_step_for_display: "next_step optimised for display in Sankey diagrams in Looker Studio",
+        first_step: "Path of the first page that was viewed in the session this pageview falls within.",
+        last_step: "Path of the last page that was viewed in the session this pageview falls within.",
+        previous_step: "Path of the previous page that was viewed on this service *within this session*, if it was. If it wasn't, contains the string 'End of session'. Not the same as referer_path.",
+        pageview_number_in_session: "Number indicating that this pageview was the Nth pageview within this session.",
+        time_on_page: "Number of seconds between page_entry_time and the page_entry_time of the next pageview if it exists. NULL otherwise.",
+        admin_session: "TRUE if this user was an internal DfE admin user, deduced from whether they viewed any page path containing 'admin' at any point in the session.",
+        session_utm_source: "Value of the utm_source UTM parameter for the first pageview in the session, if it was set. Useful to categorise traffic for marketing purposes.",
+        session_utm_medium: "Value of the utm_medium UTM parameter for the first pageview in the session, if it was set. Useful to categorise traffic for marketing purposes.",
+        session_utm_campaign: "Value of the utm_campaign UTM parameter for the first pageview in the session, if it was set. Useful to categorise traffic for marketing purposes."
+    }
+}
+
+pre_operations {
+  DECLARE session_timestamp_checkpoint DEFAULT (
+    ${when(incremental(),
+    `SELECT MAX(session_start_timestamp) FROM ${self()}`,
+    `SELECT TIMESTAMP("2000-01-01")`)}
+  )
+}
+WITH sessions AS (
+  SELECT
+    "Manage Training for Early Career Teachers" AS application,
+    *
+  FROM
+    ${ref("session_details_cpd")}
+  WHERE
+    session_start_timestamp > session_timestamp_checkpoint
+  UNION ALL (
+    SELECT
+      "Register Early Career Teachers" AS application,
+      *
+    FROM
+      ${ref("session_details_ecf2")}
+    WHERE
+      session_start_timestamp > session_timestamp_checkpoint
+  )
+  UNION ALL (
+      SELECT
+      "Apply for a National Professional Qualification" AS application,
+      *
+    FROM
+      ${ref("session_details_npq")}
+    WHERE
+      session_start_timestamp > session_timestamp_checkpoint
+  )
+)
+SELECT
+  application,
+  session_id,
+  user_id,
+  session_start_timestamp,
+  pageview.*,
+  IF(next_step = page_path, "Viewed same page again e.g. reload, form (re-)submission", next_step) AS next_step_for_display, /* Workaround for Looker Studio Sankey diagrams, which can't accept source and sink nodes which have the same value as each other */
+  utm_source AS session_utm_source,
+  utm_medium AS session_utm_medium,
+  utm_campaign AS session_utm_campaign
+FROM
+  sessions,
+  UNNEST(ARRAY(
+    SELECT
+      AS STRUCT
+      REGEXP_REPLACE(page, "([a-zA-Z0-9-]*[0-9]+[a-zA-Z0-9-]*)", "[grouped]") AS page_path,
+      REGEXP_REPLACE(previous_page, "([a-zA-Z0-9-]*[0-9]+[a-zA-Z0-9-]*)", "[grouped]") AS referer_path,
+      page_entry_time,
+      IFNULL(LEAD(REGEXP_REPLACE(page, "([a-zA-Z0-9-]*[0-9]+[a-zA-Z0-9-]*)", "[grouped]")) OVER pageviews_in_order, "End of session") AS next_step,
+      IFNULL(LAG(REGEXP_REPLACE(page, "([a-zA-Z0-9-]*[0-9]+[a-zA-Z0-9-]*)", "[grouped]")) OVER pageviews_in_order, "Start of session") AS previous_step,
+      FIRST_VALUE(REGEXP_REPLACE(page, "([a-zA-Z0-9-]*[0-9]+[a-zA-Z0-9-]*)", "[grouped]")) OVER pageviews_in_order AS first_step,
+      LAST_VALUE(REGEXP_REPLACE(page, "([a-zA-Z0-9-]*[0-9]+[a-zA-Z0-9-]*)", "[grouped]")) OVER pageviews_in_order AS last_step,
+      ROW_NUMBER() OVER pageviews_in_order AS pageview_number_in_session,
+      previous_page_domain AS referer_domain,
+      duration AS time_on_page,
+      LOGICAL_OR(CONTAINS_SUBSTR(page, "/admin")) OVER pageviews_in_order AS admin_session
+    FROM
+      UNNEST(pages_visited_details)
+    WINDOW
+      pageviews_in_order AS (
+      PARTITION BY application, session_id
+      ORDER BY
+        page_entry_time ASC))) AS pageview
