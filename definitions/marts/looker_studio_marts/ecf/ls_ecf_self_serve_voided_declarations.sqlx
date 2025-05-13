@@ -21,7 +21,6 @@ config {
         voided_by_finance_tool: "Boolean field indicating whether the declaration was voided through the finance tool. Possible values: true, false",
         statement_cohort: "Cohort from the financial statement a declaration is stored against for ECF and the cohort against the declaration for NPQ.",
         declaration_type: "The name of the stage the declaration has been made against.",
-        statement_date: "The date of when the declaration is expected to be paid. This date is always the first of the month in which it will be paid, however, the actual payment date may be later in the month.",
         full_name: {
             description: "The full name of the user who voided the declaration, taken from the users table.",
             bigqueryPolicyTags: ["projects/ecf-bq/locations/europe-west2/taxonomies/6302091323314055162/policyTags/301313311867345339"]
@@ -40,7 +39,6 @@ SELECT
   vpd.course_identifier,
   cpd_lp.name AS lead_provider_name,
   ls_declarations.statement_cohort,
-  -- statements.statement_date,
   vpd.voided_at,
   vpd.voided_by_user_id,
   users.full_name,
