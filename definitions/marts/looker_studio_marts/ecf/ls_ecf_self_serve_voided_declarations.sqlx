@@ -1,0 +1,69 @@
+config {
+    type: "table",
+    assertions: {
+        uniqueKey: ["declaration_id"]
+    },
+    bigquery: {
+        partitionBy: "DATE(voided_at)",
+        clusterBy: ["lead_provider_name", "state", "voided_by_finance_tool", "statement_cohort"]
+    },
+    description: "This mart supports the tracking of paid declarations voided by internal DfE and finance users through the ECF Self-Serve Voiding tool. It is designed for use in the ECF - Declarations Voided by Finance Tool dashboard in Looker Studio. The mart assists in monitoring financial adjustments by identifying paid declarations that have been voided using the 'voided_at' and 'voided_by_user_id' fields, which are populated for all records voided through this tool. The mart exclusively considers paid declarations that have been voided, with the declaration state limited to either 'awaiting_clawback' or 'clawed_back'. This structure enables analysis and tracking of voided financial transactions by DfE internal and finance users, supporting financial auditing and reconciliation processes.",
+    columns: {
+        declaration_id: "The unique identifier for declarations. Taken from participant_declarations_latest_cpd.",
+        created_at: "Timestamp this entity was first saved in the database, according to the latest version of the data received from the database.",
+        updated_at: "Timestamp this entity was last updated in the database, according to the latest version of the data received from the database.",
+        state: "State of the declaration. Can be submitted, eligible, payable, paid, ineligible, voided, awaiting_clawback, and clawed_back.",
+        voided_at: "DATETIME indiciating when the declarationw as voided. Populated if voided by a DfE user only (finance or admin console)",
+        voided_by_user_id: "The user_id of the DfE that voided the declaration via the finance/admin console.",
+        cpd_lead_provider_id: "ID of Lead Provider that has made the declaration.",
+        participant_profile_id: "This field matches the participant profile id of participant profiles within the CPD service. It also matches the application id for NPQ participants which is used as their participant profile id for that NPQ.",
+        lead_provider_name: "The name of the Lead Provider that has made the declaration.",
+        voided_by_finance_tool: "Boolean field indicating whether the declaration was voided through the finance tool. Possible values: true, false",
+        statement_cohort: "Cohort from the financial statement a declaration is stored against for ECF and the cohort against the declaration for NPQ.",
+        declaration_type: "The name of the stage the declaration has been made against.",
+        statement_date: "The date of when the declaration is expected to be paid. This date is always the first of the month in which it will be paid, however, the actual payment date may be later in the month.",
+        full_name: {
+            description: "The full name of the user who voided the declaration, taken from the users table.",
+            bigqueryPolicyTags: ["projects/ecf-bq/locations/europe-west2/taxonomies/6302091323314055162/policyTags/301313311867345339"]
+        },
+    }
+}
+
+SELECT
+  vpd.id AS declaration_id,
+  vpd.created_at,
+  vpd.updated_at,
+  vpd.cpd_lead_provider_id,
+  vpd.participant_profile_id,
+  vpd.state,
+  vpd.declaration_type,
+  vpd.course_identifier,
+  cpd_lp.name AS lead_provider_name,
+  ls_declarations.statement_cohort,
+  -- statements.statement_date,
+  vpd.voided_at,
+  vpd.voided_by_user_id,
+  users.full_name,
+IF
+  (vpd.voided_at IS NOT NULL
+    AND vpd.voided_by_user_id IS NOT NULL, TRUE, FALSE) AS voided_by_finance_tool
+FROM
+  ${ref('participant_declarations_latest_cpd')} AS vpd
+LEFT JOIN
+  ${ref(`cpd_lead_providers_latest_cpd`)} AS cpd_lp
+ON
+  vpd.cpd_lead_provider_id = cpd_lp.id
+LEFT JOIN
+  ${ref(`ls_declarations_provider_names`)} AS ls_declarations
+ON
+  vpd.id = ls_declarations.id
+LEFT JOIN
+  ${ref(`users_latest_cpd`)} AS users
+ON
+  vpd.voided_by_user_id = users.id
+  -- Filtering for the following states as are specifically looking at cases where money has exchanged hands
+WHERE
+  vpd.state IN ('awaiting_clawback',
+    'clawed_back')
+  AND vpd.voided_at IS NOT NULL
+  AND vpd.voided_by_user_id IS NOT NULL
