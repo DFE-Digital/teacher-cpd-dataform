@@ -45,25 +45,222 @@ js {
     /* Ensure funnelPaths are listed in order in the user journey. */
     const funnels = [
         {
-            name: "Register for an NPQ",
+            name: "Register for an NPQ - stage 1 (user information)",
             application: "Apply for a National Professional Qualification",
             funnelPaths: [
+                "/registration/teacher-reference-number",
+                "/registration/qualified-teacher-check",
                 "/registration/course-start-date",
                 "/registration/provider-check",
                 "/registration/teacher-catchment",
-                "/registration/work-setting"]
+                "/registration/work-setting"],
+            sidePaths: [
+                {path: "/registration/dqt-mismatch", nextStep: "/registration/course-start-date"},
+            ]
         },
         {
-            name: "Register a new ECT",
+            name: "Register for an NPQ - stage 2a (work setting - school, trust, 16-19 setting or other)",
+            application: "Apply for a National Professional Qualification",
+            funnelPaths: [
+                "/registration/work-setting",
+                "/registration/find-school",
+                "/registration/choose-school"],
+            sidePaths: [
+                {path: "/registration/referred-by-return-to-teaching-adviser", nextStep: "/registration/choose-your-npq"},
+            ]
+        },
+        {
+            name: "Register for an NPQ - stage 2b (early years or childcare)",
+            application: "Apply for a National Professional Qualification",
+            funnelPaths: [
+                "/registration/kind-of-nursery",
+                "/registration/find-childcare-provider",
+                "/registration/choose-childcare-provider"],
+            sidePaths: [
+                {path: "/registration/have-ofsted-urn", nextStep: "/registration/choose-your-npq"},
+                {path: "/registration/have-ofsted-urn", nextStep: "/registration/choose-private-childcare-provider"},
+                {path: "/registration/choose-private-childcare-provider", nextStep: "/registration/choose-your-npq"}
+            ]
+        },
+        {
+            name: "Register for an NPQ - stage 2c (another setting)",
+            application: "Apply for a National Professional Qualification",
+            funnelPaths: [
+                "/registration/your-employment",
+                "/registration/your-role",
+                "/registration/your-employer"],
+            sidePaths: [
+                {path: "/registration/your-employment", nextStep: "/registration/itt-provider"},
+                {path: "/registration/itt-provider", nextStep: "/registration/choose-your-npq"},
+            ]
+        },
+        {
+            name: "Register for an NPQ - stage 3a (NPQ choice - general & SENCO in role)",
+            application: "Apply for a National Professional Qualification",
+            funnelPaths: [
+                "/registration/choose-your-npq",
+                "/registration/ineligible-for-funding",
+                "/registration/funding-your-npq"],
+            sidePaths: [
+                {path: "/registration/possible-funding", nextStep: "/registration/choose-your-provider"},
+                {path: "/registration/senco-in-role", nextStep: "/registration/ineligible-for-funding"},
+                {path: "/registration/senco-in-role", nextStep: "/registration/possible-funding"},
+                {path: "/registration/senco-in-role", nextStep: "/registration/senco-start-date"},
+                {path: "/registration/senco-in-role", nextStep: "/registration/funding-eligibility-senco"},
+                {path: "/registration/funding-eligibility-senco", nextStep: "/registration/choose-your-provider"}
+            ]
+        },
+        {
+            name: "Register for an NPQ - stage 3b (NPQ choice - early headship coaching)",
+            application: "Apply for a National Professional Qualification",
+            funnelPaths: [
+                "/registration/npqh-status",
+                "/registration/ehco-headteacher",
+                "/registration/ehco-new-headteacher",
+                "/registration/ehco-funding-not-available",
+                "/registration/funding-your-ehco"]
+        },
+        {
+            name: "Register for an NPQ - stage 3c (NPQ choice - leading primary mathematics)",
+            application: "Apply for a National Professional Qualification",
+            funnelPaths: [
+                "/registration/maths-eligibility-teaching-for-mastery",
+                "/registration/finding-eligibility-maths"]
+        },
+        {
+            name: "Register for an NPQ - stage 4 (finalising registration)",
+            application: "Apply for a National Professional Qualification",
+            funnelPaths: [
+                "/registration/choose-your-provider",
+                "/registration/share-provider",
+                "/registration/check-answers"]
+        },
+        {
+            name: "New school adding a School Induction Tutor (SIT)",
+            application: "Manage Training for Early Career Teachers",
+            funnelPaths: [
+                "/nominations/choose-how-to-continue",
+                "/nominations/start-nomination",
+                "/nominations/full-name",
+                "/nominations/email",
+                "/nominations/check-details"]
+        },
+        {
+            name: "School confirming ECT(s), AB(s) & programme choice - stage 1",
+            application: "Manage Training for Early Career Teachers",
+            funnelPaths: [
+                "/schools/[grouped]/cohorts/[grouped]/setup",
+                "/schools/[grouped]/cohorts/[grouped]/setup/expect-any-ects",
+                "/schools/[grouped]/cohorts/[grouped]/setup/how-will-you-run-training",
+                "/schools/[grouped]/cohorts/[grouped]/setup/programme-confirmation"],
+            sidePaths: [
+                {path: "/schools/[grouped]/cohorts/[grouped]/setup/providers-relationship-has-changed", nextStep: "/schools/[grouped]/cohorts/[grouped]/setup/what-changes"},
+                {path: "/schools/[grouped]/cohorts/[grouped]/setup/keep-providers", nextStep: "/schools/[grouped]/cohorts/[grouped]/setup/what-changes"},
+                {path: "/schools/[grouped]/cohorts/[grouped]/setup/what-changes", nextStep: "/schools/[grouped]/cohorts/[grouped]/setup/what-changes-confirmation"},
+                {path: "/schools/[grouped]/cohorts/[grouped]/setup/what-changes-confirmation", nextStep: "/schools/[grouped]/cohorts/[grouped]/setup/appropriate-body-appointed"}
+            ]
+        },
+        {
+            name: "School confirming ECT(s), AB(s) & programme choice - stage 2",
+            application: "Manage Training for Early Career Teachers",
+            funnelPaths: [
+                "/schools/[grouped]/cohorts/[grouped]/setup/programme-confirmation",
+                "/schools/[grouped]/cohorts/[grouped]/setup/appropriate-body-appointed"],
+            sidePaths: [
+                {path: "/schools/[grouped]/cohorts/[grouped]/setup/what-changes-confirmation", nextStep: "/schools/[grouped]/cohorts/[grouped]/setup/appropriate-body-appointed"},
+                {path: "/schools/[grouped]/cohorts/[grouped]/setup/appropriate-body", nextStep: "/schools/[grouped]/cohorts/[grouped]/setup/complete"}
+            ]
+        },
+        {
+            name: "School adding or transferring an ECT or Mentor - stage 1",
             application: "Manage Training for Early Career Teachers",
             funnelPaths: [
                 "/schools/[grouped]/participants/who",
                 "/schools/[grouped]/participants/who/what-we-need",
                 "/schools/[grouped]/participants/who/name",
                 "/schools/[grouped]/participants/who/trn",
-                "/schools/[grouped]/participants/who/date-of-birth",
-                "/schools/[grouped]/participants/who/confirm-transfer"]
-        }
+                "/schools/[grouped]/participants/who/date-of-birth"]
+        },
+        {
+            name: "School adding or transferring an ECT or Mentor - stage 2a (new ECT or Mentor only)",
+            application: "Manage Training for Early Career Teachers",
+            funnelPaths: [
+                "/schools/[grouped]/participants/add",
+                "/schools/[grouped]/participants/add/choose-mentor",
+                "/schools/[grouped]/participants/add/confirm-appropriate-body",
+                "/schools/[grouped]/participants/add/check-answers",
+                "/schools/[grouped]/participants/add/complete"],
+            sidePaths: [
+                {path: "/schools/[grouped]/participants/add/email", nextStep: "/schools/[grouped]/participants/add/check-answers"},
+                {path: "/schools/[grouped]/participants/add/appropriate-body", nextStep: "/schools/[grouped]/participants/add/check-answers"}
+            /* TODO: Loads of traffic to /schools/[grouped]/participants/add/start-term from /schools/[grouped]/participants/add . What is this? */
+            ]
+        },
+        {
+            name: "School adding or transferring an ECT or Mentor - stage 2b (transfers only)",
+            application: "Manage Training for Early Career Teachers",
+            funnelPaths: [
+                "/schools/[grouped]/participants/who/confirm-transfer",
+                "/schools/[grouped]/participants/transfer"],
+            sidePaths: [
+                {path: "/schools/[grouped]/participants/who/confirm-mentor-transfer", nextStep: "/schools/[grouped]/participants/transfer"},
+                {path: "/schools/[grouped]/participants/joining-date", nextStep: "/schools/[grouped]/participants/transfer/email"}
+            ]
+        },
+        {
+            name: "School adding or transferring an ECT or Mentor - stage 3b (transfers only)",
+            application: "Manage Training for Early Career Teachers",
+            funnelPaths: [
+                "/schools/[grouped]/participants/transfer/email",
+                "/schools/[grouped]/participants/transfer/choose-mentor",
+                "/schools/[grouped]/participants/transfer/continue-current-programme",
+                "/schools/[grouped]/participants/transfer/join-school-programme",
+                "/schools/[grouped]/participants/transfer/choose-mentor",
+                "/schools/[grouped]/participants/transfer/check-answers"],
+            sidePaths: [
+                {path: "/schools/[grouped]/participants/transfer/cannot-add-manual-transfer", nextStep: "/support"},
+            ]
+        },
+        {
+            name: "Claim an Early Career Teacher (ECT)",
+            application: "Register Early Career Teachers",
+            funnelPaths: [
+                "/appropriate-body/claim-an-ect/find-ect/new",
+                "/appropriate-body/claim-an-ect/check-ect/[grouped]/edit",
+                "/appropriate-body/claim-an-ect/register-ect/[grouped]/edit",
+                "/appropriate-body/claim-an-ect/register-ect/[grouped]"]
+        },
+        {
+            name: "Release an Early Career Teacher (ECT)",
+            application: "Register Early Career Teachers",
+            funnelPaths: [
+                "/appropriate-body/teachers/[grouped]/release/new",
+                "/appropriate-body/teachers/[grouped]/release"]
+        },
+        {
+            name: "Record a passed outcome",
+            application: "Register Early Career Teachers",
+            funnelPaths: [
+                "/appropriate-body/teachers/[grouped]/record-passed-outcome/new",
+                "/appropriate-body/teachers/[grouped]/record-passed-outcome"]
+        },
+        {
+            name: "Record a failed outcome",
+            application: "Register Early Career Teachers",
+            funnelPaths: [
+                "/appropriate-body/teachers/[grouped]/record-failed-outcome/new",
+                "/appropriate-body/teachers/[grouped]/record-failed-outcome"]
+        },
+        {
+            name: "Extend an Early Career Teacher (ECT)'s induction period",
+            application: "Register Early Career Teachers",
+            funnelPaths: [
+                "/appropriate-body/teachers/[grouped]/extensions",
+                "/appropriate-body/teachers/[grouped]/extensions/new"],
+            sidePaths: [
+                {path: "/appropriate-body/teachers/[grouped]/extensions/[grouped]/edit", nextStep: "/appropriate-body/teachers/[grouped]"},
+            ]
+        },
     ];
 }
 
@@ -111,16 +308,31 @@ SELECT
                 application = "${funnel.application}"
                 AND (
                     ${funnel.funnelPaths.map((path, index) => {
-                        /* Exclude (a) onward steps which aren't an expected internal referral and (b) backward steps */
+                        /* Exclude backward steps */
                         return `(
                         page_path = "${path}"
                         ${index > 0 ?
-                            `AND referer_path = "${funnel.funnelPaths[index - 1]}"
-                            AND next_step NOT IN ("${funnel.funnelPaths.slice(0, index).join('", "')}")`
+                            `AND next_step NOT IN ("${funnel.funnelPaths.slice(0, index).join('", "')}")`
                         : ''}
                     )`
                     }).join('\n OR \n')}
+                    ${funnel.sidePaths ? funnel.sidePaths.map((sidePath, index) => {
+                        /* Include additional paths that aren't part of the main funnel in funnelPaths (but not onward steps from them) */
+                        return ` OR (
+                        page_path = "${sidePath.path}"
+                        AND next_step = "${sidePath.nextStep}"
+                    )`
+                    }).join('\n') : []}
                 )
+                ${funnel.sidePaths ? `AND NOT (
+                    ${funnel.sidePaths.map((sidePath, index) => {
+                        /* Exclude backwards steps along sidePaths */
+                        return `(
+                        page_path = "${sidePath.nextStep}"
+                        AND next_step = "${sidePath.path}"
+                    )`
+                    }).join('\n OR \n')}
+                )` : ``}
                 AS next_step_is_in_this_funnel
         `).join(`\nUNION ALL\n`)})
     WHERE next_step_is_in_this_funnel) AS funnels
