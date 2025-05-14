@@ -777,7 +777,8 @@ dfeAnalyticsDataform({
         }, {
             keyName: "trn",
             dataType: "string",
-            description: ""
+            description: "",
+            hidden: true
         }, {
             keyName: "trn_verified",
             dataType: "boolean",
