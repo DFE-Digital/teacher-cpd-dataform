@@ -1,0 +1,63 @@
+config {
+    type: "table",
+    assertions: {
+        uniqueKey: ["declaration_id"]
+    },
+    bigquery: {
+        partitionBy: "DATE(voided_at)",
+        clusterBy: ["lead_provider_name", "state", "statement_cohort"]
+    },
+    description: "This mart supports the tracking of paid declarations voided by internal DfE and finance users through the ECF Self-Serve Voiding tool (big green button), only declarations voided by the big green button are captured in this mart. It is designed for use in the ECF - Declarations Voided by Finance Tool dashboard in Looker Studio. The mart assists in monitoring financial adjustments by identifying paid declarations that have been voided using the 'voided_at' and 'voided_by_user_id' fields, which are populated for all records voided through this tool. The mart exclusively considers paid declarations that have been voided, with the declaration state limited to either 'awaiting_clawback' or 'clawed_back'. This structure enables analysis and tracking of voided financial transactions by DfE internal and finance users, supporting financial auditing and reconciliation processes.",
+    columns: {
+        declaration_id: "The unique identifier for declarations. Taken from participant_declarations_latest_cpd.",
+        created_at: "Timestamp this entity was first saved in the database, according to the latest version of the data received from the database.",
+        updated_at: "Timestamp this entity was last updated in the database, according to the latest version of the data received from the database.",
+        state: "State of the declaration. Possible values: awaiting_clawback, and clawed_back.",
+        voided_at: "Timestamp when a paid declaration was voided by a DfE finance or internal user through the self-serve finance tool (big green button).",
+        voided_by_user_id: "The user_id of the DfE that voided the declaration via the finance/admin console.",
+        cpd_lead_provider_id: "ID of Lead Provider that has made the declaration.",
+        participant_profile_id: "This field matches the participant profile id of participant profiles within the CPD service.",
+        lead_provider_name: "The name of the Lead Provider that has made the declaration.",
+        statement_cohort: "Cohort from the financial statement a declaration is stored against for ECF.",
+        declaration_type: "The name of the stage the declaration has been made against.",
+        full_name: {
+            description: "The full name of the user who voided the declaration, taken from the users table.",
+            bigqueryPolicyTags: ["projects/ecf-bq/locations/europe-west2/taxonomies/6302091323314055162/policyTags/301313311867345339"]
+        },
+    }
+}
+
+SELECT
+  vpd.id AS declaration_id,
+  vpd.created_at,
+  vpd.updated_at,
+  vpd.cpd_lead_provider_id,
+  cpd_lp.name AS lead_provider_name,
+  vpd.participant_profile_id,
+  vpd.state,
+  vpd.declaration_type,
+  vpd.course_identifier,
+  cohort.start_year as statement_cohort,
+  vpd.voided_at,
+  vpd.voided_by_user_id,
+  users.full_name
+FROM
+  ${ref('participant_declarations_latest_cpd')} AS vpd
+LEFT JOIN
+  ${ref(`cpd_lead_providers_latest_cpd`)} AS cpd_lp
+ON
+  vpd.cpd_lead_provider_id = cpd_lp.id
+LEFT JOIN 
+  ${ref(`cohorts_latest_cpd`)} as cohort
+   ON
+    vpd.cohort_id=cohort.id
+LEFT JOIN
+  ${ref(`users_latest_cpd`)} AS users
+ON
+  vpd.voided_by_user_id = users.id
+  -- Filtering for the following states as are specifically looking at cases where money has exchanged hands
+WHERE
+  vpd.state IN ('awaiting_clawback',
+    'clawed_back')
+  AND vpd.voided_at IS NOT NULL
+  AND vpd.voided_by_user_id IS NOT NULL
