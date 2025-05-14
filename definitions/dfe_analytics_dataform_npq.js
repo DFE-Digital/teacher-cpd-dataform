@@ -176,7 +176,8 @@ dfeAnalyticsDataform({
         }, {
             keyName: "on_submission_trn",
             dataType: "string",
-            description: ""
+            description: "",
+            hidden: true
         }, {
             keyName: "senco_in_role",
             dataType: "string",
@@ -822,6 +823,11 @@ dfeAnalyticsDataform({
             dataType: "string",
             description: ""
         }, {
+            keyName: "email",
+            dataType: "string",
+            description: "",
+            hidden:true
+        },{
             keyName: "email_updates_unsubscribe_key",
             dataType: "string", // NEED TO VERIFY DTYPE
             description: ""
