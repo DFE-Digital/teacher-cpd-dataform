@@ -12,7 +12,7 @@ config {
         declaration_id: "The unique identifier for declarations. Taken from participant_declarations_latest_cpd.",
         created_at: "Timestamp this entity was first saved in the database, according to the latest version of the data received from the database.",
         updated_at: "Timestamp this entity was last updated in the database, according to the latest version of the data received from the database.",
-        state: "State of the declaration. POssible values: awaiting_clawback, and clawed_back.",
+        state: "State of the declaration. Possible values: awaiting_clawback, and clawed_back.",
         voided_at: "Timestamp when a paid declaration was voided by a DfE finance or internal user through the self-serve finance tool (big green button).",
         voided_by_user_id: "The user_id of the DfE that voided the declaration via the finance/admin console.",
         cpd_lead_provider_id: "ID of Lead Provider that has made the declaration.",
