@@ -341,19 +341,30 @@ FROM
   UNNEST(ARRAY(
     SELECT
       AS STRUCT
-      REGEXP_REPLACE(page, "([a-zA-Z0-9-]*[0-9]+[a-zA-Z0-9-]*)", "[grouped]") AS page_path,
-      REGEXP_REPLACE(previous_page, "([a-zA-Z0-9-]*[0-9]+[a-zA-Z0-9-]*)", "[grouped]") AS referer_path,
+      page_path,
+      referer_path,
       page_entry_time,
-      IFNULL(LEAD(REGEXP_REPLACE(page, "([a-zA-Z0-9-]*[0-9]+[a-zA-Z0-9-]*)", "[grouped]")) OVER pageviews_in_order, "End of session") AS next_step,
-      IFNULL(LAG(REGEXP_REPLACE(page, "([a-zA-Z0-9-]*[0-9]+[a-zA-Z0-9-]*)", "[grouped]")) OVER pageviews_in_order, "Start of session") AS previous_step,
-      FIRST_VALUE(REGEXP_REPLACE(page, "([a-zA-Z0-9-]*[0-9]+[a-zA-Z0-9-]*)", "[grouped]")) OVER pageviews_in_order AS first_step,
-      LAST_VALUE(REGEXP_REPLACE(page, "([a-zA-Z0-9-]*[0-9]+[a-zA-Z0-9-]*)", "[grouped]")) OVER pageviews_in_order AS last_step,
+      IFNULL(LEAD(page_path) OVER pageviews_in_order, "End of session") AS next_step,
+      IFNULL(LAG(page_path) OVER pageviews_in_order, "Start of session") AS previous_step,
+      FIRST_VALUE(page_path) OVER pageviews_in_order AS first_step,
+      LAST_VALUE(page_path) OVER pageviews_in_order AS last_step,
       ROW_NUMBER() OVER pageviews_in_order AS pageview_number_in_session,
-      previous_page_domain AS referer_domain,
-      duration AS time_on_page,
-      LOGICAL_OR(CONTAINS_SUBSTR(page, "/admin")) OVER pageviews_in_order AS admin_session
+      referer_domain,
+      time_on_page,
+      LOGICAL_OR(CONTAINS_SUBSTR(page_path, "/admin")) OVER pageviews_in_order AS admin_session
     FROM
-      UNNEST(pages_visited_details)
+        (
+            SELECT
+                REGEXP_REPLACE(page, "([a-zA-Z0-9-]*[0-9]+[a-zA-Z0-9-]*)", "[grouped]") AS page_path,
+                REGEXP_REPLACE(previous_page, "([a-zA-Z0-9-]*[0-9]+[a-zA-Z0-9-]*)", "[grouped]") AS referer_path,
+                page_entry_time,
+                previous_page_domain AS referer_domain,
+                duration AS time_on_page,
+                application,
+                session_id
+            FROM
+                UNNEST(pages_visited_details)
+        )
     WINDOW
       pageviews_in_order AS (
       PARTITION BY application, session_id
