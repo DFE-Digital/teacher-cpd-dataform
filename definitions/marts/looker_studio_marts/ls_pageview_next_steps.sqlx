@@ -32,19 +32,10 @@ config {
     }
 }
 
-pre_operations {
-  DECLARE session_timestamp_checkpoint DEFAULT (
-    ${when(incremental(),
-    `SELECT MAX(session_start_timestamp) FROM ${self()}`,
-    `SELECT TIMESTAMP("2000-01-01")`)}
-  )
-}
-
 js {
     /* Specify new funnels to appear on the pre-set funnels dashboard here. */
     /* Ensure funnelPaths are listed in order in the user journey. */
-    const funnels = [
-        {
+    const funnels = [{
             name: "Register for an NPQ - stage 1 (user information)",
             application: "Apply for a National Professional Qualification",
             funnelPaths: [
@@ -53,10 +44,12 @@ js {
                 "/registration/course-start-date",
                 "/registration/provider-check",
                 "/registration/teacher-catchment",
-                "/registration/work-setting"],
-            sidePaths: [
-                {path: "/registration/dqt-mismatch", nextStep: "/registration/course-start-date"},
-            ]
+                "/registration/work-setting"
+            ],
+            sidePaths: [{
+                path: "/registration/dqt-mismatch",
+                nextStep: "/registration/course-start-date"
+            }, ]
         },
         {
             name: "Register for an NPQ - stage 2a (work setting - school, trust, 16-19 setting or other)",
@@ -64,10 +57,12 @@ js {
             funnelPaths: [
                 "/registration/work-setting",
                 "/registration/find-school",
-                "/registration/choose-school"],
-            sidePaths: [
-                {path: "/registration/referred-by-return-to-teaching-adviser", nextStep: "/registration/choose-your-npq"},
-            ]
+                "/registration/choose-school"
+            ],
+            sidePaths: [{
+                path: "/registration/referred-by-return-to-teaching-adviser",
+                nextStep: "/registration/choose-your-npq"
+            }, ]
         },
         {
             name: "Register for an NPQ - stage 2b (early years or childcare)",
@@ -75,11 +70,20 @@ js {
             funnelPaths: [
                 "/registration/kind-of-nursery",
                 "/registration/find-childcare-provider",
-                "/registration/choose-childcare-provider"],
-            sidePaths: [
-                {path: "/registration/have-ofsted-urn", nextStep: "/registration/choose-your-npq"},
-                {path: "/registration/have-ofsted-urn", nextStep: "/registration/choose-private-childcare-provider"},
-                {path: "/registration/choose-private-childcare-provider", nextStep: "/registration/choose-your-npq"}
+                "/registration/choose-childcare-provider"
+            ],
+            sidePaths: [{
+                    path: "/registration/have-ofsted-urn",
+                    nextStep: "/registration/choose-your-npq"
+                },
+                {
+                    path: "/registration/have-ofsted-urn",
+                    nextStep: "/registration/choose-private-childcare-provider"
+                },
+                {
+                    path: "/registration/choose-private-childcare-provider",
+                    nextStep: "/registration/choose-your-npq"
+                }
             ]
         },
         {
@@ -88,10 +92,16 @@ js {
             funnelPaths: [
                 "/registration/your-employment",
                 "/registration/your-role",
-                "/registration/your-employer"],
-            sidePaths: [
-                {path: "/registration/your-employment", nextStep: "/registration/itt-provider"},
-                {path: "/registration/itt-provider", nextStep: "/registration/choose-your-npq"},
+                "/registration/your-employer"
+            ],
+            sidePaths: [{
+                    path: "/registration/your-employment",
+                    nextStep: "/registration/itt-provider"
+                },
+                {
+                    path: "/registration/itt-provider",
+                    nextStep: "/registration/choose-your-npq"
+                },
             ]
         },
         {
@@ -100,14 +110,32 @@ js {
             funnelPaths: [
                 "/registration/choose-your-npq",
                 "/registration/ineligible-for-funding",
-                "/registration/funding-your-npq"],
-            sidePaths: [
-                {path: "/registration/possible-funding", nextStep: "/registration/choose-your-provider"},
-                {path: "/registration/senco-in-role", nextStep: "/registration/ineligible-for-funding"},
-                {path: "/registration/senco-in-role", nextStep: "/registration/possible-funding"},
-                {path: "/registration/senco-in-role", nextStep: "/registration/senco-start-date"},
-                {path: "/registration/senco-in-role", nextStep: "/registration/funding-eligibility-senco"},
-                {path: "/registration/funding-eligibility-senco", nextStep: "/registration/choose-your-provider"}
+                "/registration/funding-your-npq"
+            ],
+            sidePaths: [{
+                    path: "/registration/possible-funding",
+                    nextStep: "/registration/choose-your-provider"
+                },
+                {
+                    path: "/registration/senco-in-role",
+                    nextStep: "/registration/ineligible-for-funding"
+                },
+                {
+                    path: "/registration/senco-in-role",
+                    nextStep: "/registration/possible-funding"
+                },
+                {
+                    path: "/registration/senco-in-role",
+                    nextStep: "/registration/senco-start-date"
+                },
+                {
+                    path: "/registration/senco-in-role",
+                    nextStep: "/registration/funding-eligibility-senco"
+                },
+                {
+                    path: "/registration/funding-eligibility-senco",
+                    nextStep: "/registration/choose-your-provider"
+                }
             ]
         },
         {
@@ -118,14 +146,16 @@ js {
                 "/registration/ehco-headteacher",
                 "/registration/ehco-new-headteacher",
                 "/registration/ehco-funding-not-available",
-                "/registration/funding-your-ehco"]
+                "/registration/funding-your-ehco"
+            ]
         },
         {
             name: "Register for an NPQ - stage 3c (NPQ choice - leading primary mathematics)",
             application: "Apply for a National Professional Qualification",
             funnelPaths: [
                 "/registration/maths-eligibility-teaching-for-mastery",
-                "/registration/finding-eligibility-maths"]
+                "/registration/finding-eligibility-maths"
+            ]
         },
         {
             name: "Register for an NPQ - stage 4 (finalising registration)",
@@ -133,7 +163,8 @@ js {
             funnelPaths: [
                 "/registration/choose-your-provider",
                 "/registration/share-provider",
-                "/registration/check-answers"]
+                "/registration/check-answers"
+            ]
         },
         {
             name: "New school adding a School Induction Tutor (SIT)",
@@ -143,7 +174,8 @@ js {
                 "/nominations/start-nomination",
                 "/nominations/full-name",
                 "/nominations/email",
-                "/nominations/check-details"]
+                "/nominations/check-details"
+            ]
         },
         {
             name: "School confirming ECT(s), AB(s) & programme choice - stage 1",
@@ -152,12 +184,24 @@ js {
                 "/schools/[grouped]/cohorts/[grouped]/setup",
                 "/schools/[grouped]/cohorts/[grouped]/setup/expect-any-ects",
                 "/schools/[grouped]/cohorts/[grouped]/setup/how-will-you-run-training",
-                "/schools/[grouped]/cohorts/[grouped]/setup/programme-confirmation"],
-            sidePaths: [
-                {path: "/schools/[grouped]/cohorts/[grouped]/setup/providers-relationship-has-changed", nextStep: "/schools/[grouped]/cohorts/[grouped]/setup/what-changes"},
-                {path: "/schools/[grouped]/cohorts/[grouped]/setup/keep-providers", nextStep: "/schools/[grouped]/cohorts/[grouped]/setup/what-changes"},
-                {path: "/schools/[grouped]/cohorts/[grouped]/setup/what-changes", nextStep: "/schools/[grouped]/cohorts/[grouped]/setup/what-changes-confirmation"},
-                {path: "/schools/[grouped]/cohorts/[grouped]/setup/what-changes-confirmation", nextStep: "/schools/[grouped]/cohorts/[grouped]/setup/appropriate-body-appointed"}
+                "/schools/[grouped]/cohorts/[grouped]/setup/programme-confirmation"
+            ],
+            sidePaths: [{
+                    path: "/schools/[grouped]/cohorts/[grouped]/setup/providers-relationship-has-changed",
+                    nextStep: "/schools/[grouped]/cohorts/[grouped]/setup/what-changes"
+                },
+                {
+                    path: "/schools/[grouped]/cohorts/[grouped]/setup/keep-providers",
+                    nextStep: "/schools/[grouped]/cohorts/[grouped]/setup/what-changes"
+                },
+                {
+                    path: "/schools/[grouped]/cohorts/[grouped]/setup/what-changes",
+                    nextStep: "/schools/[grouped]/cohorts/[grouped]/setup/what-changes-confirmation"
+                },
+                {
+                    path: "/schools/[grouped]/cohorts/[grouped]/setup/what-changes-confirmation",
+                    nextStep: "/schools/[grouped]/cohorts/[grouped]/setup/appropriate-body-appointed"
+                }
             ]
         },
         {
@@ -165,10 +209,16 @@ js {
             application: "Manage Training for Early Career Teachers",
             funnelPaths: [
                 "/schools/[grouped]/cohorts/[grouped]/setup/programme-confirmation",
-                "/schools/[grouped]/cohorts/[grouped]/setup/appropriate-body-appointed"],
-            sidePaths: [
-                {path: "/schools/[grouped]/cohorts/[grouped]/setup/what-changes-confirmation", nextStep: "/schools/[grouped]/cohorts/[grouped]/setup/appropriate-body-appointed"},
-                {path: "/schools/[grouped]/cohorts/[grouped]/setup/appropriate-body", nextStep: "/schools/[grouped]/cohorts/[grouped]/setup/complete"}
+                "/schools/[grouped]/cohorts/[grouped]/setup/appropriate-body-appointed"
+            ],
+            sidePaths: [{
+                    path: "/schools/[grouped]/cohorts/[grouped]/setup/what-changes-confirmation",
+                    nextStep: "/schools/[grouped]/cohorts/[grouped]/setup/appropriate-body-appointed"
+                },
+                {
+                    path: "/schools/[grouped]/cohorts/[grouped]/setup/appropriate-body",
+                    nextStep: "/schools/[grouped]/cohorts/[grouped]/setup/complete"
+                }
             ]
         },
         {
@@ -179,7 +229,8 @@ js {
                 "/schools/[grouped]/participants/who/what-we-need",
                 "/schools/[grouped]/participants/who/name",
                 "/schools/[grouped]/participants/who/trn",
-                "/schools/[grouped]/participants/who/date-of-birth"]
+                "/schools/[grouped]/participants/who/date-of-birth"
+            ]
         },
         {
             name: "School adding or transferring an ECT or Mentor - stage 2a (new ECT or Mentor only)",
@@ -189,11 +240,17 @@ js {
                 "/schools/[grouped]/participants/add/choose-mentor",
                 "/schools/[grouped]/participants/add/confirm-appropriate-body",
                 "/schools/[grouped]/participants/add/check-answers",
-                "/schools/[grouped]/participants/add/complete"],
-            sidePaths: [
-                {path: "/schools/[grouped]/participants/add/email", nextStep: "/schools/[grouped]/participants/add/check-answers"},
-                {path: "/schools/[grouped]/participants/add/appropriate-body", nextStep: "/schools/[grouped]/participants/add/check-answers"}
-            /* TODO: Loads of traffic to /schools/[grouped]/participants/add/start-term from /schools/[grouped]/participants/add . What is this? */
+                "/schools/[grouped]/participants/add/complete"
+            ],
+            sidePaths: [{
+                    path: "/schools/[grouped]/participants/add/email",
+                    nextStep: "/schools/[grouped]/participants/add/check-answers"
+                },
+                {
+                    path: "/schools/[grouped]/participants/add/appropriate-body",
+                    nextStep: "/schools/[grouped]/participants/add/check-answers"
+                }
+                /* TODO: Loads of traffic to /schools/[grouped]/participants/add/start-term from /schools/[grouped]/participants/add . What is this? */
             ]
         },
         {
@@ -201,11 +258,55 @@ js {
             application: "Manage Training for Early Career Teachers",
             funnelPaths: [
                 "/schools/[grouped]/participants/who/confirm-transfer",
-                "/schools/[grouped]/participants/transfer"],
-            sidePaths: [
-                {path: "/schools/[grouped]/participants/who/confirm-mentor-transfer", nextStep: "/schools/[grouped]/participants/transfer"},
-                {path: "/schools/[grouped]/participants/joining-date", nextStep: "/schools/[grouped]/participants/transfer/email"}
+                "/schools/[grouped]/participants/transfer"
+            ],
+            sidePaths: [{
+                    path: "/schools/[grouped]/participants/who/confirm-mentor-transfer",
+                    nextStep: "/schools/[grouped]/participants/transfer"
+                },
+                {
+                    path: "/schools/[grouped]/participants/joining-date",
+                    nextStep: "/schools/[grouped]/participants/transfer/email"
+                }
             ]
+        }, {
+            name: "School adding or transferring an ECT or Mentor - stage 2c (DQT failure TRN + DOB match but mismatched name)",
+            application: "Manage Training for Early Career Teachers",
+            funnelPaths: [
+                "/schools/[grouped]/participants/who/known-by-another-name",
+                "/schools/[grouped]/participants/who/different-name",
+                "/schools/[grouped]/participants/who/cannot-add-mismatch"
+            ],
+            sidePaths: [{
+                path: "/schools/[grouped]/participants/who/cannot-add-mismatch"
+            }, ]
+        },
+        {
+            name: "School adding or transferring an ECT or Mentor - stage 2d (DQT failure TRN or DOB do not match)",
+            application: "Manage Training for Early Career Teachers",
+            funnelPaths: [
+                "/schools/[grouped]/participants/who/cannot-find-their-details",
+                "/schools/[grouped]/participants/who/nino",
+                "/schools/[grouped]/participants/who/still-cannot-find-their-details"
+            ],
+            sidePaths: [{
+                path: "/schools/[grouped]/participants/who/name/change"
+            }, {
+                path: "/schools/[grouped]/participants/who/date-of-birth/change"
+            }, {
+                path: "/schools/[grouped]/participants/who/trn/change"
+            }]
+        },
+        {
+            name: "School adding or transferring an ECT or Mentor - stage 2e (School doesnt have a training programme for the participant to join)",
+            application: "Manage Training for Early Career Teachers",
+            funnelPaths: [
+                "/schools/[grouped]/participants/who/need-training-setup",
+                "/schools/[grouped]/cohorts/[grouped]/setup"
+            ],
+            sidePaths: [{
+                path: "/schools/[grouped]/cohorts/[grouped]/choose-programme"
+            }, ]
         },
         {
             name: "School adding or transferring an ECT or Mentor - stage 3b (transfers only)",
@@ -216,10 +317,12 @@ js {
                 "/schools/[grouped]/participants/transfer/continue-current-programme",
                 "/schools/[grouped]/participants/transfer/join-school-programme",
                 "/schools/[grouped]/participants/transfer/choose-mentor",
-                "/schools/[grouped]/participants/transfer/check-answers"],
-            sidePaths: [
-                {path: "/schools/[grouped]/participants/transfer/cannot-add-manual-transfer", nextStep: "/support"},
-            ]
+                "/schools/[grouped]/participants/transfer/check-answers"
+            ],
+            sidePaths: [{
+                path: "/schools/[grouped]/participants/transfer/cannot-add-manual-transfer",
+                nextStep: "/support"
+            }, ]
         },
         {
             name: "Claim an Early Career Teacher (ECT)",
@@ -228,43 +331,50 @@ js {
                 "/appropriate-body/claim-an-ect/find-ect/new",
                 "/appropriate-body/claim-an-ect/check-ect/[grouped]/edit",
                 "/appropriate-body/claim-an-ect/register-ect/[grouped]/edit",
-                "/appropriate-body/claim-an-ect/register-ect/[grouped]"]
+                "/appropriate-body/claim-an-ect/register-ect/[grouped]"
+            ]
         },
         {
             name: "Release an Early Career Teacher (ECT)",
             application: "Register Early Career Teachers",
             funnelPaths: [
                 "/appropriate-body/teachers/[grouped]/release/new",
-                "/appropriate-body/teachers/[grouped]/release"]
+                "/appropriate-body/teachers/[grouped]/release"
+            ]
         },
         {
             name: "Record a passed outcome",
             application: "Register Early Career Teachers",
             funnelPaths: [
                 "/appropriate-body/teachers/[grouped]/record-passed-outcome/new",
-                "/appropriate-body/teachers/[grouped]/record-passed-outcome"]
+                "/appropriate-body/teachers/[grouped]/record-passed-outcome"
+            ]
         },
         {
             name: "Record a failed outcome",
             application: "Register Early Career Teachers",
             funnelPaths: [
                 "/appropriate-body/teachers/[grouped]/record-failed-outcome/new",
-                "/appropriate-body/teachers/[grouped]/record-failed-outcome"]
+                "/appropriate-body/teachers/[grouped]/record-failed-outcome"
+            ]
         },
         {
             name: "Extend an Early Career Teacher (ECT)'s induction period",
             application: "Register Early Career Teachers",
             funnelPaths: [
                 "/appropriate-body/teachers/[grouped]/extensions",
-                "/appropriate-body/teachers/[grouped]/extensions/new"],
-            sidePaths: [
-                {path: "/appropriate-body/teachers/[grouped]/extensions/[grouped]/edit", nextStep: "/appropriate-body/teachers/[grouped]"},
-            ]
+                "/appropriate-body/teachers/[grouped]/extensions/new"
+            ],
+            sidePaths: [{
+                path: "/appropriate-body/teachers/[grouped]/extensions/[grouped]/edit",
+                nextStep: "/appropriate-body/teachers/[grouped]"
+            }, ]
         },
     ];
 }
 
-WITH sessions AS (
+WITH
+  sessions AS (
   SELECT
     "Manage Training for Early Career Teachers" AS application,
     *
@@ -279,94 +389,99 @@ WITH sessions AS (
     FROM
       ${ref("session_details_ecf2")}
     WHERE
-      session_start_timestamp > session_timestamp_checkpoint
-  )
+      session_start_timestamp > session_timestamp_checkpoint )
   UNION ALL (
-      SELECT
+    SELECT
       "Apply for a National Professional Qualification" AS application,
       *
     FROM
       ${ref("session_details_npq")}
     WHERE
-      session_start_timestamp > session_timestamp_checkpoint
-  )
-)
+      session_start_timestamp > session_timestamp_checkpoint ) )
 SELECT
   application,
   session_id,
   user_id,
   session_start_timestamp,
   pageview.*,
-  IF(next_step = page_path, "Viewed same page again e.g. reload, form (re-)submission", next_step) AS next_step_for_display, /* Workaround for Looker Studio Sankey diagrams, which can't accept source and sink nodes which have the same value as each other */
+IF
+  (next_step = page_path, "Viewed same page again e.g. reload, form (re-)submission", next_step) AS next_step_for_display,
+  /* Workaround for Looker Studio Sankey diagrams, which can't accept source and sink nodes which have the same value as each other */
   utm_source AS session_utm_source,
   utm_medium AS session_utm_medium,
   utm_campaign AS session_utm_campaign,
   ARRAY(
-    SELECT funnel FROM (
-        ${funnels.map(funnel =>
-            `SELECT "${funnel.name}" AS funnel,
-                application = "${funnel.application}"
-                AND (
-                    ${funnel.funnelPaths.map((path, index) => {
-                        /* Exclude backward steps */
-                        return `(
-                        page_path = "${path}"
-                        ${index > 0 ?
-                            `AND next_step NOT IN ("${funnel.funnelPaths.slice(0, index).join('", "')}")`
-                        : ''}
-                    )`
-                    }).join('\n OR \n')}
-                    ${funnel.sidePaths ? funnel.sidePaths.map((sidePath, index) => {
-                        /* Include additional paths that aren't part of the main funnel in funnelPaths (but not onward steps from them) */
-                        return ` OR (
-                        page_path = "${sidePath.path}"
-                        AND next_step = "${sidePath.nextStep}"
-                    )`
-                    }).join('\n') : []}
-                )
-                ${funnel.sidePaths ? `AND NOT (
-                    ${funnel.sidePaths.map((sidePath, index) => {
-                        /* Exclude backwards steps along sidePaths */
-                        return `(
-                        page_path = "${sidePath.nextStep}"
-                        AND next_step = "${sidePath.path}"
-                    )`
-                    }).join('\n OR \n')}
-                )` : ``}
-                AS next_step_is_in_this_funnel
-        `).join(`\nUNION ALL\n`)})
-    WHERE next_step_is_in_this_funnel) AS funnels
+  SELECT
+    funnel
+  FROM (
+  ${
+      funnels.map(funnel =>
+          `SELECT "${funnel.name}" AS funnel,
+                  application = "${funnel.application}"
+                  AND (
+                      ${funnel.funnelPaths.map((path, index) => {
+                          /* Exclude backward steps */
+                          return `(
+                          page_path = "${path}"
+                          ${index > 0 ?
+                              `AND next_step NOT IN ("${funnel.funnelPaths.slice(0, index).join('", "')}")`
+                          : ''}
+                      )`
+                      }).join('\n OR \n')}
+                      ${funnel.sidePaths ? funnel.sidePaths.map((sidePath, index) => {
+                          /* Include additional paths that aren't part of the main funnel in funnelPaths (but not onward steps from them) */
+                          return ` OR (
+                          page_path = "${sidePath.path}"
+                          AND next_step = "${sidePath.nextStep}"
+                      )`
+                      }).join('\n') : []}
+                  )
+                  ${funnel.sidePaths ? `AND NOT (
+                      ${funnel.sidePaths.map((sidePath, index) => {
+                          /* Exclude backwards steps along sidePaths */
+                          return `(
+                          page_path = "${sidePath.nextStep}"
+                          AND next_step = "${sidePath.path}"
+                      )`
+                      }).join('\n OR \n')}
+                  )` : ``}
+                  AS next_step_is_in_this_funnel
+          `).join(`\nUNION ALL\n`)
+  }
+  )
+  WHERE
+    next_step_is_in_this_funnel) AS funnels
 FROM
   sessions,
   UNNEST(ARRAY(
     SELECT
-      AS STRUCT
-      page_path,
-      referer_path,
-      page_entry_time,
-      IFNULL(LEAD(page_path) OVER pageviews_in_order, "End of session") AS next_step,
-      IFNULL(LAG(page_path) OVER pageviews_in_order, "Start of session") AS previous_step,
-      FIRST_VALUE(page_path) OVER pageviews_in_order AS first_step,
-      LAST_VALUE(page_path) OVER pageviews_in_order AS last_step,
-      ROW_NUMBER() OVER pageviews_in_order AS pageview_number_in_session,
-      referer_domain,
-      time_on_page,
-      LOGICAL_OR(CONTAINS_SUBSTR(page_path, "/admin")) OVER pageviews_in_order AS admin_session
-    FROM
-        (
-            SELECT
-                REGEXP_REPLACE(page, "([a-zA-Z0-9-]*[0-9]+[a-zA-Z0-9-]*)", "[grouped]") AS page_path,
-                REGEXP_REPLACE(previous_page, "([a-zA-Z0-9-]*[0-9]+[a-zA-Z0-9-]*)", "[grouped]") AS referer_path,
-                page_entry_time,
-                previous_page_domain AS referer_domain,
-                duration AS time_on_page,
-                application,
-                session_id
-            FROM
-                UNNEST(pages_visited_details)
-        )
+      AS STRUCT page_path, referer_path, page_entry_time, IFNULL(LEAD(page_path) OVER pageviews_in_order, "End of session") AS next_step, IFNULL(LAG(page_path) OVER pageviews_in_order, "Start of session") AS previous_step, FIRST_VALUE(page_path) OVER pageviews_in_order AS first_step, LAST_VALUE(page_path) OVER pageviews_in_order AS last_step, ROW_NUMBER() OVER pageviews_in_order AS pageview_number_in_session, referer_domain, time_on_page, LOGICAL_OR(CONTAINS_SUBSTR(page_path, "/admin")) OVER pageviews_in_order AS admin_session
+    FROM (
+      SELECT
+        REGEXP_REPLACE(page, "([a-zA-Z0-9-]*[0-9]+[a-zA-Z0-9-]*)", "[grouped]") AS page_path,
+        REGEXP_REPLACE(previous_page, "([a-zA-Z0-9-]*[0-9]+[a-zA-Z0-9-]*)", "[grouped]") AS referer_path,
+        page_entry_time,
+        previous_page_domain AS referer_domain,
+        duration AS time_on_page,
+        application,
+        session_id
+      FROM
+        UNNEST(pages_visited_details) )
     WINDOW
       pageviews_in_order AS (
-      PARTITION BY application, session_id
+      PARTITION BY
+        application,
+        session_id
       ORDER BY
         page_entry_time ASC))) AS pageview
+
+pre_operations {
+  DECLARE
+    session_timestamp_checkpoint DEFAULT (
+    ${
+        when(incremental(),
+            `SELECT MAX(session_start_timestamp) FROM ${self()}`,
+            `SELECT TIMESTAMP("2000-01-01")`)
+    }
+    )
+}
