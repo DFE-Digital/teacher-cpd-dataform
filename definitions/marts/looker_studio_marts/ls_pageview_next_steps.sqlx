@@ -414,11 +414,14 @@ IF
   SELECT
     funnel
   FROM (
+  /* Loop through the funnels JS array of funnel objects and generate a small subquery containing the funnel name, */
+  /* application & next_step_is_in_this_funnel boolean for each one, separated by a UNION ALL */
   ${
       funnels.map(funnel =>
           `SELECT "${funnel.name}" AS funnel,
                   application = "${funnel.application}"
                   AND (
+                      /* Loop through the funnelPaths array of path strings within each funnel object and generate a WHERE clause for each one, separated by an OR */
                       ${funnel.funnelPaths.map((path, index) => {
                           /* Exclude backward steps */
                           return `(
@@ -428,6 +431,7 @@ IF
                           : ''}
                       )`
                       }).join('\n OR \n')}
+                      /* If sidePaths exists for this funnel, loop through the sidePaths array of sidePath objects within each funnel object and generate a WHERE clause for each one, separated by an OR */
                       ${funnel.sidePaths ? funnel.sidePaths.map((sidePath, index) => {
                           /* Include additional paths that aren't part of the main funnel in funnelPaths (but not onward steps from them) */
                           return ` OR (
@@ -436,6 +440,7 @@ IF
                       )`
                       }).join('\n') : []}
                   )
+                  /* If sidePath exists for this funnel, loop through the sidePaths array of sidePath objects within each funnel object and generate a WHERE NOT clause for each one, separated by an OR */
                   ${funnel.sidePaths ? `AND NOT (
                       ${funnel.sidePaths.map((sidePath, index) => {
                           /* Exclude backwards steps along sidePaths */
