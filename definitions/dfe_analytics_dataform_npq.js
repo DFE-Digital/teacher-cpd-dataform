@@ -807,6 +807,45 @@ dfeAnalyticsDataform({
             description: ""
         }]
     }, {
+        entityTableName: "delivery_partners",
+        description: "",
+        keys: [{
+            keyName: "ecf_id",
+            dataType: "string",
+            description: ""
+        }, {
+            keyName: "id",
+            alias: "delivery_partner_id",
+            dataType: "string",
+            description: ""
+        }, {
+            keyName: "declaration_id",
+            dataType: "string",
+            description: ""
+        }]
+    },{
+        entityTableName: "delivery_partnerships",
+        description: "",
+        keys: [{
+            keyName: "cohort_id",
+            dataType: "string",
+            description: ""
+        }, {
+            keyName: "id",
+            alias: "delivery_partner_id",
+            dataType: "string",
+            description: ""
+        }, {
+            keyName: "id",
+            alias:"delivery_partnership_id",
+            dataType: "string",
+            description: ""
+        }, {
+            keyName: "lead_provider_id",
+            dataType: "string",
+            description: ""
+        }]
+    },{
         entityTableName: "users",
         description: "This table contains a mapping between User ID (numeric) and TRN for users of the NPQ Service. Closest ECF equivalent is Teacher Profiles.",
         keys: [{
