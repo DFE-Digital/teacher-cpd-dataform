@@ -807,6 +807,34 @@ dfeAnalyticsDataform({
             description: ""
         }]
     }, {
+        entityTableName: "delivery_partners",
+        description: "This table is the list of recorded NPQ delivery partner (organisations who deliver the NPQ training).",
+        keys: [{
+            keyName: "ecf_id",
+            dataType: "string",
+            description: ""
+        },{
+            keyName: "name",
+            dataType: "string",
+            description: ""
+        }]
+    },{
+        entityTableName: "delivery_partnerships",
+        description: "This table is a list of relationships between a given delivery partner and a specific lead provider for a cohort.",
+        keys: [{
+            keyName: "cohort_id",
+            dataType: "string",
+            description: ""
+        }, {
+            keyName: "delivery_partner_id",
+            dataType: "string",
+            description: ""
+        },{
+            keyName: "lead_provider_id",
+            dataType: "string",
+            description: ""
+        }]
+    },{
         entityTableName: "users",
         description: "This table contains a mapping between User ID (numeric) and TRN for users of the NPQ Service. Closest ECF equivalent is Teacher Profiles.",
         keys: [{
