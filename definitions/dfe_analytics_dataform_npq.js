@@ -808,7 +808,7 @@ dfeAnalyticsDataform({
         }]
     }, {
         entityTableName: "delivery_partners",
-        description: "This table is the list of NPQ delivery partners, organisations who deliver the NPQ training, that is recorded in the system.",
+        description: "This table is the list of recorded NPQ delivery partner (organisations who deliver the NPQ training).",
         keys: [{
             keyName: "ecf_id",
             dataType: "string",
