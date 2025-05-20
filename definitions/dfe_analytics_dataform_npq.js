@@ -808,39 +808,28 @@ dfeAnalyticsDataform({
         }]
     }, {
         entityTableName: "delivery_partners",
-        description: "",
+        description: "This table is the list of NPQ delivery partners, organisations who deliver the NPQ training, that is recorded in the system.",
         keys: [{
             keyName: "ecf_id",
             dataType: "string",
             description: ""
-        }, {
-            keyName: "id",
-            alias: "delivery_partner_id",
-            dataType: "string",
-            description: ""
-        }, {
-            keyName: "declaration_id",
+        },{
+            keyName: "name",
             dataType: "string",
             description: ""
         }]
     },{
         entityTableName: "delivery_partnerships",
-        description: "",
+        description: "This table is a list of relationships between a given delivery partner and a specific lead provider for a cohort.",
         keys: [{
             keyName: "cohort_id",
             dataType: "string",
             description: ""
         }, {
-            keyName: "id",
-            alias: "delivery_partner_id",
+            keyName: "delivery_partner_id",
             dataType: "string",
             description: ""
-        }, {
-            keyName: "id",
-            alias:"delivery_partnership_id",
-            dataType: "string",
-            description: ""
-        }, {
+        },{
             keyName: "lead_provider_id",
             dataType: "string",
             description: ""
