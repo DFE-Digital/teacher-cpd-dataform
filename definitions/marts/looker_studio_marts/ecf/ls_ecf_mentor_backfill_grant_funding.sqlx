@@ -134,13 +134,18 @@ WITH
   declarations_extended AS (
   SELECT
     dec.*
-    -- Create declaration sequence per participant and also by whether there are funded_hours associated and whether it is was previously paid.
-    -- This ensures that declarations after extended-1/2/3 are not incorrectly excluded by the 3 declaration cap per period.
+    -- This generates a sequence count across grouped declarations for a given participant based on whether those declarations have been paid in prior payment years.
+    -- Declarations that have been paid are counted separately to those that haven't been paid.
+    -- For example, if a participant has 4 declarations this year - started, retained-1, retained-2, retained-3, and completed and the started, retained-1, retained-2 declarations were paid in
+    -- prior payments this sequencing would count those declarations separately to retained-3 and completed which would both still be eligible this year as they only count for two 'unpaid' declarations.
+    -- This also ensures that declarations after extended-1/2/3 are not incorrectly excluded by the 3 declaration cap per period.
     ,
-    ROW_NUMBER() OVER(PARTITION BY dec.participant_profile_id, dec.funded_hours, pp.user_id, ply.user_id ORDER BY declaration_type_hierarchy ASC) AS declaration_sequence,
+    ROW_NUMBER() OVER(PARTITION BY dec.participant_profile_id, dec.funded_hours, (CASE WHEN pp.trn IS NOT NULL OR pp_uid.user_id IS NOT NULL OR ply.user_id IS NOT NULL THEN TRUE ELSE FALSE END )
+    ORDER BY
+      declaration_type_hierarchy ASC) AS declaration_sequence,
     ROUND((cost.cost_for_36_hours / 36) * dec.funded_hours, 2) AS funded_hours_cost,
     CASE
-      WHEN pp.user_id IS NOT NULL THEN TRUE
+      WHEN pp.trn IS NOT NULL OR pp_uid.user_id IS NOT NULL THEN TRUE
       ELSE FALSE
   END
     AS previously_paid,
@@ -175,7 +180,20 @@ WITH
   LEFT JOIN
     ${ref('ecf_mentors_previously_paid')} AS pp
   ON
-    pp.user_id = dec.user_id
+    pp.trn = dec.trn
+    AND ( ( dec.declaration_type IN ('started',
+          'retained-1',
+          'retained-2')
+        AND pp.payment_period LIKE 'Instalment 1%' )
+      OR ( dec.declaration_type IN ('retained-3',
+          'retained-4',
+          'completed')
+        AND pp.payment_period LIKE 'Instalment 2%' ) )
+  LEFT JOIN
+    ${ref('ecf_mentors_previously_paid')} AS pp_uid
+  ON
+    pp_uid.user_id = dec.user_id
+    AND pp_uid.trn IS NULL
     AND ( ( dec.declaration_type IN ('started',
           'retained-1',
           'retained-2')
@@ -187,7 +205,7 @@ WITH
   LEFT JOIN
     ${ref('ecf_mentor_grant_funding_23_24_funded_hours_paid')} AS ply
   ON
-    ply.user_id = dec.user_id
+    ply.trn = dec.trn
     AND ply.declaration_type = dec.declaration_type
     AND ply.funded_hours = 6
   LEFT JOIN
