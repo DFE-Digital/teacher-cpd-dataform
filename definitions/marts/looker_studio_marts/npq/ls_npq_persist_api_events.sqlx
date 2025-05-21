@@ -1,0 +1,55 @@
+config {
+    type: "table" ,
+    description:"This mart produces a table outlining all API calls made by Lead Providers. It excludes all calls that aren't of the 'persist_api_event' event type and those made where the lead_provider is null, to ensure the focus is on LP usage. The table outlines the response statuses of the API to identify LPs causing a large number of errors. The final output feeds into the NPQ API Monitoring dashboard.",
+    columns:{
+        created_at:"Timestamp of when the API call was made.",
+        row_id:"A unique identifier specific to this table, it holds no meaning outside of this table and should not be used to join to other tables.",
+        status_code:"The code associated with the API call. Any non-200 response status is an error.",
+        request_path:"The endpoint that is being accessed.",
+        request_method:"Method for calling the API. Can be GET, POST, or PUT.",
+        request_headers:"The HTTP headers included in the client's request to the API",
+        request_body:"Details the call made by the Lead Provider.",
+        response_body:"Details the API response. Usually populated if there are any errors with the API call being made.",
+        response_headers:"The HTTP headers returned by the server in response to an API request.",
+        lead_provider:"Name of the Lead Provider making the API call."
+    }  
+}
+
+WITH base AS (
+  SELECT *
+  FROM `npq_events_production.events`
+  WHERE event_type = 'persist_api_request'
+),
+indexed AS (
+  SELECT
+    base.*,
+    ROW_NUMBER() OVER () AS row_index
+  FROM base
+),
+unnested AS (
+  SELECT
+    i.row_index,
+    d.key,
+    d.value
+  FROM indexed i,
+  UNNEST(i.DATA) AS d
+),
+base_data as(
+SELECT
+  GENERATE_UUID() AS row_id,
+  MAX(IF(key = 'request_path' AND ARRAY_LENGTH(value) > 0, value[OFFSET(0)], NULL)) AS request_path,
+  CAST(MAX(IF(key = 'status_code' AND ARRAY_LENGTH(value) > 0, value[OFFSET(0)], NULL)) AS INT) AS status_code,
+  MAX(IF(key = 'request_headers' AND ARRAY_LENGTH(value) > 0, value[OFFSET(0)], NULL))AS request_headers,
+  MAX(IF(key = 'request_method' AND ARRAY_LENGTH(value) > 0, value[OFFSET(0)], NULL)) AS request_method,
+  MAX(IF(key = 'request_body' AND ARRAY_LENGTH(value) > 0, value[OFFSET(0)], NULL))AS request_body,
+  MAX(IF(key = 'response_body' AND ARRAY_LENGTH(value) > 0, value[OFFSET(0)], NULL)) AS response_body,
+  MAX(IF(key = 'response_headers' AND ARRAY_LENGTH(value) > 0, value[OFFSET(0)], NULL)) AS response_headers,
+  MAX(IF(key = 'lead_provider' AND ARRAY_LENGTH(value) > 0, value[OFFSET(0)], NULL)) AS lead_provider,
+  MAX(IF(key = 'created_at' AND ARRAY_LENGTH(value) > 0, value[OFFSET(0)], NULL)) AS created_at
+FROM unnested
+GROUP BY row_index)
+
+
+SELECT bd.*
+FROM base_data as bd
+WHERE lead_provider is not null
