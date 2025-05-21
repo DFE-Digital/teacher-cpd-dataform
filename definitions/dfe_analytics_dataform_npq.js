@@ -10,6 +10,45 @@ dfeAnalyticsDataform({
     hiddenPolicyTagLocation: "projects/ecf-bq/locations/europe-west2/taxonomies/6302091323314055162/policyTags/301313311867345339",
     enableSessionTables: false,
     enableSessionDetailsTable: true,
+    customEventSchema: [{
+        eventType: "persist_api_request",
+        description: "Custom event set-up for API Requests as of 16/05/2025",
+        keys: [{
+            keyName: "request_path",
+            alias: "api_request_path",
+            dataType: "string",
+            description: ""
+        }, {
+            keyName: "status_code",
+            dataType: "string",
+            description: ""
+        }, {
+            keyName: "request_headers",
+            dataType: "string",
+            description: ""
+        }, {
+            keyName: "request_body",
+            dataType: "string",
+            description: ""
+        }, {
+            keyName: "response_body",
+            dataType: "string",
+            description: ""
+        }, {
+            keyName: "response_headers",
+            dataType: "string",
+            description: ""
+        }, {
+            keyName: "lead_provider",
+            alias: "npq_lead_provider_id",
+            dataType: "string",
+            description: ""
+        }, {
+            keyName: "created_at",
+            dataType: "timestamp",
+            description: ""
+        }]
+    }],
     dataSchema: [{
         entityTableName: "applications",
         description: "",
@@ -176,7 +215,8 @@ dfeAnalyticsDataform({
         }, {
             keyName: "on_submission_trn",
             dataType: "string",
-            description: ""
+            description: "",
+            hidden: true
         }, {
             keyName: "senco_in_role",
             dataType: "string",
@@ -767,6 +807,34 @@ dfeAnalyticsDataform({
             description: ""
         }]
     }, {
+        entityTableName: "delivery_partners",
+        description: "This table is the list of recorded NPQ delivery partner (organisations who deliver the NPQ training).",
+        keys: [{
+            keyName: "ecf_id",
+            dataType: "string",
+            description: ""
+        },{
+            keyName: "name",
+            dataType: "string",
+            description: ""
+        }]
+    },{
+        entityTableName: "delivery_partnerships",
+        description: "This table is a list of relationships between a given delivery partner and a specific lead provider for a cohort.",
+        keys: [{
+            keyName: "cohort_id",
+            dataType: "string",
+            description: ""
+        }, {
+            keyName: "delivery_partner_id",
+            dataType: "string",
+            description: ""
+        },{
+            keyName: "lead_provider_id",
+            dataType: "string",
+            description: ""
+        }]
+    },{
         entityTableName: "users",
         description: "This table contains a mapping between User ID (numeric) and TRN for users of the NPQ Service. Closest ECF equivalent is Teacher Profiles.",
         keys: [{
@@ -776,7 +844,8 @@ dfeAnalyticsDataform({
         }, {
             keyName: "trn",
             dataType: "string",
-            description: ""
+            description: "",
+            hidden: true
         }, {
             keyName: "trn_verified",
             dataType: "boolean",
@@ -822,6 +891,11 @@ dfeAnalyticsDataform({
             dataType: "string",
             description: ""
         }, {
+            keyName: "email",
+            dataType: "string",
+            description: "",
+            hidden:true
+        },{
             keyName: "email_updates_unsubscribe_key",
             dataType: "string", // NEED TO VERIFY DTYPE
             description: ""
