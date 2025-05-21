@@ -135,7 +135,7 @@ WITH
   SELECT
     dec.*
     -- This generates a sequence count across grouped declarations for a given participant based on whether those declarations have been paid in prior payment years.
-    -- Declarations that have been paid are counted separately to those that haven't been paid.
+    -- Declarations that have been paid are counted separately to those that haven't been paid. The presence of the user_id/trn is an indication of whether that participant was paid
     -- For example, if a participant has 4 declarations this year - started, retained-1, retained-2, retained-3, and completed and the started, retained-1, retained-2 declarations were paid in
     -- prior payments this sequencing would count those declarations separately to retained-3 and completed which would both still be eligible this year as they only count for two 'unpaid' declarations.
     -- This also ensures that declarations after extended-1/2/3 are not incorrectly excluded by the 3 declaration cap per period.
@@ -189,11 +189,12 @@ WITH
           'retained-4',
           'completed')
         AND pp.payment_period LIKE 'Instalment 2%' ) )
+--   We have to run this join twice because there are a small number of participants for whom we don't have a trn associated with the user. So we have to match on user_id. We only join on those users without trn.  
   LEFT JOIN
     ${ref('ecf_mentors_previously_paid')} AS pp_uid
   ON
     pp_uid.user_id = dec.user_id
-    AND pp_uid.trn IS NULL
+    AND pp_uid.trn IS NULL 
     AND ( ( dec.declaration_type IN ('started',
           'retained-1',
           'retained-2')
