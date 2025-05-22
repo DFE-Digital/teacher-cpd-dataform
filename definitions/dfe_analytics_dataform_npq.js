@@ -44,7 +44,8 @@ dfeAnalyticsDataform({
             dataType: "string",
             description: "The HTTP headers returned by the server in response to an API request."
         }, {
-            keyName: "lead_provider",
+            keyName: "npq_lead_provider_id",
+            alias: "lead_provider",
             dataType: "string",
             description: "Name of the Lead Provider making the API call."
         }, {

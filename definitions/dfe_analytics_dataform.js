@@ -109,6 +109,14 @@ dfeAnalyticsDataform({
                 keyName: "start_year",
                 dataType: "integer",
                 description: ""
+            }, {
+                keyName: "detailed_evidence_types",
+                dataType: "string",
+                description: ""
+            }, {
+                keyName: "mentor_funding",
+                dataType: "string",
+                description: ""
             }]
         },
         {
