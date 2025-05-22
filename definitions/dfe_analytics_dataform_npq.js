@@ -12,37 +12,41 @@ dfeAnalyticsDataform({
     enableSessionDetailsTable: true,
     customEventSchema: [{
         eventType: "persist_api_request",
-        description: "Custom event set-up for API Requests as of 16/05/2025",
-        keys: [{
+        description: "This mart produces a table outlining all API calls made by Lead Providers. It excludes all calls that aren't of the 'persist_api_event' event type. The table outlines the response statuses of the API to identify LPs causing a large number of errors. The output feeds into the NPQ API Monitoring dashboard.",
+        keys: [{            
             keyName: "request_path",
             alias: "api_request_path",
             dataType: "string",
-            description: ""
+            description: "The endpoint that is being accessed."
         }, {
             keyName: "status_code",
-            dataType: "string",
-            description: ""
+            dataType: "integer",
+            description: "The code associated with the API call. Any non-200 response status is an error."
         }, {
+            keyName: "request_method",
+            alias: "api_request_method",
+            dataType: "string",
+            description: "Method for calling the API. Can be GET, POST, or PUT."
+        },{
             keyName: "request_headers",
             dataType: "string",
-            description: ""
+            description: "The HTTP headers included in the client's request to the API"
         }, {
             keyName: "request_body",
             dataType: "string",
-            description: ""
+            description: "Details the call made by the Lead Provider."
         }, {
             keyName: "response_body",
             dataType: "string",
-            description: ""
+            description: "Details the API response. Usually populated if there are any errors with the API call being made."
         }, {
             keyName: "response_headers",
             dataType: "string",
-            description: ""
+            description: "The HTTP headers returned by the server in response to an API request."
         }, {
             keyName: "lead_provider",
-            alias: "npq_lead_provider_id",
             dataType: "string",
-            description: ""
+            description: "Name of the Lead Provider making the API call."
         }, {
             keyName: "created_at",
             dataType: "timestamp",
