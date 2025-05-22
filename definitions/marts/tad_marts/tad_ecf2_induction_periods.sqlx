@@ -39,7 +39,7 @@ WITH
     ${ref(`ecf2_teacher_induction_periods`)}),
   historical_inductions AS (
   SELECT
-    CAST(historic.trn AS string) AS trn,
+    trn as trn,
     abs.name AS appropriate_body_name,
     historic.started_on AS started_on,
     historic.finished_on AS finished_on,
@@ -47,7 +47,7 @@ WITH
     historic.induction_programme_choice AS induction_programme_type,
     'historic_import' AS data_source
   FROM
-    `static_tables.historical_induction_period_import` AS historic
+    `static_tables.historical_induction_periods_import_new` AS historic
   LEFT JOIN
     ${ref(`appropriate_bodies_latest_ecf2`)} AS abs
   ON
