@@ -10,7 +10,7 @@ config {
         partitionBy: "DATE(application_created_at)",
         clusterBy: ["cohort", "provider_name", "course_name", "application_status"]
     },
-    description: "This table is designed around NPQ Applications with each application constituting a single record. Participant details have been joined into the application record.",
+    description: "This table represents the current version of the TADs enrolments table. It is structured around NPQ applications, with each application constituting a single record. Participant details are integrated directly into each application record.",
     columns: {
         application_id: "This is the unique id for an NPQ applications. This field was entirely generated post-separation in the new NPQ data model. We join this field on the application_id field in the declarations table to identify declarations paired with this application. This field will not map onto historical application_ids generated prior to NPQ Separation (27/11/2024). If you would like to map historical application_ids please use the application_ecf_id field that hosts historical application_ids",
         application_ecf_id: "This field contains the historical application_id that will have been created in the old data model pre-separation. This field is available in the new model but not used to join on other tables.  You can use this field if you want to map historical data that pre-dates the ECF & NPQ separation (27/12/2024).",
@@ -27,6 +27,7 @@ config {
         headteacher_status: "Indicates whether the participant is a headteacher in their first five years.",
         eligible_for_funding: "Indicates whether the applicant is eligible for funding for their course.",
         funding_choice: "If a participant is not eligible for funding, this indicates the source of the funding for their NPQ. Possible fields: Another, School, Self, Trust ",
+        funded_place: "This indicates if the accepted NPQ application is being funded by the DfE as one of the capped funded places. Being eligible for funding does not guarantee the application will be funded.",
         school_urn: "The unique reference number of the participant's school. Private childcare participants do not need a URN.",
         la_name: "Name of local authority",
         course_name: "Text name of NPQ course",
@@ -64,6 +65,7 @@ SELECT
   headteacher_status,
   eligible_for_funding,
   funding_choice,
+  funded_place,
   school_urn,
   school_name,
   la_name,

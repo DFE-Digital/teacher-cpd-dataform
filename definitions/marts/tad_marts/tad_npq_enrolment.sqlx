@@ -10,8 +10,8 @@ config {
         partitionBy: "DATE(application_created_at)",
         clusterBy: ["cohort", "provider_name", "course_name", "application_status"]
     },
-    description: "This table is designed around NPQ Applications with each application constituting a single record. Participant details have been joined into the application record.",
-    columns: {
+    description:"This table is an archived copy of a previous version of the enrolments data. It retains the original structure, where each record corresponds to an NPQ application, and participant details are joined into the application record.",
+      columns: {
         application_id: "This is the unique id for an NPQ application. We join this field on the participant_profile_id field in the declarations table to identify declarations paired with this application",
         teacher_profile_trn: {
             description: "This TRN is sourced through participant profiles which are dependent on the application having been accepted by a Lead Provider. If the application has been made but has yet to be accepted the TRN field will be blank despite a valid TRN verified field.",
