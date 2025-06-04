@@ -7,7 +7,7 @@ config {
         partitionBy: "DATE(session_start_timestamp)",
         clusterBy: ["application"]
     },
-    description: "Pageviews that occurred on a CPD service, along with details of previous and next steps users took within their session. Sessions defined Google Analytics style from the dfe-analytics-dataform session_details table. Intended to support a funnel analysis dashboard.",
+    description: "Pageviews that occurred on a CPD service, along with details of previous and next steps users took within their session. Sessions defined Google Analytics style from the dfe-analytics-dataform session_details table. Consecutive repeat views of the same grouped page_path have been excluded and counted in number_of_immediate_repeat_pageviews. Intended to support a funnel analysis dashboard.",
     columns: {
         application: "Name of the application that received the request to view this page.",
         session_id: "UID of this session",
@@ -23,7 +23,8 @@ config {
         last_step: "Path of the last page that was viewed in the session this pageview falls within.",
         previous_step: "Path of the previous page that was viewed on this service *within this session*, if it was. If it wasn't, contains the string 'End of session'. Not the same as referer_path.",
         pageview_number_in_session: "Number indicating that this pageview was the Nth pageview within this session.",
-        time_on_page: "Number of seconds between page_entry_time and the page_entry_time of the next pageview if it exists. NULL otherwise.",
+        time_on_page: "Number of seconds between page_entry_time and the page_entry_time of the next pageview which is not the same grouped page_path if it exists. NULL otherwise.",
+        number_of_immediate_repeat_pageviews: "Number of views of the same grouped page_path within this session which took place with no views of any other grouped page_paths in between.",
         admin_session: "TRUE if this user was an internal DfE admin user, deduced from whether they viewed any page path containing 'admin' at any point in the session.",
         session_utm_source: "Value of the utm_source UTM parameter for the first pageview in the session, if it was set. Useful to categorise traffic for marketing purposes.",
         session_utm_medium: "Value of the utm_medium UTM parameter for the first pageview in the session, if it was set. Useful to categorise traffic for marketing purposes.",
@@ -404,9 +405,7 @@ SELECT
   user_id,
   session_start_timestamp,
   pageview.*,
-IF
-  (next_step = page_path, "Viewed same page again e.g. reload, form (re-)submission", next_step) AS next_step_for_display,
-  /* Workaround for Looker Studio Sankey diagrams, which can't accept source and sink nodes which have the same value as each other */
+  next_step AS next_step_for_display,
   utm_source AS session_utm_source,
   utm_medium AS session_utm_medium,
   utm_campaign AS session_utm_campaign,
@@ -460,25 +459,66 @@ FROM
   sessions,
   UNNEST(ARRAY(
     SELECT
-      AS STRUCT page_path, referer_path, page_entry_time, IFNULL(LEAD(page_path) OVER pageviews_in_order, "End of session") AS next_step, IFNULL(LAG(page_path) OVER pageviews_in_order, "Start of session") AS previous_step, FIRST_VALUE(page_path) OVER pageviews_in_order AS first_step, LAST_VALUE(page_path) OVER pageviews_in_order AS last_step, ROW_NUMBER() OVER pageviews_in_order AS pageview_number_in_session, referer_domain, time_on_page, LOGICAL_OR(CONTAINS_SUBSTR(page_path, "/admin")) OVER pageviews_in_order AS admin_session
+      AS STRUCT
+        * EXCEPT(time_on_page, next_page_entry_time, next_step_has_same_page_path, previous_step_has_same_page_path),
+        CASE
+            WHEN next_step_has_same_page_path IS TRUE THEN
+                1 + IFNULL(MIN(IF(next_step_has_same_page_path IS FALSE, pageview_number_in_session, NULL)) OVER future_pageviews_with_same_page_path_in_order - pageview_number_in_session, 0)
+            ELSE 1
+        END AS number_of_immediate_repeat_pageviews,
+        CASE
+            WHEN next_step_has_same_page_path IS TRUE THEN
+                TIMESTAMP_DIFF(MIN(IF(next_step_has_same_page_path IS FALSE, next_page_entry_time, NULL)) OVER future_pageviews_with_same_page_path_in_order, page_entry_time, SECOND)
+            ELSE time_on_page
+        END AS time_on_page
     FROM (
-      SELECT
-        REGEXP_REPLACE(page, "([a-zA-Z0-9-]*[0-9]+[a-zA-Z0-9-]*)", "[grouped]") AS page_path,
-        REGEXP_REPLACE(previous_page, "([a-zA-Z0-9-]*[0-9]+[a-zA-Z0-9-]*)", "[grouped]") AS referer_path,
-        page_entry_time,
-        previous_page_domain AS referer_domain,
-        duration AS time_on_page,
-        application,
-        session_id
-      FROM
-        UNNEST(pages_visited_details) )
+        SELECT
+        AS STRUCT
+            page_path,
+            referer_path,
+            page_entry_time,
+            IFNULL(LEAD(page_path) OVER pageviews_in_order, "End of session") AS next_step,
+            LEAD(page_entry_time) OVER pageviews_in_order AS next_page_entry_time,
+            IFNULL(LAG(page_path) OVER pageviews_in_order, "Start of session") AS previous_step,
+            FIRST_VALUE(page_path) OVER pageviews_in_order AS first_step,
+            LAST_VALUE(page_path) OVER pageviews_in_order AS last_step,
+            ROW_NUMBER() OVER pageviews_in_order AS pageview_number_in_session,
+            referer_domain,
+            time_on_page,
+            LOGICAL_OR(CONTAINS_SUBSTR(page_path, "/admin")) OVER pageviews_in_order AS admin_session,
+            IFNULL(LEAD(page_path) OVER pageviews_in_order = page_path, FALSE) AS next_step_has_same_page_path,
+            IFNULL(LAG(page_path) OVER pageviews_in_order = page_path, FALSE) AS previous_step_has_same_page_path
+        FROM (
+            SELECT
+                REGEXP_REPLACE(page, "([a-zA-Z0-9-]*[0-9]+[a-zA-Z0-9-]*)", "[grouped]") AS page_path,
+                REGEXP_REPLACE(previous_page, "([a-zA-Z0-9-]*[0-9]+[a-zA-Z0-9-]*)", "[grouped]") AS referer_path,
+                page_entry_time,
+                previous_page_domain AS referer_domain,
+                duration AS time_on_page,
+                application,
+                session_id
+            FROM
+                UNNEST(pages_visited_details)
+        )
+        WINDOW
+        pageviews_in_order AS (
+        PARTITION BY
+            application,
+            session_id
+        ORDER BY
+            page_entry_time ASC))
+    QUALIFY
+        previous_step_has_same_page_path IS NOT TRUE
     WINDOW
-      pageviews_in_order AS (
-      PARTITION BY
-        application,
-        session_id
-      ORDER BY
-        page_entry_time ASC))) AS pageview
+        future_pageviews_with_same_page_path_in_order AS (
+        PARTITION BY
+            application,
+            session_id,
+            page_path
+        ORDER BY
+            page_entry_time ASC
+        ROWS BETWEEN 1 FOLLOWING AND UNBOUNDED FOLLOWING)
+    )) AS pageview
 
 pre_operations {
   DECLARE
