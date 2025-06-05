@@ -1,7 +1,8 @@
 config {
     type: "incremental",
     assertions: {
-        uniqueKey: ["application", "session_id", "pageview_number_in_session", "user_id"]
+        uniqueKey: ["application", "session_id", "pageview_number_in_session", "user_id"],
+        rowConditions: ["next_step != page_path"]
     },
     bigquery: {
         partitionBy: "DATE(session_start_timestamp)",
@@ -460,7 +461,11 @@ FROM
   UNNEST(ARRAY(
     SELECT
       AS STRUCT
-        * EXCEPT(time_on_page, next_page_entry_time, next_step_has_same_page_path, previous_step_has_same_page_path),
+        * EXCEPT(time_on_page, next_page_entry_time, next_step_has_same_page_path, previous_step_has_same_page_path, next_step),
+        CASE
+            WHEN next_step_has_same_page_path IS TRUE THEN FIRST_VALUE(IF(next_step_has_same_page_path IS FALSE, next_step, NULL) IGNORE NULLS) OVER future_pageviews_with_same_page_path_in_order
+            ELSE next_step
+        END AS next_step,
         CASE
             WHEN next_step_has_same_page_path IS TRUE THEN
                 1 + IFNULL(MIN(IF(next_step_has_same_page_path IS FALSE, pageview_number_in_session, NULL)) OVER future_pageviews_with_same_page_path_in_order - pageview_number_in_session, 0)
