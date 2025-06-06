@@ -36,24 +36,24 @@ WITH
   FROM
     ${ref('ecf_inductions_dedupe')} AS ecfid
   LEFT JOIN
-    ${ref('participant_profiles_latest_cpd')} AS ppl
+    ${ref('participant_profiles_latest_ecf1')} AS ppl
   ON
     ecfid.participant_profile_id = ppl.id
   WHERE
     participant_type IS NOT NULL),
   ecf_declarations_expanded AS (
   SELECT
-    dec_cpd.*,
+    dec_ecf1.*,
     cpd_lead_providers.name AS cpd_lead_provider_name,
     delivery_partners.name AS delivery_partner_name,
     CASE
-      WHEN dec_cpd.state LIKE 'paid' THEN 7
-      WHEN dec_cpd.state LIKE 'payable' THEN 6
-      WHEN dec_cpd.state LIKE 'eligible' THEN 5
-      WHEN dec_cpd.state LIKE 'submitted' THEN 4
-      WHEN dec_cpd.state LIKE 'clawed_back' THEN 3
-      WHEN dec_cpd.state LIKE 'awaiting_clawback' THEN 2
-      WHEN dec_cpd.state LIKE 'voided' THEN 1
+      WHEN dec_ecf1.state LIKE 'paid' THEN 7
+      WHEN dec_ecf1.state LIKE 'payable' THEN 6
+      WHEN dec_ecf1.state LIKE 'eligible' THEN 5
+      WHEN dec_ecf1.state LIKE 'submitted' THEN 4
+      WHEN dec_ecf1.state LIKE 'clawed_back' THEN 3
+      WHEN dec_ecf1.state LIKE 'awaiting_clawback' THEN 2
+      WHEN dec_ecf1.state LIKE 'voided' THEN 1
     ELSE
     0
   END
@@ -76,9 +76,9 @@ WITH
   END
     AS type_hierarchy,
     CASE
-      WHEN dec_cpd.state = 'paid' THEN TRUE
-      WHEN dec_cpd.state = 'eligible' THEN TRUE
-      WHEN dec_cpd.state = 'payable' THEN TRUE
+      WHEN dec_ecf1.state = 'paid' THEN TRUE
+      WHEN dec_ecf1.state = 'eligible' THEN TRUE
+      WHEN dec_ecf1.state = 'payable' THEN TRUE
     ELSE
     FALSE
   END
@@ -93,25 +93,25 @@ WITH
   sli.statement_id,
   cohorts.start_year AS statement_cohort
   FROM
-    ${ref(`participant_declarations_latest_cpd`)} AS dec_cpd
+    ${ref(`participant_declarations_latest_ecf1`)} AS dec_ecf1
   LEFT JOIN
-    ${ref(`cpd_lead_providers_latest_cpd`)} AS cpd_lead_providers
+    ${ref(`cpd_lead_providers_latest_ecf1`)} AS cpd_lead_providers
   ON
-    dec_cpd.cpd_lead_provider_id=cpd_lead_providers.id
+    dec_ecf1.cpd_lead_provider_id=cpd_lead_providers.id
   LEFT JOIN
-    ${ref(`delivery_partners_latest_cpd`)} AS delivery_partners
+    ${ref(`delivery_partners_latest_ecf1`)} AS delivery_partners
   ON
-    dec_cpd.delivery_partner_id=delivery_partners.id
+    dec_ecf1.delivery_partner_id=delivery_partners.id
   LEFT JOIN
-    ${ref('statement_line_items_latest_cpd')} AS sli
+    ${ref('statement_line_items_latest_ecf1')} AS sli
   ON
-    sli.participant_declaration_id = dec_cpd.id
+    sli.participant_declaration_id = dec_ecf1.id
   LEFT JOIN
-    ${ref('statements_latest_cpd')} AS stm
+    ${ref('statements_latest_ecf1')} AS stm
   ON
     stm.id = sli.statement_id
   LEFT JOIN
-    ${ref('cohorts_latest_cpd')} AS cohorts
+    ${ref('cohorts_latest_ecf1')} AS cohorts
   ON
     cohorts.id = stm.cohort_id
   WHERE

@@ -34,21 +34,21 @@ SELECT
   ,partnerships.request_path
   ,cohorts.start_year AS cohort
 FROM
-  ${ref('partnerships_version_cpd')} AS partnerships
+  ${ref('partnerships_version_ecf1')} AS partnerships
 LEFT JOIN 
-  ${ref('schools_latest_cpd')} AS schools
+  ${ref('schools_latest_ecf1')} AS schools
 ON
   schools.id = partnerships.school_id
 LEFT JOIN
-  ${ref('cpd_lead_providers_latest_cpd')} AS lead_providers
+  ${ref('cpd_lead_providers_latest_ecf1')} AS lead_providers
 ON
   lead_providers.id = partnerships.request_user_id
 LEFT JOIN
-  ${ref('delivery_partners_latest_cpd')} AS dp
+  ${ref('delivery_partners_latest_ecf1')} AS dp
 ON
   dp.id = partnerships.delivery_partner_id
 LEFT JOIN
-  ${ref('cohorts_latest_cpd')} AS cohorts
+  ${ref('cohorts_latest_ecf1')} AS cohorts
 ON
   cohorts.id = partnerships.cohort_id
 WHERE

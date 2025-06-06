@@ -26,4 +26,4 @@ SELECT
   created_at,
   updated_at
 FROM
-  ${ref(`teacher_profiles_latest_cpd`)}
+  ${ref(`teacher_profiles_latest_ecf1`)}

@@ -20,7 +20,7 @@ config {
 	  participant_type: "The type of the participant that relates to the voided declaration. The value can be either ECT or Mentor.",
 	  request_uuid: "The unique identifier for the API request that triggered the voiding of the declaration. This UUID is only usable by LPDOB or developers if the request needs to be reviewed. In this mart this value is unique and a distinct count of this field is used to determine how many actions of this type have been conducted by a lead provider on the event date.",
 	  request_path: "The full API path used by the lead provider to void the declaration. The path contains the declaration ID but always ends with 'void'.",
-	  key_updated: "The name of the field in the table participant_declarations_latest_cpd that was changed by the API request. This is always state as that is the only field a lead provider can amend via the 'void' API path.",
+	  key_updated: "The name of the field in the table participant_declarations_latest_ecf1 that was changed by the API request. This is always state as that is the only field a lead provider can amend via the 'void' API path.",
 	  new_value: "The new value for state for the voided declaration. Depending on the previous value this field can contain voided, awaiting_clawback or clawed_back.",
 	  previous_value: "The previous value for state for the voided declaration. This can be either submitted, eligible, ineligible, payable or paid."
     }
@@ -60,9 +60,9 @@ SELECT
   ,new_value
   ,previous_value
 FROM
-  ${ref('participant_declarations_field_updates_cpd')} AS declarations
+  ${ref('participant_declarations_field_updates_ecf1')} AS declarations
 LEFT JOIN
-  ${ref('cpd_lead_providers_latest_cpd')} AS lead_providers
+  ${ref('cpd_lead_providers_latest_ecf1')} AS lead_providers
 ON
   lead_providers.id = declarations.request_user_id
 -- Join on ecf_inductions CTE and de-duplicate where multiple induction records are valid around the date of the event. We use the last record valid on the date.

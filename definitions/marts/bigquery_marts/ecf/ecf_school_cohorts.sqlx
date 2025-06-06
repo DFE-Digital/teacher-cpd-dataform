@@ -25,26 +25,26 @@ WITH
     updated_at,
     appropriate_body_id
   FROM
-    ${ref(`school_cohorts_latest_cpd`)}),
+    ${ref(`school_cohorts_latest_ecf1`)}),
   ecf_cohorts AS (
   SELECT
     id AS ecf_cohort_id,
     start_year AS cohort
   FROM
-    ${ref(`cohorts_latest_cpd`)}),
+    ${ref(`cohorts_latest_ecf1`)}),
   ecf_schools_latest AS (
   SELECT
     id AS ecf_school_id,
     name AS school_name,
     urn AS school_urn
   FROM
-    ${ref(`schools_latest_cpd`)}),
+    ${ref(`schools_latest_ecf1`)}),
   ecf_app_bodies as (
     SELECT  
       id as source_appropriate_body_id,
       name as appropriate_body_name
     FROM
-      ${ref(`appropriate_bodies_latest_cpd`)}
+      ${ref(`appropriate_bodies_latest_ecf1`)}
   ),
   ecf_full_schools AS(
   SELECT

@@ -52,13 +52,13 @@ WITH
     name,
     CAST(urn AS string) AS urn
   FROM
-    ${ref("schools_latest_cpd")}),
+    ${ref("schools_latest_ecf1")}),
   --# This identifies the academic years that have been reported to date which will allow us to later ensure there is a record per school per year #
   available_cohorts AS(
 SELECT
   DISTINCT(start_year) AS cohort
 FROM
-  ${ref("cohorts_latest_cpd")}
+  ${ref("cohorts_latest_ecf1")}
 WHERE
   start_year != 2020
 ORDER BY
@@ -81,7 +81,7 @@ SELECT
 END
   AS sit_type
 FROM
-  ${ref("induction_coordinator_profiles_latest_cpd")} icp_df
+  ${ref("induction_coordinator_profiles_latest_ecf1")} icp_df
 LEFT JOIN (
   SELECT
     induction_coordinator_profile_id,
@@ -90,7 +90,7 @@ LEFT JOIN (
     -- #This is a running sum of previous sits FOR the school TO check IF this IS the FIRST time they've had a sit OR they're replacing a former sit#
     COUNT( * ) OVER(PARTITION BY school_id ORDER BY created_at ASC) AS total_sits
   FROM
-    ${ref("induction_coordinator_profiles_schools_latest_cpd")}
+    ${ref("induction_coordinator_profiles_schools_latest_ecf1")}
   QUALIFY
     ROW_NUMBER() OVER(PARTITION BY school_id ORDER BY created_at DESC) = 1
   ) AS scp
@@ -105,17 +105,17 @@ ON
     lp_latest.name AS lead_provider,
     sp_latest.created_at AS partnership_time
   FROM
-    ${ref("partnerships_latest_cpd")} sp_latest
+    ${ref("partnerships_latest_ecf1")} sp_latest
   LEFT JOIN
-    ${ref("delivery_partners_latest_cpd")} dp_latest
+    ${ref("delivery_partners_latest_ecf1")} dp_latest
   ON
     sp_latest.delivery_partner_id = dp_latest.id
   LEFT JOIN
-    ${ref("lead_providers_latest_cpd")} lp_latest
+    ${ref("lead_providers_latest_ecf1")} lp_latest
   ON
     sp_latest.lead_provider_id = lp_latest.id
   LEFT JOIN
-    ${ref("cohorts_latest_cpd")} cohorts
+    ${ref("cohorts_latest_ecf1")} cohorts
   ON
     sp_latest.cohort_id = cohorts.id
   WHERE
@@ -133,9 +133,9 @@ ON
     core_induction_programme_id AS chosen_cip,
     school_cohorts.created_at AS school_cohort_created_at
   FROM
-    ${ref("school_cohorts_latest_cpd")} school_cohorts
+    ${ref("school_cohorts_latest_ecf1")} school_cohorts
   LEFT JOIN
-    ${ref("cohorts_latest_cpd")} cohorts
+    ${ref("cohorts_latest_ecf1")} cohorts
   ON
     school_cohorts.cohort_id = cohorts.id
   QUALIFY
@@ -233,7 +233,7 @@ FROM (
     CAST(CONCAT(start_year,'-05-01') AS date) AS reg_start_date,
     CAST(CONCAT(start_year,'-11-30') AS date) AS reg_end_date
   FROM
-    ${ref("cohorts_latest_cpd")}) AS start_years
+    ${ref("cohorts_latest_ecf1")}) AS start_years
 CROSS JOIN
   UNNEST(GENERATE_DATE_ARRAY(reg_start_date, reg_end_date, INTERVAL 1 DAY)) AS join_date),
   --# This pulls selected fields from all ecf participant induction records #
@@ -265,7 +265,7 @@ INNER JOIN
 ON
   DATE(reg_inductions.created_at) = reg_dates.join_date
 LEFT JOIN
-  `dataform.participant_profiles_latest_cpd` profiles
+  `dataform.participant_profiles_latest_ecf1` profiles
 ON
   reg_inductions.participant_profile_id = profiles.id),
   --# This creates a count of registered participants per school per year(whose cohort matches the registration year) #

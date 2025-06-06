@@ -52,13 +52,13 @@ WITH
     stat_li.participant_declaration_id,
     MIN(cohort.start_year) AS statement_cohort
   FROM
-    ${ref(`statement_line_items_latest_cpd`)} stat_li
+    ${ref(`statement_line_items_latest_ecf1`)} stat_li
   LEFT JOIN
-    ${ref(`statements_latest_cpd`)} stat
+    ${ref(`statements_latest_ecf1`)} stat
   ON
     stat_li.statement_id=stat.id
   LEFT JOIN
-    ${ref(`cohorts_latest_cpd`)} cohort
+    ${ref(`cohorts_latest_ecf1`)} cohort
   ON
     stat.cohort_id=cohort.id
   GROUP BY
@@ -117,7 +117,7 @@ ecf_declarations AS (
   END
     AS programme
   FROM
-    ${ref("participant_declarations_latest_cpd")} dec
+    ${ref("participant_declarations_latest_ecf1")} dec
   LEFT JOIN
     ${ref("ecf_inductions_dedupe")} ecfid
   USING
@@ -127,11 +127,11 @@ ecf_declarations AS (
   ON
     dec.id=state_info.participant_declaration_id
   LEFT JOIN
-    ${ref("lead_providers_latest_cpd")} lpl
+    ${ref("lead_providers_latest_ecf1")} lpl
   USING
     (cpd_lead_provider_id)
   LEFT JOIN
-    ${ref("delivery_partners_latest_cpd")} dpl
+    ${ref("delivery_partners_latest_ecf1")} dpl
   ON
     dec.delivery_partner_id = dpl.ID
   WHERE
