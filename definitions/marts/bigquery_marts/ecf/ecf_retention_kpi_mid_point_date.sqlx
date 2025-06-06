@@ -87,13 +87,13 @@ induction_history AS (
     -- Create row number to tag the last record per day. The valid_to order ensures the last change on the date is flagged and the start_date, created_at order ensure it relates to the latest induction record at that time.
     ,ROW_NUMBER() OVER(PARTITION BY induction_versions.participant_profile_id, IFNULL(DATE(induction_versions.valid_to), DATE(2050,12,31)) ORDER BY IFNULL(DATETIME(end_date), DATETIME(2050,12,31,00,00,00)) DESC, IFNULL(DATETIME(induction_versions.valid_to), DATETIME(2050,12,31,00,00,00)) DESC, induction_versions.created_at DESC) AS rn0
   FROM
-    ${ref('induction_records_version_cpd')} AS induction_versions
+    ${ref('induction_records_version_ecf1')} AS induction_versions
   LEFT JOIN
-    ${ref('participant_profiles_latest_cpd')} AS profiles
+    ${ref('participant_profiles_latest_ecf1')} AS profiles
   ON
     profiles.id = induction_versions.participant_profile_id
   LEFT JOIN
-    ${ref('schedules_latest_cpd')} AS schedules
+    ${ref('schedules_latest_ecf1')} AS schedules
   ON
     schedules.id = induction_versions.schedule_id
   WHERE
@@ -111,13 +111,13 @@ partnership_history AS (
     ,lead_providers.name AS lead_provider_name
     ,delivery_partners.name AS delivery_partner_name
   FROM
-   ${ref('partnerships_version_cpd')} AS partnership_versions
+   ${ref('partnerships_version_ecf1')} AS partnership_versions
   LEFT JOIN
-    ${ref('lead_providers_latest_cpd')} AS lead_providers
+    ${ref('lead_providers_latest_ecf1')} AS lead_providers
   ON
     lead_providers.id = partnership_versions.lead_provider_id
   LEFT JOIN
-    ${ref('delivery_partners_latest_cpd')} AS delivery_partners
+    ${ref('delivery_partners_latest_ecf1')} AS delivery_partners
   ON
     delivery_partners.id = partnership_versions.delivery_partner_id
   WHERE
@@ -159,20 +159,20 @@ started_declarations AS (
       ELSE FALSE
      END AS has_started_declaration
   FROM
-    ${ref('participant_declarations_version_cpd')} AS declaration_versions
+    ${ref('participant_declarations_version_ecf1')} AS declaration_versions
 
   -- Join on statement details to get statement_cohort.
     -- 3 joins in total to achieve this. -> statement_line_items -> statements -> cohorts
   LEFT JOIN
-    ${ref('statement_line_items_latest_cpd')} AS statement_line_items
+    ${ref('statement_line_items_latest_ecf1')} AS statement_line_items
   ON
     statement_line_items.participant_declaration_id = declaration_versions.id
   LEFT JOIN
-    ${ref('statements_latest_cpd')} AS statements
+    ${ref('statements_latest_ecf1')} AS statements
   ON
     statements.id = statement_line_items.statement_id
   LEFT JOIN
-    ${ref('cohorts_latest_cpd')} AS cohorts
+    ${ref('cohorts_latest_ecf1')} AS cohorts
   ON
     cohorts.id = statements.cohort_id
 
@@ -186,11 +186,11 @@ started_declarations AS (
 
   -- Join on lead providers & delivery partners to convert IDs to names.
   LEFT JOIN
-    ${ref('cpd_lead_providers_latest_cpd')} AS lead_providers
+    ${ref('cpd_lead_providers_latest_ecf1')} AS lead_providers
   ON
     lead_providers.id = declaration_versions.cpd_lead_provider_id
   LEFT JOIN
-    ${ref('delivery_partners_latest_cpd')} AS delivery_partners
+    ${ref('delivery_partners_latest_ecf1')} AS delivery_partners
   ON
     delivery_partners.id = declaration_versions.delivery_partner_id
   WHERE
@@ -223,7 +223,7 @@ induction_snapshots AS (
   FROM
     induction_history
   LEFT JOIN
-  ${ref('induction_programmes_latest_cpd')} AS induction_programmes
+  ${ref('induction_programmes_latest_ecf1')} AS induction_programmes
   ON
     induction_programmes.id = induction_history.induction_programme_id
   LEFT JOIN
@@ -248,7 +248,7 @@ induction_snapshots AS (
   FROM
     induction_history
   LEFT JOIN
-  ${ref('induction_programmes_latest_cpd')} AS induction_programmes
+  ${ref('induction_programmes_latest_ecf1')} AS induction_programmes
   ON
     induction_programmes.id = induction_history.induction_programme_id
   LEFT JOIN
@@ -326,17 +326,17 @@ latest_declarations AS (
       ,delivery_partners.name AS delivery_partner_name
       ,mid_point_dates.mid_point_date
     FROM 
-      ${ref('participant_declarations_latest_cpd')} AS declarations
+      ${ref('participant_declarations_latest_ecf1')} AS declarations
     LEFT JOIN
       mid_point_dates
     ON
       mid_point_dates.mid_point_date >= DATE(declarations.declaration_date)
     LEFT JOIN
-      ${ref('cpd_lead_providers_latest_cpd')} AS lead_providers
+      ${ref('cpd_lead_providers_latest_ecf1')} AS lead_providers
     ON
       lead_providers.id = declarations.cpd_lead_provider_id
     LEFT JOIN
-      ${ref('delivery_partners_latest_cpd')} AS delivery_partners
+      ${ref('delivery_partners_latest_ecf1')} AS delivery_partners
     ON
       delivery_partners.id = declarations.delivery_partner_id
     WHERE 
