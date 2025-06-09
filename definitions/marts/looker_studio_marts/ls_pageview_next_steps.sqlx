@@ -37,6 +37,7 @@ config {
 js {
     /* Specify new funnels to appear on the pre-set funnels dashboard here. */
     /* Ensure funnelPaths are listed in order in the user journey. */
+    /* This JavaScript object will be looped through further on in the query in order to generate the funnels array of strings listing the funnel(s) each pageview was a part of, if any. */
     const funnels = [{
             name: "Register for an NPQ - stage 1 (user information)",
             application: "Apply for a National Professional Qualification",
@@ -411,11 +412,13 @@ SELECT
   utm_medium AS session_utm_medium,
   utm_campaign AS session_utm_campaign,
   ARRAY(
+  /* Construct the array of funnels (strings) which this pageview is part of from a subquery. */
   SELECT
     funnel
   FROM (
   /* Loop through the funnels JS array of funnel objects and generate a small subquery containing the funnel name, */
-  /* application & next_step_is_in_this_funnel boolean for each one, separated by a UNION ALL */
+  /* application & next_step_is_in_this_funnel boolean for each one, separated by a UNION ALL. */
+  /* At this stage the subquery includes *all* funnels for all pages regardless of whether this page path was in the funnel; funnels this pageview is not in are excluded with a WHERE clause afterwards. */
   ${
       funnels.map(funnel =>
           `SELECT "${funnel.name}" AS funnel,
@@ -459,18 +462,24 @@ SELECT
 FROM
   sessions,
   UNNEST(ARRAY(
+    /* *After* all these calculations are complete, the QUALIFY at the end of this subquery excludes pageviews which are repeat pageviews of the previous pageview in the session. */
+    /* Before this is done, next_step and time_on_page are recalculated so that they are the correct value despite this. */
     SELECT
       AS STRUCT
         * EXCEPT(time_on_page, next_page_entry_time, next_step_has_same_page_path, previous_step_has_same_page_path, next_step),
+        /* If this is a view in a set of repeat pageviews, set next_step to the next step after the set of repeat pageviews, not the next step of this pageview (which might just be the same page) */
         CASE
             WHEN next_step_has_same_page_path IS TRUE THEN FIRST_VALUE(IF(next_step_has_same_page_path IS FALSE, next_step, NULL) IGNORE NULLS) OVER future_pageviews_with_same_page_path_in_order
             ELSE next_step
         END AS next_step,
+        /* If this is a view in a set of repeat pageviews, set number_of_immediate_repeat_pageviews to the total number of repeat pageviews between this one and the next pageview not in the set. */
+        /* In practise this will be the total number of pageviews in the set because pageviews midway through the set will be excluded by the QUALIFY at the end of the subquery. */
         CASE
             WHEN next_step_has_same_page_path IS TRUE THEN
                 1 + IFNULL(MIN(IF(next_step_has_same_page_path IS FALSE, pageview_number_in_session, NULL)) OVER future_pageviews_with_same_page_path_in_order - pageview_number_in_session, 0)
             ELSE 1
         END AS number_of_immediate_repeat_pageviews,
+        /* If this is a view in a set of repeat pageviews, set time_on_page to the total time for all the repeat pageviews in the set, not just this one. */
         CASE
             WHEN next_step_has_same_page_path IS TRUE THEN
                 TIMESTAMP_DIFF(MIN(IF(next_step_has_same_page_path IS FALSE, next_page_entry_time, NULL)) OVER future_pageviews_with_same_page_path_in_order, page_entry_time, SECOND)
@@ -479,6 +488,7 @@ FROM
     FROM (
         SELECT
         AS STRUCT
+        /* Initial calculations with analytic functions here serve various purposes, including enabling outer subqueries to tell whether this pageview is a repeat pageview of the previous pageview in the session via previous_step_has_same_page_path */
             page_path,
             referer_path,
             page_entry_time,
@@ -494,6 +504,8 @@ FROM
             IFNULL(LEAD(page_path) OVER pageviews_in_order = page_path, FALSE) AS next_step_has_same_page_path,
             IFNULL(LAG(page_path) OVER pageviews_in_order = page_path, FALSE) AS previous_step_has_same_page_path
         FROM (
+            /* pages_visited_details is an array of STRUCTs, one for each pageview within a session.*/
+            /* This subquery replaces UIDs in page and referer paths with the string "[grouped]" so that paths which are essentially the same are displayed as being the same in funnel analysis dashboards */
             SELECT
                 REGEXP_REPLACE(page, "([a-zA-Z0-9-]*[0-9]+[a-zA-Z0-9-]*)", "[grouped]") AS page_path,
                 REGEXP_REPLACE(previous_page, "([a-zA-Z0-9-]*[0-9]+[a-zA-Z0-9-]*)", "[grouped]") AS referer_path,
