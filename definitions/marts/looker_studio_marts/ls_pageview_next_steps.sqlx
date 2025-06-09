@@ -379,7 +379,7 @@ WITH
     "Manage Training for Early Career Teachers" AS application,
     *
   FROM
-    ${ref("session_details_cpd")}
+    ${ref("session_details_ecf1")}
   WHERE
     session_start_timestamp > session_timestamp_checkpoint
   UNION ALL (

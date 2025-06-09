@@ -5,7 +5,7 @@ config {
     },
     bigquery: {
         partitionBy: "DATE(induction_record_created_at)",
-        clusterBy: ["cohort", "participant_type", "latest_cpd_lp_name", "latest_dp_name"]
+        clusterBy: ["cohort", "participant_type", "latest_ecf1_lp_name", "latest_dp_name"]
     },
     description: "This mart joins the latest induction record for a given ECF participant (found in the ecf_inductions_dedupe mart) with a golden thread of ecf declarations (started, retained-1, retained-2, retained-3, retained-4 and completed). In order to determine the preferred declaration for each declaration type we've determined a preferred state_hierarchy:paid>payable>eligible>submitted>clawed_back>awaiting_clawback>voided ",
     columns: {
@@ -32,14 +32,14 @@ WITH
   FROM
     ${ref('ecf_inductions_dedupe')} AS ecfid
   LEFT JOIN
-    ${ref('participant_profiles_latest_cpd')} AS ppl
+    ${ref('participant_profiles_latest_ecf1')} AS ppl
   ON
     ecfid.participant_profile_id = ppl.id
   WHERE
     participant_type IS NOT NULL),
   ecf_declarations_expanded AS (
   SELECT
-    dec_cpd.*,
+    dec_ecf1.*,
     cpd_lead_providers.name AS cpd_lead_provider_name,
     delivery_partners.name AS delivery_partner_name,
     CASE state
@@ -79,19 +79,19 @@ WITH
     AS participant_course,
     cohorts.start_year AS statement_cohort
   FROM
-    ${ref(`participant_declarations_latest_cpd`)} AS dec_cpd
+    ${ref(`participant_declarations_latest_ecf1`)} AS dec_ecf1
   LEFT JOIN
-    ${ref(`cpd_lead_providers_latest_cpd`)} AS cpd_lead_providers
+    ${ref(`cpd_lead_providers_latest_ecf1`)} AS cpd_lead_providers
   ON
-    dec_cpd.cpd_lead_provider_id=cpd_lead_providers.id
+    dec_ecf1.cpd_lead_provider_id=cpd_lead_providers.id
   LEFT JOIN
-    ${ref(`delivery_partners_latest_cpd`)} AS delivery_partners
+    ${ref(`delivery_partners_latest_ecf1`)} AS delivery_partners
   ON
-    dec_cpd.delivery_partner_id=delivery_partners.id
+    dec_ecf1.delivery_partner_id=delivery_partners.id
   LEFT JOIN
-    ${ref('cohorts_latest_cpd')} AS cohorts
+    ${ref('cohorts_latest_ecf1')} AS cohorts
   ON
-    dec_cpd.cohort_id = cohorts.id
+    dec_ecf1.cohort_id = cohorts.id
   WHERE
     course_identifier LIKE 'ecf%'),
   ecf_dec_latest AS (
@@ -101,9 +101,9 @@ WITH
     course_identifier,
     state AS latest_state,
     declaration_type AS latest_dec_type,
-    cpd_lead_provider_id AS latest_cpd_lp_id,
-    delivery_partner_id AS latest_cpd_dp_id,
-    cpd_lead_provider_name AS latest_cpd_lp_name,
+    cpd_lead_provider_id AS latest_ecf1_lp_id,
+    delivery_partner_id AS latest_ecf1_dp_id,
+    cpd_lead_provider_name AS latest_ecf1_lp_name,
     delivery_partner_name AS latest_dp_name,
     declaration_date AS latest_dec_date,
     created_at AS latest_dec_created_at,
@@ -124,7 +124,7 @@ WITH
     funded_declaration AS funded_start_dec,
     declaration_date AS started_dec_date,
     created_at AS started_dec_created_at,
-    cpd_lead_provider_name AS started_cpd_lp_name,
+    cpd_lead_provider_name AS started_ecf1_lp_name,
     delivery_partner_name AS started_dp_name,
     statement_cohort AS started_cohort
   FROM
@@ -145,7 +145,7 @@ WITH
     funded_declaration AS funded_ret1_dec,
     declaration_date AS ret1_dec_date,
     created_at AS ret1_dec_created_at,
-    cpd_lead_provider_name AS ret1_cpd_lp_name,
+    cpd_lead_provider_name AS ret1_ecf1_lp_name,
     delivery_partner_name AS ret1_dp_name,
     statement_cohort AS ret1_cohort
   FROM
@@ -166,7 +166,7 @@ WITH
     funded_declaration AS funded_ret2_dec,
     declaration_date AS ret2_dec_date,
     created_at AS ret2_dec_created_at,
-    cpd_lead_provider_name AS ret2_cpd_lp_name,
+    cpd_lead_provider_name AS ret2_ecf1_lp_name,
     delivery_partner_name AS ret2_dp_name,
     statement_cohort AS ret2_cohort
   FROM
@@ -187,7 +187,7 @@ WITH
     funded_declaration AS funded_ret3_dec,
     declaration_date AS ret3_dec_date,
     created_at AS ret3_dec_created_at,
-    cpd_lead_provider_name AS ret3_cpd_lp_name,
+    cpd_lead_provider_name AS ret3_ecf1_lp_name,
     delivery_partner_name AS ret3_dp_name,
     statement_cohort AS ret3_cohort
   FROM
@@ -208,7 +208,7 @@ WITH
     funded_declaration AS funded_ret4_dec,
     declaration_date AS ret4_dec_date,
     created_at AS ret4_dec_created_at,
-    cpd_lead_provider_name AS ret4_cpd_lp_name,
+    cpd_lead_provider_name AS ret4_ecf1_lp_name,
     delivery_partner_name AS ret4_dp_name,
     statement_cohort AS ret4_cohort
   FROM
@@ -229,7 +229,7 @@ WITH
     funded_declaration AS funded_ext1_dec,
     declaration_date AS ext1_dec_date,
     created_at AS ext1_dec_created_at,
-    cpd_lead_provider_name AS ext1_cpd_lp_name,
+    cpd_lead_provider_name AS ext1_ecf1_lp_name,
     delivery_partner_name AS ext1_dp_name,
     statement_cohort AS ext1_cohort
   FROM
@@ -250,7 +250,7 @@ WITH
     funded_declaration AS funded_ext2_dec,
     declaration_date AS ext2_dec_date,
     created_at AS ext2_dec_created_at,
-    cpd_lead_provider_name AS ext2_cpd_lp_name,
+    cpd_lead_provider_name AS ext2_ecf1_lp_name,
     delivery_partner_name AS ext2_dp_name,
     statement_cohort AS ext2_cohort
   FROM
@@ -271,7 +271,7 @@ WITH
     funded_declaration AS funded_ext3_dec,
     declaration_date AS ext3_dec_date,
     created_at AS ext3_dec_created_at,
-    cpd_lead_provider_name AS ext3_cpd_lp_name,
+    cpd_lead_provider_name AS ext3_ecf1_lp_name,
     delivery_partner_name AS ext3_dp_name,
     statement_cohort AS ext3_cohort
   FROM
@@ -292,7 +292,7 @@ WITH
     funded_declaration AS funded_completed_dec,
     declaration_date AS completed_dec_date,
     created_at AS completed_dec_created_at,
-    cpd_lead_provider_name AS completed_cpd_lp_name,
+    cpd_lead_provider_name AS completed_ecf1_lp_name,
     delivery_partner_name AS completed_dp_name,
     statement_cohort AS completed_cohort
   FROM

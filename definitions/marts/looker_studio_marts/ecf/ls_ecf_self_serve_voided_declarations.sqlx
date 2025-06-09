@@ -9,7 +9,7 @@ config {
     },
     description: "This mart supports the tracking of paid declarations voided by internal DfE and finance users through the ECF Self-Serve Voiding tool (big green button), only declarations voided by the big green button are captured in this mart. It is designed for use in the ECF - Declarations Voided by Finance Tool dashboard in Looker Studio. The mart assists in monitoring financial adjustments by identifying paid declarations that have been voided using the 'voided_at' and 'voided_by_user_id' fields, which are populated for all records voided through this tool. The mart exclusively considers paid declarations that have been voided, with the declaration state limited to either 'awaiting_clawback' or 'clawed_back'. This structure enables analysis and tracking of voided financial transactions by DfE internal and finance users, supporting financial auditing and reconciliation processes.",
     columns: {
-        declaration_id: "The unique identifier for declarations. Taken from participant_declarations_latest_cpd.",
+        declaration_id: "The unique identifier for declarations. Taken from participant_declarations_latest_ecf1.",
         created_at: "Timestamp this entity was first saved in the database, according to the latest version of the data received from the database.",
         updated_at: "Timestamp this entity was last updated in the database, according to the latest version of the data received from the database.",
         state: "State of the declaration. Possible values: awaiting_clawback, and clawed_back.",
@@ -42,17 +42,17 @@ SELECT
   vpd.voided_by_user_id,
   users.full_name
 FROM
-  ${ref('participant_declarations_latest_cpd')} AS vpd
+  ${ref('participant_declarations_latest_ecf1')} AS vpd
 LEFT JOIN
-  ${ref(`cpd_lead_providers_latest_cpd`)} AS cpd_lp
+  ${ref(`cpd_lead_providers_latest_ecf1`)} AS cpd_lp
 ON
   vpd.cpd_lead_provider_id = cpd_lp.id
 LEFT JOIN 
-  ${ref(`cohorts_latest_cpd`)} as cohort
+  ${ref(`cohorts_latest_ecf1`)} as cohort
    ON
     vpd.cohort_id=cohort.id
 LEFT JOIN
-  ${ref(`users_latest_cpd`)} AS users
+  ${ref(`users_latest_ecf1`)} AS users
 ON
   vpd.voided_by_user_id = users.id
   -- Filtering for the following states as are specifically looking at cases where money has exchanged hands

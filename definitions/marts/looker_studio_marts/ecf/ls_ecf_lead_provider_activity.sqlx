@@ -44,7 +44,7 @@ lead_providers AS (
      id AS lead_provider_id -- Also acts as the link for request_user_id
     ,name AS cpd_lead_provider_name
   FROM
-    ${ref('cpd_lead_providers_latest_cpd')}
+    ${ref('cpd_lead_providers_latest_ecf1')}
   WHERE
 	-- Exlcude Lead Providers no longer relevant as per instruction from NE
     name NOT IN ('Capita', 'Teacher Development Trust', 'LLSE', 'Church of England', 'School-Led Network')

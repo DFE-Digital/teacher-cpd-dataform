@@ -30,32 +30,32 @@ WITH
     school_id,
     updated_at
   FROM
-    ${ref(`partnerships_latest_cpd`)} ),
+    ${ref(`partnerships_latest_ecf1`)} ),
   ecf_cohorts AS(
   SELECT
     id AS ecf_cohort_id,
     start_year AS cohort
   FROM
-    ${ref(`cohorts_latest_cpd`)} ),
+    ${ref(`cohorts_latest_ecf1`)} ),
   ecf_delivery_partners AS (
   SELECT
     id AS ecf_delivery_partner_id,
     name AS delivery_partner_name
   FROM
-    ${ref(`delivery_partners_latest_cpd`)} ),
+    ${ref(`delivery_partners_latest_ecf1`)} ),
   ecf_lead_providers AS (
   SELECT
     id AS ecf_lead_provider_id,
     name AS lead_provider_name
   FROM
-    ${ref(`lead_providers_latest_cpd`)} ),
+    ${ref(`lead_providers_latest_ecf1`)} ),
   ecf_schools AS(
   SELECT
     id AS ecf_school_id,
     name AS school_name,
     urn AS school_urn
   FROM
-    ${ref(`schools_latest_cpd`)} ),
+    ${ref(`schools_latest_ecf1`)} ),
   ecf_partnerships_full AS (
   SELECT
     * EXCEPT( ecf_cohort_id,
