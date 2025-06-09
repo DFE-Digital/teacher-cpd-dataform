@@ -94,7 +94,7 @@ QUALIFY
   --  This CTE pulls and ranks all ECF declarations (using the heirarchies set out below) to enable us to join in the preferred declaration to the deduped induction records above
   ecf_declarations_expanded AS (
 SELECT
-  dec_cpd.*,
+  dec_ecf1.*,
   cpd_lead_providers.name AS cpd_lead_provider_name,
   delivery_partners.name AS delivery_partner_name,
   cohorts.start_year AS cohort,
@@ -123,19 +123,19 @@ END
 END
   AS participant_course
 FROM
-  ${ref(`participant_declarations_latest_cpd`)} AS dec_cpd
+  ${ref(`participant_declarations_latest_ecf1`)} AS dec_ecf1
 LEFT JOIN
-  ${ref(`cpd_lead_providers_latest_cpd`)} AS cpd_lead_providers
+  ${ref(`cpd_lead_providers_latest_ecf1`)} AS cpd_lead_providers
 ON
-  dec_cpd.cpd_lead_provider_id=cpd_lead_providers.id
+  dec_ecf1.cpd_lead_provider_id=cpd_lead_providers.id
 LEFT JOIN
-  ${ref(`delivery_partners_latest_cpd`)} AS delivery_partners
+  ${ref(`delivery_partners_latest_ecf1`)} AS delivery_partners
 ON
-  dec_cpd.delivery_partner_id=delivery_partners.id
+  dec_ecf1.delivery_partner_id=delivery_partners.id
 LEFT JOIN
-  ${ref(`cohorts_latest_cpd`)} AS cohorts
+  ${ref(`cohorts_latest_ecf1`)} AS cohorts
 ON
-  dec_cpd.cohort_id=cohorts.id
+  dec_ecf1.cohort_id=cohorts.id
 WHERE
   course_identifier LIKE 'ecf%'),
   -- This uses the heirarchies established in the expanded declaration mart above to identify a single start declaration for each participant + course combination

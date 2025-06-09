@@ -46,9 +46,9 @@ WITH
   full_declaration_milestone_table AS (
     /*This section creates a list of all submitted/eligible/payable/paid declarations for a participant, pulls in details from their current induction record, and then joins on the two static tables ecf_schedule_milestone_mapping and ecf_schedule_milestone_mapping_condensed to later make comparisons against the declaration_date of each participant*/
     SELECT
-      dec_cpd.id AS declaration_id,
-      dec_cpd.ecf_user_id,
-      dec_cpd.profile_id AS participant_profile_id,
+      dec_ecf1.id AS declaration_id,
+      dec_ecf1.ecf_user_id,
+      dec_ecf1.profile_id AS participant_profile_id,
       ecf_id.induction_record_id,
       ecf_id.cohort,
       ecf_id.schedule_identifier,
@@ -60,12 +60,12 @@ WITH
       NULL
     END
       AS participant_type,
-      dec_cpd.course_identifier,
-      dec_cpd.declaration_type,
-      DATE(dec_cpd.declaration_date) AS dec_date_short,
-      dec_cpd.state,
-      dec_cpd.cpd_lp_name,
-      dec_cpd.cpd_dp_name,
+      dec_ecf1.course_identifier,
+      dec_ecf1.declaration_type,
+      DATE(dec_ecf1.declaration_date) AS dec_date_short,
+      dec_ecf1.state,
+      dec_ecf1.cpd_lp_name,
+      dec_ecf1.cpd_dp_name,
       schedule_milestones.started_dec_milestone_date,
       schedule_milestones.started_dec_start_date,
       schedule_milestones.ret1_dec_milestone_date,
@@ -85,11 +85,11 @@ WITH
       sched_mile_cond.start_date_2023,
       sched_mile_cond.milestone_date_2023,
     FROM
-      ${ref(`ls_declarations_provider_names`)} AS dec_cpd
+      ${ref(`ls_declarations_provider_names`)} AS dec_ecf1
     LEFT JOIN
       ${ref(`ecf_inductions_dedupe`)} AS ecf_id
     ON
-      dec_cpd.profile_id=ecf_id.participant_profile_id
+      dec_ecf1.profile_id=ecf_id.participant_profile_id
     LEFT JOIN
       ${ref('ecf_schedule_milestone_mapping')} AS schedule_milestones
     ON
@@ -98,10 +98,10 @@ WITH
     LEFT JOIN
       ${ref('ecf_schedule_milestone_mapping_condensed')} AS sched_mile_cond
     ON
-      dec_cpd.declaration_type=sched_mile_cond.declaration_type
+      dec_ecf1.declaration_type=sched_mile_cond.declaration_type
     WHERE
-      dec_cpd.course_identifier LIKE 'ecf%'
-      AND dec_cpd.state IN ('submitted',
+      dec_ecf1.course_identifier LIKE 'ecf%'
+      AND dec_ecf1.state IN ('submitted',
         'eligible',
         'payable',
         'paid')),
@@ -112,20 +112,20 @@ WITH
       stat_li.state AS statement_state,
       stat.name AS statement_name,
       stat.type AS statement_type,
-      cpd_lp.name AS statement_cpd_lp_name,
+      cpd_lp.name AS statement_ecf1_lp_name,
       cohort.start_year AS statement_cohort
     FROM
-      ${ref(`statement_line_items_latest_cpd`)} stat_li
+      ${ref(`statement_line_items_latest_ecf1`)} stat_li
     LEFT JOIN
-      ${ref(`statements_latest_cpd`)} stat
+      ${ref(`statements_latest_ecf1`)} stat
     ON
       stat_li.statement_id=stat.id
     LEFT JOIN
-      ${ref(`cpd_lead_providers_latest_cpd`)} cpd_lp
+      ${ref(`cpd_lead_providers_latest_ecf1`)} cpd_lp
     ON
       stat.cpd_lead_provider_id=cpd_lp.id
     LEFT JOIN
-      ${ref(`cohorts_latest_cpd`)} cohort
+      ${ref(`cohorts_latest_ecf1`)} cohort
     ON
       stat.cohort_id=cohort.id
     WHERE
@@ -143,7 +143,7 @@ WITH
         WHEN fdmt.declaration_type = 'completed' THEN GREATEST(ABS(DATE_DIFF(completed_dec_start_date,dec_date_short,DAY)),ABS(DATE_DIFF(completed_dec_milestone_date,dec_date_short,DAY)))
     END
       AS declaration_out_by_x_days,
-      si.statement_cpd_lp_name,
+      si.statement_ecf1_lp_name,
       si.statement_cohort,
       /*This CASE statement works out if a declaration date falls in the declaration milestone window across an entire cohort, as defined in the table ecf_schedule_milestone_mapping_condensed. There is crossover between milestone_date_2022 and start_date_2023 for started declarations.*/
       CASE

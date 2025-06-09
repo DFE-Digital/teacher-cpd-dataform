@@ -19,7 +19,7 @@ config {
 	  participant_cohort: "The cohort of the participant whose training status has been changed. This is determined from the participants induction record which was valid at the time this change was made. If a participant's cohort has subsequently changed, this value will not reflect the latest value.",
 	  request_path: "The full API path used by the lead provider to change the participant's training status. The path contains the user_id but always ends with 'withdraw', 'defer' or 'resume'.",
 	  request_type: "The API path type determined by how it ends. If it ends with 'withdraw', 'defer' or 'resume' the value in this field is set accordingly. As the full API path contains the user_id being updated each path is not unique enough to enable grouping effectively without this string separation.",
-	  key_updated: "The name of the field in the table participant_profiles_latest_cpd that was changed by the API request. This is always training_status as that is the only field a lead provider can amend via the 'withdraw', 'defer' or 'resume' API paths.",
+	  key_updated: "The name of the field in the table participant_profiles_latest_ecf1 that was changed by the API request. This is always training_status as that is the only field a lead provider can amend via the 'withdraw', 'defer' or 'resume' API paths.",
 	  new_value: "The new value for the training_status field on the participant profile. This can be active, withdrawn or deferred.",
 	  previous_value: "The previous value for the training_status field on the participant profile. This can be active, withdrawn or deferred."
     }
@@ -64,7 +64,7 @@ SELECT
     ,new_value
     ,previous_value
 FROM 
-    ${ref('participant_profiles_field_updates_cpd')} AS profiles
+    ${ref('participant_profiles_field_updates_ecf1')} AS profiles
 -- Left Join on ecf_inductions CTE and de-duplicate where multiple induction records are valid around the date of the event. We use the last record valid on the date.
   LEFT JOIN
     ecf_inductions
@@ -73,7 +73,7 @@ FROM
     AND
     DATE(profiles.occurred_at) BETWEEN ecf_inductions.start_date AND ecf_inductions.end_date
 LEFT JOIN
-    ${ref('cpd_lead_providers_latest_cpd')} AS lead_providers
+    ${ref('cpd_lead_providers_latest_ecf1')} AS lead_providers
 ON
     lead_providers.id = profiles.request_user_id
 WHERE 
