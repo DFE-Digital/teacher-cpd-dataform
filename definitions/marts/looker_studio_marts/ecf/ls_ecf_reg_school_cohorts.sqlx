@@ -265,7 +265,7 @@ INNER JOIN
 ON
   DATE(reg_inductions.created_at) = reg_dates.join_date
 LEFT JOIN
-  `dataform.participant_profiles_latest_ecf1` profiles
+  ${ref('participant_profiles_latest_ecf1')} profiles
 ON
   reg_inductions.participant_profile_id = profiles.id),
   --# This creates a count of registered participants per school per year(whose cohort matches the registration year) #

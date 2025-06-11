@@ -235,7 +235,7 @@ FROM
     cohort = pupil_premiums.source_start_year
     AND school_id = pupil_premiums.source_school_id
   LEFT JOIN
-    `dataform.schedules_latest_ecf1` schedules
+    ${ref("schedules_latest_ecf1")} schedules
   ON
     ecf_induction_records.schedule_id = schedules.id
   LEFT JOIN
