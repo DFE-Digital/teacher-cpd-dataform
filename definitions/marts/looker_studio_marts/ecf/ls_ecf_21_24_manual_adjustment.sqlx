@@ -147,7 +147,7 @@ manual_adjustment_declarations AS (
   FROM
     ${ref('ecf_declarations')} AS declarations
   LEFT JOIN
-    `dataform.statements_latest_ecf1` statements
+     ${ref('statements_latest_ecf1')} statements
   ON
     statements.id = declarations.statement_id
   WHERE
