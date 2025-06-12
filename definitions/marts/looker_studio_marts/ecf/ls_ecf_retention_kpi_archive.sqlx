@@ -2,7 +2,7 @@ config {
     type: "incremental",
     uniqueKey: ["lp_participant_unique_id"],
     bigquery: {
-        clusterBy: ["lead_provider_name","participant_type"]
+        clusterBy: ["lead_provider_name", "participant_type"]
     },
     description: "Objective: To produce tailored output for ECF Contract Management Dashboard to display retention at the points available for each Lead Provider. \n \
   Summary: \n \
@@ -29,8 +29,8 @@ config {
 }
 
 SELECT
-*,
-CURRENT_DATE() AS version_date_stamp,
-CONCAT(lead_provider_name,participant_type,CAST(CURRENT_DATE() AS string)) AS lp_participant_unique_id
+  *,
+  CURRENT_DATE() AS version_date_stamp,
+  CONCAT(lead_provider_name,participant_type,CAST(CURRENT_DATE() AS string)) AS lp_participant_unique_id
 FROM
-${ref("ls_ecf_retention_kpi")}
+  ${ref("ls_ecf_retention_kpi")}
