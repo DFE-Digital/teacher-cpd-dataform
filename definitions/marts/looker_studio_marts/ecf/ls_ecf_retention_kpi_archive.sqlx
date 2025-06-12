@@ -1,0 +1,36 @@
+config {
+    type: "incremental",
+    uniqueKey: ["lp_participant_unique_id"],
+    bigquery: {
+        clusterBy: ["lead_provider_name","participant_type"]
+    },
+    description: "Objective: To produce tailored output for ECF Contract Management Dashboard to display retention at the points available for each Lead Provider. \n \
+  Summary: \n \
+    ECF Retention is the number or participants split by participant type(PT) (ECT or Mentor) still with the Lead Provider(LP) at the cut-off & mid-point dates based on the statement cohort of the participants started declaration. \n \
+    In order to determine if a participant is still with the started lead provider we look at the induction record version valid at the cut-off & mid-point dates. Where this is null we look at the last declaration evidence by the respective dates. \n \
+    This output produces a table where for each LP-PT combination the number of started & retained participants are calculated for each point cut-off & mid-pojnt date. \n \
+    The points in time are: 2022 cut-off, 2023 mid-point & cut-off and 2024 mid-point & cut-off.",
+    columns: {
+        lead_provider_name: "The name of the lead provider associated with the started declaration that qualifies the participant to be included in relevant starts.",
+        participant_type: "Either ECT or Mentor depending on participant_type from their participant_profile.",
+        started_participants_2022_cut_off: "The number of participants split by participant_type for the lead provider where the started declaration in the 2022 statement cohort is funded (e/p/p) as of the cut-off date 31/07/2024.",
+        started_participants_2023_mid_point: "The number of participants split by participant_type for the lead provider where the started declaration in the 2023 statement cohort is funded (e/p/p) as of the mid-point date 31/07/2024.",
+        started_participants_2023_cut_off: "The number of participants split by participant_type for the lead provider where the started declaration in the 2023 statement cohort is funded (e/p/p) as of the cut-off date 31/07/2025.",
+        started_participants_2024_mid_point: "The number of participants split by participant_type for the lead provider where the started declaration in the 2024 statement cohort is funded (e/p/p) as of the mid-point date 31/07/2025.",
+        started_participants_2024_cut_off: "The number of participants split by participant_type for the lead provider where the started declaration in the 2024 statement cohort is funded (e/p/p) as of the cut-off date 31/07/2026.",
+        retained_participants_2022_cut_off: "The number of started participants split by participant_type for the lead provider where they are still associated with the same lead provider and their status is not withdrawn as of the cut-off date 31/07/2024. Some withdrawn Mentors are still considered retained if the ECTs they were mentoring are associated with an active Mentor as of the same cut-off date.",
+        retained_mid_point_participants_2023_mid_point: "The number of started participants split by participant_type for the lead provider where they are still associated with the same lead provider and their status is not withdrawn as of the mid-point date 31/07/2024. Some withdrawn Mentors are still considered retained if the ECTs they were mentoring are associated with an active Mentor as of the same mid-point date.",
+        retained_participants_2023_cut_off: "The number of started participants split by participant_type for the lead provider where they are still associated with the same lead provider and their status is not withdrawn as of the cut-off date 31/07/2025. Some withdrawn Mentors are still considered retained if the ECTs they were mentoring are associated with an active Mentor as of the same cut-off date.",
+        retained_participants_2024_mid_point: "The number of started participants split by participant_type for the lead provider where they are still associated with the same lead provider and their status is not withdrawn as of the mid-point date 31/07/2025. Some withdrawn Mentors are still considered retained if the ECTs they were mentoring are associated with an active Mentor as of the same mid-point date.",
+        retained_participants_2024_cut_off: "The number of started participants split by participant_type for the lead provider where they are still associated with the same lead provider and their status is not withdrawn as of the cut-off date 31/07/2026. Some withdrawn Mentors are still considered retained if the ECTs they were mentoring are associated with an active Mentor as of the same cut-off date.",
+        version_date_stamp: "This date field indicates when the record was archived from the live ls_ecf_induction_lp_dedupe_start_decs mart",
+        lp_participant_unique_id: "This is a unique id field combining the lead provider name, participant type and the archived date"
+    }
+}
+
+SELECT
+*,
+CURRENT_DATE() AS version_date_stamp,
+CONCAT(lead_provider_name,participant_type,CAST(CURRENT_DATE() AS string)) AS lp_participant_unique_id
+FROM
+${ref("ls_ecf_retention_kpi")}

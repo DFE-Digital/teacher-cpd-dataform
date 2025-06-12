@@ -1,11 +1,9 @@
 config {
     type: "incremental",
-    assertions: {
-        uniqueKey: ["induction_date_unique_id"]
-    },
+    uniqueKey: ["induction_date_unique_id"],
     bigquery: {
         partitionBy: "version_date_stamp",
-        clusterBy: ["cohort", "participant_type", "training_status","started_cpd_lead_provider_name"]
+        clusterBy: ["cohort", "participant_type", "training_status", "started_cpd_lead_provider_name"]
     },
     description: "This mart is used for the ECF Contract Managers dashboard. The mart identifies the latest induction records for a given participant + LP combo which can then help us to determine if the participant began their training with that LP and whether their participation with that LP qualifies for the KPIs set out by the SRM team. It dedupes ECF Inductions at the lead provider level (as well as user_id and participant_type) using nearly identitcal deduping logic as the ecf_induction_dedupe mart (with the addition of grouping at LP level) and joins in started and completed declaration info for those records. In order to determine the preferred declaration for each declaration type we've determined a preferred state_hierarchy:paid>payable>eligible>submitted>clawed_back>awaiting_clawback>voided.",
     columns: {
@@ -68,10 +66,9 @@ config {
     }
 }
 
-
 SELECT
   *,
-  CURRENT_DATE() as version_date_stamp,
-  CONCAT(induction_record_id,cast(CURRENT_DATE() as string)) as induction_date_unique_id
+  CURRENT_DATE() AS version_date_stamp,
+  CONCAT(induction_record_id,CAST(CURRENT_DATE() AS string)) AS induction_date_unique_id
 FROM
   ${ref("ls_ecf_induction_lp_dedupe_start_decs")}
