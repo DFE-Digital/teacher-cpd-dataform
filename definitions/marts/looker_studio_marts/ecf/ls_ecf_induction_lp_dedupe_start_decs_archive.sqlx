@@ -60,7 +60,7 @@ config {
         reduced_schedule_criteria_check: "Participants on a reduced schedule do not receive the full set of declaration types, they only receive a completed declaration. Therefore to check their 'started' status with a LP we use their completed declaration instead of a started declaration. This boolean confirms they're both on a 'reduced' schedule and they have a paid/payable completed declaration.",
         replacement_mentor_check: "Checks if the schedule identifier is for a replacement mentor",
         induction_start_dec_same_lp: "This checks that the lead provider on the induction record matches the start declaration lead provider",
-        version_date_stamp: "This date field indicates when the record was archived from the live ls_ecf_induction_lp_dedupe_start_decs mart",
+        version_date_stamp: "Date the record was archived from the live ls_ecf_induction_lp_dedupe_start_decs mart",
         induction_date_unique_id: "This is a unique id field combining the induction record id and the archived date"
 
     }

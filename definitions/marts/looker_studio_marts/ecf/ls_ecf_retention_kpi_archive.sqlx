@@ -23,7 +23,7 @@ config {
         retained_participants_2023_cut_off: "The number of started participants split by participant_type for the lead provider where they are still associated with the same lead provider and their status is not withdrawn as of the cut-off date 31/07/2025. Some withdrawn Mentors are still considered retained if the ECTs they were mentoring are associated with an active Mentor as of the same cut-off date.",
         retained_participants_2024_mid_point: "The number of started participants split by participant_type for the lead provider where they are still associated with the same lead provider and their status is not withdrawn as of the mid-point date 31/07/2025. Some withdrawn Mentors are still considered retained if the ECTs they were mentoring are associated with an active Mentor as of the same mid-point date.",
         retained_participants_2024_cut_off: "The number of started participants split by participant_type for the lead provider where they are still associated with the same lead provider and their status is not withdrawn as of the cut-off date 31/07/2026. Some withdrawn Mentors are still considered retained if the ECTs they were mentoring are associated with an active Mentor as of the same cut-off date.",
-        version_date_stamp: "This date field indicates when the record was archived from the live ls_ecf_induction_lp_dedupe_start_decs mart",
+        version_date_stamp: "Date the record was archived from the live ls_ecf_induction_lp_dedupe_start_decs mart",
         lp_participant_unique_id: "This is a unique id field combining the lead provider name, participant type and the archived date"
     }
 }
