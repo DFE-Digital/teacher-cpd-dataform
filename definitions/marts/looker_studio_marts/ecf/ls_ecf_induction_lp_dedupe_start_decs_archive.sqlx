@@ -1,0 +1,74 @@
+config {
+    type: "incremental",
+    uniqueKey: ["induction_date_unique_id"],
+    bigquery: {
+        partitionBy: "version_date_stamp",
+        clusterBy: ["cohort", "participant_type", "training_status", "started_cpd_lead_provider_name"]
+    },
+    description: "This mart is used for the ECF Contract Managers dashboard. The mart identifies the latest induction records for a given participant + LP combo which can then help us to determine if the participant began their training with that LP and whether their participation with that LP qualifies for the KPIs set out by the SRM team. It dedupes ECF Inductions at the lead provider level (as well as user_id and participant_type) using nearly identitcal deduping logic as the ecf_induction_dedupe mart (with the addition of grouping at LP level) and joins in started and completed declaration info for those records. In order to determine the preferred declaration for each declaration type we've determined a preferred state_hierarchy:paid>payable>eligible>submitted>clawed_back>awaiting_clawback>voided.",
+    columns: {
+        induction_record_id: "ID of individual induction record",
+        external_id: "",
+        participant_profile_id: "The table participant_declarations_latest needs to be joined to ecf_inductions using participant_profile_id. Deduplication of user_ids has turned some of them into “ghost” IDs but the participant_profile_id still links correctly. Participant profiles are automatically generated for ECTs/Mentors when induction tutors register the ECT/Mentor details. Meaning a participant_profile_id (and full participant_profile) should be available for each ECF participant with an induction record. ECF participants have one participant_profile for each type of participation (ECT or Mentor).",
+        induction_programme_id: "ID of the induction programme specific to the school offering it.",
+        induction_programme_type: "The induction programme the school offers (FIP / CIP / DIY) : potential values: full_induction_programme core_induction_programme, design_our_own, school_funded_fip.",
+        lead_provider_name: "This is pulled from the pre_challenge_lead_provider_name field in ecf_inductions. It's a requirement of the KPIs that even those partnerships that were eventually challenged, but where a started declaration (or completed) was raised, should be included. The logic of the dashboard ensures a declaration (started or completed in that order) is available so there's no risk of accidental duplicates of participants with challenged partnerships.",
+        school_name: "Name of the participant's school.",
+        school_urn: "URN of the participant's school.",
+        schedule_identifier: "This indicates which sub-cohort or tranche the participant commenced training within an annual cohort. For ECF, the schedule identifier also indicates if a participant is following a non-standard training route at any point (e.g. extended or reduced).",
+        mentor_id: "The participant_profile_id of an ECT's mentor. This field is always NULL for mentors.",
+        appropriate_body_id: "The ID of the appropriate body associated with the school.",
+        appropriate_body_name: "The name of the appropriate body associated with the school.",
+        start_date: "Start date for this induction record",
+        end_date: "End date for this induction record. This is not the completion date for a participant's full induction.",
+        induction_status: "A status value used to manage the state of an induction record. It can indicate that a record is the active record or that something has changed and the record is not the active record (or will not be in the future). Potential values: active, changed, leaving, withdrawn ",
+        training_status: "This is managed on the lead provider side and indicates whether the participant is being trained by a provider or not. Potential Values: active, deferred, withdrawn",
+        school_transfer: "TRUE if a participant has transferred out of/in to the school in that induction record.",
+        created_at: "When this induction record was generated.",
+        updated_at: "When this induction record was updated.",
+        completion_date: "The date an ECT completed their induction. This field is always NULL for mentors",
+        cohort_id: "The ID of the participant's cohort. This is the cohort id stamped on the induction record of the participant but the cohort used in the associated dashboard is pulled from the started declaration (or completed declaration where there is no started declaration)",
+        user_id: "This comes from the teacher profile associated with the participant profile.",
+        participant_type: "Longform version of either ECT or Mentor",
+        induction_record_created_at: "When this induction record was generated.",
+        partnership_id: "ID for the Lead Provider-School partnership for a given cohort.",
+        TRN: {
+            description: "This comes from a participant's teacher profile.",
+            bigqueryPolicyTags: ["projects/ecf-bq/locations/europe-west2/taxonomies/6302091323314055162/policyTags/301313311867345339"]
+        },
+        cohort: "The cohort/academic year corresponding to when the participant started their course. Possible fields: 2021 onwards. This is pulled from the started declaration of the participant (or the completed declaration if no started declaration is available). This is because the cohort might have changed at induction record level for a participant but the declaration will still be associated with the cohort that was accurate when the declaration was raised.",
+        school_id: "ID of the participant's school.",
+        high_pupil_premium: "This indicates whether the uplift payment for X is applicable to this participant's started declaration",
+        sparsity_incentive: "This indicates whether the uplift payment for X is applicable to this participant's started declaration",
+        core_induction_programme_id: "If a school offers CIP, this will be filled with the ID of their CIP programme.",
+        core_induction_materials_provider: "If a school offers CIP, this shows which Lead Provider they are getting their CIP materials from.",
+        mentor_completion_date: "The date a mentor completed training.",
+        mentor_completion_reason: "The reason the mentor_completion_date field is filled.Possible values: completed_during_early_roll_out, completed_declaration_received.",
+        participant_course: "This is the shortened version of participant_type to show whether the participant is an ECT or Mentor ",
+        start_declaration_state: "state of start declaration",
+        started_cpd_lead_provider_id: "ID of start declaration's lead provider",
+        started_cpd_lead_provider_name: "Name of start declaration's lead provider",
+        started_cpd_delivery_partner_id: "ID of start declaration's delivery partner",
+        started_delivery_partner_name: "Name of start declaration's delivery partner",
+        started_declaration_date: "Date evidence received for latest declaration",
+        funded_start_declaration: "Declaration state is in eligible, payable, paid",
+        lead_provider_short_name: "Abbreviated version of the lead provider name on the induction record",
+        academic_year: "Calculated field that transforms cohort into an academic year form in order to join on targets table",
+        paid_start_declaration: "Declaration state is in payable or paid (note, not eligible, to meet SRM requirements)",
+        schedule_intake_month: "Extracts the month contained in the schedule identifier",
+        started_lead_provider_short_name: "Abbreviated version of the lead provider name on the start declaration",
+        reduced_schedule_criteria_check: "Participants on a reduced schedule do not receive the full set of declaration types, they only receive a completed declaration. Therefore to check their 'started' status with a LP we use their completed declaration instead of a started declaration. This boolean confirms they're both on a 'reduced' schedule and they have a paid/payable completed declaration.",
+        replacement_mentor_check: "Checks if the schedule identifier is for a replacement mentor",
+        induction_start_dec_same_lp: "This checks that the lead provider on the induction record matches the start declaration lead provider",
+        version_date_stamp: "Date the record was archived from the live ls_ecf_induction_lp_dedupe_start_decs mart",
+        induction_date_unique_id: "Unique ID combining induction record id and the archived date"
+
+    }
+}
+
+SELECT
+  *,
+  CURRENT_DATE() AS version_date_stamp,
+  CONCAT(induction_record_id,CAST(CURRENT_DATE() AS string)) AS induction_date_unique_id
+FROM
+  ${ref("ls_ecf_induction_lp_dedupe_start_decs")}
