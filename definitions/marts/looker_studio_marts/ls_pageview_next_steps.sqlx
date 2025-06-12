@@ -507,8 +507,8 @@ FROM
             /* pages_visited_details is an array of STRUCTs, one for each pageview within a session.*/
             /* This subquery replaces UIDs in page and referer paths with the string "[grouped]" so that paths which are essentially the same are displayed as being the same in funnel analysis dashboards */
             SELECT
-                REGEXP_REPLACE(page, "([a-zA-Z0-9-]*[0-9]+[a-zA-Z0-9-]*)", "[grouped]") AS page_path,
-                REGEXP_REPLACE(previous_page, "([a-zA-Z0-9-]*[0-9]+[a-zA-Z0-9-]*)", "[grouped]") AS referer_path,
+                REGEXP_REPLACE(page, "([a-zA-Z0-9-]*[0-9][a-zA-Z0-9-]*)", "[grouped]") AS page_path,
+                REGEXP_REPLACE(previous_page, "([a-zA-Z0-9-]*[0-9][a-zA-Z0-9-]*)", "[grouped]") AS referer_path,
                 page_entry_time,
                 previous_page_domain AS referer_domain,
                 duration AS time_on_page,
