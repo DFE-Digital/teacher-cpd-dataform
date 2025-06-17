@@ -17,9 +17,9 @@ config {
 	  cohort: "The cohort associated with the created partnership. This field is set by the LP when they create it via the API and converted into a value from an ID by using cohorts_latest.",
 	  request_uuid: "The unique identifier for the API request that triggered the creation of this partnership. This UUID is only usable by LPDOB or developers if the request needs to be reviewed. In this mart this value is unique and a distinct count of this field is used to determine how many actions of this type have been conducted by a lead provider on the event date.",
 	  request_path: "The full API path used by the lead provider to create the partnership. The path can vary but should always include 'partnerships/ecf'.",
-	  key_updated: "The field on the table partnerships_latest_cpd that was changed via this lead provider API request. The only field that can be changed via this method is delivery_partner_id.",
-	  new_value: "The new delivery_partner_id value assigned by this request, translated into the delivery partner's name via delivery_partners_latest_cpd.",
-	  previous_value: "The previous delivery_partner_id value changed by this request, translated into the delivery partner's name via delivery_partners_latest_cpd."	  
+	  key_updated: "The field on the table partnerships_latest_ecf1 that was changed via this lead provider API request. The only field that can be changed via this method is delivery_partner_id.",
+	  new_value: "The new delivery_partner_id value assigned by this request, translated into the delivery partner's name via delivery_partners_latest_ecf1.",
+	  previous_value: "The previous delivery_partner_id value changed by this request, translated into the delivery partner's name via delivery_partners_latest_ecf1."	  
     }
 }
 
@@ -38,25 +38,25 @@ SELECT
   ,new_dp.name AS new_value
   ,old_dp.name AS previous_value
 FROM 
-  ${ref('partnerships_field_updates_cpd')} AS partnerships
+  ${ref('partnerships_field_updates_ecf1')} AS partnerships
 LEFT JOIN 
-  ${ref('schools_latest_cpd')} AS schools
+  ${ref('schools_latest_ecf1')} AS schools
 ON
   schools.id = partnerships.school_id
 LEFT JOIN
-  ${ref('cpd_lead_providers_latest_cpd')} AS lead_providers
+  ${ref('cpd_lead_providers_latest_ecf1')} AS lead_providers
 ON
   lead_providers.id = partnerships.request_user_id
 LEFT JOIN
-  ${ref('delivery_partners_latest_cpd')} AS new_dp
+  ${ref('delivery_partners_latest_ecf1')} AS new_dp
 ON
   new_dp.id = partnerships.new_value
 LEFT JOIN
-  ${ref('delivery_partners_latest_cpd')} AS old_dp
+  ${ref('delivery_partners_latest_ecf1')} AS old_dp
 ON
   old_dp.id = partnerships.previous_value
 LEFT JOIN
-  ${ref('cohorts_latest_cpd')} AS cohorts
+  ${ref('cohorts_latest_ecf1')} AS cohorts
 ON
   cohorts.id = partnerships.cohort_id
 WHERE

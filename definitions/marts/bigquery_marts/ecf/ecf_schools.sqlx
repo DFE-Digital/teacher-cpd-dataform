@@ -30,7 +30,7 @@ WITH
     school_type_name,
     created_at
   FROM
-    ${ref(`schools_latest_cpd`)}),
+    ${ref(`schools_latest_ecf1`)}),
 --   induction_coordinator_profiles AS (
 --   SELECT
 --     id AS induction_tutor_id,
@@ -41,13 +41,13 @@ WITH
 --     reminder_email_sent_at AS nomination_email_sent_at,
 --     discarded_at AS induction_tutor_discarded
 --   FROM
---     ${ref(`induction_coordinator_profiles_latest_cpd`)} icp_df
+--     ${ref(`induction_coordinator_profiles_latest_ecf1`)} icp_df
 --   LEFT JOIN (
 --     SELECT
 --       induction_coordinator_profile_id,
 --       school_id
 --     FROM
---       ${ref(`induction_coordinator_profiles_schools_latest_cpd`)}
+--       ${ref(`induction_coordinator_profiles_schools_latest_ecf1`)}
 --     QUALIFY ROW_NUMBER() OVER (PARTITION BY school_id ORDER BY created_at DESC) = 1
 --     ) AS scp
 --   ON
@@ -63,13 +63,13 @@ WITH
     challenged_at AS partnership_challenge_time,
     sp_latest.created_at AS partnership_time
   FROM
-    ${ref(`partnerships_latest_cpd`)} AS sp_latest
+    ${ref(`partnerships_latest_ecf1`)} AS sp_latest
   LEFT JOIN
-    ${ref(`delivery_partners_latest_cpd`)} AS dp_latest
+    ${ref(`delivery_partners_latest_ecf1`)} AS dp_latest
   ON
     sp_latest.delivery_partner_id=dp_latest.id
   LEFT JOIN
-    ${ref(`lead_providers_latest_cpd`)} AS lp_latest
+    ${ref(`lead_providers_latest_ecf1`)} AS lp_latest
   ON
     sp_latest.lead_provider_id=lp_latest.id
   WHERE
@@ -82,7 +82,7 @@ WITH
     induction_programme_choice,
     core_induction_programme_id AS chosen_cip
   FROM
-    ${ref(`school_cohorts_latest_cpd`)}
+    ${ref(`school_cohorts_latest_ecf1`)}
   QUALIFY ROW_NUMBER() OVER (PARTITION BY school_id ORDER BY created_at DESC) = 1
   ),
   pupil_premiums AS (
@@ -91,7 +91,7 @@ WITH
     pupil_premium_incentive,
     sparsity_incentive
   FROM
-    ${ref(`pupil_premiums_latest_cpd`)}
+    ${ref(`pupil_premiums_latest_ecf1`)}
   QUALIFY ROW_NUMBER() OVER (PARTITION BY school_id ORDER BY created_at DESC) = 1
   )
 
