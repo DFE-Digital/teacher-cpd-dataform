@@ -262,9 +262,8 @@ QUALIFY
   npq_dec_base_hierarchy AS(
 SELECT
   dec.*,
-  ,
   dp_primary.name AS delivery_partner_name,
-  dp_secondary.name AS secondary_delivery_partner_name,
+  --   dp_secondary.name AS secondary_delivery_partner_name,
   lp.name AS lead_provider_name,
   CASE
     WHEN state LIKE 'paid' THEN 7
@@ -309,11 +308,12 @@ ON
 LEFT JOIN
   ${ref(`delivery_partners_latest_npq`)} AS dp_primary
 ON
-  dec.delivery_partner_id=dp_primary.delivery_partner_id
-LEFT JOIN
-  ${ref(`delivery_partners_latest_npq`)} AS dp_secondary
-ON
-  dec.delivery_partner_id=dp_secondary.secondary_delivery_partner_id ),
+  dec.delivery_partner_id=dp_primary.id
+  -- LEFT JOIN
+  --   ${ref(`delivery_partners_latest_npq`)} AS dp_secondary
+  -- ON
+  --   dec.delivery_partner_id=dp_secondary.secondary_delivery_partner_id
+  ),
   -- Gather Latest Declaration per Application based on type hierarchy, state hierarchy and declaration_date (evidenced date).
   npq_dec_latest AS (
 SELECT
@@ -324,7 +324,7 @@ SELECT
   declaration_date AS latest_declaration_date,
   updated_at AS latest_declaration_updated_at,
   delivery_partner_id AS latest_declaration_delivery_partner_id,
-  primary_delivery_partner_name AS latest_declaration_delivery_partner_name
+  delivery_partner_name AS latest_declaration_delivery_partner_name
   -- ,secondary_delivery_partner_id as latest_declaration_secondary_delivery_partner_id
   -- ,secondary_delivery_partner_name AS latest_declaration_secondary_delivery_partner_name
 FROM
@@ -340,7 +340,7 @@ SELECT
   declaration_date AS started_declaration_date,
   funded_declaration AS funded_start_declaration,
   delivery_partner_id AS started_declaration_delivery_partner_id,
-  primary_delivery_partner_name AS started_declaration_delivery_partner_name
+  delivery_partner_name AS started_declaration_delivery_partner_name
   -- ,secondary_delivery_partner_id as started_declaration_secondary_delivery_partner_id
   -- ,secondary_delivery_partner_name AS started_declaration_secondary_delivery_partner_name
 FROM
