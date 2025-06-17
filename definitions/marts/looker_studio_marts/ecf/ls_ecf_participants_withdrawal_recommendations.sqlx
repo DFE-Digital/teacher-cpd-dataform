@@ -1,0 +1,42 @@
+config {
+    type: "table",
+    assertions: {
+        uniqueKey: ["participant_profile_id"]
+    },
+    bigquery: {
+        clusterBy: ["lead_provider_name"]
+    },
+    description: "",
+    columns: {}
+}
+
+SELECT
+  participant_profile_id,
+  user_id,
+  TRN,
+  school_name,
+  school_urn,
+  schedule_identifier,
+  appropriate_body_name,
+  induction_status,
+  training_status,
+  start_date,
+  end_date,
+  cohort,
+  lead_provider_name,
+  delivery_partner_name,
+  participant_type
+FROM
+  ${ref(`ecf_inductions_dedupe`)}
+WHERE
+  TRN NOT IN (
+  SELECT
+    DISTINCT trn
+  FROM
+    ${ref(`ecf2_teacher_induction_periods`)}
+  WHERE
+    finished_on IS NULL)
+  AND training_status = 'active'
+  AND induction_status = 'active'
+  AND participant_type = 'ParticipantProfile::ECT'
+  AND completion_date IS null
