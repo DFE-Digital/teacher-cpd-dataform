@@ -306,11 +306,11 @@ LEFT JOIN
 ON
   lp.id = dec.lead_provider_id
 LEFT JOIN
-  ${ref(`delivery_partners_latest_npq`)} AS dp_primary
+  ${ref('delivery_partners_latest_npq')} AS dp_primary
 ON
   dec.delivery_partner_id=dp_primary.id
   -- LEFT JOIN
-  --   ${ref(`delivery_partners_latest_npq`)} AS dp_secondary
+  --   ${ref('delivery_partners_latest_npq')} AS dp_secondary
   -- ON
   --   dec.delivery_partner_id=dp_secondary.secondary_delivery_partner_id
   ),
