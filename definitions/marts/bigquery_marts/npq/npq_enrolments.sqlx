@@ -46,6 +46,8 @@ config {
         latest_lead_provider_name: "Name of Lead Provider associated with participant's latest declaration.",
         latest_declaration_date: "Date evidence was submitted for participant's latest declaration.",
         latest_declaration_updated_at: "Date participant's latest declaration was updated",
+        latest_declaration_delivery_partner_id: "The ID of the delivery partner that submitted the latest declaration.",
+        latest_declaration_delivery_partner_name: "The name of the delivery partner that submitted the latest declaration.",
         application_status: "Indicates whether the application has been approved by the lead provider.Possible fields: Pending, Accepted, Rejected.",
         updated_at: "Refers to the latest updated date for the application record.",
         employer_name: "Shows the entered employer name of non-school users. Text field.",
@@ -56,6 +58,8 @@ config {
         started_declaration_id: "ID of the participant's started declaration.",
         started_declaration_state: "State of the participant's started declaration.",
         started_declaration_date: "Date evidence was submitted for participant's started declaration.",
+        started_declaration_delivery_partner_id: "The ID of the delivery partner that submitted the participants start declaration",
+        started_declaration_delivery_partner_name: "The name of the delivery partner that submitted the participants start declaration",
         funded_start_declaration: "True if the declaration is in an eligible, payable, or paid state.",
         retained1_declaration_id: "ID of the participant's retained-1 declaration.",
         retained1_declaration_state: "State of the participant's retained-1 declaration.",
@@ -89,334 +93,337 @@ config {
     }
 }
 
--- Gather the TRNs associated with a user profile per user_id and the dates between which this was valid. This value will be used as the application_trn before any verification checks have taken place.
-WITH user_trns AS (
+  -- Gather the TRNs associated with a user profile per user_id and the dates between which this was valid. This value will be used as the application_trn before any verification checks have taken place.
+WITH
+  user_trns AS (
   SELECT
-     id AS user_id
-    ,trn
-    ,valid_from
-    ,valid_to
+    id AS user_id,
+    trn,
+    valid_from,
+    valid_to
   FROM
     ${ref('users_version_npq')}
   WHERE
     trn IS NOT NULL
-  QUALIFY (
-    ROW_NUMBER() OVER(PARTITION BY id ORDER BY valid_from ASC) = 1
-  )
-),
-
--- NPQ Application records in the ECF Service Data prior to separation.
---- Used to obtain application_trn associated with the application prior to separation where this information needs to calculated differently.
-previous_application_trns AS (
-  SELECT
-     id AS application_ecf_id
-    ,teacher_reference_number AS application_trn
-  FROM
-    ${ref('npq_applications_archive')}
-),
-
--- Gather all NPQ applications in their latest state and join on the supplimentary information
---- We join on User, School, Course, Cohort, Lead Provider, Private Childcare Providers and GIAS information within this CTE to be used in the final output.
-npq_app AS (
-  SELECT
-     app.id AS application_id
-    ,app.ecf_id AS application_ecf_id
-    ,COALESCE(pr_trn.application_trn, CAST(user_trns.trn AS STRING)) AS application_trn
-    ,CASE
-        WHEN users.trn_verified = TRUE THEN users.trn 
-        ELSE NULL 
-     END AS trn_verified
-    ,users.trn_auto_verified
-    ,users.id AS user_id
-    ,users.ecf_id AS ecf_user_id
-    ,app.created_at AS application_created_at
-    ,app.updated_at
-    ,app.cohort_id
-    ,cohort.start_year AS cohort
-    ,courses.identifier AS course_identifier
-    ,courses.name AS course_name
-    ,CASE
-      WHEN courses.name = 'Additional Support Offer for new headteachers' THEN 'EHCO'
-      WHEN courses.name = 'The Early Headship Coaching Offer' THEN 'EHCO'
-      WHEN REGEXP_CONTAINS(courses.name, r'\(.*\)') THEN REGEXP_EXTRACT(courses.name, r'\((.*?)\)')
-      ELSE courses.name
-     END AS short_course_name
-    ,app.lead_provider_id
-    ,CASE 
-        WHEN lp.name = 'University College London (UCL) Institute of Education' THEN 'UCL Institute of Education'
-        ELSE lp.name
-     END AS provider_name    
-    ,sched.identifier AS schedule_identifier
-    ,schools.urn AS school_urn
-    ,schools.name AS school_name
-    ,schools.high_pupil_premium
-    ,gias.LA_name AS la_name
-    ,schools.postcode AS school_postcode
-    ,app.headteacher_status
-    ,app.eligible_for_funding
-    ,app.funding_choice
-    ,app.targeted_delivery_funding_eligibility
-    ,app.number_of_pupils
-    ,app.works_in_childcare
-    ,app.kind_of_nursery
-    ,app.funding_eligiblity_status_code
-    ,app.lead_provider_approval_status AS application_status
-    ,app.employer_name
-    ,app.employment_type
-    ,app.employment_role
-    ,app.training_status
-    ,app.primary_establishment
-    ,pcp.provider_urn AS private_childcare_provider_urn
-    ,app.ukprn AS school_ukprn
-    ,app.teacher_catchment
-    ,app.teacher_catchment_country
-    ,app.teacher_catchment_iso_country_code
-    ,app.tsf_primary_eligibility
-    ,app.tsf_primary_plus_eligibility
-    ,app.works_in_nursery
-    ,app.works_in_school
-    ,app.funded_place
-    ,app.senco_in_role AS senco_in_role
-    ,app.senco_start_date AS senco_start_date
-  FROM
-    ${ref('applications_latest_npq')} AS app
+  QUALIFY
+    ( ROW_NUMBER() OVER(PARTITION BY id ORDER BY valid_from ASC) = 1 ) ),
+  -- NPQ Application records in the ECF Service Data prior to separation.
+  --- Used to obtain application_trn associated with the application prior to separation where this information needs to calculated differently.
+  previous_application_trns AS (
+SELECT
+  id AS application_ecf_id,
+  teacher_reference_number AS application_trn
+FROM
+  ${ref('npq_applications_archive')} ),
+  -- Gather all NPQ applications in their latest state and join on the supplimentary information
+  --- We join on User, School, Course, Cohort, Lead Provider, Private Childcare Providers and GIAS information within this CTE to be used in the final output.
+  npq_app AS (
+SELECT
+  app.id AS application_id,
+  app.ecf_id AS application_ecf_id,
+  COALESCE(pr_trn.application_trn, CAST(user_trns.trn AS STRING)) AS application_trn,
+  CASE
+    WHEN users.trn_verified = TRUE THEN users.trn
+    ELSE NULL
+END
+  AS trn_verified,
+  users.trn_auto_verified,
+  users.id AS user_id,
+  users.ecf_id AS ecf_user_id,
+  app.created_at AS application_created_at,
+  app.updated_at,
+  app.cohort_id,
+  cohort.start_year AS cohort,
+  courses.identifier AS course_identifier,
+  courses.name AS course_name,
+  CASE
+    WHEN courses.name = 'Additional Support Offer for new headteachers' THEN 'EHCO'
+    WHEN courses.name = 'The Early Headship Coaching Offer' THEN 'EHCO'
+    WHEN REGEXP_CONTAINS(courses.name, r'\(.*\)') THEN REGEXP_EXTRACT(courses.name, r'\((.*?)\)')
+    ELSE courses.name
+END
+  AS short_course_name,
+  app.lead_provider_id,
+  CASE
+    WHEN lp.name = 'University College London (UCL) Institute of Education' THEN 'UCL Institute of Education'
+    ELSE lp.name
+END
+  AS provider_name,
+  sched.identifier AS schedule_identifier,
+  schools.urn AS school_urn,
+  schools.name AS school_name,
+  schools.high_pupil_premium,
+  gias.LA_name AS la_name,
+  schools.postcode AS school_postcode,
+  app.headteacher_status,
+  app.eligible_for_funding,
+  app.funding_choice,
+  app.targeted_delivery_funding_eligibility,
+  app.number_of_pupils,
+  app.works_in_childcare,
+  app.kind_of_nursery,
+  app.funding_eligiblity_status_code,
+  app.lead_provider_approval_status AS application_status,
+  app.employer_name,
+  app.employment_type,
+  app.employment_role,
+  app.training_status,
+  app.primary_establishment,
+  pcp.provider_urn AS private_childcare_provider_urn,
+  app.ukprn AS school_ukprn,
+  app.teacher_catchment,
+  app.teacher_catchment_country,
+  app.teacher_catchment_iso_country_code,
+  app.tsf_primary_eligibility,
+  app.tsf_primary_plus_eligibility,
+  app.works_in_nursery,
+  app.works_in_school,
+  app.funded_place,
+  app.senco_in_role AS senco_in_role,
+  app.senco_start_date AS senco_start_date
+FROM
+  ${ref('applications_latest_npq')} AS app
   -- Join on User Profile for TRN Verified, TRN Auto-Verified and ECF User ID.
-  LEFT JOIN
-    ${ref('users_latest_npq')} AS users
-  ON
-    users.id = app.user_id
+LEFT JOIN
+  ${ref('users_latest_npq')} AS users
+ON
+  users.id = app.user_id
   -- Join on User TRNs to obtain the first trn valid at the time of application to be used as application_trn.
-  LEFT JOIN
-    user_trns
-  ON
-    user_trns.user_id = app.user_id
-    AND
-    DATE(app.created_at) BETWEEN DATE(user_trns.valid_from) AND IFNULL(DATE(user_trns.valid_to), DATE(2050,12,31))
+LEFT JOIN
+  user_trns
+ON
+  user_trns.user_id = app.user_id
+  AND DATE(app.created_at) BETWEEN DATE(user_trns.valid_from)
+  AND IFNULL(DATE(user_trns.valid_to), DATE(2050,12,31))
   -- Join on Previous Application TRNs
-  LEFT JOIN
-    previous_application_trns AS pr_trn
-  ON
-    pr_trn.application_ecf_id = app.ecf_id
+LEFT JOIN
+  previous_application_trns AS pr_trn
+ON
+  pr_trn.application_ecf_id = app.ecf_id
   -- Join on Lead Providers for Lead Provider Name
-  LEFT JOIN
-    ${ref('lead_providers_latest_npq')} AS lp
-  ON
-    lp.id = app.lead_provider_id
+LEFT JOIN
+  ${ref('lead_providers_latest_npq')} AS lp
+ON
+  lp.id = app.lead_provider_id
   -- Join on Schools for School URN, Name, Postcode & High Pupil Premium
-  LEFT JOIN
-    ${ref('schools_latest_npq')} AS schools
-  ON
-    schools.id = app.school_id
+LEFT JOIN
+  ${ref('schools_latest_npq')} AS schools
+ON
+  schools.id = app.school_id
   -- Join on GIAS Establishments for School LA Name
-  LEFT JOIN
-    ${ref('establishments')} AS gias
-  ON
-    gias.urn = schools.urn
+LEFT JOIN
+  ${ref('establishments')} AS gias
+ON
+  gias.urn = schools.urn
   -- Join on Schedules for Schedule Identifier
-  LEFT JOIN 
-    ${ref('schedules_latest_npq')} AS sched
-  ON
-    sched.id = app.schedule_id
+LEFT JOIN
+  ${ref('schedules_latest_npq')} AS sched
+ON
+  sched.id = app.schedule_id
   -- Join on Cohorts for Cohort
-  LEFT JOIN
-    ${ref('cohorts_latest_npq')} AS cohort
-  ON
-    cohort.id = app.cohort_id
+LEFT JOIN
+  ${ref('cohorts_latest_npq')} AS cohort
+ON
+  cohort.id = app.cohort_id
   -- Join on Courses for Name, Identifier and to calculate the short version
-  LEFT JOIN
-    ${ref('courses_latest_npq')} AS courses
-  ON
-    courses.id = app.course_id
+LEFT JOIN
+  ${ref('courses_latest_npq')} AS courses
+ON
+  courses.id = app.course_id
   -- Join on Private Childcare Providers for their URN
-  LEFT JOIN 
-    ${ref('private_childcare_providers_latest_npq')} AS pcp
-  ON
-    pcp.id = app.private_childcare_provider_id
-),
-
--- Gather the latest outcome per declaration_id based on the created_at date.
-npq_outcomes AS (
+LEFT JOIN
+  ${ref('private_childcare_providers_latest_npq')} AS pcp
+ON
+  pcp.id = app.private_childcare_provider_id ),
+  -- Gather the latest outcome per declaration_id based on the created_at date.
+  npq_outcomes AS (
+SELECT
+  declaration_id,
+  state AS latest_outcome_state,
+  completion_date AS latest_outcome_date
+FROM
+  ${ref('participant_outcomes_latest_npq')}
+QUALIFY
+  (
+  -- Only want the last created outcome per declaration as these are generated sequentially.
+  ROW_NUMBER() OVER(PARTITION BY declaration_id ORDER BY created_at DESC) = 1 ) ),
+    -- Gather a count of failures per declaration_id present in the data.
+    npq_fails AS (
   SELECT
-     declaration_id
-    ,state AS latest_outcome_state
-    ,completion_date AS latest_outcome_date
-  FROM
-    ${ref('participant_outcomes_latest_npq')}
-  QUALIFY(
-    -- Only want the last created outcome per declaration as these are generated sequentially.
-    ROW_NUMBER() OVER(PARTITION BY declaration_id ORDER BY created_at DESC) = 1
-  )
-),
-
--- Gather a count of failures per declaration_id present in the data.
-npq_fails AS (
-  SELECT
-     declaration_id AS source_declaration_id
-    ,COUNT(id) AS count_of_fails
+    declaration_id AS source_declaration_id,
+    COUNT(id) AS count_of_fails
   FROM
     ${ref('participant_outcomes_latest_npq')}
   WHERE
     state = 'failed'
   GROUP BY
-    declaration_id
-),
-
--- Gather all NPQ Declarations and assign hierarchies at state and type. Also calculate funded_declaration bool based on state.
-npq_dec_base_hierarchy AS(
-  SELECT
-     dec.*
-    ,lp.name AS lead_provider_name
-    ,CASE
-      WHEN state LIKE 'paid' THEN 7
-      WHEN state LIKE 'payable' THEN 6
-      WHEN state LIKE 'eligible' THEN 5
-      WHEN state LIKE 'submitted' THEN 4
-      WHEN state LIKE 'clawed_back' THEN 3
-      WHEN state LIKE 'awaiting_clawback' THEN 2
-      WHEN state LIKE 'voided' THEN 1
-      ELSE 0
-     END AS state_hierarchy
-    ,CASE
-      WHEN declaration_type LIKE 'completed' THEN 12
-      WHEN declaration_type LIKE 'extended-6' THEN 11
-      WHEN declaration_type LIKE 'extended-5' THEN 10
-      WHEN declaration_type LIKE 'extended-4' THEN 9
-      WHEN declaration_type LIKE 'extended-3' THEN 8
-      WHEN declaration_type LIKE 'extended-2' THEN 7
-      WHEN declaration_type LIKE 'extended-1' THEN 6
-      WHEN declaration_type LIKE 'retained-4' THEN 5
-      WHEN declaration_type LIKE 'retained-3' THEN 4
-      WHEN declaration_type LIKE 'retained-2' THEN 3
-      WHEN declaration_type LIKE 'retained-1' THEN 2
-      WHEN declaration_type LIKE 'started' THEN 1
-      ELSE 0
-     END AS type_hierarchy
-    ,CASE
-      WHEN state = 'paid' THEN TRUE
-      WHEN state = 'eligible' THEN TRUE
-      WHEN state = 'payable' THEN TRUE
-      ELSE FALSE
-     END AS funded_declaration
-  FROM
-    ${ref('declarations_latest_npq')} AS dec
-  LEFT JOIN
-    ${ref('lead_providers_latest_npq')} AS lp
-  ON
-    lp.id = dec.lead_provider_id
-),
-
--- Gather Latest Declaration per Application based on type hierarchy, state hierarchy and declaration_date (evidenced date).
-npq_dec_latest AS (
-  SELECT
-     application_id
-    ,state AS latest_state
-    ,declaration_type AS latest_declaration_type
-    ,lead_provider_name AS latest_lead_provider_name
-    ,declaration_date AS latest_declaration_date
-    ,updated_at AS latest_declaration_updated_at
-  FROM
-    npq_dec_base_hierarchy 
-  QUALIFY (
-    ROW_NUMBER() OVER(PARTITION BY application_id ORDER BY type_hierarchy DESC, state_hierarchy DESC, declaration_date DESC) = 1
-  )
-),
-
--- Gather Latest Started Declaration per Application based on type hierarchy, state hierarchy and declaration_date (evidenced date).
-npq_dec_start AS (
-  SELECT
-     id AS started_declaration_id
-    ,application_id
-    ,state AS started_declaration_state
-    ,declaration_date AS started_declaration_date
-    ,funded_declaration AS funded_start_declaration
-  FROM
-    npq_dec_base_hierarchy
-  WHERE
-    declaration_type = 'started' 
-  QUALIFY (
-    ROW_NUMBER() OVER(PARTITION BY application_id ORDER BY type_hierarchy DESC, state_hierarchy DESC, declaration_date DESC) = 1
-  )
-),
-
--- Gather Latest Retained-1 Declaration per Application based on type hierarchy, state hierarchy and declaration_date (evidenced date).
-npq_dec_ret1 AS (
-  SELECT
-     id AS retained1_declaration_id
-    ,application_id
-    ,state AS retained1_declaration_state
-    ,declaration_date AS retained1_declaration_date
-    ,funded_declaration AS funded_retained1_declaration
-  FROM
-    npq_dec_base_hierarchy
-  WHERE
-    declaration_type = 'retained-1' 
-  QUALIFY (
-    ROW_NUMBER() OVER(PARTITION BY application_id ORDER BY type_hierarchy DESC, state_hierarchy DESC, declaration_date DESC) = 1
-  )
-),
-
--- Gather Latest Retained-2 Declaration per Application based on type hierarchy, state hierarchy and declaration_date (evidenced date).
-npq_dec_ret2 AS (
-  SELECT
-     id AS retained2_declaration_id
-    ,application_id
-    ,state AS retained2_declaration_state
-    ,declaration_date AS retained2_declaration_date
-    ,funded_declaration AS funded_retained2_declaration
-  FROM
-    npq_dec_base_hierarchy
-  WHERE
-    declaration_type = 'retained-2' 
-  QUALIFY (
-    ROW_NUMBER() OVER(PARTITION BY application_id ORDER BY type_hierarchy DESC, state_hierarchy DESC, declaration_date DESC) = 1
-  )
-),
-
--- Gather Latest Completed Declaration per Application based on type hierarchy, state hierarchy and declaration_date (evidenced date).
-npq_dec_comp AS (
-  SELECT
-     id AS completed_declaration_id
-    ,application_id
-    ,state AS completed_declaration_state
-    ,declaration_date AS completed_declaration_date
-    ,funded_declaration AS funded_completed_declaration
-  FROM
-    npq_dec_base_hierarchy
-  WHERE
-    declaration_type = 'completed' 
-  QUALIFY (
-    ROW_NUMBER() OVER(PARTITION BY application_id ORDER BY type_hierarchy DESC, state_hierarchy DESC, declaration_date DESC) = 1
-  )
-)
-
--- Build final output joining all CTEs together.
-SELECT 
-   npq_app.*
-  ,npq_dec_latest.* EXCEPT(application_id)
-  ,npq_dec_start.* EXCEPT(application_id)
-  ,npq_dec_ret1.* EXCEPT(application_id)
-  ,npq_dec_ret2.* EXCEPT(application_id)
-  ,npq_dec_comp.* EXCEPT(application_id)
-  ,IFNULL(npq_fails.count_of_fails, 0) AS count_of_fails
-  ,npq_outcomes.latest_outcome_state
-  ,npq_outcomes.latest_outcome_date
+    declaration_id ),
+  -- Gather all NPQ Declarations and assign hierarchies at state and type. Also calculate funded_declaration bool based on state.
+  npq_dec_base_hierarchy AS(
+SELECT
+  dec.*,
+  ,
+  dp_primary.name AS delivery_partner_name,
+  dp_secondary.name AS secondary_delivery_partner_name,
+  lp.name AS lead_provider_name,
+  CASE
+    WHEN state LIKE 'paid' THEN 7
+    WHEN state LIKE 'payable' THEN 6
+    WHEN state LIKE 'eligible' THEN 5
+    WHEN state LIKE 'submitted' THEN 4
+    WHEN state LIKE 'clawed_back' THEN 3
+    WHEN state LIKE 'awaiting_clawback' THEN 2
+    WHEN state LIKE 'voided' THEN 1
+    ELSE 0
+END
+  AS state_hierarchy,
+  CASE
+    WHEN declaration_type LIKE 'completed' THEN 12
+    WHEN declaration_type LIKE 'extended-6' THEN 11
+    WHEN declaration_type LIKE 'extended-5' THEN 10
+    WHEN declaration_type LIKE 'extended-4' THEN 9
+    WHEN declaration_type LIKE 'extended-3' THEN 8
+    WHEN declaration_type LIKE 'extended-2' THEN 7
+    WHEN declaration_type LIKE 'extended-1' THEN 6
+    WHEN declaration_type LIKE 'retained-4' THEN 5
+    WHEN declaration_type LIKE 'retained-3' THEN 4
+    WHEN declaration_type LIKE 'retained-2' THEN 3
+    WHEN declaration_type LIKE 'retained-1' THEN 2
+    WHEN declaration_type LIKE 'started' THEN 1
+    ELSE 0
+END
+  AS type_hierarchy,
+  CASE
+    WHEN state = 'paid' THEN TRUE
+    WHEN state = 'eligible' THEN TRUE
+    WHEN state = 'payable' THEN TRUE
+    ELSE FALSE
+END
+  AS funded_declaration
+FROM
+  ${ref('declarations_latest_npq')} AS dec
+LEFT JOIN
+  ${ref('lead_providers_latest_npq')} AS lp
+ON
+  lp.id = dec.lead_provider_id
+LEFT JOIN
+  ${ref(`delivery_partners_latest_npq`)} AS dp_primary
+ON
+  dec.delivery_partner_id=dp_primary.delivery_partner_id
+LEFT JOIN
+  ${ref(`delivery_partners_latest_npq`)} AS dp_secondary
+ON
+  dec.delivery_partner_id=dp_secondary.secondary_delivery_partner_id ),
+  -- Gather Latest Declaration per Application based on type hierarchy, state hierarchy and declaration_date (evidenced date).
+  npq_dec_latest AS (
+SELECT
+  application_id,
+  state AS latest_state,
+  declaration_type AS latest_declaration_type,
+  lead_provider_name AS latest_lead_provider_name,
+  declaration_date AS latest_declaration_date,
+  updated_at AS latest_declaration_updated_at,
+  delivery_partner_id AS latest_declaration_delivery_partner_id,
+  primary_delivery_partner_name AS latest_declaration_delivery_partner_name
+  -- ,secondary_delivery_partner_id as latest_declaration_secondary_delivery_partner_id
+  -- ,secondary_delivery_partner_name AS latest_declaration_secondary_delivery_partner_name
+FROM
+  npq_dec_base_hierarchy
+QUALIFY
+  ( ROW_NUMBER() OVER(PARTITION BY application_id ORDER BY type_hierarchy DESC, state_hierarchy DESC, declaration_date DESC) = 1 ) ),
+  -- Gather Latest Started Declaration per Application based on type hierarchy, state hierarchy and declaration_date (evidenced date).
+  npq_dec_start AS (
+SELECT
+  id AS started_declaration_id,
+  application_id,
+  state AS started_declaration_state,
+  declaration_date AS started_declaration_date,
+  funded_declaration AS funded_start_declaration,
+  delivery_partner_id AS started_declaration_delivery_partner_id,
+  primary_delivery_partner_name AS started_declaration_delivery_partner_name
+  -- ,secondary_delivery_partner_id as started_declaration_secondary_delivery_partner_id
+  -- ,secondary_delivery_partner_name AS started_declaration_secondary_delivery_partner_name
+FROM
+  npq_dec_base_hierarchy
+WHERE
+  declaration_type = 'started'
+QUALIFY
+  ( ROW_NUMBER() OVER(PARTITION BY application_id ORDER BY type_hierarchy DESC, state_hierarchy DESC, declaration_date DESC) = 1 ) ),
+  -- Gather Latest Retained-1 Declaration per Application based on type hierarchy, state hierarchy and declaration_date (evidenced date).
+  npq_dec_ret1 AS (
+SELECT
+  id AS retained1_declaration_id,
+  application_id,
+  state AS retained1_declaration_state,
+  declaration_date AS retained1_declaration_date,
+  funded_declaration AS funded_retained1_declaration
+FROM
+  npq_dec_base_hierarchy
+WHERE
+  declaration_type = 'retained-1'
+QUALIFY
+  ( ROW_NUMBER() OVER(PARTITION BY application_id ORDER BY type_hierarchy DESC, state_hierarchy DESC, declaration_date DESC) = 1 ) ),
+  -- Gather Latest Retained-2 Declaration per Application based on type hierarchy, state hierarchy and declaration_date (evidenced date).
+  npq_dec_ret2 AS (
+SELECT
+  id AS retained2_declaration_id,
+  application_id,
+  state AS retained2_declaration_state,
+  declaration_date AS retained2_declaration_date,
+  funded_declaration AS funded_retained2_declaration
+FROM
+  npq_dec_base_hierarchy
+WHERE
+  declaration_type = 'retained-2'
+QUALIFY
+  ( ROW_NUMBER() OVER(PARTITION BY application_id ORDER BY type_hierarchy DESC, state_hierarchy DESC, declaration_date DESC) = 1 ) ),
+  -- Gather Latest Completed Declaration per Application based on type hierarchy, state hierarchy and declaration_date (evidenced date).
+  npq_dec_comp AS (
+SELECT
+  id AS completed_declaration_id,
+  application_id,
+  state AS completed_declaration_state,
+  declaration_date AS completed_declaration_date,
+  funded_declaration AS funded_completed_declaration
+FROM
+  npq_dec_base_hierarchy
+WHERE
+  declaration_type = 'completed'
+QUALIFY
+  ( ROW_NUMBER() OVER(PARTITION BY application_id ORDER BY type_hierarchy DESC, state_hierarchy DESC, declaration_date DESC) = 1 ) )
+  -- Build final output joining all CTEs together.
+SELECT
+  npq_app.*,
+  npq_dec_latest.* EXCEPT(application_id),
+  npq_dec_start.* EXCEPT(application_id),
+  npq_dec_ret1.* EXCEPT(application_id),
+  npq_dec_ret2.* EXCEPT(application_id),
+  npq_dec_comp.* EXCEPT(application_id),
+  IFNULL(npq_fails.count_of_fails, 0) AS count_of_fails,
+  npq_outcomes.latest_outcome_state,
+  npq_outcomes.latest_outcome_date
 FROM
   npq_app
 LEFT JOIN
   npq_dec_latest
-  USING (application_id)
+USING
+  (application_id)
 LEFT JOIN
   npq_dec_start
-  USING (application_id)
+USING
+  (application_id)
 LEFT JOIN
   npq_dec_ret1
-  USING (application_id)
+USING
+  (application_id)
 LEFT JOIN
   npq_dec_ret2
-  USING (application_id)
+USING
+  (application_id)
 LEFT JOIN
   npq_dec_comp
-  USING (application_id)
+USING
+  (application_id)
 LEFT JOIN
   npq_fails
 ON
