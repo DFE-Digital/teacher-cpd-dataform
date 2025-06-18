@@ -46,8 +46,8 @@ config {
         latest_lead_provider_name: "Name of Lead Provider associated with participant's latest declaration.",
         latest_declaration_date: "Date evidence was submitted for participant's latest declaration.",
         latest_declaration_updated_at: "Date participant's latest declaration was updated",
-        latest_declaration_delivery_partner_id: "The ID of the delivery partner that submitted the latest declaration.",
-        latest_declaration_delivery_partner_name: "The name of the delivery partner that submitted the latest declaration.",
+        latest_declaration_delivery_partner_id: "The ID of the delivery partner that submitted the latest declaration, for declarations from the 2024 cohort onwards (excluding international applications); some providers may also include this for new declarations from earlier cohorts.",
+        latest_declaration_delivery_partner_name: "The name of the delivery partner that submitted the latest declaration, for declarations from the 2024 cohort onwards (excluding international applications); some providers may also include this for new declarations from earlier cohorts.",
         application_status: "Indicates whether the application has been approved by the lead provider.Possible fields: Pending, Accepted, Rejected.",
         updated_at: "Refers to the latest updated date for the application record.",
         employer_name: "Shows the entered employer name of non-school users. Text field.",
@@ -58,19 +58,25 @@ config {
         started_declaration_id: "ID of the participant's started declaration.",
         started_declaration_state: "State of the participant's started declaration.",
         started_declaration_date: "Date evidence was submitted for participant's started declaration.",
-        started_declaration_delivery_partner_id: "The ID of the delivery partner that submitted the participants started declaration",
-        started_declaration_delivery_partner_name: "The name of the delivery partner that submitted the participants started declaration",
+        started_declaration_delivery_partner_id: "The ID of the delivery partner that submitted the participants started declaration, for declarations from the 2024 cohort onwards (excluding international applications); some providers may also include this for new declarations from earlier cohorts.",
+        started_declaration_delivery_partner_name: "The name of the delivery partner that submitted the participants started declaration, for declarations from the 2024 cohort onwards (excluding international applications); some providers may also include this for new declarations from earlier cohorts.",
         funded_start_declaration: "True if the declaration is in an eligible, payable, or paid state.",
         retained1_declaration_id: "ID of the participant's retained-1 declaration.",
         retained1_declaration_state: "State of the participant's retained-1 declaration.",
         retained1_declaration_date: "Date evidence was submitted for participant's retained-1 declaration.",
+        retained1_declaration_delivery_partner_id: "The ID of the delivery partner that submitted the participants retained-1 declaration, for declarations from the 2024 cohort onwards (excluding international applications); some providers may also include this for new declarations from earlier cohorts.",
+        retained1_declaration_delivery_partner_name: "The name of the delivery partner that submitted the participants retained-1 declaration, for declarations from the 2024 cohort onwards (excluding international applications); some providers may also include this for new declarations from earlier cohorts.",
         funded_retained1_declaration: "True if the declaration is in an eligible, payable, or paid state.",
         retained2_declaration_id: "ID of the participant's retained-2 declaration.",
         retained2_declaration_state: "State of the participant's retained-2 declaration.",
         retained2_declaration_date: "Date evidence was submitted for participant's retained-2 declaration.",
+        retained2_declaration_delivery_partner_id: "The ID of the delivery partner that submitted the participants retained-2 declaration, for declarations from the 2024 cohort onwards (excluding international applications); some providers may also include this for new declarations from earlier cohorts.",
+        retained2_declaration_delivery_partner_name: "The name of the delivery partner that submitted the participants retained-2 declaration, for declarations from the 2024 cohort onwards (excluding international applications); some providers may also include this for new declarations from earlier cohorts.",
         funded_retained2_declaration: "True if the declaration is in an eligible, payable, or paid state.",
         completed_declaration_id: "ID of the participant's completed declaration.",
         completed_declaration_state: "State of the participant's completed declaration.",
+        completed_declaration_delivery_partner_id: "The ID of the delivery partner that submitted the participants completed declaration, for declarations from the 2024 cohort onwards (excluding international applications); some providers may also include this for new declarations from earlier cohorts.",
+        completed_declaration_delivery_partner_name: "The name of the delivery partner that submitted the participants completed declaration, for declarations from the 2024 cohort onwards (excluding international applications); some providers may also include this for new declarations from earlier cohorts.",
         funded_completed_declaration: "True if the declaration is in an eligible, payable, or paid state.",
         completed_declaration_date: "Date evidence was submitted for participant's completed declaration.",
         latest_outcome_state: "State of participant's latest outcome for their NPQ. Outcomes are joined in on the participant's completed declaration. Possible fields: Passed, Failed, Voided.",
@@ -325,8 +331,6 @@ SELECT
   updated_at AS latest_declaration_updated_at,
   delivery_partner_id AS latest_declaration_delivery_partner_id,
   delivery_partner_name AS latest_declaration_delivery_partner_name
-  -- ,secondary_delivery_partner_id as latest_declaration_secondary_delivery_partner_id
-  -- ,secondary_delivery_partner_name AS latest_declaration_secondary_delivery_partner_name
 FROM
   npq_dec_base_hierarchy
 QUALIFY
@@ -341,8 +345,6 @@ SELECT
   funded_declaration AS funded_start_declaration,
   delivery_partner_id AS started_declaration_delivery_partner_id,
   delivery_partner_name AS started_declaration_delivery_partner_name
-  -- ,secondary_delivery_partner_id as started_declaration_secondary_delivery_partner_id
-  -- ,secondary_delivery_partner_name AS started_declaration_secondary_delivery_partner_name
 FROM
   npq_dec_base_hierarchy
 WHERE
@@ -356,7 +358,9 @@ SELECT
   application_id,
   state AS retained1_declaration_state,
   declaration_date AS retained1_declaration_date,
-  funded_declaration AS funded_retained1_declaration
+  funded_declaration AS funded_retained1_declaration,
+  delivery_partner_id AS retained1_declaration_delivery_partner_id,
+  delivery_partner_name AS retained1_declaration_delivery_partner_name
 FROM
   npq_dec_base_hierarchy
 WHERE
@@ -370,7 +374,9 @@ SELECT
   application_id,
   state AS retained2_declaration_state,
   declaration_date AS retained2_declaration_date,
-  funded_declaration AS funded_retained2_declaration
+  funded_declaration AS funded_retained2_declaration,
+  delivery_partner_id AS retained2_declaration_delivery_partner_id,
+  delivery_partner_name AS retained2_declaration_delivery_partner_name
 FROM
   npq_dec_base_hierarchy
 WHERE
@@ -384,7 +390,9 @@ SELECT
   application_id,
   state AS completed_declaration_state,
   declaration_date AS completed_declaration_date,
-  funded_declaration AS funded_completed_declaration
+  funded_declaration AS funded_completed_declaration,
+  delivery_partner_id AS completed_declaration_delivery_partner_id,
+  delivery_partner_name AS completed_declaration_delivery_partner_name
 FROM
   npq_dec_base_hierarchy
 WHERE
