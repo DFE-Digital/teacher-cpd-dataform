@@ -51,12 +51,6 @@ config {
         tsf_primary_eligibility: "TRUE/FALSE for whether a school is eligible for TSF (£200) owing to it being a primary establishment.",
         tsf_primary_plus_eligibility: "TRUE/ FALSE for whether a school is eligible for the base £200 as well as the additional £600 based on whether they are a primary school and have fewer than 150 pupils. Pupil count based on GIAS data at time of registration.",
         works_in_school: "Indicates whether the participant works in a school. ",
-        latest_declaration_delivery_partner_name: "The name of the delivery partner that submitted the latest declaration, for declarations from the 2024 cohort onwards (excluding international applications); some providers may also include this for new declarations from earlier cohorts.",
-        started_declaration_delivery_partner_name: "The name of the delivery partner that submitted the participants started declaration, for declarations from the 2024 cohort onwards (excluding international applications); some providers may also include this for new declarations from earlier cohorts.",
-        retained1_declaration_delivery_partner_name: "The name of the delivery partner that submitted the participants retained-1 declaration, for declarations from the 2024 cohort onwards (excluding international applications); some providers may also include this for new declarations from earlier cohorts.",
-        retained2_declaration_delivery_partner_name: "The name of the delivery partner that submitted the participants retained-2 declaration, for declarations from the 2024 cohort onwards (excluding international applications); some providers may also include this for new declarations from earlier cohorts.",
-        completed_declaration_delivery_partner_name: "The name of the delivery partner that submitted the participants completed declaration, for declarations from the 2024 cohort onwards (excluding international applications); some providers may also include this for new declarations from earlier cohorts."
-
     }
 }
 
@@ -98,11 +92,6 @@ SELECT
   teacher_catchment_iso_country_code,
   tsf_primary_eligibility,
   tsf_primary_plus_eligibility,
-  works_in_school,
-  latest_declaration_delivery_partner_name,
-  started_declaration_delivery_partner_name,
-  retained1_declaration_delivery_partner_name,
-  retained2_declaration_delivery_partner_name,
-  completed_declaration_delivery_partner_name
+  works_in_school
 FROM
   ${ref(`npq_enrolments`)}

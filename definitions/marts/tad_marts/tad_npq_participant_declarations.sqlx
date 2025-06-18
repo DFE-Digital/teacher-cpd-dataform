@@ -8,7 +8,7 @@ config {
     },
     bigquery: {
         partitionBy: "DATE(created_at)",
-        clusterBy: ["lead_provider_name","state"]
+        clusterBy: ["lead_provider_name", "state"]
     },
     description: "This table contains all declaration records for NPQ participants",
     columns: {
@@ -23,15 +23,15 @@ config {
         application_id: "This is the ID generated for applications in the new separated NPQ Environment. This field should be used to join on application_id when joining with enrolment data. This field will not map onto historical application_ids generated prior to NPQ Separation (27/11/2024).",
         state: "The current state of the declaration.",
         last_streamed_event_occurred_at: "Timestamp of the event that we think provided us with the latest version of this entity.",
-        last_streamed_event_type: "Event type of the event that we think provided us with the latest version of this entity. Either entity_created, entity_updated, entity_destroyed or entity_imported."
-
+        last_streamed_event_type: "Event type of the event that we think provided us with the latest version of this entity. Either entity_created, entity_updated, entity_destroyed or entity_imported.",
+        delivery_partner_id: "The ID of the delivery partner that submitted the participants declaration. Only declarations from the 2024 cohort onwards (excluding international applications) will have this field populated; some providers may also include this for new declarations from earlier cohorts.",
+        delivery_partner_name: "The name of the delivery partner that submitted the participants declaration. Only declarations from the 2024 cohort onwards (excluding international applications) will have this field populated; some providers may also include this for new declarations from earlier cohorts."
     }
 }
 
-
 SELECT
-  dec.id as declaration_id,
-  dec.ecf_id as declaration_ecf_id,
+  dec.id AS declaration_id,
+  dec.ecf_id AS declaration_ecf_id,
   dec.application_id,
   dec.created_at,
   dec.updated_at,
@@ -41,10 +41,16 @@ SELECT
   declaration_type,
   state,
   dec.last_streamed_event_occurred_at,
-  dec.last_streamed_event_type
+  dec.last_streamed_event_type,
+  dec.delivery_partner_id,
+  dp.name AS delivery_partner_name
 FROM
   ${ref(`declarations_latest_npq`)} AS dec
 LEFT JOIN
   ${ref(`lead_providers_latest_npq`)} AS lead_providers
 ON
   dec.lead_provider_id = lead_providers.id
+LEFT JOIN
+  ${ref('delivery_partners_latest_npq')} AS dp
+ON
+  dec.delivery_partner_id = dp.id
