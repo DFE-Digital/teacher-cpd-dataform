@@ -16,8 +16,7 @@ const tableNames = [
     "statements_latest",
     "users_latest",
     "users_version",
-    "delivery_partners_latest",
-    "delivery_partnerships_latest"
+    "delivery_partners_latest"
 ];
 
 tableNames.forEach(tableName => {

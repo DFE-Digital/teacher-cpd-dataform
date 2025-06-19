@@ -50,7 +50,7 @@ config {
         teacher_catchment_country: "The country the participant works in ",
         tsf_primary_eligibility: "TRUE/FALSE for whether a school is eligible for TSF (£200) owing to it being a primary establishment.",
         tsf_primary_plus_eligibility: "TRUE/ FALSE for whether a school is eligible for the base £200 as well as the additional £600 based on whether they are a primary school and have fewer than 150 pupils. Pupil count based on GIAS data at time of registration.",
-        works_in_school: "Indicates whether the participant works in a school. ",
+        works_in_school: "Indicates whether the participant works in a school."
     }
 }
 

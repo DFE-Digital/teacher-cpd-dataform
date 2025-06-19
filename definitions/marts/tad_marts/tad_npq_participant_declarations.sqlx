@@ -24,8 +24,8 @@ config {
         state: "The current state of the declaration.",
         last_streamed_event_occurred_at: "Timestamp of the event that we think provided us with the latest version of this entity.",
         last_streamed_event_type: "Event type of the event that we think provided us with the latest version of this entity. Either entity_created, entity_updated, entity_destroyed or entity_imported.",
-        delivery_partner_id: "The ID of the delivery partner that submitted the participants declaration. Only declarations from the 2024 cohort onwards (excluding international applications) will have this field populated; some providers may also include this for new declarations from earlier cohorts.",
-        delivery_partner_name: "The name of the delivery partner that submitted the participants declaration. Only declarations from the 2024 cohort onwards (excluding international applications) will have this field populated; some providers may also include this for new declarations from earlier cohorts."
+        delivery_partner_id: "The ID of the delivery partner that submitted the participant's declaration. Only declarations from the 2024 cohort onwards (excluding international applications) will have this field populated; some providers may also include this for new declarations from earlier cohorts.",
+        delivery_partner_name: "The name of the delivery partner that submitted the participant's declaration. Only declarations from the 2024 cohort onwards (excluding international applications) will have this field populated; some providers may also include this for new declarations from earlier cohorts."
     }
 }
 

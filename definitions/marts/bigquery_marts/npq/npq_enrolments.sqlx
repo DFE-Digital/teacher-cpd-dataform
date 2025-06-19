@@ -58,25 +58,25 @@ config {
         started_declaration_id: "ID of the participant's started declaration.",
         started_declaration_state: "State of the participant's started declaration.",
         started_declaration_date: "Date evidence was submitted for participant's started declaration.",
-        started_declaration_delivery_partner_id: "The ID of the delivery partner that submitted the participants started declaration, for declarations from the 2024 cohort onwards (excluding international applications); some providers may also include this for new declarations from earlier cohorts.",
-        started_declaration_delivery_partner_name: "The name of the delivery partner that submitted the participants started declaration, for declarations from the 2024 cohort onwards (excluding international applications); some providers may also include this for new declarations from earlier cohorts.",
+        started_declaration_delivery_partner_id: "The ID of the delivery partner that submitted the participant's started declaration, for declarations from the 2024 cohort onwards (excluding international applications); some providers may also include this for new declarations from earlier cohorts.",
+        started_declaration_delivery_partner_name: "The name of the delivery partner that submitted the participant's started declaration, for declarations from the 2024 cohort onwards (excluding international applications); some providers may also include this for new declarations from earlier cohorts.",
         funded_start_declaration: "True if the declaration is in an eligible, payable, or paid state.",
         retained1_declaration_id: "ID of the participant's retained-1 declaration.",
         retained1_declaration_state: "State of the participant's retained-1 declaration.",
         retained1_declaration_date: "Date evidence was submitted for participant's retained-1 declaration.",
-        retained1_declaration_delivery_partner_id: "The ID of the delivery partner that submitted the participants retained-1 declaration, for declarations from the 2024 cohort onwards (excluding international applications); some providers may also include this for new declarations from earlier cohorts.",
-        retained1_declaration_delivery_partner_name: "The name of the delivery partner that submitted the participants retained-1 declaration, for declarations from the 2024 cohort onwards (excluding international applications); some providers may also include this for new declarations from earlier cohorts.",
+        retained1_declaration_delivery_partner_id: "The ID of the delivery partner that submitted the participant's retained-1 declaration, for declarations from the 2024 cohort onwards (excluding international applications); some providers may also include this for new declarations from earlier cohorts.",
+        retained1_declaration_delivery_partner_name: "The name of the delivery partner that submitted the participant's retained-1 declaration, for declarations from the 2024 cohort onwards (excluding international applications); some providers may also include this for new declarations from earlier cohorts.",
         funded_retained1_declaration: "True if the declaration is in an eligible, payable, or paid state.",
         retained2_declaration_id: "ID of the participant's retained-2 declaration.",
         retained2_declaration_state: "State of the participant's retained-2 declaration.",
         retained2_declaration_date: "Date evidence was submitted for participant's retained-2 declaration.",
-        retained2_declaration_delivery_partner_id: "The ID of the delivery partner that submitted the participants retained-2 declaration, for declarations from the 2024 cohort onwards (excluding international applications); some providers may also include this for new declarations from earlier cohorts.",
-        retained2_declaration_delivery_partner_name: "The name of the delivery partner that submitted the participants retained-2 declaration, for declarations from the 2024 cohort onwards (excluding international applications); some providers may also include this for new declarations from earlier cohorts.",
+        retained2_declaration_delivery_partner_id: "The ID of the delivery partner that submitted the participant's retained-2 declaration, for declarations from the 2024 cohort onwards (excluding international applications); some providers may also include this for new declarations from earlier cohorts.",
+        retained2_declaration_delivery_partner_name: "The name of the delivery partner that submitted the participant's retained-2 declaration, for declarations from the 2024 cohort onwards (excluding international applications); some providers may also include this for new declarations from earlier cohorts.",
         funded_retained2_declaration: "True if the declaration is in an eligible, payable, or paid state.",
         completed_declaration_id: "ID of the participant's completed declaration.",
         completed_declaration_state: "State of the participant's completed declaration.",
-        completed_declaration_delivery_partner_id: "The ID of the delivery partner that submitted the participants completed declaration, for declarations from the 2024 cohort onwards (excluding international applications); some providers may also include this for new declarations from earlier cohorts.",
-        completed_declaration_delivery_partner_name: "The name of the delivery partner that submitted the participants completed declaration, for declarations from the 2024 cohort onwards (excluding international applications); some providers may also include this for new declarations from earlier cohorts.",
+        completed_declaration_delivery_partner_id: "The ID of the delivery partner that submitted the participant's completed declaration, for declarations from the 2024 cohort onwards (excluding international applications); some providers may also include this for new declarations from earlier cohorts.",
+        completed_declaration_delivery_partner_name: "The name of the delivery partner that submitted the participant's completed declaration, for declarations from the 2024 cohort onwards (excluding international applications); some providers may also include this for new declarations from earlier cohorts.",
         funded_completed_declaration: "True if the declaration is in an eligible, payable, or paid state.",
         completed_declaration_date: "Date evidence was submitted for participant's completed declaration.",
         latest_outcome_state: "State of participant's latest outcome for their NPQ. Outcomes are joined in on the participant's completed declaration. Possible fields: Passed, Failed, Voided.",
@@ -112,7 +112,7 @@ WITH
   WHERE
     trn IS NOT NULL
   QUALIFY
-    ( ROW_NUMBER() OVER(PARTITION BY id ORDER BY valid_from ASC) = 1 ) ),
+    ROW_NUMBER() OVER(PARTITION BY id ORDER BY valid_from ASC) = 1 ),
   -- NPQ Application records in the ECF Service Data prior to separation.
   --- Used to obtain application_trn associated with the application prior to separation where this information needs to calculated differently.
   previous_application_trns AS (
@@ -250,20 +250,19 @@ SELECT
 FROM
   ${ref('participant_outcomes_latest_npq')}
 QUALIFY
-  (
   -- Only want the last created outcome per declaration as these are generated sequentially.
-  ROW_NUMBER() OVER(PARTITION BY declaration_id ORDER BY created_at DESC) = 1 ) ),
-    -- Gather a count of failures per declaration_id present in the data.
-    npq_fails AS (
-  SELECT
-    declaration_id AS source_declaration_id,
-    COUNT(id) AS count_of_fails
-  FROM
-    ${ref('participant_outcomes_latest_npq')}
-  WHERE
-    state = 'failed'
-  GROUP BY
-    declaration_id ),
+  ROW_NUMBER() OVER(PARTITION BY declaration_id ORDER BY created_at DESC) = 1),
+  -- Gather a count of failures per declaration_id present in the data.
+  npq_fails AS (
+SELECT
+  declaration_id AS source_declaration_id,
+  COUNT(id) AS count_of_fails
+FROM
+  ${ref('participant_outcomes_latest_npq')}
+WHERE
+  state = 'failed'
+GROUP BY
+  declaration_id ),
   -- Gather all NPQ Declarations and assign hierarchies at state and type. Also calculate funded_declaration bool based on state.
   npq_dec_base_hierarchy AS(
 SELECT
@@ -272,39 +271,35 @@ SELECT
   --   dp_secondary.name AS secondary_delivery_partner_name,
   lp.name AS lead_provider_name,
   CASE
-    WHEN state LIKE 'paid' THEN 7
-    WHEN state LIKE 'payable' THEN 6
-    WHEN state LIKE 'eligible' THEN 5
-    WHEN state LIKE 'submitted' THEN 4
-    WHEN state LIKE 'clawed_back' THEN 3
-    WHEN state LIKE 'awaiting_clawback' THEN 2
-    WHEN state LIKE 'voided' THEN 1
+    WHEN state = 'paid' THEN 7
+    WHEN state = 'payable' THEN 6
+    WHEN state = 'eligible' THEN 5
+    WHEN state = 'submitted' THEN 4
+    WHEN state = 'clawed_back' THEN 3
+    WHEN state = 'awaiting_clawback' THEN 2
+    WHEN state = 'voided' THEN 1
     ELSE 0
 END
   AS state_hierarchy,
   CASE
-    WHEN declaration_type LIKE 'completed' THEN 12
-    WHEN declaration_type LIKE 'extended-6' THEN 11
-    WHEN declaration_type LIKE 'extended-5' THEN 10
-    WHEN declaration_type LIKE 'extended-4' THEN 9
-    WHEN declaration_type LIKE 'extended-3' THEN 8
-    WHEN declaration_type LIKE 'extended-2' THEN 7
-    WHEN declaration_type LIKE 'extended-1' THEN 6
-    WHEN declaration_type LIKE 'retained-4' THEN 5
-    WHEN declaration_type LIKE 'retained-3' THEN 4
-    WHEN declaration_type LIKE 'retained-2' THEN 3
-    WHEN declaration_type LIKE 'retained-1' THEN 2
-    WHEN declaration_type LIKE 'started' THEN 1
+    WHEN declaration_type = 'completed' THEN 12
+    WHEN declaration_type = 'extended-6' THEN 11
+    WHEN declaration_type = 'extended-5' THEN 10
+    WHEN declaration_type = 'extended-4' THEN 9
+    WHEN declaration_type = 'extended-3' THEN 8
+    WHEN declaration_type = 'extended-2' THEN 7
+    WHEN declaration_type = 'extended-1' THEN 6
+    WHEN declaration_type = 'retained-4' THEN 5
+    WHEN declaration_type = 'retained-3' THEN 4
+    WHEN declaration_type = 'retained-2' THEN 3
+    WHEN declaration_type = 'retained-1' THEN 2
+    WHEN declaration_type = 'started' THEN 1
     ELSE 0
 END
   AS type_hierarchy,
-  CASE
-    WHEN state = 'paid' THEN TRUE
-    WHEN state = 'eligible' THEN TRUE
-    WHEN state = 'payable' THEN TRUE
-    ELSE FALSE
-END
-  AS funded_declaration
+  IFNULL(state IN ('paid',
+      'eligible',
+      'payable'), FALSE) AS funded_declaration
 FROM
   ${ref('declarations_latest_npq')} AS dec
 LEFT JOIN
@@ -314,12 +309,7 @@ ON
 LEFT JOIN
   ${ref('delivery_partners_latest_npq')} AS dp_primary
 ON
-  dec.delivery_partner_id=dp_primary.id
-  -- LEFT JOIN
-  --   ${ref('delivery_partners_latest_npq')} AS dp_secondary
-  -- ON
-  --   dec.delivery_partner_id=dp_secondary.secondary_delivery_partner_id
-  ),
+  dec.delivery_partner_id=dp_primary.id ),
   -- Gather Latest Declaration per Application based on type hierarchy, state hierarchy and declaration_date (evidenced date).
   npq_dec_latest AS (
 SELECT
@@ -334,7 +324,7 @@ SELECT
 FROM
   npq_dec_base_hierarchy
 QUALIFY
-  ( ROW_NUMBER() OVER(PARTITION BY application_id ORDER BY type_hierarchy DESC, state_hierarchy DESC, declaration_date DESC) = 1 ) ),
+  ROW_NUMBER() OVER(PARTITION BY application_id ORDER BY type_hierarchy DESC, state_hierarchy DESC, declaration_date DESC) = 1 ),
   -- Gather Latest Started Declaration per Application based on type hierarchy, state hierarchy and declaration_date (evidenced date).
   npq_dec_start AS (
 SELECT
@@ -350,7 +340,7 @@ FROM
 WHERE
   declaration_type = 'started'
 QUALIFY
-  ( ROW_NUMBER() OVER(PARTITION BY application_id ORDER BY type_hierarchy DESC, state_hierarchy DESC, declaration_date DESC) = 1 ) ),
+  ROW_NUMBER() OVER(PARTITION BY application_id ORDER BY type_hierarchy DESC, state_hierarchy DESC, declaration_date DESC) = 1 ),
   -- Gather Latest Retained-1 Declaration per Application based on type hierarchy, state hierarchy and declaration_date (evidenced date).
   npq_dec_ret1 AS (
 SELECT
@@ -366,7 +356,7 @@ FROM
 WHERE
   declaration_type = 'retained-1'
 QUALIFY
-  ( ROW_NUMBER() OVER(PARTITION BY application_id ORDER BY type_hierarchy DESC, state_hierarchy DESC, declaration_date DESC) = 1 ) ),
+  ROW_NUMBER() OVER(PARTITION BY application_id ORDER BY type_hierarchy DESC, state_hierarchy DESC, declaration_date DESC) = 1 ),
   -- Gather Latest Retained-2 Declaration per Application based on type hierarchy, state hierarchy and declaration_date (evidenced date).
   npq_dec_ret2 AS (
 SELECT
@@ -382,7 +372,7 @@ FROM
 WHERE
   declaration_type = 'retained-2'
 QUALIFY
-  ( ROW_NUMBER() OVER(PARTITION BY application_id ORDER BY type_hierarchy DESC, state_hierarchy DESC, declaration_date DESC) = 1 ) ),
+  ROW_NUMBER() OVER(PARTITION BY application_id ORDER BY type_hierarchy DESC, state_hierarchy DESC, declaration_date DESC) = 1 ),
   -- Gather Latest Completed Declaration per Application based on type hierarchy, state hierarchy and declaration_date (evidenced date).
   npq_dec_comp AS (
 SELECT
@@ -398,7 +388,7 @@ FROM
 WHERE
   declaration_type = 'completed'
 QUALIFY
-  ( ROW_NUMBER() OVER(PARTITION BY application_id ORDER BY type_hierarchy DESC, state_hierarchy DESC, declaration_date DESC) = 1 ) )
+  ROW_NUMBER() OVER(PARTITION BY application_id ORDER BY type_hierarchy DESC, state_hierarchy DESC, declaration_date DESC) = 1 )
   -- Build final output joining all CTEs together.
 SELECT
   npq_app.*,
