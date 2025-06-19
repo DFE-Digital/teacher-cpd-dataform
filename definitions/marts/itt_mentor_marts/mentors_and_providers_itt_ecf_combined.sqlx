@@ -40,7 +40,7 @@ WITH unclawed_back_itt_mentor_provider_claims AS (
   FROM
     ${ref("itt_mentor_claims")}
   WHERE
-    earliest_claim_current_status = "paid" /* i.e. not sampling_provider_not_approved or sampling_not_approved as these represent clawbacks */
+    earliest_claim_current_status IN ("paid", "sampling_in_progress") /* i.e. not sampling_provider_not_approved or sampling_not_approved as these represent clawbacks, or submitted as these have not yet been paid */
 )
 SELECT
   COALESCE(ecf_mentor_provider.TRN, unclawed_back_itt_mentor_provider_claims.TRN) AS TRN,
