@@ -1,0 +1,19 @@
+config {
+  type: "assertion",
+  description: "If this assertions fails then the itt_mentor_claims contains an unexpected ITT mentor claim status from the ITT mentor service.\nTo fix, edit logic in mentors_and_providers_itt_ecf_combined.sqlx to decide what to do with the new status, and then add the new status to the expected status list in this assertion."
+}
+
+SELECT
+    earliest_claim_current_status,
+    COUNT(*) AS number_of_claims_with_unexpected_status
+  FROM
+    ${ref("itt_mentor_claims")}
+  WHERE
+    earliest_claim_current_status NOT IN (
+      "paid",
+      "sampling_in_progress",
+      "sampling_provider_not_approved",
+      "sampling_not_approved",
+      "submitted")
+  GROUP BY
+    earliest_claim_current_status
