@@ -5,7 +5,7 @@ config {
     assertions: {
         uniqueKey: ["TRN", "provider_name"]
     },
-    description: "Summary data about the relationship between each Early Careers Framework (ECF) or Initial Teacher Training (ITT) mentor and each organisation (provider) which received direct funding from DfE for training them to be a mentor.\nEach row is a relationship between one mentor and one such provider.\nIntended to used to analyse overlaps between teachers who have been trained by the same provider to be both ECF and Initial Teacher Training (ITT) mentors.",
+    description: "Summary data about the relationship between each Early Careers Framework (ECF) or Initial Teacher Training (ITT) mentor and each organisation (provider) which received (or has submitted a claim and so will receive) direct funding from DfE for training them to be a mentor.\nEach row is a relationship between one mentor and one such provider.\nIntended to used to analyse overlaps between teachers who have been trained by the same provider to be both ECF and Initial Teacher Training (ITT) mentors.",
     columns: {
         TRN: {
             description: "Teacher Reference Number (TRN) of the mentor - a teacher - who this provider received funding to train as an ITT and/or ECF mentor",
@@ -40,7 +40,7 @@ WITH unclawed_back_itt_mentor_provider_claims AS (
   FROM
     ${ref("itt_mentor_claims")}
   WHERE
-    earliest_claim_current_status IN ("paid", "sampling_in_progress") /* i.e. not sampling_provider_not_approved or sampling_not_approved as these represent clawbacks, or submitted as these have not yet been paid */
+    earliest_claim_current_status IN ("paid", "sampling_in_progress", "submitted") /* i.e. not sampling_provider_not_approved or sampling_not_approved as these represent clawbacks */
 )
 SELECT
   COALESCE(ecf_mentor_provider.TRN, unclawed_back_itt_mentor_provider_claims.TRN) AS TRN,

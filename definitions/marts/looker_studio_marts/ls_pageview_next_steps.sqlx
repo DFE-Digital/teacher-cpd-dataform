@@ -505,10 +505,27 @@ FROM
             IFNULL(LAG(page_path) OVER pageviews_in_order = page_path, FALSE) AS previous_step_has_same_page_path
         FROM (
             /* pages_visited_details is an array of STRUCTs, one for each pageview within a session.*/
-            /* This subquery replaces UIDs in page and referer paths with the string "[grouped]" so that paths which are essentially the same are displayed as being the same in funnel analysis dashboards */
+            /* This subquery replaces UID page path components in page and referer paths with the string "[grouped]" so that paths which are essentially the same are displayed as being the same in funnel analysis dashboards */
+            /* UID page path components are defined as whole page path components (between two /s or between a / and the end of the page path) which either contain only numbers, or contain at least 1 number, only letters or hyphens (-) as other characters, and 4 or more characters in total */
             SELECT
-                REGEXP_REPLACE(page, "([a-zA-Z0-9-]*[0-9]+[a-zA-Z0-9-]*)", "[grouped]") AS page_path,
-                REGEXP_REPLACE(previous_page, "([a-zA-Z0-9-]*[0-9]+[a-zA-Z0-9-]*)", "[grouped]") AS referer_path,
+                ARRAY_TO_STRING(ARRAY(
+                    SELECT
+                        CASE
+                            WHEN (REGEXP_CONTAINS(page_path_component, "^[a-zA-Z0-9-]*[0-9][a-zA-Z0-9-]*$") AND LENGTH(page_path_component) > 3) OR REGEXP_CONTAINS(page_path_component, "^[0-9]+$") THEN "[grouped]"
+                        ELSE page_path_component
+                        END
+                    FROM
+                        UNNEST(SPLIT(page, "/")) AS page_path_component
+                ), "/", "") AS page_path,
+                ARRAY_TO_STRING(ARRAY(
+                    SELECT
+                        CASE
+                            WHEN (REGEXP_CONTAINS(previous_page_path_component, "^[a-zA-Z0-9-]*[0-9][a-zA-Z0-9-]*$") AND LENGTH(previous_page_path_component) > 3) OR REGEXP_CONTAINS(previous_page_path_component, "^[0-9]+$") THEN "[grouped]"
+                        ELSE previous_page_path_component
+                        END
+                    FROM
+                        UNNEST(SPLIT(previous_page, "/")) AS previous_page_path_component
+                ), "/", "") AS referer_path,
                 page_entry_time,
                 previous_page_domain AS referer_domain,
                 duration AS time_on_page,
