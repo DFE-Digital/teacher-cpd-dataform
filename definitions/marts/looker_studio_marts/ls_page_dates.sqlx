@@ -17,6 +17,7 @@ config {
         number_of_exits: "Total number of times a view of page_path on date was the last pageview within a session in session_details.",
         number_of_bounces: "Total number of times a view of page_path on date was both the first and the last pageview within a session in session_details.",
         number_of_unique_views: "Total number of unique authenticated users who viewed page_path on date.",
+        number_of_authenticated_views: "Total number of non-unique views of page_path which occurred on date which were part of sessions during which the user was logged in (i.e. had a user_id) for one or more pageviews. Useful when combined with number_of_unique_views to calculate views per viewer rate reliably.",
         total_time_on_page: "Total number of seconds spent 'on' page_path on date, where time 'on' page is defined as the length of time between viewing the page and viewing the next page within the same session (if a next pageview happened within the same session)"
     }
 }
@@ -38,6 +39,7 @@ SELECT
   COUNTIF(next_step = "End of session") AS number_of_exits,
   COUNTIF(next_step = "End of session" AND pageview_number_in_session = 1) AS number_of_bounces,
   COUNT(DISTINCT user_id) AS number_of_unique_views,
+  COUNTIF(user_id IS NOT NULL) AS number_of_authenticated_views,
   SUM(time_on_page) AS total_time_on_page
 FROM
   ${ref("ls_pageview_next_steps")}
