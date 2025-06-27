@@ -41,7 +41,7 @@ WITH unclawed_back_itt_mentor_provider_claims AS (
   FROM
     ${ref("itt_mentor_claims")}
   WHERE
-    earliest_claim_current_status IN ("paid", "sampling_in_progress", "submitted") /* i.e. not sampling_provider_not_approved or sampling_not_approved as these represent clawbacks */
+    earliest_claim_current_status IN ("paid", "sampling_in_progress", "submitted") /* i.e. not sampling_provider_not_approved or sampling_not_approved or clawback_in_progress as these represent clawbacks */
     AND ecte_lead_provider /* Only include claims for ITT mentor training with a provider that is also an ECTE lead provider */
 )
 SELECT
