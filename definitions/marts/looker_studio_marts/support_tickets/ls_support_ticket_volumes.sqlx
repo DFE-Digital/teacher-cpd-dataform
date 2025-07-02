@@ -1,0 +1,238 @@
+config {
+    type: "incremental",
+    bigquery: {
+        partitionBy: "created_at",
+        updatePartitionFilter: "created_at >= DATE_SUB(CURRENT_DATE(), INTERVAL 31 DAY)"
+    },
+    description: "This mart tracks and classifies support tickets submitted to CPD service lines, enabling analysis of support demand across the ECF and NPQ programmes. It is designed for use in the CPD Program Support Ticket Classification dashboard within Looker Studio. The mart supports operational decision-making and service improvement by surfacing support volumes and categorising tickets by programme (ECF or NPQ) and service classification (e.g., Induction & AB, NPQ, ECF Funding). Each ticket is assigned a derived classification based on its originating Zendesk group, associated tags, and issue types, with logic to identify spam and duplicates. Tickets are also mapped to high-level programme_type categories (ECF, NPQ, or TBC) to facilitate streamlined reporting. The mart distinguishes between active support queues (e.g., CPD - ECF, CPD - NPQ) and archive or triage groups, and flags tickets closed as part of merge actions to avoid duplicate counts.",
+    columns: {
+        ticket_id: "UID of each support ticket taken from Zendesk.",
+        programme_type: "A calculated field which indicates which programme the ticket belongs to. Possible values: ECF, NPQ or TBC",
+        classification: "The calculated service classification for the ticket. Possible values: CPD - ECF, ECF - Funding, NPQ - Get a TRN, ECF - Induction and AB, CPD - NPQ, NPQ - Funding, CPD - Archive and Triage,",
+        group_name: "Name of group this ticket relates to taken from Zendesk e.g. CPD",
+        service_name: "Name of service this ticket relates to taken from Zendesk e.g. ECF",
+        issue_type: "ARRAY of issue types selected for this ticket_id. This combines all issue types from all Zendesk instances.",
+        tags: "Array of metatags given to each ticket in Zendesk (can be user, organisation or issue related).",
+        is_duplicate: "ARRAY of issue types selected for this ticket_id in Zendesk. This combines all issue types from all Zendesk instances.",
+        created_at: "Date and time of that this ticket was logged in Zendesk.",
+        solved_at: "Date and time this ticket was resolved in Zendesk.",
+        updated_at: "Timestamp of the last update to this ticket in Zendesk.",
+        status_updated_at: "Timestamp of the last update to this ticket's status in Zendesk.",
+        subject: "The subject of tickets migrated to the new instance of CPD. Any tickets created after December 2023 will not have a subject. This data has been provided by Shaun Osborne and Declan fisher to help classify historic support tickets who's data was lost as part of the migration to the new instance of Zendesk",
+        proportionate_assignment: "A boolean field which indicates if a ticket has been proportionatly assigned to ECF or NPQ. Tickets marked as true have insufficient data to accurately classify the ticket."
+    }
+}
+WITH
+  cpd_prog_data AS (
+  SELECT
+    ticket_id,
+    DATE(created_at) AS created_at,
+    group_name,
+    status,
+    COALESCE(LOWER(service_name), 'n/a') AS service_name,
+    ARRAY(
+    SELECT
+      LOWER(elem)
+    FROM
+      UNNEST(issue_type) AS elem) AS issue_type,
+    ARRAY(
+    SELECT
+      LOWER(elem)
+    FROM
+      UNNEST(tags) AS elem) AS tags,
+    solved_at,
+    updated_at,
+    status_updated_at,
+    LOWER(stm.subject) AS subject
+  FROM
+    `ecf-bq.zendesk_support_ticket_data.support_ticket_details_anonymised` AS sta
+  LEFT JOIN
+    `ecf-bq.static_tables.support_ticket_details_migrated` AS stm
+  ON
+    sta.ticket_id = stm.destination_id
+  WHERE
+    group_name LIKE 'CPD%' ),
+  duplicate_tickets AS (
+  SELECT
+    DISTINCT ticket_id,
+    CASE WHEN'closed_by_merge' IN UNNEST(tags) AND status = 'closed' THEN TRUE
+      ELSE FALSE
+  END
+    AS is_duplicate,
+  FROM
+    cpd_prog_data ),
+  -- First classification layer: uses the group_name to assign classification
+  first_classification_layer AS (
+  SELECT
+    cpd_prog_data.*,
+    CASE
+    -- WHEN'closed_by_merge' IN UNNEST(tags) then 'Duplicate ticket'
+      WHEN group_name IN ('CPD - ECTE', 'CPD - 2nd Line- LP and DP Queries', 'CPD - 2nd Line: Appropriate Bodies & Regs', 'CPD - 2nd line - Withdrawing or reinstating ECTs/mentors', 'CPD - 3rd Line Support (Dfe admin)', 'CPD - ECF', 'CPD - ECF - Access to DfE service', 'CPD - ECF - ECT registration issues', 'CPD - ECF - Mentor registration issues', 'CPD - ECF - Partnerships', 'CPD - 2nd line ECF review (policy)', 'CPD - 2nd line- Unable to change cohort due to declaration errors on the service') THEN 'CPD - ECTE'
+      WHEN group_name IN ('CPD - ECF - 2nd line Funding Enquiries',
+      'CPD - ECF Funding',
+      'CPD - ECTE Funding') THEN 'ECTE - Funding'
+      WHEN group_name = 'CPD - Get a TRN' THEN 'NPQ - Get a TRN'
+      WHEN group_name IN ('CPD - Induction and AB',
+      'CPD - Legacy Induction') THEN 'ECTE - Induction and AB'
+      WHEN group_name IN ('CPD - 2nd Line - NPQ Digital', 'CPD - 2nd Line NPQ Policy Provider Engagement', 'CPD - 2nd line - NQTplus1 overpayments', 'CPD - 3rd Line - NPQ Digital - Developer to action', 'CPD - NPQ', 'CPD - NPQ - General Enquiries', 'CPD - 2nd Line-NPQ TSF') THEN 'CPD - NPQ'
+      WHEN group_name = 'CPD - 2nd line - NPQ Funding' THEN 'NPQ - Funding'
+      WHEN group_name IN ('CPD - Archive','CPD - 2nd line - Partnership Amendments','CPD - 2nd line: Schools and Teachers Team') THEN NULL
+      ELSE group_name
+  END
+    AS classification,
+    false as proportionate_assignment
+  FROM
+    cpd_prog_data ),
+  -- Second classification layer: classifies support tickets based on tags and issue_types associated to each ticket
+  second_classification_layer AS (
+  SELECT
+    fcl.* EXCEPT(classification, proportionate_assignment),
+    CASE
+      WHEN EXISTS ( SELECT 1 FROM UNNEST(issue_type || tags) AS val WHERE LOWER(val) LIKE '%induction_and_ab%' ) THEN 'ECTE - Induction and AB'
+      WHEN EXISTS (
+    SELECT
+      1
+    FROM
+      UNNEST(issue_type || tags) AS val
+    WHERE
+      LOWER(val) LIKE '%funding%'
+      AND LOWER(val) NOT LIKE '%npq%' ) THEN 'ECTE - Funding'
+      WHEN EXISTS ( SELECT 1 FROM UNNEST(issue_type || tags) AS val WHERE LOWER(val) LIKE '%funding%' AND LOWER(val) LIKE '%npq%' ) THEN 'NPQ - Funding'
+      WHEN EXISTS (
+    SELECT
+      1
+    FROM
+      UNNEST(issue_type || tags) AS val
+    WHERE
+      LOWER(val) LIKE '%npq%' ) THEN 'CPD - NPQ'
+      WHEN EXISTS ( SELECT 1 FROM UNNEST(issue_type || tags) AS val WHERE LOWER(val) = 'cpd' OR LOWER(val) LIKE 'fip%' OR LOWER(val) LIKE 'ect%' OR LOWER(val) LIKE '%ecte%' OR LOWER(val) LIKE '%induction%' ) THEN 'CPD - ECTE'
+      WHEN EXISTS (
+    SELECT
+      1
+    FROM
+      UNNEST(issue_type || tags) AS val
+    WHERE
+      STARTS_WITH(val, 'ecf')) THEN 'CPD - ECTE'
+      WHEN LOWER(service_name) = 'ecf' OR LOWER(service_name) = 'ecte' THEN 'CPD - ECTE'
+      WHEN LOWER(service_name) = 'npq' THEN 'CPD - NPQ'
+    ELSE 'Unclassifiable - bad data or spam'
+  END
+    AS classification,
+    false as proportionate_assignment
+  FROM
+    first_classification_layer AS fcl
+  WHERE
+    classification IS NULL ),
+  -- Third classification layer uses the migrated subject from a data extract provided by Shaun Osborne and Declan Fisher. This extract contains the original ticket_id and the ticket_id after migration as well as the subject
+  third_classification_layer AS (
+SELECT
+  scl.* EXCEPT(classification, proportionate_assignment),
+  CASE
+    WHEN subject LIKE '%npq%' THEN 'CPD - NPQ'
+    WHEN subject LIKE '%induction_and_ab%' THEN 'ECTE - Induction and AB'
+    WHEN subject LIKE '%ecf%' OR subject LIKE '% ect%' OR subject LIKE 'ect%' OR subject LIKE '%induction%' OR subject LIKE '%ecte%' OR subject LIKE '%cpd%' OR subject LIKE '%continuous professional development%' OR subject LIKE '% fip %' OR subject LIKE '%early career%' OR subject LIKE '%mentor%' THEN 'CPD - ECTE'
+    ELSE 'Unclassifiable - bad data or spam'
+END
+  AS classification,
+    false as proportionate_assignment
+FROM
+  second_classification_layer AS scl
+WHERE
+  classification = 'Unclassifiable - bad data or spam'),
+  -- Forth classification layer: to randomly assign remaining "Unclassifiable - bad data or spam" tickets from your mart to either CPD - NPQ or CPD - ECF, based on historical proportions.
+  classification_proportions AS (
+SELECT
+  SUM(CASE
+      WHEN classification = 'CPD - NPQ' THEN 1
+      ELSE 0
+  END
+    ) AS npq_count,
+  SUM(CASE
+      WHEN classification = 'CPD - ECTE' THEN 1
+      ELSE 0
+  END
+    ) AS ecf_count
+FROM (
+  SELECT
+    ticket_id,
+    classification
+  FROM
+    first_classification_layer
+  UNION ALL
+  SELECT
+    ticket_id,
+    classification
+  FROM
+    second_classification_layer )
+WHERE
+  classification IN ('CPD - NPQ',
+    'CPD - ECTE') ),
+  fourth_classification_layer AS (
+  SELECT
+    tcl.* EXCEPT(classification,proportionate_assignment),
+    CASE
+      WHEN RAND() < npq_ratio THEN 'CPD - NPQ'
+      ELSE 'CPD - ECTE'
+  END
+    AS classification,
+    true as proportionate_assignment
+  FROM
+    third_classification_layer AS tcl
+  CROSS JOIN (
+    SELECT
+      SAFE_DIVIDE(npq_count, (npq_count + ecf_count)) AS npq_ratio
+    FROM
+      classification_proportions )
+  WHERE
+    classification = 'Unclassifiable - bad data or spam' ),
+    
+  joining_layers AS (
+  SELECT
+    *
+  FROM
+    first_classification_layer
+  WHERE
+    classification IS NOT NULL
+  UNION ALL
+  SELECT
+    *
+  FROM
+    second_classification_layer
+  WHERE
+    classification != 'Unclassifiable - bad data or spam'
+  UNION ALL
+  SELECT
+    *
+  FROM
+    third_classification_layer
+  WHERE
+    classification != 'Unclassifiable - bad data or spam'
+  UNION ALL
+  SELECT
+    *
+  FROM
+    fourth_classification_layer )
+SELECT
+  jl.*,
+  CASE
+    WHEN classification IN ('CPD - ECTE', 'ECTE - Induction and AB', 'ECTE - Funding') THEN 'ECTE'
+    WHEN classification IN ('CPD - NPQ',
+    'NPQ - Funding')
+  OR classification = 'NPQ - Get a TRN' THEN 'NPQ'
+    ELSE 'Archive and Triage'
+END
+  AS programme_type,
+  dp.is_duplicate
+FROM
+  joining_layers AS jl
+LEFT JOIN
+  duplicate_tickets AS dp
+ON
+  jl.ticket_id = dp.ticket_id
+  ${
+      when(
+          incremental(),
+          `WHERE classification IS NULL OR created_at >= DATE_SUB(CURRENT_DATE(), INTERVAL 31 DAY)`,
+          `WHERE TRUE`
+      )
+  }
