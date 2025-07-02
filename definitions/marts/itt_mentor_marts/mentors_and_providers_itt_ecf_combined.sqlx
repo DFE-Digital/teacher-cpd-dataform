@@ -5,7 +5,8 @@ config {
     assertions: {
         uniqueKey: ["TRN", "provider_name"]
     },
-    description: "Summary data about the relationship between each Early Careers Framework (ECF) or Initial Teacher Training (ITT) mentor and each organisation (provider) which received direct funding from DfE for training them to be a mentor.\nEach row is a relationship between one mentor and one such provider.\nIntended to used to analyse overlaps between teachers who have been trained by the same provider to be both ECF and Initial Teacher Training (ITT) mentors.",
+    dependencies: ["itt_mentor_claims_have_unexpected_status"],
+    description: "Summary data about the relationship between each Early Careers Framework (ECF) or Initial Teacher Training (ITT) mentor and each organisation (provider) which received (or has submitted a claim and so will receive) direct funding from DfE for training them to be a mentor.\nEach row is a relationship between one mentor and one such provider.\nIntended to used to analyse overlaps between teachers who have been trained by the same provider to be both ECF and Initial Teacher Training (ITT) mentors.\nNote that ITT mentor funding claims for training from the Education Development Trust are excluded as they deliver their ITT mentor training via SCITTs, so it is not currently possible to identify which ITT mentor training funding claims are for training from them.",
     columns: {
         TRN: {
             description: "Teacher Reference Number (TRN) of the mentor - a teacher - who this provider received funding to train as an ITT and/or ECF mentor",
@@ -40,7 +41,8 @@ WITH unclawed_back_itt_mentor_provider_claims AS (
   FROM
     ${ref("itt_mentor_claims")}
   WHERE
-    earliest_claim_current_status = "paid" /* i.e. not sampling_provider_not_approved or sampling_not_approved as these represent clawbacks */
+    earliest_claim_current_status IN ("paid", "sampling_in_progress", "submitted") /* i.e. not sampling_provider_not_approved or sampling_not_approved or clawback_in_progress as these represent clawbacks */
+    AND ecte_lead_provider /* Only include claims for ITT mentor training with a provider that is also an ECTE lead provider */
 )
 SELECT
   COALESCE(ecf_mentor_provider.TRN, unclawed_back_itt_mentor_provider_claims.TRN) AS TRN,

@@ -54,7 +54,7 @@ WITH
   FROM
     ${ref(`ecf_inductions_dedupe`)} ecfid
   LEFT JOIN
-    ${ref(`participant_profiles_latest_cpd`)} ppl
+    ${ref(`participant_profiles_latest_ecf1`)} ppl
   ON
     ecfid.participant_profile_id = ppl.id
   WHERE

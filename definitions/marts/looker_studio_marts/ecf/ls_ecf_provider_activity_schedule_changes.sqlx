@@ -17,10 +17,10 @@ config {
 	  user_id: "The user ID taken from the teacher profile associated with the participant profile.",
 	  participant_type: "The type of the participant whose schedule has been changed. The value can be either ECT or Mentor.",
 	  request_path: "The full API path used by the lead provider to change the participant's schedule. The path contains the user_id but always ends with 'change-schedule'.",
-	  key_updated: "The name of the field in the table participant_profiles_latest_cpd that was changed by the API request. This is always schedule_id as that is the only field a lead provider can amend via the 'change-schedule' API path.",
-	  new_schedule: "The new value for the schedule_id field on the participant profile translated into text via schedules_latest_cpd.",
+	  key_updated: "The name of the field in the table participant_profiles_latest_ecf1 that was changed by the API request. This is always schedule_id as that is the only field a lead provider can amend via the 'change-schedule' API path.",
+	  new_schedule: "The new value for the schedule_id field on the participant profile translated into text via schedules_latest_ecf1.",
 	  new_cohort: "The cohort associated with the new schedule. Even if the cohort has not changed this field will be populated with the cohort that is associated with the new schedule.",
-	  previous_schedule: "The previous value for the schedule_id field on the participant profile translated into text via schedules_latest_cpd.",
+	  previous_schedule: "The previous value for the schedule_id field on the participant profile translated into text via schedules_latest_ecf1.",
 	  previous_cohort: "The cohort associated with the previous schedule. Even if the cohort has not changed this field will be populated with the cohort that is associated with the previous schedule."
     }
 }
@@ -58,7 +58,7 @@ SELECT
   ,prev_schedules.schedule_name AS previous_schedule
   ,prev_schedules.cohort AS previous_cohort
 FROM 
- ${ref('participant_profiles_field_updates_cpd')} AS profiles
+ ${ref('participant_profiles_field_updates_ecf1')} AS profiles
 -- Join on ecf_inductions CTE and de-duplicate where multiple induction records are valid around the date of the event. We use the last record valid on the date.
 LEFT JOIN
   ecf_inductions
@@ -67,7 +67,7 @@ ON
   AND
   DATE(profiles.occurred_at) BETWEEN ecf_inductions.start_date AND ecf_inductions.end_date
 LEFT JOIN
-  ${ref('cpd_lead_providers_latest_cpd')} AS lead_providers
+  ${ref('cpd_lead_providers_latest_ecf1')} AS lead_providers
 ON
   lead_providers.id = profiles.request_user_id
 -- Join on Schedules to convert the new & previous values from the field updates into the schedule & cohort names
@@ -78,9 +78,9 @@ LEFT JOIN
       ,schedules.name AS schedule_name
       ,cohorts.start_year AS cohort
     FROM
-      ${ref('schedules_latest_cpd')} AS schedules
+      ${ref('schedules_latest_ecf1')} AS schedules
     LEFT JOIN
-      ${ref('cohorts_latest_cpd')} AS cohorts
+      ${ref('cohorts_latest_ecf1')} AS cohorts
     ON
       cohorts.id = schedules.cohort_id
   ) AS new_schedules
@@ -93,9 +93,9 @@ LEFT JOIN
       ,schedules.name AS schedule_name
       ,cohorts.start_year AS cohort
     FROM
-      ${ref('schedules_latest_cpd')} AS schedules
+      ${ref('schedules_latest_ecf1')} AS schedules
     LEFT JOIN
-      ${ref('cohorts_latest_cpd')} AS cohorts
+      ${ref('cohorts_latest_ecf1')} AS cohorts
     ON
       cohorts.id = schedules.cohort_id
   ) AS prev_schedules
