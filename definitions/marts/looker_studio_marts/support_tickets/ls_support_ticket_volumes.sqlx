@@ -151,7 +151,7 @@ SELECT
       WHEN classification = 'CPD - ECTE' THEN 1
       ELSE 0
   END
-    ) AS ecf_count
+    ) AS ecte_count
 FROM (
   SELECT
     ticket_id,
@@ -180,7 +180,7 @@ WHERE
     third_classification_layer AS tcl
   CROSS JOIN (
     SELECT
-      SAFE_DIVIDE(npq_count, (npq_count + ecf_count)) AS npq_ratio
+      SAFE_DIVIDE(npq_count, (npq_count + ecte_count)) AS npq_ratio
     FROM
       classification_proportions )
   WHERE
