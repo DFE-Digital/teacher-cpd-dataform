@@ -4,13 +4,13 @@ config {
         partitionBy: "created_at",
         updatePartitionFilter: "created_at >= DATE_SUB(CURRENT_DATE(), INTERVAL 31 DAY)"
     },
-    description: "This mart tracks and classifies support tickets submitted to CPD service lines, enabling analysis of support demand across the ECF and NPQ programmes. It is designed for use in the CPD Program Support Ticket Classification dashboard within Looker Studio. The mart supports operational decision-making and service improvement by surfacing support volumes and categorising tickets by programme (ECF or NPQ) and service classification (e.g., Induction & AB, NPQ, ECF Funding). Each ticket is assigned a derived classification based on its originating Zendesk group, associated tags, and issue types, with logic to identify spam and duplicates. Tickets are also mapped to high-level programme_type categories (ECF, NPQ, or TBC) to facilitate streamlined reporting. The mart distinguishes between active support queues (e.g., CPD - ECF, CPD - NPQ) and archive or triage groups, and flags tickets closed as part of merge actions to avoid duplicate counts.",
+    description: "This mart tracks and classifies support tickets submitted to CPD service lines, enabling analysis of support demand across the ECTE and NPQ programmes. It is designed for use in the CPD Program Support Ticket Classification dashboard within Looker Studio. The mart supports operational decision-making and service improvement by surfacing support volumes and categorising tickets by programme (ECTE or NPQ) and service classification (e.g., Induction & AB, NPQ, ECTE Funding). Each ticket is assigned a derived classification based on its originating Zendesk group, associated tags, and issue types, with logic to identify spam and duplicates. Tickets are also mapped to high-level programme_type categories (ECTE, NPQ, or TBC) to facilitate streamlined reporting. The mart distinguishes between active support queues (e.g., CPD - ECTE, CPD - NPQ) and archive or triage groups, and flags tickets closed as part of merge actions to avoid duplicate counts.",
     columns: {
         ticket_id: "UID of each support ticket taken from Zendesk.",
-        programme_type: "A calculated field which indicates which programme the ticket belongs to. Possible values: ECF, NPQ or TBC",
-        classification: "The calculated service classification for the ticket. Possible values: CPD - ECF, ECF - Funding, NPQ - Get a TRN, ECF - Induction and AB, CPD - NPQ, NPQ - Funding, CPD - Archive and Triage,",
+        programme_type: "A calculated field which indicates which programme the ticket belongs to. Possible values: ECTE, NPQ or TBC",
+        classification: "The calculated service classification for the ticket. Possible values: CPD - ECTE, ECTE - Funding, NPQ - Get a TRN, ECTE - Induction and AB, CPD - NPQ, NPQ - Funding, CPD - Archive and Triage,",
         group_name: "Name of group this ticket relates to taken from Zendesk e.g. CPD",
-        service_name: "Name of service this ticket relates to taken from Zendesk e.g. ECF",
+        service_name: "Name of service this ticket relates to taken from Zendesk e.g. ECTE",
         issue_type: "ARRAY of issue types selected for this ticket_id. This combines all issue types from all Zendesk instances.",
         tags: "Array of metatags given to each ticket in Zendesk (can be user, organisation or issue related).",
         is_duplicate: "ARRAY of issue types selected for this ticket_id in Zendesk. This combines all issue types from all Zendesk instances.",
@@ -19,7 +19,7 @@ config {
         updated_at: "Timestamp of the last update to this ticket in Zendesk.",
         status_updated_at: "Timestamp of the last update to this ticket's status in Zendesk.",
         subject: "The subject of tickets migrated to the new instance of CPD. Any tickets created after December 2023 will not have a subject. This data has been provided by Shaun Osborne and Declan fisher to help classify historic support tickets who's data was lost as part of the migration to the new instance of Zendesk",
-        proportionate_assignment: "A boolean field which indicates if a ticket has been proportionatly assigned to ECF or NPQ. Tickets marked as true have insufficient data to accurately classify the ticket."
+        proportionate_assignment: "A boolean field which indicates if a ticket has been proportionatly assigned to ECTE or NPQ. Tickets marked as true have insufficient data to accurately classify the ticket."
     }
 }
 WITH
