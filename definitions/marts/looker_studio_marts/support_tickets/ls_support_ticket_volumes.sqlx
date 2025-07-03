@@ -112,7 +112,7 @@ WITH
     FROM
       UNNEST(issue_type || tags) AS val
     WHERE
-      STARTS_WITH(val, 'ecf')) THEN 'CPD - ECTE'
+      STARTS_WITH(val, 'ecf') or STARTS_WITH(val, 'ecte')) THEN 'CPD - ECTE'
       WHEN LOWER(service_name) = 'ecf' OR LOWER(service_name) = 'ecte' THEN 'CPD - ECTE'
       WHEN LOWER(service_name) = 'npq' THEN 'CPD - NPQ'
     ELSE 'Unclassifiable - bad data or spam'
@@ -139,7 +139,7 @@ FROM
   second_classification_layer AS scl
 WHERE
   classification = 'Unclassifiable - bad data or spam'),
-  -- Forth classification layer: to randomly assign remaining "Unclassifiable - bad data or spam" tickets from your mart to either CPD - NPQ or CPD - ECF, based on historical proportions.
+  -- Forth classification layer: to randomly assign remaining "Unclassifiable - bad data or spam" tickets from your mart to either CPD - NPQ or CPD - ECTE, based on historical proportions.
   classification_proportions AS (
 SELECT
   SUM(CASE
