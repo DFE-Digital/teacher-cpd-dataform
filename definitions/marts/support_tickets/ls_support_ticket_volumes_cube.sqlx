@@ -13,7 +13,8 @@ config {
         tickets_reopened_count: "The number of tickets received on a given day that were later reopened, grouped by programme_type and classification.",
         tickets_reply_outside_sla_count: "The number of tickets received on a given day that were replied to outside of SLA period (SLA = 5 days), grouped by programme_type and classification.",
         tickets_estcalated_2nd_line_count: "The number of tickets received on a given day that were escalated to 2nd line support, grouped by programme_type and classification.",
-        tickets_estcalated_3rd_line_count: "The number of tickets received on a given day that were escalated to 3rd line support, grouped by programme_type and classification."
+        tickets_estcalated_3rd_line_count: "The number of tickets received on a given day that were escalated to 3rd line support, grouped by programme_type and classification.",
+        bad_ticket_count: "The number of tickets received on a given that that either were reopened, the first reply was ouside of SLA or escalated to the 2nd line of support."
     }
 }
 
