@@ -21,6 +21,9 @@ config {
         subject: "The subject of tickets migrated to the new instance of CPD. Any tickets created after December 2023 will not have a subject. This data has been provided by Shaun Osborne and Declan Fisher to help classify historic support tickets whose data was lost as part of the migration to the new instance of Zendesk",
         reopened_ticket: "TRUE if ticket has been reopened at least once",
         first_reply_within_sla: "TRUE if the first reply on the ticket was within SLA. Note: for CPD, SLA = 5 working days.",
+        escalated_2nd_line: "",
+        escalated_3rd_line: ""
+
         }
 }
 
@@ -48,8 +51,10 @@ WITH
     LOWER(stm.subject) AS subject,
     reopened_ticket,
     first_reply_within_sla,
+    IFNULL(LOWER(group_name) LIKE '%2nd line%',FALSE) as escalated_2nd_line,
+    IFNULL(LOWER(group_name) LIKE '%3rd line%', FALSE) as escalated_3rd_line
   FROM
-    `ecf-bq.zendesk_support_ticket_data.support_ticket_details_anonymised` AS sta
+    ${ref('support_ticket_details_anonymised')} AS sta
   LEFT JOIN
     `ecf-bq.static_tables.support_ticket_details_migrated` AS stm
   ON

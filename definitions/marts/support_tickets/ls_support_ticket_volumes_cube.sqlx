@@ -3,7 +3,7 @@ config {
     bigquery: {
         partitionBy: "created_at",
     },
-    description: "This mart calculates the number of tickets received on a given day, which have been classified by the support_ticket_classification mart. It breaks down tickets created each day, grouped by both programme_type and classification. The mart is specifically designed to support the CPD Programme Support Ticket Volumes dashboard and track performance through support ticket volumes. It utilizes a cube architecture to enable the calculation of key performance indicators (KPIs) specific to support tickets. In cases where tickets cannot be classified due to poor or missing data, they are proportionally assigned to the ECTE and NPQ categories to ensure that no historical data is lost.",
+    description: "This mart calculates the number of tickets received on a given day, which have been classified by the support_ticket_classification mart. For each day in between 2024-01-01 and the current date, it counts each metric grouped by both programme_type and classification. The mart is specifically designed to support the CPD Programme Support Ticket Volumes dashboard and track performance through support ticket volumes. It utilises a cube architecture to enable the calculation of key performance indicators (KPIs) specific to support tickets. In cases where tickets cannot be classified due to poor or missing data, they are proportionally assigned to the ECTE and NPQ categories to ensure that no historical data is lost.",
     columns: {
         created_at: "Date and time of that this ticket was logged in Zendesk.",
         programme_type: "A calculated field which indicates which programme the ticket belongs to. Possible values: ECTE, NPQ or Triage",
@@ -14,68 +14,140 @@ config {
         tickets_reply_outside_sla_count: "The number of tickets received on a given day that were replied to outside of SLA period (SLA = 5 days), grouped by programme_type and classification.",
         tickets_estcalated_2nd_line_count: "The number of tickets received on a given day that were escalated to 2nd line support, grouped by programme_type and classification.",
         tickets_estcalated_3rd_line_count: "The number of tickets received on a given day that were escalated to 3rd line support, grouped by programme_type and classification."
-    }}
-  
+    }
+}
 
-WITH support_ticket_data as (
-  SELECT *
-  FROM ${ref('support_ticket_classification')}
-),
-
-classification_proportions AS (
+WITH
+  kpi_cube AS (
   SELECT
-    SUM(CASE WHEN classification = 'CPD - NPQ' THEN 1  ELSE 0 END ) AS npq_count,
-    SUM(CASE WHEN classification = 'CPD - ECTE' THEN 1 ELSE 0 END) AS ecte_count
-  FROM support_ticket_data
-  WHERE classification IN ('CPD - NPQ','CPD - ECTE') 
-),
-
-classification_assigned_proportionately as (
+    created_at,
+    programme_type,
+    classification,
+    COUNT(*) AS ticket_count,
+    COUNTIF(is_duplicate) AS duplicate_tickets_count,
+    COUNTIF(reopened_ticket) AS tickets_reopened_count,
+    COUNTIF(NOT first_reply_within_sla) AS tickets_reply_outside_sla_count,
+    COUNTIF(escalated_2nd_line) AS tickets_escalated_2nd_line_count,
+    COUNTIF(escalated_3rd_line) AS tickets_escalated_3rd_line_count,
+    COUNTIF(escalated_2nd_line
+      OR reopened_ticket
+      OR NOT first_reply_within_sla) AS bad_ticket_count
+  FROM
+    ${ref('support_ticket_classification')}
+  GROUP BY
+    created_at,
+    programme_type,
+    classification ),
+  programme_types AS (
   SELECT
-    tcl.* EXCEPT(classification),
-    CASE
-      WHEN RAND() < npq_ratio THEN 'CPD - NPQ'
-      ELSE 'CPD - ECTE'
-    END AS classification,
-  FROM support_ticket_data AS tcl
-  CROSS JOIN (
-    SELECT SAFE_DIVIDE(npq_count, (npq_count + ecte_count)) AS npq_ratio
-    FROM classification_proportions )
-  WHERE classification = 'Unclassifiable - bad data'
-  UNION ALL 
-  SELECT 
-    * EXCEPT(classification),
-    classification
-  FROM support_ticket_data
-  WHERE classification != 'Unclassifiable - bad data'),
-
-assigning_programme_type as (
-  SELECT * EXCEPT (programme_type),
-  IFNULL(
-    CASE
-      WHEN classification IN ('CPD - ECTE', 'ECTE - Induction and AB', 'ECTE - Funding') THEN 'ECTE'
-      WHEN classification IN ('CPD - NPQ', 'NPQ - Funding',' NPQ - Get a TRN') THEN 'NPQ'
-      WHEN classification IN ('CPD - Triage') THEN 'Triage'
-    END, programme_type) AS programme_type
-  FROM classification_assigned_proportionately
-)
-
+    DISTINCT programme_type
+  FROM
+    ${ref('support_ticket_classification')}
+  WHERE
+    programme_type IS NOT NULL ),
+  classifications AS (
+  SELECT
+    DISTINCT classification
+  FROM
+    ${ref('support_ticket_classification')}
+  WHERE
+    classification IS NOT NULL ),
+  dates AS (
+  SELECT
+    created_at
+  FROM
+    UNNEST(GENERATE_DATE_ARRAY('2021-04-15',CURRENT_DATE)) AS created_at ),
+  classification_proportions AS (
+  SELECT
+    COUNTIF(classification = 'CPD - NPQ') / COUNT(*) AS npq_proportion,
+    COUNTIF(classification = 'CPD - ECTE') / COUNT(*) AS ecte_proportion
+  FROM
+    ${ref('support_ticket_classification')}
+  WHERE
+    classification IN ('CPD - NPQ',
+      'CPD - ECTE') ),
+  proportionately_assigning_classification AS (
+  SELECT
+    *
+  FROM
+    kpi_cube
+  WHERE
+    (programme_type IS NOT NULL
+      AND classification != 'Unclassifiable - bad data'
+      AND created_at < '2024-01-01')
+    OR created_at >= '2024-01-01'
+  UNION ALL
+  SELECT
+    created_at,
+    'NPQ' AS programme_type,
+    'CPD - NPQ' AS classification,
+    ticket_count * classification_proportions.npq_proportion AS ticket_count,
+    duplicate_tickets_count * classification_proportions.npq_proportion AS duplicate_tickets_count,
+    tickets_reopened_count * classification_proportions.npq_proportion AS tickets_reopened_count,
+    tickets_reply_outside_sla_count * classification_proportions.npq_proportion AS tickets_reply_outside_sla_count,
+    tickets_escalated_2nd_line_count * classification_proportions.npq_proportion AS tickets_escalated_2nd_line_count,
+    tickets_escalated_3rd_line_count * classification_proportions.npq_proportion AS tickets_escalated_3rd_line_count,
+    bad_ticket_count * classification_proportions.npq_proportion AS bad_ticket_count
+  FROM
+    kpi_cube,
+    classification_proportions
+  WHERE
+    programme_type IS NULL
+    AND classification = 'Unclassifiable - bad data'
+    AND created_at < '2024-01-01'
+  UNION ALL
+  SELECT
+    created_at,
+    'ECTE' AS programme_type,
+    'CPD - ECTE' AS classification,
+    ticket_count * classification_proportions.ecte_proportion AS ticket_count,
+    duplicate_tickets_count * classification_proportions.ecte_proportion AS duplicate_tickets_count,
+    tickets_reopened_count * classification_proportions.ecte_proportion AS tickets_reopened_count,
+    tickets_reply_outside_sla_count * classification_proportions.ecte_proportion AS tickets_reply_outside_sla_count,
+    tickets_escalated_2nd_line_count * classification_proportions.ecte_proportion AS tickets_escalated_2nd_line_count,
+    tickets_escalated_3rd_line_count * classification_proportions.ecte_proportion AS tickets_escalated_3rd_line_count,
+    bad_ticket_count * classification_proportions.ecte_proportion AS bad_ticket_count
+  FROM
+    kpi_cube,
+    classification_proportions
+  WHERE
+    programme_type IS NULL
+    AND classification = 'Unclassifiable - bad data'
+    AND created_at < '2024-01-01'),
+  summing_metrics AS (
+  SELECT
+    created_at,
+    programme_type,
+    classification,
+    SUM(ticket_count) AS ticket_count,
+    SUM(duplicate_tickets_count) AS duplicate_tickets_count,
+    SUM(tickets_reopened_count) AS tickets_reopened_count,
+    SUM(tickets_reply_outside_sla_count) AS tickets_reply_outside_sla_count,
+    SUM(tickets_escalated_2nd_line_count) AS tickets_escalated_2nd_line_count,
+    SUM(tickets_escalated_3rd_line_count) AS tickets_escalated_3rd_line_count,
+    SUM(bad_ticket_count) AS bad_ticket_count
+  FROM
+    proportionately_assigning_classification
+  GROUP BY
+    ALL )
 SELECT
-  created_at,
-  programme_type,
-  classification,
-  COUNT(*) AS ticket_count,
-  countIF(is_duplicate) as duplicate_tickets_count,
-  COUNTIF(reopened_ticket) as tickets_reopened_count,
-  COUNT(*) -  COUNTIF(first_reply_within_sla) as tickets_reply_outside_sla_count,
-  COUNTIF(LOWER(group_name) LIKE '%2nd line%') as tickets_estcalated_2nd_line_count,
-  COUNTIF(LOWER(group_name) LIKE '%3rd line%') as tickets_estcalated_3rd_line_count 
-FROM assigning_programme_type
-GROUP BY
-  created_at,
-  programme_type,
-  classification
-ORDER BY
-  created_at,
-  programme_type,
-  classification
+  dates.created_at,
+  programme_types.programme_type,
+  classifications.classification,
+  IFNULL(ticket_count, 0.0) AS ticket_count,
+  IFNULL(duplicate_tickets_count, 0.0) AS duplicate_tickets_count,
+  IFNULL(tickets_reopened_count, 0.0) AS tickets_reopened_count,
+  IFNULL(tickets_reply_outside_sla_count, 0.0) AS tickets_reply_outside_sla_count,
+  IFNULL(tickets_escalated_2nd_line_count, 0.0) AS tickets_escalated_2nd_line_count,
+  IFNULL(tickets_escalated_3rd_line_count, 0.0) AS tickets_escalated_3rd_line_count,
+  IFNULL(bad_ticket_count, 0.0) AS bad_ticket_count
+FROM
+  dates,
+  programme_types,
+  classifications
+LEFT JOIN
+  summing_metrics
+USING
+  (created_at,
+    programme_type,
+    classification)
