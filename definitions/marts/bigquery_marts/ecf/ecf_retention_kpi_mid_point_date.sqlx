@@ -126,7 +126,7 @@ partnership_history AS (
     -- AND
     partnership_versions.relationship = FALSE
     AND
-    DATETIME(2024,07,31,23,59,59) BETWEEN DATETIME(partnership_versions.valid_from) AND IFNULL(DATETIME(partnership_versions.valid_to), DATETIME(2050,12,31,00,00,00))
+  (DATE(partnership_versions.valid_to) >= "2024-07-31" OR partnership_versions.valid_to IS NULL)
   QUALIFY
     ROW_NUMBER() OVER(PARTITION BY partnership_versions.id, IFNULL(DATE(partnership_versions.valid_to), DATE(2050,12,31)) ORDER BY IFNULL(DATETIME(partnership_versions.valid_to), DATETIME(2050,12,31,00,00,00)) DESC, partnership_versions.created_at DESC) = 1
 ),
