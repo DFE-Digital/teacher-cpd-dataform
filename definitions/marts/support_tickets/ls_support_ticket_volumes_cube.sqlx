@@ -12,8 +12,8 @@ config {
         duplicate_tickets_count: "The number of duplicate tickets received on a given day, grouped by programme_type and classification. Tickets are identified as duplicates when the 'closed_by_merge' tag is present in the ticket.",
         tickets_reopened_count: "The number of tickets received on a given day that were later reopened, grouped by programme_type and classification.",
         tickets_reply_outside_sla_count: "The number of tickets received on a given day that were replied to outside of SLA period (SLA = 5 days), grouped by programme_type and classification.",
-        tickets_estcalated_2nd_line_count: "The number of tickets received on a given day that were escalated to 2nd line support, grouped by programme_type and classification.",
-        tickets_estcalated_3rd_line_count: "The number of tickets received on a given day that were escalated to 3rd line support, grouped by programme_type and classification.",
+        tickets_escalated_2nd_line_count: "The number of tickets received on a given day that were escalated to 2nd line support, grouped by programme_type and classification.",
+        tickets_escalated_3rd_line_count: "The number of tickets received on a given day that were escalated to 3rd line support, grouped by programme_type and classification.",
         bad_ticket_count: "The number of tickets received on a given that that either were reopened, the first reply was ouside of SLA or escalated to the 2nd line of support."
     }
 }
@@ -36,37 +36,37 @@ WITH
   FROM
     ${ref('support_ticket_classification')}
   GROUP BY
-    created_at,
-    programme_type,
-    classification ),
+    ALL),
+  --- The following 3 CTEs form the dimensions of the cube and ensure we have one line per day per programme_type and classification combination.
   programme_types AS (
-  SELECT
-    DISTINCT programme_type
-  FROM
-    ${ref('support_ticket_classification')}
-  WHERE
-    programme_type IS NOT NULL ),
+SELECT
+  DISTINCT programme_type
+FROM
+  ${ref('support_ticket_classification')}
+WHERE
+  programme_type IS NOT NULL ),
   classifications AS (
   SELECT
     DISTINCT classification
   FROM
     ${ref('support_ticket_classification')}
   WHERE
-    classification IS NOT NULL ),
+    classification IS NOT NULL and classification != 'Unclassifiable - bad data'),
   dates AS (
   SELECT
     created_at
   FROM
     UNNEST(GENERATE_DATE_ARRAY('2021-04-15',CURRENT_DATE)) AS created_at ),
+  -- We begin by proportionately assigning tickets created before 2024-01-01 to either the ECTE or NPQ service, based on the overall distribution of ECTE and NPQ service tickets. These tickets lack sufficient information to be classified in the support_tickets_classification mart due to poor historical data quality. However, as they are valid tickets—not duplicates or mis-migrated ones—their volumes should still be reflected in the overall counts.
   classification_proportions AS (
-  SELECT
-    COUNTIF(classification = 'CPD - NPQ') / COUNT(*) AS npq_proportion,
-    COUNTIF(classification = 'CPD - ECTE') / COUNT(*) AS ecte_proportion
-  FROM
-    ${ref('support_ticket_classification')}
-  WHERE
-    classification IN ('CPD - NPQ',
-      'CPD - ECTE') ),
+SELECT
+  COUNTIF(classification = 'CPD - NPQ') / COUNT(*) AS npq_proportion,
+  COUNTIF(classification = 'CPD - ECTE') / COUNT(*) AS ecte_proportion
+FROM
+  ${ref('support_ticket_classification')}
+WHERE
+  classification IN ('CPD - NPQ',
+    'CPD - ECTE') ),
   proportionately_assigning_classification AS (
   SELECT
     *
@@ -93,6 +93,7 @@ WITH
     kpi_cube,
     classification_proportions
   WHERE
+    --- we have included this logic to ensure the proportional assignment does not create duplicate rows.
     programme_type IS NULL
     AND classification = 'Unclassifiable - bad data'
     AND created_at < '2024-01-01'
@@ -112,6 +113,7 @@ WITH
     kpi_cube,
     classification_proportions
   WHERE
+    --- we have included this logic to ensure the proportional assignment does not create duplicate rows.
     programme_type IS NULL
     AND classification = 'Unclassifiable - bad data'
     AND created_at < '2024-01-01'),

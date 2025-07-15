@@ -21,10 +21,9 @@ config {
         subject: "The subject of tickets migrated to the new instance of CPD. Any tickets created after December 2023 will not have a subject. This data has been provided by Shaun Osborne and Declan Fisher to help classify historic support tickets whose data was lost as part of the migration to the new instance of Zendesk",
         reopened_ticket: "TRUE if ticket has been reopened at least once",
         first_reply_within_sla: "TRUE if the first reply on the ticket was within SLA. Note: for CPD, SLA = 5 working days.",
-        escalated_2nd_line: "",
-        escalated_3rd_line: ""
-
-        }
+        escalated_2nd_line: "TRUE if the ticket was escalated to 2nd line support.",
+        escalated_3rd_line: "TRUE if the ticket was escalated to 3rd line support."
+    }
 }
 
 WITH
@@ -51,8 +50,8 @@ WITH
     LOWER(stm.subject) AS subject,
     reopened_ticket,
     first_reply_within_sla,
-    IFNULL(LOWER(group_name) LIKE '%2nd line%',FALSE) as escalated_2nd_line,
-    IFNULL(LOWER(group_name) LIKE '%3rd line%', FALSE) as escalated_3rd_line
+    IFNULL(LOWER(group_name) LIKE '%2nd line%',FALSE) AS escalated_2nd_line,
+    IFNULL(LOWER(group_name) LIKE '%3rd line%', FALSE) AS escalated_3rd_line
   FROM
     ${ref('support_ticket_details_anonymised')} AS sta
   LEFT JOIN
@@ -70,45 +69,81 @@ WITH
     cpd_prog_data
   GROUP BY
     ticket_id),
-
-classification_logic as (
-  SELECT 
+  classification_logic AS (
+  SELECT
     cpd_prog_data.*,
     CASE
     -- First classification layer: uses the group_name to assign classification
-        WHEN group_name IN ('CPD - ECTE', 'CPD - 2nd Line- LP and DP Queries', 'CPD - 2nd Line: Appropriate Bodies & Regs', 'CPD - 2nd line - Withdrawing or reinstating ECTs/mentors', 'CPD - 3rd Line Support (Dfe admin)', 'CPD - ECF', 'CPD - ECF - Access to DfE service', 'CPD - ECF - ECT registration issues', 'CPD - ECF - Mentor registration issues', 'CPD - ECF - Partnerships', 'CPD - 2nd line ECF review (policy)', 'CPD - 2nd line- Unable to change cohort due to declaration errors on the service') THEN 'CPD - ECTE'
-        WHEN group_name IN ('CPD - ECF - 2nd line Funding Enquiries',
-        'CPD - ECF Funding',
-        'CPD - ECTE Funding') THEN 'ECTE - Funding'
-        WHEN group_name = 'CPD - Get a TRN' THEN 'NPQ - Get a TRN'
-        WHEN group_name IN ('CPD - Induction and AB',
-        'CPD - Legacy Induction') THEN 'ECTE - Induction and AB'
-        WHEN group_name IN ('CPD - 2nd Line - NPQ Digital', 'CPD - 2nd Line NPQ Policy Provider Engagement', 'CPD - 2nd line - NQTplus1 overpayments', 'CPD - 3rd Line - NPQ Digital - Developer to action', 'CPD - NPQ', 'CPD - NPQ - General Enquiries', 'CPD - 2nd Line-NPQ TSF') THEN 'CPD - NPQ'
-        WHEN group_name = 'CPD - 2nd line - NPQ Funding' THEN 'NPQ - Funding'
-        WHEN group_name = 'CPD - Triage' THEN 'CPD - Triage'
-    -- Second classification layer: classifies support tickets based on tags and issue_types associated to each ticket
-        WHEN EXISTS ( SELECT 1 FROM UNNEST(issue_type || tags) AS val WHERE val LIKE '%induction_and_ab%' ) THEN 'ECTE - Induction and AB'
-        WHEN EXISTS ( SELECT 1 FROM UNNEST(issue_type || tags) AS val WHERE val LIKE '%funding%' AND val NOT LIKE '%npq%' ) THEN 'ECTE - Funding'
-        WHEN EXISTS ( SELECT 1 FROM UNNEST(issue_type || tags) AS val WHERE val LIKE '%funding%' AND val LIKE '%npq%' ) THEN 'NPQ - Funding'
-        WHEN EXISTS ( SELECT 1 FROM UNNEST(issue_type || tags) AS val WHERE val LIKE '%npq%' ) THEN 'CPD - NPQ'
-        WHEN EXISTS ( SELECT 1 FROM UNNEST(issue_type || tags) AS val WHERE val LIKE ANY ('cpd','fip%','ect%','%ecte%','%induction%','%appropriate%','ab-%')) THEN 'CPD - ECTE'
-        WHEN EXISTS ( SELECT 1 FROM UNNEST(issue_type || tags) AS val WHERE STARTS_WITH(val, 'ecf') OR STARTS_WITH(val, 'ecte')) THEN 'CPD - ECTE'
-        WHEN LOWER(service_name) = 'ecf' OR LOWER(service_name) = 'ecte' THEN 'CPD - ECTE'
-        WHEN LOWER(service_name) = 'npq' THEN 'CPD - NPQ'
-    -- Third classification layer: uses the migrated subject from a data extract provided by Shaun Osborne and Declan Fisher. This extract contains the original ticket_id and the ticket_id after migration as well as the subject
-        WHEN subject LIKE '%npq%' THEN 'CPD - NPQ'
-        WHEN subject LIKE '%induction_and_ab%' THEN 'ECTE - Induction and AB'
-        WHEN subject LIKE ANY ('%ecf%','% ect%','ect%' ,'%induction%' ,'%ecte%' ,'%cpd%' ,'%continuous professional development%' ,'% fip %' ,'%early career%' ,'%mentor%') THEN 'CPD - ECTE'
+      WHEN group_name IN ('CPD - ECTE', 'CPD - 2nd Line- LP and DP Queries', 'CPD - 2nd Line: Appropriate Bodies & Regs', 'CPD - 2nd line - Withdrawing or reinstating ECTs/mentors', 'CPD - 3rd Line Support (Dfe admin)', 'CPD - ECF', 'CPD - ECF - Access to DfE service', 'CPD - ECF - ECT registration issues', 'CPD - ECF - Mentor registration issues', 'CPD - ECF - Partnerships', 'CPD - 2nd line ECF review (policy)', 'CPD - 2nd line- Unable to change cohort due to declaration errors on the service') THEN 'CPD - ECTE'
+      WHEN group_name IN ('CPD - ECF - 2nd line Funding Enquiries',
+      'CPD - ECF Funding',
+      'CPD - ECTE Funding') THEN 'ECTE - Funding'
+      WHEN group_name = 'CPD - Get a TRN' THEN 'NPQ - Get a TRN'
+      WHEN group_name IN ('CPD - Induction and AB',
+      'CPD - Legacy Induction') THEN 'ECTE - Induction and AB'
+      WHEN group_name IN ('CPD - 2nd Line - NPQ Digital', 'CPD - 2nd Line NPQ Policy Provider Engagement', 'CPD - 2nd line - NQTplus1 overpayments', 'CPD - 3rd Line - NPQ Digital - Developer to action', 'CPD - NPQ', 'CPD - NPQ - General Enquiries', 'CPD - 2nd Line-NPQ TSF') THEN 'CPD - NPQ'
+      WHEN group_name = 'CPD - 2nd line - NPQ Funding' THEN 'NPQ - Funding'
+      WHEN group_name = 'CPD - Triage' THEN 'CPD - Triage'
+      -- Second classification layer: classifies support tickets based on tags and issue_types associated to each ticket
+      WHEN EXISTS (
+    SELECT
+      1
+    FROM
+      UNNEST(issue_type || tags) AS val
+    WHERE
+      val LIKE '%induction_and_ab%' ) THEN 'ECTE - Induction and AB'
+      WHEN EXISTS ( SELECT 1 FROM UNNEST(issue_type || tags) AS val WHERE val LIKE '%funding%' AND val NOT LIKE '%npq%' ) THEN 'ECTE - Funding'
+      WHEN EXISTS (
+    SELECT
+      1
+    FROM
+      UNNEST(issue_type || tags) AS val
+    WHERE
+      val LIKE '%funding%'
+      AND val LIKE '%npq%' ) THEN 'NPQ - Funding'
+      WHEN EXISTS ( SELECT 1 FROM UNNEST(issue_type || tags) AS val WHERE val LIKE '%npq%' ) THEN 'CPD - NPQ'
+      WHEN EXISTS (
+    SELECT
+      1
+    FROM
+      UNNEST(issue_type || tags) AS val
+    WHERE
+      val LIKE ANY ('cpd',
+        'fip%',
+        'ect%',
+        '%ecte%',
+        '%induction%',
+        '%appropriate%',
+        'ab-%')) THEN 'CPD - ECTE'
+      WHEN EXISTS ( SELECT 1 FROM UNNEST(issue_type || tags) AS val WHERE STARTS_WITH(val, 'ecf') OR STARTS_WITH(val, 'ecte')) THEN 'CPD - ECTE'
+      WHEN LOWER(service_name) = 'ecf'
+    OR LOWER(service_name) = 'ecte' THEN 'CPD - ECTE'
+      WHEN LOWER(service_name) = 'npq' THEN 'CPD - NPQ'
+      -- Third classification layer: uses the migrated subject from a data extract provided by Shaun Osborne and Declan Fisher. This extract contains the original ticket_id and the ticket_id after migration as well as the subject
+      WHEN subject LIKE '%npq%' THEN 'CPD - NPQ'
+      WHEN subject LIKE '%induction_and_ab%' THEN 'ECTE - Induction and AB'
+      WHEN subject LIKE ANY ('%ecf%',
+      '% ect%',
+      'ect%',
+      '%induction%',
+      '%ecte%',
+      '%cpd%',
+      '%continuous professional development%',
+      '% fip %',
+      '%early career%',
+      '%mentor%') THEN 'CPD - ECTE'
       ELSE 'Unclassifiable - bad data'
-    END as classification
-  FROM cpd_prog_data
-)
-
+  END
+    AS classification
+  FROM
+    cpd_prog_data )
 SELECT
   cl.*,
   CASE
     WHEN classification IN ('CPD - ECTE', 'ECTE - Induction and AB', 'ECTE - Funding') THEN 'ECTE'
-    WHEN classification IN ('CPD - NPQ', 'NPQ - Funding','NPQ - Get a TRN') THEN 'NPQ'
+    WHEN classification IN ('CPD - NPQ',
+    'NPQ - Funding',
+    'NPQ - Get a TRN') THEN 'NPQ'
     WHEN classification IN ('CPD - Triage') THEN 'Triage'
     ELSE NULL
 END
@@ -120,4 +155,3 @@ LEFT JOIN
   duplicate_tickets AS dp
 ON
   cl.ticket_id = dp.ticket_id
-
