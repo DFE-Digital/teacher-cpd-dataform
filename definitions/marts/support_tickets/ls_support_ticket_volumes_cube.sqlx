@@ -37,7 +37,7 @@ WITH
     ${ref('support_ticket_classification')}
   GROUP BY
     ALL),
-  --- The following 3 CTEs form the dimensions of the cube and ensure we have one line per day per programme_type and classification combination.
+  --- The following 3 CTEs are used later to ensure we have one row per day/programme_type/classification combination and rows where all metrics are 0 for these combinations are not missed.
   programme_types AS (
 SELECT
   DISTINCT programme_type
@@ -57,7 +57,7 @@ WHERE
     created_at
   FROM
     UNNEST(GENERATE_DATE_ARRAY('2021-04-15',CURRENT_DATE)) AS created_at ),
-  -- We begin by proportionately assigning tickets created before 2024-01-01 to either the ECTE or NPQ service, based on the overall distribution of ECTE and NPQ service tickets. These tickets lack sufficient information to be classified in the support_tickets_classification mart due to poor historical data quality. However, as they are valid tickets—not duplicates or mis-migrated ones—their volumes should still be reflected in the overall counts.
+  -- We begin by proportionately assigning tickets created before 2024-01-01 to either the ECTE or NPQ service, based on the distribution of ECTE and NPQ service tickets created in 2024. These tickets lack sufficient information to be classified in the support_tickets_classification mart due to poor historical data quality. However, as they are valid tickets—not duplicates or mis-migrated ones—their volumes should still be reflected in the overall counts.
   classification_proportions AS (
 SELECT
   COUNTIF(classification = 'CPD - NPQ') / COUNT(*) AS npq_proportion,
@@ -66,7 +66,7 @@ FROM
   ${ref('support_ticket_classification')}
 WHERE
   classification IN ('CPD - NPQ',
-    'CPD - ECTE') ),
+    'CPD - ECTE') and EXTRACT(YEAR FROM created_at) = 2024 ),
   proportionately_assigning_classification AS (
   SELECT
     *
@@ -93,7 +93,7 @@ WHERE
     kpi_cube,
     classification_proportions
   WHERE
-    --- we have included this logic to ensure the proportional assignment does not create duplicate rows.
+    --- we have included this logic to ensure we only include rows we want to proportionately assign.
     programme_type IS NULL
     AND classification = 'Unclassifiable - bad data'
     AND created_at < '2024-01-01'
@@ -113,7 +113,7 @@ WHERE
     kpi_cube,
     classification_proportions
   WHERE
-    --- we have included this logic to ensure the proportional assignment does not create duplicate rows.
+    --- we have included this logic to ensure we only include rows we want to proportionately assign.
     programme_type IS NULL
     AND classification = 'Unclassifiable - bad data'
     AND created_at < '2024-01-01'),
