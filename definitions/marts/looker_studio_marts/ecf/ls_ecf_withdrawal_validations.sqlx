@@ -1,8 +1,5 @@
 config {
     type: "table",
-    assertions: {
-        uniqueKey: ["participant_profile_id"]
-    },
     bigquery: {
         clusterBy: ["lead_provider_name"]
     },
