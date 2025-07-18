@@ -51,7 +51,7 @@ WITH
   LEFT JOIN
     ${ref(`appropriate_bodies_latest_ecf2`)} AS abs
   ON
-    historic.appropriate_body_id = abs.legacy_id )
+    historic.appropriate_body_id = abs.dqt_id )
 SELECT
   -- unique_id does not signify anything. It is used for this mart and not associated with RIAB or DQT inductiond period data.
   ROW_NUMBER() OVER () AS unique_id,
