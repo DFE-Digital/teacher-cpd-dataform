@@ -14,7 +14,7 @@ config {
         started_on: "Date an induction period was started on",
         finished_on: "Date and time an extension was updated",
         induction_programme: "The programme type for an induction period; Full Induction, Core Induction, Do it Yourself",
-        qts_awarded_on: "Date an ECT was awarded their QTS",
+        trs_qts_awarded_on: "Date an ECT was awarded their QTS",
         outcome: "ECT's overall induction outcome"
     }
 }
@@ -45,7 +45,7 @@ SELECT
   finished_on,
   number_of_terms,
   outcome,
-  qts_awarded_on,
+  trs_qts_awarded_on,
   concat(update_id,"-",field_updated) as update_unique_key,
   field_updated,
   induction_updates.occurred_at AS update_timestamp,
