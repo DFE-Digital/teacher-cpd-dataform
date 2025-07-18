@@ -1,0 +1,20 @@
+config {
+  type: "assertion",
+  description: "If this assertion fails then the itt_mentor_claims table contains an unexpected ITT mentor claim status from the ITT mentor service.\nTo fix, edit logic in mentors_and_providers_itt_ecf_combined.sqlx to decide what to do with the new status, and then add the new status to the expected status list in this assertion."
+}
+
+SELECT
+    earliest_claim_current_status,
+    COUNT(*) AS number_of_claims_with_unexpected_status
+  FROM
+    ${ref("itt_mentor_claims")}
+  WHERE
+    earliest_claim_current_status NOT IN (
+      "paid" /* A payment has been made to the claimant. In future the payment may be sampled for quality assurance. */,
+      "sampling_in_progress" /* A payment has been made to the claimant and it is currently being quality assured as part of a sample. */,
+      "sampling_provider_not_approved" /* A payment was made to the claimant but it now should be or has been clawed back */,
+      "sampling_not_approved" /* Same as sampling_provider_not_approved but for a different problem with the claim */,
+      "submitted", /* A claim has been created by a claimant but no payment has yet been made, nor has a decision been taken about whether to pay the claimant */
+      "clawback_in_progress" /* A claim was paid but is now being clawed back from the recipient */)
+  GROUP BY
+    earliest_claim_current_status

@@ -31,7 +31,7 @@ WITH lead_provider_targets AS (
      exp_vol.*
     ,lp.name AS lead_provider
   FROM
-    ${ref('npq_2025_expected_volumes')} AS exp_vol
+    ${ref('npq_2025_allocated_volumes_values')} AS exp_vol
   LEFT JOIN
     ${ref('lead_providers_latest_npq')} AS lp
   ON
