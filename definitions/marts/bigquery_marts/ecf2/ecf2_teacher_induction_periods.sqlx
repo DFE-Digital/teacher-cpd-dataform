@@ -10,14 +10,14 @@ config {
     description: "This mart pulls together the induction periods that ABs have registered for teachers with the associated profile records of the relevant teacher and the appropriate body induction with whom the induction was registered. This mart is designed to give as much detail as possible about the induction period that was registered, the teacher who it was registered for and the appropriate body that registered the induction. All potentially relevant fields from the three main tables: Induction Periods, Teachers and Appropriate Bodies have been combined with the a single record representing an induction period. It is meant as a base from which further marts can be generated. AB's are required to register the induction of ECTs training with them. ECTs are required to complete a full 2 years of induction before receiving qualified teacher status. They can complete their induction in multiple periods with multiple Appropriate Bodies. So it is possible that a single teacher will have multiple induction periods registered in this mart",
     columns: {
         induction_period_id: "ID of single registered induction period",
-        appropriate_body_id: "",
-        appropriate_body_name: "",
+        appropriate_body_id: "The ID of the appropriate body associated with the school the induction period was served.",
+        appropriate_body_name: "The name of the appropriate body associated with the school the induction period was served.",
         number_of_terms: "Number of terms served in the induction period",
         started_on: "Date an induction period was started on",
         finished_on: "Date and time an extension was updated",
         induction_programme: "The programme type for an induction period; Full Induction, Core Induction, Do it Yourself",
-        training_programme: "",
-        teacher_id:"",
+        training_programme: "The type of training that a school supported the ECT's induction with for that induction period, as reported by the Appropriate Body.",
+        teacher_id: "",
         range: "The date range between the started_on and finished_on dates for an induction period",
         local_authority_code: "Gov.uk local authority code taken from DQT",
         establishment_number: "A unique identifier given to all appropriate bodies from DQT",
@@ -33,7 +33,7 @@ config {
         },
         induction_start_date_submitted_to_trs_at: "Date and time an induction start date was submitted to TRS for an ECT",
         trs_induction_status: "Overall induction status held on the TRS",
-        trs_data_last_refreshed_at: "",
+        trs_data_last_refreshed_at: "Date of last refresh of trs ecf2 induction fields, specifically: trs_induction_status, trs_initial_teacher_training_end_date, trs_initial_teacher_training_provider_name, trs_qts_status_description, trs_deactivated.",
         trs_initial_teacher_training_end_date: "Date an ECT finished their ITT held on TRS",
         trs_initial_teacher_training_provider_name: "ECT's ITT provider name held on TRS",
         trs_qts_status_description: "ECT's QTS status held on TRS",
@@ -99,16 +99,10 @@ SELECT
     last_streamed_event_type),
   abs.dqt_id AS ab_dqt_id,
   record_creator,
-  CASE
-    WHEN non_admin_updates IS NOT NULL AND non_admin_updates IS TRUE THEN TRUE
-    ELSE FALSE
-END
-  AS non_admin_update_flag,
-  CASE
-    WHEN admin_updates IS NOT NULL AND admin_updates IS TRUE THEN TRUE
-    ELSE FALSE
-END
-  AS admin_update_flag
+  IFNULL(non_admin_updates IS NOT NULL
+    AND non_admin_updates, FALSE) AS non_admin_update_flag,
+  IFNULL(admin_updates IS NOT NULL
+    AND admin_updates, FALSE) AS admin_update_flag
 FROM
   ${ref(`induction_periods_latest_ecf2`)} AS induction_periods
 LEFT JOIN
