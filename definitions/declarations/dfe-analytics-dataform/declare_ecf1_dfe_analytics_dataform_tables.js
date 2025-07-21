@@ -4,6 +4,7 @@ const tableNames = [
     "cohorts_latest",
     "cpd_lead_providers_latest",
     "delivery_partners_latest",
+    "events",
     "induction_coordinator_profiles_latest",
     "induction_coordinator_profiles_schools_latest",
     "induction_programmes_latest",
