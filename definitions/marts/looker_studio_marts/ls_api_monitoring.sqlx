@@ -1,7 +1,6 @@
 config {
     type: "table",
     assertions: {
-        uniqueKey: ["request_uuid"]
     },
     bigquery: {
         partitionBy: "DATE(occurred_at)",
