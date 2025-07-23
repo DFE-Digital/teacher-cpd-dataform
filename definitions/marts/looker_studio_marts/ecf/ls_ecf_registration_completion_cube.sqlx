@@ -14,8 +14,8 @@ config {
         registration_year_day: "Number of days within registration_year that this date is since the registration_year_start_date, counting registration_year_start_date as day 1.",
         registration_year_week: "Week of registration_year that this date falls within, treating the registration_year_start_date as day 1 of week 1.",
         registration_year_month: "Month of registration_year that this date falls within, treating the registration_year_start_date as day 1 of month 1.",
-        registration_journeys_started: "Number of registration journeys that an authenticated user started on date. A start is defined as a view of /schools/[grouped]/cohorts/[grouped]/setup or /schools/[grouped]/participants/who that returned an HTTP 2xx response.",
-        registration_journeys_completed_later_that_day: "Number of registration journeys that an authenticated user completed on date. A completion is defined as a view of /schools/[grouped]/participants/add/complete or /schools/[grouped]/participants/transfer/complete that returned an HTTP 2xx response."
+        number_of_users_who_started_registration_journeys: "Number of registration journeys that an authenticated user started on date. A start is defined as a view of /schools/[grouped]/cohorts/[grouped]/setup or /schools/[grouped]/participants/who that returned an HTTP 2xx response.",
+        number_of_users_who_completed_registration_journeys_later_that_day: "Number of registration journeys that an authenticated user completed on date. A completion is defined as a view of /schools/[grouped]/participants/add/complete or /schools/[grouped]/participants/transfer/complete that returned an HTTP 2xx response."
     }
 }
 
@@ -45,12 +45,22 @@ WITH
     user_id,
     MIN(
     IF
-      (path IN ("/schools/[grouped]/cohorts/[grouped]/setup",
-          "/schools/[grouped]/participants/who"), occurred_at, NULL)) AS first_started_registration_journey_on_this_date_at,
+      (path IN (
+        /* Page *after* a SIT clicks 'Continue' on the page that tells them what this journey is for and the information they will need to provide.*/
+        /* We are starting the journey here because an exit from the previous page (because a user realises they do not need to start the journey at all) is a success of sorts */
+        "/schools/[grouped]/cohorts/[grouped]/setup/expect-any-ects",
+        /* Start of participant registration journey for a school which already has cohort set up. This page asks them whether they want to register an ECT or a Mentor. */
+        "/schools/[grouped]/participants/who"
+        ), occurred_at, NULL)) AS first_started_registration_journey_on_this_date_at,
     ARRAY_AGG(
     IF
-      (path IN ("/schools/[grouped]/participants/add/complete",
-          "/schools/[grouped]/participants/transfer/complete"), occurred_at, NULL) IGNORE NULLS) AS completed_registration_journey_on_this_date_ats
+      (path IN (
+          /* A SIT finished adding a new participant */
+          "/schools/[grouped]/participants/add/complete",
+          /* A SIT finished transferring a participant */
+          "/schools/[grouped]/participants/transfer/complete",
+          /* A SIT finished the journey by telling us that they do not expect to have ECTs this registration window, reducing the comms we then send them */
+          "/schools/[grouped]/cohorts/[grouped]/setup/no-expected-ects"), occurred_at, NULL) IGNORE NULLS) AS completed_registration_journey_on_this_date_ats
   FROM
     pageviews
   GROUP BY
@@ -74,10 +84,10 @@ WITH
   occurred_on_with_metrics AS (
   SELECT
     occurred_on,
-    COUNT(DISTINCT user_id) AS registration_journeys_started,
+    COUNT(DISTINCT user_id) AS number_of_users_who_started_registration_journeys,
     COUNT(DISTINCT
     IF
-      (first_completed_registration_journey_on_this_date_at IS NOT NULL, user_id, NULL)) AS registration_journeys_completed_later_that_day,
+      (first_completed_registration_journey_on_this_date_at IS NOT NULL, user_id, NULL)) AS number_of_users_who_completed_registration_journeys_later_that_day,
   FROM
     registration_journeys_with_first_completions
   GROUP BY
@@ -112,8 +122,8 @@ SELECT
   DATE_DIFF(date, registration_year_start_date, DAY) + 1 AS registration_year_day,
   DATE_DIFF(date, registration_year_start_date, WEEK) + 1 AS registration_year_week,
   DATE_DIFF(date, registration_year_start_date, MONTH) + 1 AS registration_year_month,
-  IFNULL(occurred_on_with_metrics.registration_journeys_started, 0) AS registration_journeys_started,
-  IFNULL(occurred_on_with_metrics.registration_journeys_completed_later_that_day, 0) AS registration_journeys_completed_later_that_day,
+  IFNULL(occurred_on_with_metrics.number_of_users_who_started_registration_journeys, 0) AS number_of_users_who_started_registration_journeys,
+  IFNULL(occurred_on_with_metrics.number_of_users_who_completed_registration_journeys_later_that_day, 0) AS number_of_users_who_completed_registration_journeys_later_that_day,
 FROM
   dates
 LEFT JOIN
