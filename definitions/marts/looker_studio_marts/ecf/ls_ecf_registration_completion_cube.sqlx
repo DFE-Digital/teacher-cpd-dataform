@@ -11,6 +11,7 @@ config {
         date: "Date for which these metrics have been calculated",
         registration_year_start_date: "The first date in the registration year date was in",
         registration_year: "Calendar year (as an integer) that registration_year_start_date falls within",
+        registration_year_string: "registration_year formatted as e.g. 2032-33 for display purposes",
         registration_year_day: "Number of days within registration_year that this date is since the registration_year_start_date, counting registration_year_start_date as day 1.",
         registration_year_week: "Week of registration_year that this date falls within, treating the registration_year_start_date as day 1 of week 1.",
         registration_year_month: "Month of registration_year that this date falls within, treating the registration_year_start_date as day 1 of month 1.",
@@ -119,6 +120,7 @@ SELECT
   EXTRACT(YEAR
   FROM
     registration_year_start_date) AS registration_year,
+  FORMAT_DATE("%G", registration_year_start_date) || '-' || FORMAT_DATE("%g", DATE_ADD(registration_year_start_date, INTERVAL 1 YEAR)) AS registration_year_string,
   DATE_DIFF(date, registration_year_start_date, DAY) + 1 AS registration_year_day,
   DATE_DIFF(date, registration_year_start_date, WEEK) + 1 AS registration_year_week,
   DATE_DIFF(date, registration_year_start_date, MONTH) + 1 AS registration_year_month,
