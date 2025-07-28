@@ -9,12 +9,12 @@ config {
     description: "Single-dimension cube (by date) containing aggregable ECF1 registration journey completion metrics (number of journey starts, completion & total time between start and completion). To enable calculation of completion rate KPI.",
     columns: {
         date: "Date for which these metrics have been calculated",
-        registration_window_start_date: "The first date in the registration year date was in",
-        registration_window_year: "Calendar year (as an integer) that registration_year_start_date falls within",
-        registration_window_string: "registration_year formatted as e.g. 2032-33 for display purposes",
-        registration_window_day: "Number of days within registration_year that this date is since the registration_year_start_date, counting registration_year_start_date as day 1.",
-        registration_window_week: "Week of registration_year that this date falls within, treating the registration_year_start_date as day 1 of week 1.",
-        registration_window_month: "Month of registration_year that this date falls within, treating the registration_year_start_date as day 1 of month 1.",
+        registration_window_start_date: "The first date in the registration window date falls within",
+        registration_window_year: "Calendar year (as an integer) that registration_window_start_date falls within",
+        registration_window_string: "Registration window formatted as e.g. 2032-33 for display purposes",
+        registration_window_day: "Number of days within registration window that this date is since the registration_window_start_date, counting registration_window_start_date as day 1.",
+        registration_window_week: "Week of registration window that this date falls within, treating the registration_window_start_date as day 1 of week 1.",
+        registration_window_month: "Month of registration window that this date falls within, treating the registration_window_start_date as day 1 of month 1.",
         number_of_users_who_started_registration_journeys: "Number of registration journeys that an authenticated user started on date. A start is defined as a view of /schools/[grouped]/cohorts/[grouped]/setup or /schools/[grouped]/participants/who that returned an HTTP 2xx response.",
         number_of_users_who_completed_registration_journeys_later_that_day: "Number of registration journeys that an authenticated user completed on date. A completion is defined as a view of /schools/[grouped]/participants/add/complete or /schools/[grouped]/participants/transfer/complete that returned an HTTP 2xx response."
     }
