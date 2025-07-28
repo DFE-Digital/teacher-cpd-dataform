@@ -1,0 +1,141 @@
+config {
+    type: "incremental",
+    assertions: {
+      uniqueKey: ["date"]
+    },
+    bigquery: {
+        partitionBy: "date"
+    },
+    description: "Single-dimension cube (by date) containing aggregable NPQ registration journey completion metrics (number of journey starts, completion & total time between start and completion). To enable calculation of completion rate KPI.",
+    columns: {
+        date: "Date for which these metrics have been calculated",
+        registration_year_start_date: "The first date in the registration year date was in",
+        registration_year: "Calendar year (as an integer) that registration_year_start_date falls within",
+        registration_year_string: "registration_year formatted as e.g. 2032-33 for display purposes",
+        registration_year_day: "Number of days within registration_year that this date is since the registration_year_start_date, counting registration_year_start_date as day 1.",
+        registration_year_week: "Week of registration_year that this date falls within, treating the registration_year_start_date as day 1 of week 1.",
+        registration_year_month: "Month of registration_year that this date falls within, treating the registration_year_start_date as day 1 of month 1.",
+        number_of_users_who_started_registration_journeys: "Number of registration journeys that an authenticated user started on date. A start is defined as a view of /registration/teacher-reference-number, /registration/course-start-date or /registration/provider-check that returned an HTTP 2xx response.",
+        number_of_users_who_completed_registration_journeys_later_that_day: "Number of registration journeys that an authenticated user completed on date. A completion is defined as a view of /accounts/user_registrations/[grouped] that returned an HTTP 2xx response."
+    }
+}
+
+WITH
+  pageviews AS (
+  SELECT
+    occurred_at,
+    DATE(occurred_at) AS occurred_on,
+    request_user_id AS user_id,
+    ARRAY_TO_STRING(ARRAY(
+      SELECT
+        CASE
+          WHEN (REGEXP_CONTAINS(page_path_component, "^[a-zA-Z0-9-]*[0-9][a-zA-Z0-9-]*$") AND LENGTH(page_path_component) > 3) OR REGEXP_CONTAINS(page_path_component, "^[0-9]+$") THEN "[grouped]"
+          ELSE page_path_component
+      END
+      FROM
+        UNNEST(SPLIT(request_path, "/")) AS page_path_component ), "/", "") AS path
+  FROM
+    ${ref(`events_npq`)}
+  WHERE
+    response_status LIKE "2%"
+    AND DATE(occurred_at) < CURRENT_DATE
+    AND DATE(occurred_at) > event_date_checkpoint ),
+  registration_journeys AS (
+  SELECT
+    occurred_on,
+    user_id,
+    MIN(
+    IF
+      (path IN (
+        /* New users */
+        "/registration/teacher-reference-number",
+        "/registration/course-start-date",
+        /* Existing registered users */
+        "/registration/provider-check"
+        ), occurred_at, NULL)) AS first_started_registration_journey_on_this_date_at,
+    ARRAY_AGG(
+    IF
+      (path IN (
+          "/accounts/user_registrations/[grouped]"
+          ), occurred_at, NULL) IGNORE NULLS) AS completed_registration_journey_on_this_date_ats
+  FROM
+    pageviews
+  GROUP BY
+    ALL
+  HAVING
+    first_started_registration_journey_on_this_date_at IS NOT NULL),
+  registration_journeys_with_first_completions AS (
+  SELECT
+    occurred_on,
+    user_id,
+    first_started_registration_journey_on_this_date_at,
+    (
+    SELECT
+      MIN(
+      IF
+        (completed_registration_journey_on_this_date_at > first_started_registration_journey_on_this_date_at, completed_registration_journey_on_this_date_at, NULL))
+    FROM
+      UNNEST(completed_registration_journey_on_this_date_ats) AS completed_registration_journey_on_this_date_at) AS first_completed_registration_journey_on_this_date_at
+  FROM
+    registration_journeys),
+  occurred_on_with_metrics AS (
+  SELECT
+    occurred_on,
+    COUNT(DISTINCT user_id) AS number_of_users_who_started_registration_journeys,
+    COUNT(DISTINCT
+    IF
+      (first_completed_registration_journey_on_this_date_at IS NOT NULL, user_id, NULL)) AS number_of_users_who_completed_registration_journeys_later_that_day,
+  FROM
+    registration_journeys_with_first_completions
+  GROUP BY
+    occurred_on),
+  registration_windows AS (
+  SELECT
+    DATE(registration_start_date) AS registration_year_start_date,
+    LEAD(DATE(registration_start_date)) OVER (ORDER BY registration_start_date ASC) - 1 AS registration_year_end_date
+  FROM
+    ${ref(`cohorts_latest_npq`)} AS cohort
+  WHERE
+    DATE(registration_start_date) < CURRENT_DATE ),
+  dates AS (
+  SELECT
+    date,
+    registration_year_start_date
+  FROM
+    UNNEST(GENERATE_DATE_ARRAY("2023-09-19", CURRENT_DATE - 1)) AS date,
+    registration_windows
+  WHERE
+    date > event_date_checkpoint
+    AND ((date BETWEEN registration_year_start_date
+        AND registration_year_end_date)
+      OR (date >= registration_year_start_date
+        AND registration_year_end_date IS NULL)) )
+SELECT
+  date,
+  registration_year_start_date,
+  EXTRACT(YEAR
+  FROM
+    registration_year_start_date) AS registration_year,
+  FORMAT_DATE("%G", registration_year_start_date) || '-' || FORMAT_DATE("%g", DATE_ADD(registration_year_start_date, INTERVAL 1 YEAR)) AS registration_year_string,
+  DATE_DIFF(date, registration_year_start_date, DAY) + 1 AS registration_year_day,
+  DATE_DIFF(date, registration_year_start_date, WEEK) + 1 AS registration_year_week,
+  DATE_DIFF(date, registration_year_start_date, MONTH) + 1 AS registration_year_month,
+  IFNULL(occurred_on_with_metrics.number_of_users_who_started_registration_journeys, 0) AS number_of_users_who_started_registration_journeys,
+  IFNULL(occurred_on_with_metrics.number_of_users_who_completed_registration_journeys_later_that_day, 0) AS number_of_users_who_completed_registration_journeys_later_that_day,
+FROM
+  dates
+LEFT JOIN
+  occurred_on_with_metrics
+ON
+  dates.date = occurred_on_with_metrics.occurred_on
+
+pre_operations {
+  DECLARE
+    event_date_checkpoint DEFAULT (
+    ${
+        when(incremental(),
+            `SELECT MAX(date) FROM ${self()}`,
+            `SELECT DATE("2000-01-01")`)
+    }
+    )
+}

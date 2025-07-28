@@ -5,6 +5,7 @@ const tableNames = [
     "cohorts_latest",
     "courses_latest",
     "declarations_latest",
+    "events",
     "lead_providers_latest",
     "participant_outcome_api_requests_latest",
     "participant_outcomes_latest",
