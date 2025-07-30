@@ -73,7 +73,7 @@ SELECT
   CASE
     WHEN
         /* When date is in the current registration window */
-        (CURRENT_DATE BETWEEN registration_window_start_date AND registration_window_end_date
+        (CURRENT_DATE BETWEEN registration_windows_with_metrics.registration_window_start_date AND registration_windows_with_metrics.registration_window_end_date
         OR (
             CURRENT_DATE >= registration_windows_with_metrics.registration_window_start_date
             AND registration_windows_with_metrics.registration_window_end_date IS NULL
