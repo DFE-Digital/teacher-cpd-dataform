@@ -30,7 +30,7 @@ WITH
     EXTRACT(YEAR
     FROM
       registration_start_date) AS registration_window_year,
-    ${functions.yearStartDateToAcademicYearString("registration_start_date")} AS registration_window_string,
+    ${functions.yearStartDateToAcademicYearString("DATE(registration_start_date)")} AS registration_window_string,
     DATE(EXTRACT(YEAR
       FROM
         registration_start_date), 9, 1) AS academic_year_start_date,
