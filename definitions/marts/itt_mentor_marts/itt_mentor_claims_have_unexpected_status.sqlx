@@ -15,6 +15,8 @@ SELECT
       "sampling_provider_not_approved" /* A payment was made to the claimant but it now should be or has been clawed back */,
       "sampling_not_approved" /* Same as sampling_provider_not_approved but for a different problem with the claim */,
       "submitted", /* A claim has been created by a claimant but no payment has yet been made, nor has a decision been taken about whether to pay the claimant */
-      "clawback_in_progress" /* A claim was paid but is now being clawed back from the recipient */)
+      "clawback_in_progress", /* A claim was paid but is now being clawed back from the recipient */
+      "draft",
+      "invalid_provider")
   GROUP BY
     earliest_claim_current_status
