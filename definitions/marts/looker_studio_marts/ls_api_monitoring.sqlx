@@ -1,95 +1,37 @@
 config {
     type: "table",
-    assertions: {
-        uniqueKey: ["request_uuid"]
-    },
     bigquery: {
         partitionBy: "DATE(occurred_at)",
-        clusterBy: ["request_method", "user_id", "response_status"]
+        clusterBy: ["request_method", "cpd_lead_provider_id", "response_status"]
     },
-    description: "This mart produces a table outlining all API calls that have been made by Lead Providers. It excludes internal users (identified as those with a NULL user_id) to ensure the focus is more on LP usage. The table outlines the response statuses of those calls to help the LPDOB team identify Providers who are causing a large number of errors. The final output feeds into the CPD- API Monitoring dashboard.",
+    description: "This mart produces a table outlining all API calls that have been made by Lead Providers in the ECF1 production environment. It uses the ECF1 custom events to outline response statuses of those calls to help identify Providers who are causing a large number of errors. The final output feeds into the CPD- API Monitoring dashboard.",
     columns: {
         occurred_at: "Timestamp of when the API call was made.",
-        api_request_id: "The unique ID assigned to the API request generated for the api_requests table",
-        user_id: "User ID of the Lead Provider making the API call. NULL user_ids are excluded as they are internal users.",
+        request_user_id: "User ID of the Lead Provider making the API call.",
         request_uuid: "ID of individual request.",
         request_method: "Method for calling the API. Can be GET, POST, or PUT.",
         request_path: "The endpoint that is being accessed.",
         request_query: "Populated by any filters used when making a GET call.",
         response_status: "The code associated with the API call. Any non-200 response status is an error.",
-        lp_name: "Name of the Lead Provider making the API call.",
+        cpd_led_provider_id: "The ID of the Lead Provider making the API call/",
+        lp_name: "Name of the Lead Provider making the API call sourced from the description provided in the API event.",
         request_body: "Details the call made by the Lead Provider.",
-        response_body: "Details the API response. Usually populated if there are any errors with the API call being made.",
-        hidden_DATA: {
-            columns: {
-                key: "Name of a field containing sensitive data included in this API request custom event from dfe-analytics",
-                value: {
-                    description: "Contents of this field",
-                    bigqueryPolicyTags: ["projects/ecf-bq/locations/europe-west2/taxonomies/6302091323314055162/policyTags/301313311867345339"]
-                }
-            }
-        }
+        response_body: "Details the API response. Usually populated if there are any errors with the API call being made."
     }
 }
 
-WITH
-  api_events AS (
-  SELECT
-    occurred_at,
-    user_id,
-    request_uuid,
-    request_method,
-    request_path,
-    request_query,
-    response_status
-  FROM
-    ${ref("ecf_events_production", "events")}
-  WHERE
-    event_type = 'web_request'
-    AND user_id IS NOT NULL
-    AND request_path LIKE '/api/v%'
-    AND request_uuid NOT IN ('edc376f322a4dc273b62997804695fb5',
-      '13f9f767fabfcb2cafc16f366b72660e',
-      '3b0872b43cd564d2133dbbff6fa1a4cf',
-      'ad6a40fda446b96f3212cdb57d2e98e6',
-      'c1fdb72bd593d9eda54f8e95e9724884',
-      '8bee2f527391c8891cbaee1775670f46')),
-  request_response_fields AS (
-  SELECT
-    eep.request_uuid,
-    ${data_functions.eventDataExtract('DATA', 'request_body')} AS request_body,
-    ${data_functions.eventDataExtract('DATA', 'response_body')} AS response_body,
-    ${data_functions.eventDataExtract('DATA', 'id')} AS api_request_id
-  FROM
-    ${ref("ecf_events_production", "events")} AS eep
-  WHERE
-    entity_table_name = 'api_requests'
-  GROUP BY
-    request_uuid,
-    DATA)
 SELECT
-  api_request_id,
-  api_events.*,
-  CASE api_events.user_id
-    WHEN '22727fdc-816a-4a3c-9675-030e724bbf89' THEN 'Ambition'
-    WHEN '24cdd065-4eb9-455a-8107-2ffb125f399f' THEN 'TDT'
-    WHEN '3b3fab47-231f-43fe-bcec-98960a60acae' THEN 'CoE'
-    WHEN '3dad03a0-08a5-4bf3-a9c9-082b7f4e78d4' THEN 'School-Led Network'
-    WHEN '51ff9a95-3f48-4117-8466-4cd5b91fcd5c' THEN 'NiOT'
-    WHEN '522a0342-e8d2-46fc-aaa3-716fa6e35751' THEN 'LLSE'
-    WHEN '9ad41410-677f-4da3-86a1-cda62b42e176' THEN 'Capita'
-    WHEN 'af89cf02-bbe0-423b-b2f6-bb2dbb97d141' THEN 'EDT'
-    WHEN 'bd152c5a-5ef4-4584-9c63-c32877dbba07' THEN 'Teach First'
-    WHEN 'dfad2a9c-527d-4d71-ae9a-492ab307e6c3' THEN 'BPN'
-    WHEN 'fb9c56b2-252b-41fe-b6b2-ebf208999df9' THEN 'UCL'
-    ELSE api_events.user_id
-END
-  AS lp_name,
-  rrf.request_body,
-  rrf.response_body
+  DISTINCT
+  occurred_at,
+  request_user_id,
+  request_uuid,
+  request_method,
+  request_path,
+  request_query,
+  response_status,
+  cpd_lead_provider_id,
+  REPLACE(user_description,"CPD lead provider: ","") as lp_name,
+  request_body,
+  response_body
 FROM
-  api_events
-LEFT JOIN
-  request_response_fields rrf
-USING
-  (request_uuid)
+  ${ref('persist_api_request_ecf1')}
