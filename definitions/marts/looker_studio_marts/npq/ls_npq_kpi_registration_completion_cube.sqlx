@@ -1,10 +1,12 @@
 config {
     type: "incremental",
+    tags: ["kpi"],
     assertions: {
       uniqueKey: ["date"]
     },
     bigquery: {
-        partitionBy: "date"
+        partitionBy: "date",
+        labels: {usage: "kpi"}
     },
     description: "Single-dimension cube (by date) containing aggregable NPQ registration journey completion metrics (number of journey starts, completion & total time between start and completion). To enable calculation of completion rate KPI.",
     columns: {

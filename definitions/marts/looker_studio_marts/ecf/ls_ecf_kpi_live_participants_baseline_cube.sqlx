@@ -1,10 +1,12 @@
 config {
     type: "table",
+    tags: ["kpi"],
     assertions: {
         uniqueKey: ["date"]
     },
     bigquery: {
-        partitionBy: "date"
+        partitionBy: "date",
+        labels: {usage: "kpi"}
     },
     description: "Single-dimension cube (by date) containing the best available actual or estimated number of live ECTs (according to RIAB) to use as a baseline in the registration window that date falls within. To act as a baseline across a range of KPIs. Note that these KPIs should be defined with the baseline (denominator) applying to the whole registration window, even if the numerator applies only to a particular day, week, month etc.",
     columns: {
@@ -16,7 +18,7 @@ config {
         registration_window_day: "Number of days within registration window that this date is since the registration_year_start_date, counting registration_year_start_date as day 1.",
         registration_window_week: "Week of registration window that this date falls within, treating the registration_year_start_date as day 1 of week 1.",
         registration_window_month: "Month of registration window that this date falls within, treating the registration_year_start_date as day 1 of month 1.",
-        number_of_live_ects_baseline_estimate: "Best available actual or estimated number of live ECTs (according to RIAB) to use as a baseline in the registration window that date falls within. Live is defined as having induction recorded in RIAB where the period between the start and end dates overlaps with the first academic year that starts after the registration window begins. To act as a baseline across a range of KPIs. Note that these KPIs should be defined with the baseline (denominator) applying to the whole registration window, even if the numerator applies only to a particular day, week, month etc. For the current registration window, data is not complete enough until late October, so this is set to the value from the previous registration window until 1st November.",
+        number_of_live_ects_baseline_estimate: "Best available actual or estimated number of live ECTs (according to RIAB) to use as a baseline in the registration window that date falls within. Live is defined as having induction recorded in RIAB where the period between the start and end dates overlaps with the first academic year that starts after the registration window begins. To act as a baseline across a range of KPIs. Note that these KPIs should be defined with the baseline (denominator) applying to the whole registration window, even if the numerator applies only to a particular day, week, month etc. RIAB data is used because it has significantly higher data quality than Manage. For the current registration window, data is not complete enough until late October, so this is set to the value from the previous registration window until 1st November.",
     }
 }
 
@@ -59,9 +61,9 @@ WITH
     ALL )
 SELECT
   date,
-  DATE_DIFF(date, registration_window_start_date, DAY) + 1 AS registration_window_day,
-  DATE_DIFF(date, registration_window_start_date, WEEK) + 1 AS registration_window_week,
-  DATE_DIFF(date, registration_window_start_date, MONTH) + 1 AS registration_window_month,
+  DATE_DIFF(date, registration_windows_with_metrics.registration_window_start_date, DAY) + 1 AS registration_window_day,
+  DATE_DIFF(date, registration_windows_with_metrics.registration_window_start_date, WEEK) + 1 AS registration_window_week,
+  DATE_DIFF(date, registration_windows_with_metrics.registration_window_start_date, MONTH) + 1 AS registration_window_month,
   registration_windows_with_metrics.registration_window_string,
   registration_windows_with_metrics.registration_window_year,
   registration_windows_with_metrics.registration_window_start_date,
@@ -69,14 +71,24 @@ SELECT
   registration_windows_with_metrics.academic_year_start_date,
   registration_windows_with_metrics.academic_year_end_date,
   CASE
-    WHEN (CURRENT_DATE BETWEEN registration_window_start_date AND registration_window_end_date OR (CURRENT_DATE >= registration_windows_with_metrics.registration_window_start_date AND registration_windows_with_metrics.registration_window_end_date IS NULL)) AND CURRENT_DATE < DATE(EXTRACT(YEAR FROM CURRENT_DATE), 11, 1) THEN LAG(registration_windows_with_metrics.number_of_live_ects_in_registration_window_ay) OVER (PARTITION BY DATE_DIFF(date, registration_windows_with_metrics.registration_window_start_date, DAY) + 1 ORDER BY date ASC)
+    WHEN
+        /* When date is in the current registration window */
+        (CURRENT_DATE BETWEEN registration_window_start_date AND registration_window_end_date
+        OR (
+            CURRENT_DATE >= registration_windows_with_metrics.registration_window_start_date
+            AND registration_windows_with_metrics.registration_window_end_date IS NULL
+            )
+        )
+        /* And when it's not yet 1st November in the current calendar year */
+        AND CURRENT_DATE < DATE(EXTRACT(YEAR FROM CURRENT_DATE), 11, 1)
+        THEN LAG(registration_windows_with_metrics.number_of_live_ects_in_registration_window_ay) OVER (PARTITION BY DATE_DIFF(date, registration_windows_with_metrics.registration_window_start_date, DAY) + 1 ORDER BY date ASC)
     ELSE registration_windows_with_metrics.number_of_live_ects_in_registration_window_ay
 END
   AS number_of_live_ects_baseline_estimate
 FROM
   UNNEST(GENERATE_DATE_ARRAY((
       SELECT
-        MIN(registration_window_start_date)
+        MIN(registration_windows.registration_window_start_date)
       FROM
         registration_windows), CURRENT_DATE - 1)) AS date
 LEFT JOIN
