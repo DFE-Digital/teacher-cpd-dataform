@@ -2,7 +2,7 @@ config {
     type: "table",
     bigquery: {
         partitionBy: "DATE(occurred_at)",
-        clusterBy: ["request_method", "cpd_lead_provider_id", "response_status"]
+        clusterBy: ["request_method", "lp_name", "response_status"]
     },
     description: "This mart produces a table outlining all API calls that have been made by Lead Providers in the ECF1 production environment. It uses the ECF1 custom events to outline response statuses of those calls to help identify Providers who are causing a large number of errors. The final output feeds into the CPD- API Monitoring dashboard.",
     columns: {
@@ -13,7 +13,6 @@ config {
         request_path: "The endpoint that is being accessed.",
         request_query: "Populated by any filters used when making a GET call.",
         response_status: "The code associated with the API call. Any non-200 response status is an error.",
-        cpd_led_provider_id: "The ID of the Lead Provider making the API call/",
         lp_name: "Name of the Lead Provider making the API call sourced from the description provided in the API event.",
         request_body: "Details the call made by the Lead Provider.",
         response_body: "Details the API response. Usually populated if there are any errors with the API call being made."
@@ -29,7 +28,6 @@ SELECT
   request_path,
   request_query,
   response_status,
-  cpd_lead_provider_id,
   REPLACE(user_description,"CPD lead provider: ","") as lp_name,
   request_body,
   response_body
