@@ -1,0 +1,117 @@
+config {
+    type: "incremental",
+    tags: ["kpi"],
+    assertions: {
+      uniqueKey: ["date"]
+    },
+    bigquery: {
+        partitionBy: "date",
+        labels: {usage: "kpi"}
+    },
+    description: "Single-dimension cube (by date) containing aggregable ECF1 registration journey completion metrics (number of journey starts, completion & total time between start and completion). To enable calculation of completion rate KPI.",
+    columns: {
+        date: "Date for which these metrics have been calculated",
+        registration_window_start_date: "The first date in the registration window date falls within",
+        registration_window_year: "Calendar year (as an integer) that registration_window_start_date falls within",
+        registration_window_string: "Registration window formatted as e.g. 2032-33 for display purposes",
+        registration_window_day: "Number of days within registration window that this date is since the registration_window_start_date, counting registration_window_start_date as day 1.",
+        registration_window_week: "Week of registration window that this date falls within, treating the registration_window_start_date as day 1 of week 1.",
+        registration_window_month: "Month of registration window that this date falls within, treating the registration_window_start_date as day 1 of month 1.",
+        number_of_users_who_started_registration_journeys: "Number of ECT or mentor registration journeys that an authenticated user started on date. A start is defined as visiting the page where a SIT selects whether their school expects any new ECTs this academic year, or the page after clicking the 'Add' new participant button i.e. a view of /schools/[grouped]/cohorts/[grouped]/setup or /schools/[grouped]/participants/who that returned an HTTP 2xx response. Views of initial pages providing details of what information a user will need to provide are not counted as starts to ensure this KPI incentivises iterations of these pages to discourage starts when users are not yet ready to complete registration.",
+        number_of_users_who_completed_registration_journeys_later_that_day: "Number of ECT or mentor registration journeys that an authenticated user completed on date. A completion is defined as viewing the registration completion or transfer completion pages, or confirming that they have notified DfE that they do not expect to have any ECTs in this registration period i.e. a view of /schools/[grouped]/participants/add/complete or /schools/[grouped]/participants/transfer/complete that returned an HTTP 2xx response."
+    }
+}
+
+WITH
+  pageviews AS (
+  SELECT
+    occurred_at,
+    DATE(occurred_at) AS occurred_on,
+    request_user_id AS user_id,
+    ${functions.contentGroupPath("request_path")} AS path
+  FROM
+    ${ref(`events_ecf1`)}
+  WHERE
+    response_status LIKE "2%"
+    AND DATE(occurred_at) < CURRENT_DATE
+    AND DATE(occurred_at) > event_date_checkpoint ),
+  registration_journeys AS (
+  SELECT
+    occurred_on,
+    user_id,
+    MIN(
+    IF
+      (path IN (
+        /* Page *after* a SIT clicks 'Continue' on the page that tells them what this journey is for and the information they will need to provide.*/
+        /* We are starting the journey here because an exit from the previous page (because a user realises they do not need to start the journey at all) is a success of sorts */
+        "/schools/[grouped]/cohorts/[grouped]/setup/expect-any-ects",
+        /* Start of participant registration journey for a school which already has cohort set up. This page asks them whether they want to register an ECT or a Mentor. */
+        "/schools/[grouped]/participants/who"
+        ), occurred_at, NULL)) AS first_started_registration_journey_on_this_date_at,
+    ARRAY_AGG(
+    IF
+      (path IN (
+          /* A SIT finished adding a new participant */
+          "/schools/[grouped]/participants/add/complete",
+          /* A SIT finished transferring a participant */
+          "/schools/[grouped]/participants/transfer/complete",
+          /* A SIT finished the journey by telling us that they do not expect to have ECTs this registration window, reducing the comms we then send them */
+          "/schools/[grouped]/cohorts/[grouped]/setup/no-expected-ects"), occurred_at, NULL) IGNORE NULLS) AS completed_registration_journey_on_this_date_ats
+  FROM
+    pageviews
+  GROUP BY
+    ALL
+  HAVING
+    first_started_registration_journey_on_this_date_at IS NOT NULL),
+  registration_journeys_with_first_completions AS (
+  SELECT
+    occurred_on,
+    user_id,
+    first_started_registration_journey_on_this_date_at,
+    (
+    SELECT
+      MIN(
+      IF
+        (completed_registration_journey_on_this_date_at > first_started_registration_journey_on_this_date_at, completed_registration_journey_on_this_date_at, NULL))
+    FROM
+      UNNEST(completed_registration_journey_on_this_date_ats) AS completed_registration_journey_on_this_date_at) AS first_completed_registration_journey_on_this_date_at
+  FROM
+    registration_journeys),
+  occurred_on_with_metrics AS (
+  SELECT
+    occurred_on,
+    COUNT(DISTINCT user_id) AS number_of_users_who_started_registration_journeys,
+    COUNT(DISTINCT
+    IF
+      (first_completed_registration_journey_on_this_date_at IS NOT NULL, user_id, NULL)) AS number_of_users_who_completed_registration_journeys_later_that_day,
+  FROM
+    registration_journeys_with_first_completions
+  GROUP BY
+    occurred_on)
+SELECT
+  date,
+  registration_window_start_date,
+  registration_window_year,
+  registration_window_string,
+  registration_window_day,
+  registration_window_week,
+  registration_window_month,
+  IFNULL(occurred_on_with_metrics.number_of_users_who_started_registration_journeys, 0) AS number_of_users_who_started_registration_journeys,
+  IFNULL(occurred_on_with_metrics.number_of_users_who_completed_registration_journeys_later_that_day, 0) AS number_of_users_who_completed_registration_journeys_later_that_day,
+FROM
+  ${ref(`ls_ecf_kpi_live_participants_baseline_cube`)} AS dates
+LEFT JOIN
+  occurred_on_with_metrics
+ON
+  dates.date = occurred_on_with_metrics.occurred_on
+
+pre_operations {
+  DECLARE
+    event_date_checkpoint DEFAULT (
+    ${
+        when(incremental(),
+            `SELECT MAX(date) FROM ${self()}`,
+            `SELECT DATE("2000-01-01")`)
+    }
+    )
+}
