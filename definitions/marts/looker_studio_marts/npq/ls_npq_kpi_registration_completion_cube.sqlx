@@ -28,14 +28,7 @@ WITH
     occurred_at,
     DATE(occurred_at) AS occurred_on,
     request_user_id AS user_id,
-    ARRAY_TO_STRING(ARRAY(
-      SELECT
-        CASE
-          WHEN (REGEXP_CONTAINS(page_path_component, "^[a-zA-Z0-9-]*[0-9][a-zA-Z0-9-]*$") AND LENGTH(page_path_component) > 3) OR REGEXP_CONTAINS(page_path_component, "^[0-9]+$") THEN "[grouped]"
-          ELSE page_path_component
-      END
-      FROM
-        UNNEST(SPLIT(request_path, "/")) AS page_path_component ), "/", "") AS path
+    ${functions.contentGroupPath("request_path")} AS path
   FROM
     ${ref(`events_npq`)}
   WHERE
@@ -118,7 +111,7 @@ SELECT
   EXTRACT(YEAR
   FROM
     registration_year_start_date) AS registration_year,
-  FORMAT_DATE("%G", registration_year_start_date) || '-' || FORMAT_DATE("%g", DATE_ADD(registration_year_start_date, INTERVAL 1 YEAR)) AS registration_year_string,
+  ${functions.yearStartDateToAcademicYearString("registration_year_start_date")} AS registration_year_string,
   DATE_DIFF(date, registration_year_start_date, DAY) + 1 AS registration_year_day,
   DATE_DIFF(date, registration_year_start_date, WEEK) + 1 AS registration_year_week,
   DATE_DIFF(date, registration_year_start_date, MONTH) + 1 AS registration_year_month,
