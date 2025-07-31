@@ -17,7 +17,7 @@ config {
         registration_window_day: "Number of days within registration window that this date is since the registration_window_start_date, counting registration_window_start_date as day 1.",
         registration_window_week: "Week of registration window that this date falls within, treating the registration_window_start_date as day 1 of week 1.",
         registration_window_month: "Month of registration window that this date falls within, treating the registration_window_start_date as day 1 of month 1.",
-        number_of_users_who_started_registration_journeys: "Number of ECT or mentor registration journeys that an authenticated user started on date. A start is defined as visiting the page where a SIT selects whether their school expects any new ECTs this academic year, or the page after clicking the 'Add' new participant button i.e. a view of /schools/[grouped]/cohorts/[grouped]/setup or /schools/[grouped]/participants/who that returned an HTTP 2xx response. Views of initial pages providing details of what information a user will need to provide are not counted as starts to ensure this KPI incentivises iterations of these pages to discourage starts when users are not yet ready to complete registration.",
+        number_of_users_who_started_registration_journeys: "Number of ECT or mentor registration journeys that an authenticated user started on date. A start is defined as visiting the page where a SIT selects whether their school expects any new ECTs this academic year, or the page after clicking the 'Add' new participant button, choosing ECT or Mentor and then clicking 'Continue' after being presented with a list of the information we will need from them  i.e. a view of /schools/[grouped]/cohorts/[grouped]/setup or /schools/[grouped]/participants/who/name that returned an HTTP 2xx response. Views of initial pages providing details of what information a user will need to provide are not counted as starts to ensure this KPI incentivises iterations of these pages to discourage starts when users are not yet ready to complete registration.",
         number_of_users_who_completed_registration_journeys_later_that_day: "Number of ECT or mentor registration journeys that an authenticated user completed on date. A completion is defined as viewing the registration completion or transfer completion pages, or confirming that they have notified DfE that they do not expect to have any ECTs in this registration period i.e. a view of /schools/[grouped]/participants/add/complete or /schools/[grouped]/participants/transfer/complete that returned an HTTP 2xx response."
     }
 }
@@ -45,8 +45,8 @@ WITH
         /* Page *after* a SIT clicks 'Continue' on the page that tells them what this journey is for and the information they will need to provide.*/
         /* We are starting the journey here because an exit from the previous page (because a user realises they do not need to start the journey at all) is a success of sorts */
         "/schools/[grouped]/cohorts/[grouped]/setup/expect-any-ects",
-        /* Start of participant registration journey for a school which already has cohort set up. This page asks them whether they want to register an ECT or a Mentor. */
-        "/schools/[grouped]/participants/who"
+        /* Start of participant registration journey for a school which already has cohort set up. This is the page *after* the SIT is told what information we need from them. It asks them the name of the participant. */
+        "/schools/[grouped]/participants/who/name"
         ), occurred_at, NULL)) AS first_started_registration_journey_on_this_date_at,
     ARRAY_AGG(
     IF
