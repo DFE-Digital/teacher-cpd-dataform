@@ -1,6 +1,6 @@
 config {
   type: "assertion",
-  description: "If this assertion fails then the itt_mentor_claims table contains an unexpected ITT mentor claim status from the ITT mentor service.\nTo fix liaise with the ITT team to define the new statuses and determine whether they should be included. Then add permissable claim statuses to the SQL logic and identify excluded statuses in the corresponding code comments in mentors_and_providers_itt_ecf_combined.sqlx. Finally, add the new status and definition to the expected status list in this assertion."
+  description: "If this assertion fails then the itt_mentor_claims table contains an unexpected ITT mentor claim status from the ITT mentor service.\nTo fix, liaise with the ITT team to define the new statuses and determine whether they should be included. Then add permissable claim statuses to the SQL logic and identify excluded statuses in the corresponding code comments in mentors_and_providers_itt_ecf_combined.sqlx. Finally, add the new status and definition to the expected status list in this assertion."
 }
 
 SELECT
