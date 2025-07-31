@@ -21,6 +21,7 @@ const tableNames = [
     "partnerships_field_updates",
     "partnerships_latest",
     "partnerships_version",
+    "persist_api_request",
     "pupil_premiums_latest",
     "schedules_latest",
     "school_cohorts_latest",
