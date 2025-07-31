@@ -104,6 +104,8 @@ LEFT JOIN
   occurred_on_with_metrics
 ON
   dates.date = occurred_on_with_metrics.occurred_on
+WHERE
+  dates.date > event_date_checkpoint
 
 pre_operations {
   DECLARE
