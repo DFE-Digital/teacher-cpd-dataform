@@ -7,7 +7,7 @@ config {
     },
     description: "This mart calculates the number of tickets received on a given day, which have been classified by the support_ticket_classification mart. For each day in between 2024-01-01 and the current date, it counts each metric grouped by both programme_type and classification. The mart is specifically designed to support the CPD Programme Support Ticket Volumes dashboard and track performance through support ticket volumes. It utilises a cube architecture to enable the calculation of key performance indicators (KPIs) specific to support tickets. In cases where tickets cannot be classified due to poor or missing data, they are proportionally assigned to the ECTE and NPQ categories to ensure that no historical data is lost.",
     columns: {
-        created_at: "Date and time of that this ticket was logged in Zendesk.",
+        created_at: "Date and time of that tickets counted in these metrics were logged in Zendesk.",
         programme_type: "A calculated field which indicates which programme the ticket belongs to. Possible values: ECTE, NPQ or Triage",
         classification: "The derived classification for the ticket. Possible values: CPD - ECTE, ECTE - Funding, NPQ - Get a TRN, ECTE - Induction and AB, CPD - NPQ, NPQ - Funding, CPD - Triage. Tickets marked as 'Unclassifiable - bad data' cannot be classified with the data available from Zendesk or the migrated subject.",
         ticket_count: "The number of tickets received on a given day, grouped by programme_type and classification.",
