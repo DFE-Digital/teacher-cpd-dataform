@@ -1,11 +1,13 @@
 config {
     type: "table",
+    tags: ["kpi"],
     bigquery: {
         partitionBy: "created_at",
+        labels: {usage: "kpi"}
     },
     description: "This mart calculates the number of tickets received on a given day, which have been classified by the support_ticket_classification mart. For each day in between 2024-01-01 and the current date, it counts each metric grouped by both programme_type and classification. The mart is specifically designed to support the CPD Programme Support Ticket Volumes dashboard and track performance through support ticket volumes. It utilises a cube architecture to enable the calculation of key performance indicators (KPIs) specific to support tickets. In cases where tickets cannot be classified due to poor or missing data, they are proportionally assigned to the ECTE and NPQ categories to ensure that no historical data is lost.",
     columns: {
-        created_at: "Date and time of that this ticket was logged in Zendesk.",
+        created_at: "Date and time of that tickets counted in these metrics were logged in Zendesk.",
         programme_type: "A calculated field which indicates which programme the ticket belongs to. Possible values: ECTE, NPQ or Triage",
         classification: "The derived classification for the ticket. Possible values: CPD - ECTE, ECTE - Funding, NPQ - Get a TRN, ECTE - Induction and AB, CPD - NPQ, NPQ - Funding, CPD - Triage. Tickets marked as 'Unclassifiable - bad data' cannot be classified with the data available from Zendesk or the migrated subject.",
         ticket_count: "The number of tickets received on a given day, grouped by programme_type and classification.",
@@ -14,7 +16,15 @@ config {
         tickets_reply_outside_sla_count: "The number of tickets received on a given day that were replied to outside of SLA period (SLA = 5 days), grouped by programme_type and classification.",
         tickets_escalated_2nd_line_count: "The number of tickets received on a given day that were escalated to 2nd line support, grouped by programme_type and classification.",
         tickets_escalated_3rd_line_count: "The number of tickets received on a given day that were escalated to 3rd line support, grouped by programme_type and classification.",
-        bad_ticket_count: "The number of tickets received on a given that that either were reopened, the first reply was ouside of SLA or escalated to the 2nd line of support."
+        bad_ticket_count: "The number of tickets received on a given that that either were reopened, the first reply was ouside of SLA or escalated to the 2nd line of support.",
+        ecte_registration_window_start_date: "The first date in the ECTE registration year date was in",
+        ecte_registration_window_end_date: "The last date in the ECTE registration window date was in. NULL if the current window and the cohort for the next has not yet been created in Manage.",
+        ecte_registration_window_string: "ECTE registration window date falls within formatted as e.g. 2032-33 for display purposes",
+        ecte_registration_window: "Calendar year in which ECTE registration window date falls within starts e.g. 2032 for the 2032-33 registration window",
+        ecte_registration_window_day: "Number of days within ECTE registration window that this date is since the ecte_registration_year_start_date, counting registration_year_start_date as day 1.",
+        ecte_registration_window_week: "Week of registration window that this date falls within, treating the ecte_registration_year_start_date as day 1 of week 1.",
+        ecte_registration_window_month: "Month of registration window that this date falls within, treating the ecte_registration_year_start_date as day 1 of month 1.",
+        number_of_live_ects_baseline_estimate: "Best available actual or estimated number of live ECTs (according to RIAB) to use as a baseline in the ECTE registration window that date falls within. Live is defined as having induction recorded in RIAB where the period between the start and end dates overlaps with the first academic year that starts after the registration window begins. To act as a baseline across a range of KPIs. Note that these KPIs should be defined with the baseline (denominator) applying to the whole registration window (i.e. as an ANY_VALUE() or AVG() aggregation, not a SUM()), even if the numerator applies only to a particular day, week, month etc. RIAB data is used because it has significantly higher data quality than Manage. For the current registration window, data is not complete enough until late October, so this is set to the value from the previous registration window until 1st November."
     }
 }
 
@@ -143,7 +153,17 @@ SELECT
   IFNULL(tickets_reply_outside_sla_count, 0.0) AS tickets_reply_outside_sla_count,
   IFNULL(tickets_escalated_2nd_line_count, 0.0) AS tickets_escalated_2nd_line_count,
   IFNULL(tickets_escalated_3rd_line_count, 0.0) AS tickets_escalated_3rd_line_count,
-  IFNULL(bad_ticket_count, 0.0) AS bad_ticket_count
+  IFNULL(bad_ticket_count, 0.0) AS bad_ticket_count,
+  ecf_baseline_cube.registration_window_day AS ecte_registration_window_day,
+  ecf_baseline_cube.registration_window_week AS ecte_registration_window_week,
+  ecf_baseline_cube.registration_window_month AS ecte_registration_window_month,
+  ecf_baseline_cube.registration_window_string AS ecte_registration_window_string,
+  ecf_baseline_cube.registration_window_year AS ecte_registration_window_year,
+  ecf_baseline_cube.registration_window_start_date AS ecte_registration_window_start_date,
+  ecf_baseline_cube.registration_window_end_date AS ecte_registration_window_end_date,
+  ecf_baseline_cube.academic_year_start_date AS ecte_academic_year_start_date,
+  ecf_baseline_cube.academic_year_end_date AS ecte_academic_year_end_date,
+  ecf_baseline_cube.number_of_live_ects_baseline_estimate AS number_of_live_ects_baseline_estimate 
 FROM
   dates,
   programme_types,
@@ -154,3 +174,6 @@ USING
   (created_at,
     programme_type,
     classification)
+LEFT JOIN
+  ${ref(`ls_ecf_kpi_live_participants_baseline_cube`)} AS ecf_baseline_cube
+  ON dates.created_at = ecf_baseline_cube.date
