@@ -11,13 +11,13 @@ config {
     description: "Single-dimension cube (by date) containing the best available actual or estimated number of live NPQ participants and applicants to use as a baseline in the registration window that date falls within. To act as a baseline across a range of KPIs. Note that these KPIs should be defined with the baseline (denominator) applying to the whole registration window, even if the numerator applies only to a particular day, week, month etc.",
     columns: {
         date: "Date for which this baseline metric has been calculated",
-        registration_window_start_date: "The first date in the registration year date was in",
-        registration_window_end_date: "The last date in the registration window date was in. NULL if the next registration window has not yet been added to the query that generates this table.",
+        registration_window_start_date: "The first date in the registration window this date falls within",
+        registration_window_end_date: "The last date in the registration window this date falls within. NULL if the next registration window has not yet been added to the query that generates this table.",
         registration_window_string: "Registration window date falls within formatted as e.g. 2032-33 for display purposes",
-        registration_window: "Calendar year in which registration window date falls within starts e.g. 2032 for the 2032-33 registration window",
+        registration_window: "Calendar year registration_window_start_date falls within e.g. 2032 for the 2032-33 registration window",
         registration_window_day: "Number of days within registration window that this date is since the registration_year_start_date, counting registration_year_start_date as day 1.",
         registration_window_week: "Week of registration window that this date falls within, treating the registration_year_start_date as day 1 of week 1.",
-        registration_window_month: "Month of registration window that this date falls within, treating the registration_year_start_date as day 1 of month 1.",
+        registration_window_month: "Month of registration window that this date falls within, treating the registration_year_start_date as day 1 of month 1. An integer. For example, if a registration window started on Dec 25th 2056, Dec 27th 2056 falls in month 1, Jan 5th 2056 falls in month 1, Jan 25th 2057 falls in month 2 etc.",
         number_of_live_npq_participants_and_applicants_baseline_estimate: "Best available actual or estimated number of live NPQ participants or applicants to use as a baseline in the registration window that date falls within. Live is defined as the period between the start declaration date and assumed no longer live date overlapping with the first academic year that starts after the registration window begins. To act as a baseline across a range of KPIs. Note that these KPIs should be defined with the baseline (denominator) applying to the whole registration window, even if the numerator applies only to a particular day, week, month etc. For the current registration window, data is not complete enough until late March, so this is set to the value from the previous registration window until 1st January.",
     }
 }
