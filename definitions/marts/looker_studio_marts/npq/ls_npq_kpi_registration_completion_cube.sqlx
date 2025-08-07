@@ -11,12 +11,12 @@ config {
     description: "Single-dimension cube (by date) containing aggregable NPQ registration journey completion metrics (number of journey starts, completion & total time between start and completion). To enable calculation of completion rate KPI.",
     columns: {
         date: "Date for which these metrics have been calculated",
-        registration_year_start_date: "The first date in the registration year date was in",
-        registration_year: "Calendar year (as an integer) that registration_year_start_date falls within",
-        registration_year_string: "registration_year formatted as e.g. 2032-33 for display purposes",
-        registration_year_day: "Number of days within registration_year that this date is since the registration_year_start_date, counting registration_year_start_date as day 1.",
-        registration_year_week: "Week of registration_year that this date falls within, treating the registration_year_start_date as day 1 of week 1.",
-        registration_year_month: "Month of registration_year that this date falls within, treating the registration_year_start_date as day 1 of month 1.",
+        registration_window_start_date: "The first date in the registration window date falls within",
+        registration_window_year: "Calendar year (as an integer) that registration_window_start_date falls within",
+        registration_window_string: "Registration window formatted as e.g. 2032-33 for display purposes",
+        registration_window_day: "Number of days within registration window that this date is since the registration_window_start_date, counting registration_window_start_date as day 1.",
+        registration_window_week: "Week of registration window that this date falls within, treating the registration_window_start_date as day 1 of week 1.",
+        registration_window_month: "Month of registration window that this date falls within, treating the registration_window_start_date as day 1 of month 1.",
         number_of_users_who_started_registration_journeys: "Number of registration journeys that an authenticated user started on date. A start is defined as a view of /registration/teacher-reference-number, /registration/course-start-date or /registration/provider-check that returned an HTTP 2xx response.",
         number_of_users_who_completed_registration_journeys_later_that_day: "Number of registration journeys that an authenticated user completed on date. A completion is defined as a view of /accounts/user_registrations/[grouped] that returned an HTTP 2xx response."
     }
@@ -83,46 +83,25 @@ WITH
   FROM
     registration_journeys_with_first_completions
   GROUP BY
-    occurred_on),
-  registration_windows AS (
-  SELECT
-    DATE(registration_start_date) AS registration_year_start_date,
-    LEAD(DATE(registration_start_date)) OVER (ORDER BY registration_start_date ASC) - 1 AS registration_year_end_date
-  FROM
-    ${ref(`cohorts_latest_npq`)} AS cohort
-  WHERE
-    DATE(registration_start_date) < CURRENT_DATE ),
-  dates AS (
-  SELECT
-    date,
-    registration_year_start_date
-  FROM
-    UNNEST(GENERATE_DATE_ARRAY("2023-09-19", CURRENT_DATE - 1)) AS date,
-    registration_windows
-  WHERE
-    date > event_date_checkpoint
-    AND ((date BETWEEN registration_year_start_date
-        AND registration_year_end_date)
-      OR (date >= registration_year_start_date
-        AND registration_year_end_date IS NULL)) )
+    occurred_on)
 SELECT
   date,
-  registration_year_start_date,
-  EXTRACT(YEAR
-  FROM
-    registration_year_start_date) AS registration_year,
-  ${functions.yearStartDateToAcademicYearString("registration_year_start_date")} AS registration_year_string,
-  DATE_DIFF(date, registration_year_start_date, DAY) + 1 AS registration_year_day,
-  DATE_DIFF(date, registration_year_start_date, WEEK) + 1 AS registration_year_week,
-  DATE_DIFF(date, registration_year_start_date, MONTH) + 1 AS registration_year_month,
+  registration_window_start_date,
+  registration_window_year,
+  registration_window_string,
+  registration_window_day,
+  registration_window_week,
+  registration_window_month,
   IFNULL(occurred_on_with_metrics.number_of_users_who_started_registration_journeys, 0) AS number_of_users_who_started_registration_journeys,
   IFNULL(occurred_on_with_metrics.number_of_users_who_completed_registration_journeys_later_that_day, 0) AS number_of_users_who_completed_registration_journeys_later_that_day,
 FROM
-  dates
+  ${ref("ls_npq_kpi_live_participants_baseline_cube")} AS dates
 LEFT JOIN
   occurred_on_with_metrics
 ON
   dates.date = occurred_on_with_metrics.occurred_on
+WHERE
+  dates.date > event_date_checkpoint
 
 pre_operations {
   DECLARE
