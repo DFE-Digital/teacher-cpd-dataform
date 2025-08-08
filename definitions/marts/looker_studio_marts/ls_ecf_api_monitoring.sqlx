@@ -1,0 +1,53 @@
+config {
+    type: "table",
+    bigquery: {
+        partitionBy: "DATE(occurred_at)",
+        clusterBy: ["api_request_method", "lp_name", "status_code"]
+    },
+    description: "This mart produces a table outlining all API calls that have been made by Lead Providers to an ECF API Environment - either to a testing or production environment across the Manage Trainng or RECT service. It uses the persist custom events to categorise the API calls and outline response statuses of those calls to help identify Providers who are causing a large number of errors. The final output feeds into the CPD- API Monitoring dashboard.",
+    columns: {
+        occurred_at: "Timestamp of when the API call was made.",
+        request_user_id: "User ID of the Lead Provider making the API call.",
+        request_uuid: "ID of individual request.",
+        api_request_method: "Method for calling the API. Can be GET, POST, or PUT.",
+        api_request_path: "The endpoint that is being accessed.",
+        api_request_path_grouped: "The endpoint that was called stripped of unique ids included in the api_request_path. This enables api_request_paths to be grouped",
+        status_code: "The code associated with the API call. Any non-200 response status is an error.",
+        lp_name: "Name of the Lead Provider making the API call sourced from the description provided in the API event.",
+        request_body: "Details the call made by the Lead Provider.",
+        response_body: "Details the API response. Usually populated if there are any errors with the API call being made.",
+        api_environment: "The API environment that is being called. Potential values are 'Manage Training - Production' (The live production environment for the Manage Training for Early Careers service), 'Manage Training - Sandbox' (The testing sandbox environment for the Manage Training for Early Careers service)"
+    }
+}
+
+SELECT
+  DISTINCT
+  occurred_at,
+  request_user_id,
+  request_uuid,
+  api_request_method,
+  api_request_path,
+  ${functions.contentGroupPath("api_request_path")} AS api_request_path_grouped,
+  status_code,
+  REPLACE(user_description,"CPD lead provider: ","") as lp_name,
+  request_body,
+  response_body,
+  'Manage Training - Production' as api_environment
+FROM
+  ${ref('persist_api_request_ecf1')}
+UNION ALL
+SELECT
+  DISTINCT
+  occurred_at,
+  request_user_id,
+  request_uuid,
+  api_request_method,
+  api_request_path,
+  ${functions.contentGroupPath("api_request_path")} AS request_path_grouped,
+  status_code,
+  REPLACE(user_description,"CPD lead provider: ","") as lp_name,
+  request_body,
+  response_body,
+  'Manage Training - Sandbox' as api_environment
+FROM
+  ${ref('persist_api_request_ecf1_sandbox')}
