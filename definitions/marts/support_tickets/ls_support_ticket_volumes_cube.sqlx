@@ -17,14 +17,21 @@ config {
         tickets_escalated_2nd_line_count: "The number of tickets received on a given day that were escalated to 2nd line support, grouped by programme_type and classification.",
         tickets_escalated_3rd_line_count: "The number of tickets received on a given day that were escalated to 3rd line support, grouped by programme_type and classification.",
         bad_ticket_count: "The number of tickets received on a given that that either were reopened, the first reply was ouside of SLA or escalated to the 2nd line of support.",
-        ecte_registration_window_start_date: "The first date in the ECTE registration year date was in",
-        ecte_registration_window_end_date: "The last date in the ECTE registration window date was in. NULL if the current window and the cohort for the next has not yet been created in Manage.",
+        ecte_registration_window_start_date: "The first date in the ECTE registration window this date falls within",
         ecte_registration_window_string: "ECTE registration window date falls within formatted as e.g. 2032-33 for display purposes",
-        ecte_registration_window: "Calendar year in which ECTE registration window date falls within starts e.g. 2032 for the 2032-33 registration window",
-        ecte_registration_window_day: "Number of days within ECTE registration window that this date is since the ecte_registration_year_start_date, counting registration_year_start_date as day 1.",
-        ecte_registration_window_week: "Week of registration window that this date falls within, treating the ecte_registration_year_start_date as day 1 of week 1.",
-        ecte_registration_window_month: "Month of registration window that this date falls within, treating the ecte_registration_year_start_date as day 1 of month 1.",
-        number_of_live_ects_baseline_estimate: "Best available actual or estimated number of live ECTs (according to RIAB) to use as a baseline in the ECTE registration window that date falls within. Live is defined as having induction recorded in RIAB where the period between the start and end dates overlaps with the first academic year that starts after the registration window begins. To act as a baseline across a range of KPIs. Note that these KPIs should be defined with the baseline (denominator) applying to the whole registration window (i.e. as an ANY_VALUE() or AVG() aggregation, not a SUM()), even if the numerator applies only to a particular day, week, month etc. RIAB data is used because it has significantly higher data quality than Manage. For the current registration window, data is not complete enough until late October, so this is set to the value from the previous registration window until 1st November."
+        ecte_registration_window: "Calendar year ecte_registration_window_start_date falls within e.g. 2032 for the 2032-33 registration window",
+        ecte_registration_window_day: "Number of days within ECTE registration window that this date is since the ecte_registration_year_start_date, counting ecte_registration_year_start_date as day 1.",
+        ecte_registration_window_week: "Week of ECTE registration window that this date falls within, treating the ecte_registration_year_start_date as day 1 of week 1.",
+        ecte_registration_window_month: "Month of ECTE registration window that this date falls within, treating the ecte_registration_year_start_date as day 1 of month 1. An integer. For example, if an ECTE registration window started on Dec 25th 2056, Dec 27th 2056 falls in month 1, Jan 5th 2056 falls in month 1, Jan 25th 2057 falls in month 2 etc.",
+        number_of_live_ects_baseline_estimate: "Best available actual or estimated number of live ECTs (according to RIAB) to use as a baseline in the ECTE registration window that date falls within. Live is defined as having induction recorded in RIAB where the period between the start and end dates overlaps with the first academic year that starts after the registration window begins. To act as a baseline across a range of KPIs. Note that these KPIs should be defined with the baseline (denominator) applying to the whole registration window (i.e. as an ANY_VALUE() or AVG() aggregation, not a SUM()), even if the numerator applies only to a particular day, week, month etc. RIAB data is used because it has significantly higher data quality than Manage. For the current registration window, data is not complete enough until late October, so this is set to the value from the previous registration window until 1st November.",
+        npq_registration_window_start_date: "The first date in the NPQ registration window this date falls within",
+        npq_registration_window_end_date: "The last date in the NPQ registration window date was in. NULL if the current window and the cohort for the next has not yet been created in the query that powers this field.",
+        npq_registration_window_string: "NPQ registration window date falls within formatted as e.g. 2032-33 for display purposes",
+        npq_registration_window: "Calendar year npq_registration_window_start_date falls within e.g. 2032 for the 2032-33 registration window",
+        npq_registration_window_day: "Number of days within NPQ registration window that this date is since the npq_registration_year_start_date, counting npq_registration_year_start_date as day 1.",
+        npq_registration_window_week: "Week of NPQ registration window that this date falls within, treating the npq_registration_year_start_date as day 1 of week 1.",
+        npq_registration_window_month: "Month of NPQ registration window that this date falls within, treating the npq_registration_year_start_date as day 1 of month 1. An integer. For example, if an NPQ registration window started on Dec 25th 2056, Dec 27th 2056 falls in month 1, Jan 5th 2056 falls in month 1, Jan 25th 2057 falls in month 2 etc.",
+        number_of_live_npq_participants_and_applicants_baseline_estimate: "Best available actual or estimated number of live NPQ participants or applicants to use as a baseline in the registration window that date falls within. Live is defined as the period between the start declaration date and assumed no longer live date overlapping with the first academic year that starts after the registration window begins. To act as a baseline across a range of KPIs. Note that these KPIs should be defined with the baseline (denominator) applying to the whole registration window, even if the numerator applies only to a particular day, week, month etc. For the current registration window, data is not complete enough until late March, so this is set to the value from the previous registration window until 1st January."
     }
 }
 
@@ -163,7 +170,17 @@ SELECT
   ecf_baseline_cube.registration_window_end_date AS ecte_registration_window_end_date,
   ecf_baseline_cube.academic_year_start_date AS ecte_academic_year_start_date,
   ecf_baseline_cube.academic_year_end_date AS ecte_academic_year_end_date,
-  ecf_baseline_cube.number_of_live_ects_baseline_estimate AS number_of_live_ects_baseline_estimate 
+  ecf_baseline_cube.number_of_live_ects_baseline_estimate AS number_of_live_ects_baseline_estimate,
+  npq_baseline_cube.registration_window_day AS npq_registration_window_day,
+  npq_baseline_cube.registration_window_week AS npq_registration_window_week,
+  npq_baseline_cube.registration_window_month AS npq_registration_window_month,
+  npq_baseline_cube.registration_window_string AS npq_registration_window_string,
+  npq_baseline_cube.registration_window_year AS npq_registration_window_year,
+  npq_baseline_cube.registration_window_start_date AS npq_registration_window_start_date,
+  npq_baseline_cube.registration_window_end_date AS npq_registration_window_end_date,
+  npq_baseline_cube.academic_year_start_date AS npq_academic_year_start_date,
+  npq_baseline_cube.academic_year_end_date AS npq_academic_year_end_date,
+  npq_baseline_cube.number_of_live_npq_participants_and_applicants_baseline_estimate AS number_of_live_npq_participants_and_applicants_baseline_estimate 
 FROM
   dates,
   programme_types,
@@ -177,3 +194,6 @@ USING
 LEFT JOIN
   ${ref(`ls_ecf_kpi_live_participants_baseline_cube`)} AS ecf_baseline_cube
   ON dates.created_at = ecf_baseline_cube.date
+LEFT JOIN
+  ${ref(`ls_npq_kpi_live_participants_baseline_cube`)} AS npq_baseline_cube
+  ON dates.created_at = npq_baseline_cube.date
