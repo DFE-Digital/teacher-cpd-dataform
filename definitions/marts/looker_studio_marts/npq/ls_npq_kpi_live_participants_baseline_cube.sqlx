@@ -18,6 +18,8 @@ config {
         registration_window_day: "Number of days within registration window that this date is since the registration_year_start_date, counting registration_year_start_date as day 1.",
         registration_window_week: "Week of registration window that this date falls within, treating the registration_year_start_date as day 1 of week 1.",
         registration_window_month: "Month of registration window that this date falls within, treating the registration_year_start_date as day 1 of month 1. An integer. For example, if a registration window started on Dec 25th 2056, Dec 27th 2056 falls in month 1, Jan 5th 2056 falls in month 1, Jan 25th 2057 falls in month 2 etc.",
+        date_is_in_registration_window_to_date_or_past_registration_window: "TRUE if either date is between the start date of the current registration window and today's date, or if date falls within a registration window that ended on a past date. For use to filter metrics on dashboards which are calculated for the 'registration window to date'.",
+        date_is_comparable_to_next_registration_window_to_date: "TRUE if the date with the same registration_window_day in the next registration window is between the start date of the current registration window and today's date, or if that date falls within a registration window that ended on a past date. For use to filter metrics on dashboards which are calculated for the 'registration window to date' and then compared with the 'same period last registration window'.",
         number_of_live_npq_participants_and_applicants_baseline_estimate: "Best available actual or estimated number of live NPQ participants or applicants to use as a baseline in the registration window that date falls within. Live is defined as the period between the start declaration date and assumed no longer live date overlapping with the first academic year that starts after the registration window begins. To act as a baseline across a range of KPIs. Note that these KPIs should be defined with the baseline (denominator) applying to the whole registration window, even if the numerator applies only to a particular day, week, month etc. For the current registration window, data is not complete enough until late March, so this is set to the value from the previous registration window until 1st January.",
     }
 }
@@ -105,43 +107,61 @@ WITH
     ${ref(`npq_enrolments`)},
     registration_windows
   GROUP BY
-    ALL )
-SELECT
-  date,
-  DATE_DIFF(date, registration_windows_with_metrics.registration_window_start_date, DAY) + 1 AS registration_window_day,
-  DATE_DIFF(date, registration_windows_with_metrics.registration_window_start_date, WEEK) + 1 AS registration_window_week,
-  DATE_DIFF(date, registration_windows_with_metrics.registration_window_start_date, MONTH) + 1 AS registration_window_month,
-  registration_windows_with_metrics.registration_window_string,
-  registration_windows_with_metrics.registration_window_year,
-  registration_windows_with_metrics.registration_window_start_date,
-  registration_windows_with_metrics.registration_window_end_date,
-  registration_windows_with_metrics.academic_year_start_date,
-  registration_windows_with_metrics.academic_year_end_date,
-  CASE
-    WHEN
-        /* When date is in the current registration window */
-        (CURRENT_DATE BETWEEN registration_windows_with_metrics.registration_window_start_date AND registration_windows_with_metrics.registration_window_end_date
-        OR (
-            CURRENT_DATE >= registration_windows_with_metrics.registration_window_start_date
-            AND registration_windows_with_metrics.registration_window_end_date IS NULL
+    ALL ),
+dates_with_metrics AS (
+    SELECT
+    date,
+    DATE_DIFF(date, registration_windows_with_metrics.registration_window_start_date, DAY) + 1 AS registration_window_day,
+    DATE_DIFF(date, registration_windows_with_metrics.registration_window_start_date, WEEK) + 1 AS registration_window_week,
+    DATE_DIFF(date, registration_windows_with_metrics.registration_window_start_date, MONTH) + 1 AS registration_window_month,
+    registration_windows_with_metrics.registration_window_string,
+    registration_windows_with_metrics.registration_window_year,
+    registration_windows_with_metrics.registration_window_start_date,
+    registration_windows_with_metrics.registration_window_end_date,
+    registration_windows_with_metrics.academic_year_start_date,
+    registration_windows_with_metrics.academic_year_end_date,
+        CASE
+        WHEN
+            (CURRENT_DATE BETWEEN registration_window_start_date AND registration_windows_with_metrics.registration_window_end_date)
+            OR (registration_windows_with_metrics.registration_window_end_date IS NULL AND CURRENT_DATE >= registration_windows_with_metrics.registration_window_start_date)
+            THEN date < CURRENT_DATE
+        WHEN
+            CURRENT_DATE > registration_windows_with_metrics.registration_window_end_date
+            THEN TRUE
+        ELSE FALSE
+        END AS date_is_in_registration_window_to_date_or_past_registration_window,
+    CASE
+        WHEN
+            /* When date is in the current registration window */
+            (CURRENT_DATE BETWEEN registration_windows_with_metrics.registration_window_start_date AND registration_windows_with_metrics.registration_window_end_date
+            OR (
+                CURRENT_DATE >= registration_windows_with_metrics.registration_window_start_date
+                AND registration_windows_with_metrics.registration_window_end_date IS NULL
+                )
             )
-        )
-        /* And when it's not yet 1st January in the calendar year after the registration window started */
-        AND CURRENT_DATE < DATE(registration_windows_with_metrics.registration_window_year + 1, 1, 1)
-        THEN forecast_npq_applications_in_current_registration_window + registration_windows_with_metrics.number_of_live_npq_participants_at_start_of_registration_window_ay
-    ELSE registration_windows_with_metrics.number_of_live_npq_participants_and_applicants_in_registration_window_ay
-END
-  AS number_of_live_npq_participants_and_applicants_baseline_estimate
+            /* And when it's not yet 1st January in the calendar year after the registration window started */
+            AND CURRENT_DATE < DATE(registration_windows_with_metrics.registration_window_year + 1, 1, 1)
+            THEN forecast_npq_applications_in_current_registration_window + registration_windows_with_metrics.number_of_live_npq_participants_at_start_of_registration_window_ay
+        ELSE registration_windows_with_metrics.number_of_live_npq_participants_and_applicants_in_registration_window_ay
+    END
+    AS number_of_live_npq_participants_and_applicants_baseline_estimate
+    FROM
+    UNNEST(GENERATE_DATE_ARRAY((
+        SELECT
+            MIN(registration_windows.registration_window_start_date)
+        FROM
+            registration_windows), CURRENT_DATE - 1)) AS date
+    LEFT JOIN
+    registration_windows_with_metrics
+    ON
+    ((date BETWEEN registration_windows_with_metrics.registration_window_start_date
+        AND registration_windows_with_metrics.registration_window_end_date)
+        OR (date >= registration_windows_with_metrics.registration_window_start_date
+        AND registration_windows_with_metrics.registration_window_end_date IS NULL))
+)
+SELECT
+  *,
+  LEAD(date_is_in_registration_window_to_date_or_past_registration_window)
+    OVER (PARTITION BY registration_window_day ORDER BY registration_window_year ASC) AS date_is_comparable_to_next_registration_window_to_date
 FROM
-  UNNEST(GENERATE_DATE_ARRAY((
-      SELECT
-        MIN(registration_windows.registration_window_start_date)
-      FROM
-        registration_windows), CURRENT_DATE - 1)) AS date
-LEFT JOIN
-  registration_windows_with_metrics
-ON
-  ((date BETWEEN registration_windows_with_metrics.registration_window_start_date
-      AND registration_windows_with_metrics.registration_window_end_date)
-    OR (date >= registration_windows_with_metrics.registration_window_start_date
-      AND registration_windows_with_metrics.registration_window_end_date IS NULL))
+  dates_with_metrics

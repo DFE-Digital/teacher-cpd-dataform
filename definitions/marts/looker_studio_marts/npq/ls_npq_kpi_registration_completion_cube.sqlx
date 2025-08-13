@@ -17,6 +17,8 @@ config {
         registration_window_day: "Number of days within registration window that this date is since the registration_year_start_date, counting registration_year_start_date as day 1.",
         registration_window_week: "Week of registration window that this date falls within, treating the registration_year_start_date as day 1 of week 1.",
         registration_window_month: "Month of registration window that this date falls within, treating the registration_year_start_date as day 1 of month 1. An integer. For example, if a registration window started on Dec 25th 2056, Dec 27th 2056 falls in month 1, Jan 5th 2056 falls in month 1, Jan 25th 2057 falls in month 2 etc.",
+        date_is_in_registration_window_to_date_or_past_registration_window: "TRUE if either date is between the start date of the current registration window and today's date, or if date falls within a registration window that ended on a past date. For use to filter metrics on dashboards which are calculated for the 'registration window to date'.",
+        date_is_comparable_to_next_registration_window_to_date: "TRUE if the date with the same registration_window_day in the next registration window is between the start date of the current registration window and today's date, or if that date falls within a registration window that ended on a past date. For use to filter metrics on dashboards which are calculated for the 'registration window to date' and then compared with the 'same period last registration window'.",
         number_of_users_who_started_registration_journeys: "Number of registration journeys that an authenticated user started on date. A start is defined as a view of /registration/teacher-reference-number, /registration/course-start-date or /registration/provider-check that returned an HTTP 2xx response.",
         number_of_users_who_completed_registration_journeys_later_that_day: "Number of registration journeys that an authenticated user completed on date. A completion is defined as a view of /accounts/user_registrations/[grouped] that returned an HTTP 2xx response."
     }
@@ -92,6 +94,8 @@ SELECT
   registration_window_day,
   registration_window_week,
   registration_window_month,
+  date_is_in_registration_window_to_date_or_past_registration_window,
+  date_is_comparable_to_next_registration_window_to_date,
   IFNULL(occurred_on_with_metrics.number_of_users_who_started_registration_journeys, 0) AS number_of_users_who_started_registration_journeys,
   IFNULL(occurred_on_with_metrics.number_of_users_who_completed_registration_journeys_later_that_day, 0) AS number_of_users_who_completed_registration_journeys_later_that_day,
 FROM
@@ -112,4 +116,18 @@ pre_operations {
             `SELECT DATE("2024-12-09")`)
     }
     )
+}
+
+post_operations {
+    /* This query is an incremental query, so the output is usually only updated for new days, not past dates. */
+    /* However the date_is_in_registration_window_to_date_or_past_registration_window and date_is_comparable_to_next_registration_window_to_date fields vary depending on what the current date is. */
+    /* So, implementing this incremental query would mean that these fields contain out of date values for past dates. */
+    /* This post operation updates these from the baseline, even for past dates. */
+    /* It doesn't add significantly to the bytes queried by the overall query because it doesn't reference the events table, where 99% of these bytes come from. */
+    UPDATE ${self()} AS ls_npq_kpi_registration_completion_cube
+    SET
+        date_is_in_registration_window_to_date_or_past_registration_window = dates.date_is_in_registration_window_to_date_or_past_registration_window,
+        date_is_comparable_to_next_registration_window_to_date = dates.date_is_comparable_to_next_registration_window_to_date
+    FROM ${ref(`ls_npq_kpi_live_participants_baseline_cube`)} AS dates
+    WHERE ls_npq_kpi_registration_completion_cube.date = dates.date
 }
