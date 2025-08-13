@@ -82,6 +82,8 @@ lead_provider_intake AS (
    ${ref('npq_enrolments')}
   WHERE
     cohort = 2025
+    AND 
+    application_created_at < '2025-09-08'
     AND
     eligible_for_funding = TRUE
   GROUP BY
