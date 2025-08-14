@@ -44,6 +44,7 @@ config {
         private_childcare_provider_urn: "The unique reference number given to the employer of participants who work in private childcare.",
         funding_eligiblity_status_code: "Indicates the funding status of a participant.",
         cohort: "The cohort/academic year corresponding to when the participant started their course. Possible fields: 2021 onwards.",
+        cohort_number: "A policy orientated cohort identifier to indicate which cohort a DfE funded applicants lies, this field is calculated through a combination of cohort years and in the years 2021-2023 which 'schedule_identifier' they will be a part of. Cohorts 8 and 9 in 2025 are differentiated between the closing date of the spring application window and opening date of the autumn applciation window.",
         course_identifier: "Shorthand of NPQ course. This comes from the participant's latest declaration.",
         course_usual_length_months: "The length of the NPQ course, in months (an integer). Determined from course_identifier.",
         latest_state: "State of participant's latest declaration. Latest declaration is determined using the field declaration_date as this is the date when the evidence for the declaration is provided.",
@@ -146,6 +147,31 @@ END
   app.updated_at,
   app.cohort_id,
   cohort.start_year AS cohort,
+    CASE
+      WHEN cohort.start_year = 2021 AND sched.identifier IN ('npq-aso-november', 'npq-aso-december', 'npq-leadership-autumn', 'npq-specialist-autumn') THEN 'Cohort 1'
+      WHEN cohort.start_year = 2021
+    AND sched.identifier IN ('npq-aso-june',
+      'npq-ehco-june',
+      'npq-leadership-spring',
+      'npq-specialist-spring') THEN 'Cohort 2'
+      WHEN cohort.start_year = 2022 AND sched.identifier IN ('npq-ehco-november', 'npq-ehco-december', 'npq-leadership-autumn', 'npq-specialist-autumn') THEN 'Cohort 3'
+      WHEN cohort.start_year = 2022
+    AND sched.identifier IN ('npq-ehco-march',
+      'npq-ehco-june',
+      'npq-leadership-spring',
+      'npq-specialist-spring') THEN 'Cohort 4'
+      WHEN cohort.start_year = 2023 AND sched.identifier IN ('npq-ehco-november', 'npq-ehco-december', 'npq-leadership-autumn', 'npq-specialist-autumn') THEN 'Cohort 5'
+      WHEN cohort.start_year = 2023
+    AND sched.identifier IN ('npq-ehco-march',
+      'npq-ehco-june',
+      'npq-leadership-spring',
+      'npq-specialist-spring') THEN 'Cohort 6'
+      WHEN cohort.start_year = 2024 THEN 'Cohort 7'
+      WHEN cohort.start_year = 2025 and app.created_at < '2025-09-08' THEN 'Cohort 8'
+      WHEN cohort.start_year = 2025 and app.created_at >= '2025-09-08' THEN 'Cohort 9'
+      ELSE 'n/a'
+  END
+    AS cohort_number,
   courses.identifier AS course_identifier,
   CASE courses.identifier
     WHEN "npq-additional-support-offer" THEN 12
