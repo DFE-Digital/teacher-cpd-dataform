@@ -1,0 +1,27 @@
+config {
+    name: "ecf2_all_induction_periods",
+    type: "table",
+    bigquery: {
+        clusterBy: ["appropriate_body_name", "trn","started_on","finished_on"]
+    },
+    description: "This table is a record of all induction periods for an Early Career Teacher (ECT) where a proportion of their induction has been served since 01/09/2021. All induction periods in this data have been reported by Appropriate Bodies. This table combines data stored in the Record Inductions as an Appropriate Body (RIAB) service and the Database of Qualified Teachers (DQT) with the records origin detailed by the data_source field, it's possible values are either 'RIAB' or 'Historic import'. This data contains all ECTs with an at least one in progress or completed induction period on or after 01/09/2021. An in progress induction period is defined by an Appropriate Body having reported a start date and no finish date for a record. NOTE: ECTs with multiple participant profile ID for their TRN will have duplicate induction periods, this is by design to allow easier cross-referencing of the data.",
+    columns: {
+        unique_id: "Unique id is for identifying different rows in this table, generated to join two tables together. It has no significance to RIAB or static table data extracts.",
+        trn: {
+            description: "This comes from the teacher profile which we access via the participant profile. It has been validated with the teacher's date of birth.",
+            bigqueryPolicyTags: ["projects/ecf-bq/locations/europe-west2/taxonomies/6302091323314055162/policyTags/301313311867345339"]
+        },
+        appropriate_body_name: "The name of the Appropriate Body that recorded the induction period served by the ECT.",
+        started_on: "The date reported by the Appropriate Body when the ECT started the induction period. This field should not be used to indicate the ECT's start date for their full induction.",
+        finished_on: "The date reported by the Appropriate Body when the ECT finished the induction period. This field should not be used to indicate the ECT's end date for their full induction.",
+        number_of_terms: "The number of terms the induction period counts towards induction, as reported by the Appropriate Body. Values for induction records from RIAB will contain decimal places whereas historical records will not contain decimal places.",
+        induction_programme_type: "The type of training that a school supported the ECT's induction with for that induction period, as reportedd by the Appropriate Body. Potential values: full_induction_programme core_induction_programme, design_our_own, school_funded_fip ",
+        data_source: "Where the induction period is currently held, possible values: 'RIAB' or 'historic_import' (DQT).",
+        participant_profile_id: "The ECTs ECF 1 participant profile ID."    } 
+}
+
+-- ECTs with multiple participant profile ID for their TRN will have duplicate induction periods, this is by design to allow easier cross-referencing of the data
+SELECT ip.*, idd.participant_profile_id
+FROM TAD.ecf2_induction_periods as ip
+LEFT JOIn (SELECT * FROM dataform.ecf_inductions_dedupe WHERE participant_type = 'ParticipantProfile::ECT') as idd
+ON ip.trn = idd.TRN
