@@ -1,0 +1,137 @@
+config {
+    type: "incremental",
+    tags: ["kpi"],
+    assertions: {
+      uniqueKey: ["date"]
+    },
+    bigquery: {
+        partitionBy: "date",
+        labels: {usage: "kpi"}
+    },
+    description: "Single-dimension cube (by date) containing aggregable ECF1 registration journey completion metrics (number of journey starts, completion & total time between start and completion). To enable calculation of completion rate KPI.",
+    columns: {
+        date: "Date for which these metrics have been calculated",
+        registration_window_start_date: "The first date in the registration window this date falls within",
+        registration_window_string: "Registration window date falls within formatted as e.g. 2032-33 for display purposes",
+        registration_window: "Calendar year registration_window_start_date falls within e.g. 2032 for the 2032-33 registration window",
+        registration_window_day: "Number of days within registration window that this date is since the registration_year_start_date, counting registration_year_start_date as day 1.",
+        registration_window_week: "Week of registration window that this date falls within, treating the registration_year_start_date as day 1 of week 1.",
+        registration_window_month: "Month of registration window that this date falls within, treating the registration_year_start_date as day 1 of month 1. An integer. For example, if a registration window started on Dec 25th 2056, Dec 27th 2056 falls in month 1, Jan 5th 2056 falls in month 1, Jan 25th 2057 falls in month 2 etc.",
+        date_is_in_registration_window_to_date_or_past_registration_window: "TRUE if date is either between the start date of the current registration window and today's date, or falls within a registration window that ended on a past date. For use to filter metrics on dashboards which are calculated for the 'registration window to date'.",
+        date_is_comparable_to_next_registration_window_to_date: "TRUE if the date with the same registration_window_day in the following registration window (i.e. the one after the registration_window date falls within) is between the start date of the current registration window and today's date, or if that date falls within a registration window that ended on a past date. For example, if two consecutive registration windows were 2nd Feb 2057 - 6th March 2058 and 7th March 2058 - 28th Feb 2059, and the current date is 8th March 2058 (registration_window_day = 2), this field would be TRUE for 2nd & 3rd Feb 2057 but FALSE after that. For use to filter metrics on dashboards which are calculated for the 'registration window to date' and then compared with the 'same period last registration window'.",
+        number_of_users_who_started_registration_journeys: "Number of ECT or mentor registration journeys that an authenticated user started on date. A start is defined as visiting the page where a SIT selects whether their school expects any new ECTs this academic year, or the page after clicking the 'Add' new participant button, choosing ECT or Mentor and then clicking 'Continue' after being presented with a list of the information we will need from them  i.e. a view of /schools/[grouped]/cohorts/[grouped]/setup or /schools/[grouped]/participants/who/name that returned an HTTP 2xx response. Views of initial pages providing details of what information a user will need to provide are not counted as starts to ensure this KPI incentivises iterations of these pages to discourage starts when users are not yet ready to complete registration.",
+        number_of_users_who_completed_registration_journeys_later_that_day: "Number of ECT or mentor registration journeys that an authenticated user completed on date. A completion is defined as viewing the registration completion or transfer completion pages, or confirming that they have notified DfE that they do not expect to have any ECTs in this registration period i.e. a view of /schools/[grouped]/participants/add/complete or /schools/[grouped]/participants/transfer/complete that returned an HTTP 2xx response."
+    }
+}
+
+WITH
+  pageviews AS (
+  SELECT
+    occurred_at,
+    DATE(occurred_at) AS occurred_on,
+    request_user_id AS user_id,
+    ${functions.contentGroupPath("request_path")} AS path
+  FROM
+    ${ref(`events_ecf1`)}
+  WHERE
+    response_status LIKE "2%"
+    AND DATE(occurred_at) < CURRENT_DATE
+    AND DATE(occurred_at) > event_date_checkpoint ),
+  registration_journeys AS (
+  SELECT
+    occurred_on,
+    user_id,
+    MIN(
+    IF
+      (path IN (
+        /* Page *after* a SIT clicks 'Continue' on the page that tells them what this journey is for and the information they will need to provide.*/
+        /* We are starting the journey here because an exit from the previous page (because a user realises they do not need to start the journey at all) is a success of sorts */
+        "/schools/[grouped]/cohorts/[grouped]/setup/expect-any-ects",
+        /* Start of participant registration journey for a school which already has cohort set up. This is the page *after* the SIT is told what information we need from them. It asks them the name of the participant. */
+        "/schools/[grouped]/participants/who/name"
+        ), occurred_at, NULL)) AS first_started_registration_journey_on_this_date_at,
+    ARRAY_AGG(
+    IF
+      (path IN (
+          /* A SIT finished adding a new participant */
+          "/schools/[grouped]/participants/add/complete",
+          /* A SIT finished transferring a participant */
+          "/schools/[grouped]/participants/transfer/complete",
+          /* A SIT finished the journey by telling us that they do not expect to have ECTs this registration window, reducing the comms we then send them */
+          "/schools/[grouped]/cohorts/[grouped]/setup/no-expected-ects"), occurred_at, NULL) IGNORE NULLS) AS completed_registration_journey_on_this_date_ats
+  FROM
+    pageviews
+  GROUP BY
+    ALL
+  HAVING
+    first_started_registration_journey_on_this_date_at IS NOT NULL),
+  registration_journeys_with_first_completions AS (
+  SELECT
+    occurred_on,
+    user_id,
+    first_started_registration_journey_on_this_date_at,
+    (
+    SELECT
+      MIN(
+      IF
+        (completed_registration_journey_on_this_date_at > first_started_registration_journey_on_this_date_at, completed_registration_journey_on_this_date_at, NULL))
+    FROM
+      UNNEST(completed_registration_journey_on_this_date_ats) AS completed_registration_journey_on_this_date_at) AS first_completed_registration_journey_on_this_date_at
+  FROM
+    registration_journeys),
+  occurred_on_with_metrics AS (
+  SELECT
+    occurred_on,
+    COUNT(DISTINCT user_id) AS number_of_users_who_started_registration_journeys,
+    COUNT(DISTINCT
+    IF
+      (first_completed_registration_journey_on_this_date_at IS NOT NULL, user_id, NULL)) AS number_of_users_who_completed_registration_journeys_later_that_day,
+  FROM
+    registration_journeys_with_first_completions
+  GROUP BY
+    occurred_on)
+SELECT
+  date,
+  registration_window_start_date,
+  registration_window_year,
+  registration_window_string,
+  registration_window_day,
+  registration_window_week,
+  registration_window_month,
+  date_is_in_registration_window_to_date_or_past_registration_window,
+  date_is_comparable_to_next_registration_window_to_date,
+  IFNULL(occurred_on_with_metrics.number_of_users_who_started_registration_journeys, 0) AS number_of_users_who_started_registration_journeys,
+  IFNULL(occurred_on_with_metrics.number_of_users_who_completed_registration_journeys_later_that_day, 0) AS number_of_users_who_completed_registration_journeys_later_that_day,
+FROM
+  ${ref(`ls_ecf_kpi_live_participants_baseline_cube`)} AS dates
+LEFT JOIN
+  occurred_on_with_metrics
+ON
+  dates.date = occurred_on_with_metrics.occurred_on
+WHERE
+  dates.date > event_date_checkpoint
+
+pre_operations {
+  DECLARE
+    event_date_checkpoint DEFAULT (
+    ${
+        when(incremental(),
+            `SELECT MAX(date) FROM ${self()}`,
+            `SELECT DATE("2023-09-18")`)
+    }
+    )
+}
+
+post_operations {
+    /* This query is an incremental query, so the output is usually only updated for new days, not past dates. */
+    /* However the date_is_in_registration_window_to_date_or_past_registration_window and date_is_comparable_to_next_registration_window_to_date fields vary depending on what the current date is. */
+    /* So, implementing this incremental query would mean that these fields contain out of date values for past dates. */
+    /* This post operation updates these from the baseline, even for past dates. */
+    /* It doesn't add significantly to the bytes queried by the overall query because it doesn't reference the events table, where 99% of these bytes come from. */
+    UPDATE ${self()} AS ls_ecf_kpi_registration_completion_cube
+    SET
+        date_is_in_registration_window_to_date_or_past_registration_window = dates.date_is_in_registration_window_to_date_or_past_registration_window,
+        date_is_comparable_to_next_registration_window_to_date = dates.date_is_comparable_to_next_registration_window_to_date
+    FROM ${ref(`ls_ecf_kpi_live_participants_baseline_cube`)} AS dates
+    WHERE ls_ecf_kpi_registration_completion_cube.date = dates.date
+}

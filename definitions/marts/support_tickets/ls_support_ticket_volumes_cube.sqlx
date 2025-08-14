@@ -1,11 +1,13 @@
 config {
     type: "table",
+    tags: ["kpi"],
     bigquery: {
         partitionBy: "created_at",
+        labels: {usage: "kpi"}
     },
     description: "This mart calculates the number of tickets received on a given day, which have been classified by the support_ticket_classification mart. For each day in between 2024-01-01 and the current date, it counts each metric grouped by both programme_type and classification. The mart is specifically designed to support the CPD Programme Support Ticket Volumes dashboard and track performance through support ticket volumes. It utilises a cube architecture to enable the calculation of key performance indicators (KPIs) specific to support tickets. In cases where tickets cannot be classified due to poor or missing data, they are proportionally assigned to the ECTE and NPQ categories to ensure that no historical data is lost.",
     columns: {
-        created_at: "Date and time of that this ticket was logged in Zendesk.",
+        created_at: "Date and time of that tickets counted in these metrics were logged in Zendesk.",
         programme_type: "A calculated field which indicates which programme the ticket belongs to. Possible values: ECTE, NPQ or Triage",
         classification: "The derived classification for the ticket. Possible values: CPD - ECTE, ECTE - Funding, NPQ - Get a TRN, ECTE - Induction and AB, CPD - NPQ, NPQ - Funding, CPD - Triage. Tickets marked as 'Unclassifiable - bad data' cannot be classified with the data available from Zendesk or the migrated subject.",
         ticket_count: "The number of tickets received on a given day, grouped by programme_type and classification.",
@@ -14,7 +16,26 @@ config {
         tickets_reply_outside_sla_count: "The number of tickets received on a given day that were replied to outside of SLA period (SLA = 5 days), grouped by programme_type and classification.",
         tickets_escalated_2nd_line_count: "The number of tickets received on a given day that were escalated to 2nd line support, grouped by programme_type and classification.",
         tickets_escalated_3rd_line_count: "The number of tickets received on a given day that were escalated to 3rd line support, grouped by programme_type and classification.",
-        bad_ticket_count: "The number of tickets received on a given that that either were reopened, the first reply was ouside of SLA or escalated to the 2nd line of support."
+        bad_ticket_count: "The number of tickets received on a given that that either were reopened, the first reply was ouside of SLA or escalated to the 2nd line of support.",
+        ecte_registration_window_start_date: "The first date in the ECTE registration window this date falls within",
+        ecte_registration_window_string: "ECTE registration window date falls within formatted as e.g. 2032-33 for display purposes",
+        ecte_registration_window: "Calendar year ecte_registration_window_start_date falls within e.g. 2032 for the 2032-33 registration window",
+        ecte_registration_window_day: "Number of days within ECTE registration window that this date is since the ecte_registration_year_start_date, counting ecte_registration_year_start_date as day 1.",
+        ecte_registration_window_week: "Week of ECTE registration window that this date falls within, treating the ecte_registration_year_start_date as day 1 of week 1.",
+        ecte_registration_window_month: "Month of ECTE registration window that this date falls within, treating the ecte_registration_year_start_date as day 1 of month 1. An integer. For example, if an ECTE registration window started on Dec 25th 2056, Dec 27th 2056 falls in month 1, Jan 5th 2056 falls in month 1, Jan 25th 2057 falls in month 2 etc.",
+        date_is_in_ecte_registration_window_to_date_or_past_ecte_registration_window: "TRUE if date is either between the start date of the current ECTE registration window and today's date, or falls within an ECTE registration window that ended on a past date. For use to filter metrics on dashboards which are calculated for the ECTE 'registration window to date'.",
+        date_is_comparable_to_next_ecte_registration_window_to_date: "TRUE if the date with the same ecte_registration_window_day in the following ECTE registration window (i.e. the one after the ecte_registration_window date falls within) is between the start date of the current ECTE registration window and today's date, or if that date falls within an ECTE registration window that ended on a past date. For example, if two consecutive registration windows were 2nd Feb 2057 - 6th March 2058 and 7th March 2058 - 28th Feb 2059, and the current date is 8th March 2058 (registration_window_day = 2), this field would be TRUE for 2nd & 3rd Feb 2057 but FALSE after that. For use to filter metrics on dashboards which are calculated for the ECTE 'registration window to date' and then compared with the 'same period last registration window'.",
+        number_of_live_ects_baseline_estimate: "Best available actual or estimated number of live ECTs (according to RIAB) to use as a baseline in the ECTE registration window that date falls within. Live is defined as having induction recorded in RIAB where the period between the start and end dates overlaps with the first academic year that starts after the registration window begins. To act as a baseline across a range of KPIs. Note that these KPIs should be defined with the baseline (denominator) applying to the whole registration window (i.e. as an ANY_VALUE() or AVG() aggregation, not a SUM()), even if the numerator applies only to a particular day, week, month etc. RIAB data is used because it has significantly higher data quality than Manage. For the current registration window, data is not complete enough until late October, so this is set to the value from the previous registration window until 1st November.",
+        npq_registration_window_start_date: "The first date in the NPQ registration window this date falls within",
+        npq_registration_window_end_date: "The last date in the NPQ registration window date was in. NULL if the current window and the cohort for the next has not yet been created in the query that powers this field.",
+        npq_registration_window_string: "NPQ registration window date falls within formatted as e.g. 2032-33 for display purposes",
+        npq_registration_window: "Calendar year npq_registration_window_start_date falls within e.g. 2032 for the 2032-33 registration window",
+        npq_registration_window_day: "Number of days within NPQ registration window that this date is since the npq_registration_year_start_date, counting npq_registration_year_start_date as day 1.",
+        npq_registration_window_week: "Week of NPQ registration window that this date falls within, treating the npq_registration_year_start_date as day 1 of week 1.",
+        npq_registration_window_month: "Month of NPQ registration window that this date falls within, treating the npq_registration_year_start_date as day 1 of month 1. An integer. For example, if an NPQ registration window started on Dec 25th 2056, Dec 27th 2056 falls in month 1, Jan 5th 2056 falls in month 1, Jan 25th 2057 falls in month 2 etc.",
+        date_is_in_npq_registration_window_to_date_or_past_npq_registration_window: "TRUE if date is either between the start date of the current NPQ registration window and today's date, or falls within an NPQ registration window that ended on a past date. For use to filter metrics on dashboards which are calculated for the NPQ 'registration window to date'.",
+        date_is_comparable_to_next_npq_registration_window_to_date: "TRUE if the date with the same npq_registration_window_day in the following NPQ registration window (i.e. the one after the registration_window date falls within) is between the start date of the current NPQ registration window and today's date, or if that date falls within an NPQ registration window that ended on a past date. For example, if two consecutive registration windows were 2nd Feb 2057 - 6th March 2058 and 7th March 2058 - 28th Feb 2059, and the current date is 8th March 2058 (registration_window_day = 2), this field would be TRUE for 2nd & 3rd Feb 2057 but FALSE after that. For use to filter metrics on dashboards which are calculated for the NPQ 'registration window to date' and then compared with the 'same period last registration window'.",
+        number_of_live_npq_participants_and_applicants_baseline_estimate: "Best available actual or estimated number of live NPQ participants or applicants to use as a baseline in the registration window that date falls within. Live is defined as the period between the start declaration date and assumed no longer live date overlapping with the first academic year that starts after the registration window begins. To act as a baseline across a range of KPIs. Note that these KPIs should be defined with the baseline (denominator) applying to the whole registration window, even if the numerator applies only to a particular day, week, month etc. For the current registration window, data is not complete enough until late March, so this is set to the value from the previous registration window until 1st January."
     }
 }
 
@@ -143,7 +164,31 @@ SELECT
   IFNULL(tickets_reply_outside_sla_count, 0.0) AS tickets_reply_outside_sla_count,
   IFNULL(tickets_escalated_2nd_line_count, 0.0) AS tickets_escalated_2nd_line_count,
   IFNULL(tickets_escalated_3rd_line_count, 0.0) AS tickets_escalated_3rd_line_count,
-  IFNULL(bad_ticket_count, 0.0) AS bad_ticket_count
+  IFNULL(bad_ticket_count, 0.0) AS bad_ticket_count,
+  ecf_baseline_cube.registration_window_day AS ecte_registration_window_day,
+  ecf_baseline_cube.registration_window_week AS ecte_registration_window_week,
+  ecf_baseline_cube.registration_window_month AS ecte_registration_window_month,
+  ecf_baseline_cube.registration_window_string AS ecte_registration_window_string,
+  ecf_baseline_cube.registration_window_year AS ecte_registration_window_year,
+  ecf_baseline_cube.registration_window_start_date AS ecte_registration_window_start_date,
+  ecf_baseline_cube.registration_window_end_date AS ecte_registration_window_end_date,
+  ecf_baseline_cube.academic_year_start_date AS ecte_academic_year_start_date,
+  ecf_baseline_cube.academic_year_end_date AS ecte_academic_year_end_date,
+  ecf_baseline_cube.date_is_in_registration_window_to_date_or_past_registration_window AS date_is_in_ecte_registration_window_to_date_or_past_ecte_registration_window,
+  ecf_baseline_cube.date_is_comparable_to_next_registration_window_to_date AS date_is_comparable_to_next_ecte_registration_window_to_date,
+  ecf_baseline_cube.number_of_live_ects_baseline_estimate AS number_of_live_ects_baseline_estimate,
+  npq_baseline_cube.registration_window_day AS npq_registration_window_day,
+  npq_baseline_cube.registration_window_week AS npq_registration_window_week,
+  npq_baseline_cube.registration_window_month AS npq_registration_window_month,
+  npq_baseline_cube.registration_window_string AS npq_registration_window_string,
+  npq_baseline_cube.registration_window_year AS npq_registration_window_year,
+  npq_baseline_cube.registration_window_start_date AS npq_registration_window_start_date,
+  npq_baseline_cube.registration_window_end_date AS npq_registration_window_end_date,
+  npq_baseline_cube.academic_year_start_date AS npq_academic_year_start_date,
+  npq_baseline_cube.academic_year_end_date AS npq_academic_year_end_date,
+  npq_baseline_cube.date_is_in_registration_window_to_date_or_past_registration_window AS date_is_in_npq_registration_window_to_date_or_past_npq_registration_window,
+  npq_baseline_cube.date_is_comparable_to_next_registration_window_to_date AS date_is_comparable_to_next_npq_registration_window_to_date,
+  npq_baseline_cube.number_of_live_npq_participants_and_applicants_baseline_estimate AS number_of_live_npq_participants_and_applicants_baseline_estimate 
 FROM
   dates,
   programme_types,
@@ -154,3 +199,9 @@ USING
   (created_at,
     programme_type,
     classification)
+LEFT JOIN
+  ${ref(`ls_ecf_kpi_live_participants_baseline_cube`)} AS ecf_baseline_cube
+  ON dates.created_at = ecf_baseline_cube.date
+LEFT JOIN
+  ${ref(`ls_npq_kpi_live_participants_baseline_cube`)} AS npq_baseline_cube
+  ON dates.created_at = npq_baseline_cube.date
