@@ -167,7 +167,7 @@ END
       'npq-leadership-spring',
       'npq-specialist-spring') THEN 'Cohort 6'
       WHEN cohort.start_year = 2024 THEN 'Cohort 7'
-      WHEN cohort.start_year = 2025 and app.created_at < '2025-09-08' THEN 'Cohort 8'
+      WHEN cohort.start_year = 2025 and app.created_at < '2025-05-18' THEN 'Cohort 8'
       WHEN cohort.start_year = 2025 and app.created_at >= '2025-09-08' THEN 'Cohort 9'
       ELSE 'n/a'
   END
