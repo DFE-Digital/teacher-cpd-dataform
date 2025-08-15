@@ -121,38 +121,24 @@ SELECT
   rejected_applications,
   starts,
   expected_participants,
-    CASE 
-     WHEN CEILING(predicted_declarations_accpredicted_declarations_applicationsepted_funded_applications * price_per_declaration) > 0 
-          AND expected_allocation > 0
-     THEN CEILING(predicted_declarations_applications * price_per_declaration) 
-          / expected_allocation
-     ELSE 0
-   END AS predicted_allocation_percentage_submitted_applications,
+  IF(CEILING(predicted_declarations_applications * price_per_declaration) > 0 AND expected_allocation > 0,
+    CEILING(predicted_declarations_applications * price_per_declaration) / expected_allocation, 0) AS predicted_allocation_percentage_submitted_applications,
 
-  ( SUM(CEILING(predicted_declarations_applications * price_per_declaration)) 
+  (SUM(CEILING(predicted_declarations_applications * price_per_declaration)) 
         OVER (PARTITION BY provider_name) )
     / NULLIF( SUM(expected_allocation) OVER (PARTITION BY provider_name), 0 )
     AS total_predicted_allocation_percentage_submitted_applications,
-  CASE 
-     WHEN CEILING(predicted_declarations_accepted_funded_applications * price_per_declaration) > 0 
-          AND expected_allocation > 0
-     THEN CEILING(predicted_declarations_accepted_funded_applications * price_per_declaration) 
-          / expected_allocation
-     ELSE 0
-   END AS predicted_allocation_percentage_applications,
+
+  IF(CEILING(predicted_declarations_accepted_funded_applications * price_per_declaration) > 0 AND expected_allocation > 0,
+    CEILING(predicted_declarations_accepted_funded_applications * price_per_declaration) / expected_allocation, 0) AS predicted_allocation_percentage_applications,
 
   ( SUM(CEILING(predicted_declarations_accepted_funded_applications * price_per_declaration)) 
         OVER (PARTITION BY provider_name) )
     / NULLIF( SUM(expected_allocation) OVER (PARTITION BY provider_name), 0 )
     AS total_predicted_allocation_percentage_applications,
 
-  CASE 
-     WHEN CEILING(predicted_declarations_starts * price_per_declaration) > 0 
-          AND expected_allocation > 0
-     THEN CEILING(predicted_declarations_starts * price_per_declaration) 
-          / expected_allocation
-     ELSE 0
-   END AS predicted_allocation_percentage_starts,
+  IF(CEILING(predicted_declarations_starts * price_per_declaration) > 0 AND expected_allocation > 0,
+    CEILING(predicted_declarations_starts * price_per_declaration) / expected_allocation, 0) AS predicted_allocation_percentage_starts,
 
   ( SUM(CEILING(predicted_declarations_starts * price_per_declaration)) 
         OVER (PARTITION BY provider_name) )
