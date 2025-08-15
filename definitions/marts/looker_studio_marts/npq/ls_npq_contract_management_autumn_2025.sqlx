@@ -17,6 +17,8 @@ config {
         rejected_applications: "Number of rejected DfE-funded applications for that provider-course combo.",
         starts: "Number of DfE-funded starts for that provider-course combo. DfE funded starts are defined as the started declaration state being in (paid, payable, eligible).",
         expected_participants: "The number of participants expected to be accepted into a funded place for the provider-course combo. These values were provided by the NPQ Contract Management Team",
+        predicted_allocation_percentage_submitted_applications: "Predicted % of the funding allocation that will be used for each provider-course combination, derived from submitted applications.",
+        total_predicted_allocation_percentage_submitted_applications: "Predicted % of the funding allocation that will be used for the provider overall, derived from submitted applications.",
         predicted_allocation_percentage_applications: "Predicted % of the funding allocation that will be used for each provider-course combination, derived from accepted funded applications.",
         total_predicted_allocation_percentage_applications: "Predicted % of the funding allocation that will be used for the provider overall, derived from accepted funded applications.",
         predicted_allocation_percentage_starts: "The predicted percentage of the funding allocation that will be consumed based on the number of funded starts for the provider-course combo.",
@@ -87,11 +89,14 @@ application_cube as (
     IFNULL(dec_conversion.declaration_count,0) AS expected_declarations_per_participant,
     IFNULL(ppp.amount,0) as price_per_participant,
     IFNULL(ppp.amount/dec_conversion.declaration_count,0) as price_per_declaration,
-    
+    IFNULL((CEILING(intake.applications * dec_conversion.funded_starts_percentage) +
+      CEILING(intake.applications * dec_conversion.funded_retained1_percentage) +
+      CEILING(intake.applications * dec_conversion.funded_retained2_percentage) +
+      CEILING(intake.applications * dec_conversion.funded_completes_percentage)),0) AS predicted_declarations_applications,
     IFNULL((CEILING(intake.accepted_funded_applications * dec_conversion.funded_starts_percentage) +
       CEILING(intake.accepted_funded_applications * dec_conversion.funded_retained1_percentage) +
       CEILING(intake.accepted_funded_applications * dec_conversion.funded_retained2_percentage) +
-      CEILING(intake.accepted_funded_applications * dec_conversion.funded_completes_percentage)),0) AS predicted_declarations_applications,
+      CEILING(intake.accepted_funded_applications * dec_conversion.funded_completes_percentage)),0) AS predicted_declarations_accepted_funded_applications,
     IFNULL((CEILING(intake.starts * dec_conversion_starts.funded_starts_percentage) +
       CEILING(intake.starts * dec_conversion_starts.funded_retained1_percentage) +
       CEILING(intake.starts * dec_conversion_starts.funded_retained2_percentage) +
@@ -116,26 +121,24 @@ SELECT
   rejected_applications,
   starts,
   expected_participants,
-  CASE 
-     WHEN CEILING(predicted_declarations_applications * price_per_declaration) > 0 
-          AND expected_allocation > 0
-     THEN CEILING(predicted_declarations_applications * price_per_declaration) 
-          / expected_allocation
-     ELSE 0
-   END AS predicted_allocation_percentage_applications,
+  IF(CEILING(predicted_declarations_applications * price_per_declaration) > 0 AND expected_allocation > 0,
+    CEILING(predicted_declarations_applications * price_per_declaration) / expected_allocation, 0) AS predicted_allocation_percentage_submitted_applications,
 
-  ( SUM(CEILING(predicted_declarations_applications * price_per_declaration)) 
+  (SUM(CEILING(predicted_declarations_applications * price_per_declaration)) 
+        OVER (PARTITION BY provider_name) )
+    / NULLIF( SUM(expected_allocation) OVER (PARTITION BY provider_name), 0 )
+    AS total_predicted_allocation_percentage_submitted_applications,
+
+  IF(CEILING(predicted_declarations_accepted_funded_applications * price_per_declaration) > 0 AND expected_allocation > 0,
+    CEILING(predicted_declarations_accepted_funded_applications * price_per_declaration) / expected_allocation, 0) AS predicted_allocation_percentage_applications,
+
+  ( SUM(CEILING(predicted_declarations_accepted_funded_applications * price_per_declaration)) 
         OVER (PARTITION BY provider_name) )
     / NULLIF( SUM(expected_allocation) OVER (PARTITION BY provider_name), 0 )
     AS total_predicted_allocation_percentage_applications,
 
-  CASE 
-     WHEN CEILING(predicted_declarations_starts * price_per_declaration) > 0 
-          AND expected_allocation > 0
-     THEN CEILING(predicted_declarations_starts * price_per_declaration) 
-          / expected_allocation
-     ELSE 0
-   END AS predicted_allocation_percentage_starts,
+  IF(CEILING(predicted_declarations_starts * price_per_declaration) > 0 AND expected_allocation > 0,
+    CEILING(predicted_declarations_starts * price_per_declaration) / expected_allocation, 0) AS predicted_allocation_percentage_starts,
 
   ( SUM(CEILING(predicted_declarations_starts * price_per_declaration)) 
         OVER (PARTITION BY provider_name) )
