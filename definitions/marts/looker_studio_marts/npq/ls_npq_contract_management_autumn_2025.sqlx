@@ -126,7 +126,7 @@ SELECT
   ( SUM(CEILING(4 * accepted_funded_applications * price_per_declaration)) 
         OVER (PARTITION BY provider_name) )
     / NULLIF( SUM(expected_allocation) OVER (PARTITION BY provider_name), 0 )
-    AS total_allocation_percentage_all_accepted_funded_place_completed
+    AS total_allocation_percentage_all_accepted_funded_place_completed,
 
   ( SUM(CEILING(4 * starts * price_per_declaration)) 
         OVER (PARTITION BY provider_name) )
