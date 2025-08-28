@@ -17,8 +17,8 @@ config {
         rejected_applications: "Number of rejected DfE-funded applications for that provider-course combo.",
         starts: "Number of DfE-funded starts for that provider-course combo. DfE funded starts are defined as the started declaration state being in (paid, payable, eligible).",
         expected_participants: "The number of participants expected to be accepted into a funded place for the provider-course combo. These values were provided by the NPQ Contract Management Team",
-        total_allocation_percentage_all_starts_completed: "Total % of funding allocation that will be used for the provider overall if all accepted funded place participants completed (i.e. all participants are retained)",
-        total_allocation_percentage_all_accepted_funded_place_completed: "Total % of funding allocation that will be used for the provider overall if all funded_start participants completed (i.e. all participants are retained)",
+        total_allocation_percentage_all_starts_completed: "The percentage of a provider’s total expected funding allocation that would be used if every funded participant that started and completed their programme, assuming full retention and no drop-out. The calculation multiplies the number of accepted funded applications by the price per declaration and the total number of declarations per participant (equivalent to 100% retention), and sums this value across all records for the provider. This total is then divided by the provider’s overall expected allocation, producing the proportion of funding that would be consumed under a full completion scenario. ",
+        total_allocation_percentage_all_accepted_funded_place_completed: "The percentage of a provider’s total expected funding allocation that would be used if every accepted funded participant completed their programme, assuming full retention and no drop-out. The calculation multiplies the number of accepted funded applications by the price per declaration and the total number of declarations per participant (equivalent to 100% retention), and sums this value across all records for the provider. This total is then divided by the provider’s overall expected allocation, producing the proportion of funding that would be consumed under a full completion scenario.",
         predicted_allocation_percentage_submitted_applications: "Predicted % of the funding allocation that will be used for each provider-course combination, derived from submitted applications.",
         total_predicted_allocation_percentage_submitted_applications: "Predicted % of the funding allocation that will be used for the provider overall, derived from submitted applications.",
         predicted_allocation_percentage_applications: "Predicted % of the funding allocation that will be used for each provider-course combination, derived from accepted funded applications.",
@@ -123,12 +123,12 @@ SELECT
   rejected_applications,
   starts,
   expected_participants,
-  ( SUM(CEILING(4 * accepted_funded_applications * price_per_declaration)) 
+  ( SUM(CEILING(expected_declarations_per_participant * accepted_funded_applications * price_per_declaration)) 
         OVER (PARTITION BY provider_name) )
     / NULLIF( SUM(expected_allocation) OVER (PARTITION BY provider_name), 0 )
     AS total_allocation_percentage_all_accepted_funded_place_completed,
 
-  ( SUM(CEILING(4 * starts * price_per_declaration)) 
+  ( SUM(CEILING(expected_declarations_per_participant * starts * price_per_declaration)) 
         OVER (PARTITION BY provider_name) )
     / NULLIF( SUM(expected_allocation) OVER (PARTITION BY provider_name), 0 )
     AS total_allocation_percentage_all_starts_completed,  
