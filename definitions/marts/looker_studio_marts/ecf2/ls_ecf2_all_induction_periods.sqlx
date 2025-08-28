@@ -33,14 +33,3 @@ LEFT JOIN
     (SELECT * FROM ${ref('participant_profiles_latest_ecf1')} WHERE type = 'ParticipantProfile::ECT') 
     AS participants
 ON teachers.id = participants.teacher_profile_id
-
-
--- LEFT JOIN (
---   SELECT
---     *
---   FROM
---     dataform.ecf_inductions_dedupe
---   WHERE
---     participant_type = 'ParticipantProfile::ECT') AS idd
--- ON
---   ip.trn = idd.TRN
