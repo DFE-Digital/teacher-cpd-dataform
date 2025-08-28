@@ -25,75 +25,12 @@ config {
     }
 }
 
-WITH
-  ecf2_induction_periods AS (
-  SELECT
-    trn AS trn,
-    appropriate_body_name AS appropriate_body_name,
-    started_on AS started_on,
-    finished_on AS finished_on,
-    number_of_terms AS number_of_terms,
-    induction_programme AS induction_programme_type,
-    'RIAB' AS data_source
-  FROM
-    ${ref(`ecf2_teacher_induction_periods`)}),
-  historical_inductions AS (
-  SELECT
-    trn as trn,
-    abs.name AS appropriate_body_name,
-    historic.started_on AS started_on,
-    historic.finished_on AS finished_on,
-    historic.number_of_terms AS number_of_terms,
-    historic.induction_programme_choice AS induction_programme_type,
-    'historic_import' AS data_source
-  FROM
-    `static_tables.historical_induction_periods_import_new` AS historic
-  LEFT JOIN
-    ${ref(`appropriate_bodies_latest_ecf2`)} AS abs
-  ON
-    historic.appropriate_body_id = abs.dqt_id )
-SELECT
-  -- unique_id does not signify anything. It is used for this mart and not associated with RIAB or DQT inductiond period data.
-  ROW_NUMBER() OVER () AS unique_id,
-  *
-FROM
-  ecf2_induction_periods
-WHERE
-  -- Selecting all induction records from RIAB for an ECT which either started or finished at least one induction period on or after 01/09/2021.
-  trn IN (
-SELECT
-  DISTINCT trn
-FROM
-  ecf2_induction_periods
-WHERE
-  (started_on >= '2021-09-01'
-    OR finished_on >= '2021-09-01') )
-UNION ALL
-SELECT
-  ROW_NUMBER() OVER () + (
-  SELECT
-    COUNT(*)
-  FROM
-    ecf2_induction_periods) AS unique_id,
-  -- Ensures continuity of unique id
-  *
-FROM
-  historical_inductions
-WHERE
-  -- Selecting all induction records from the DQT for an ECT which is not already captured in the RIAB extract and either started or finished at least one induction period on or after 01/09/2021
-  trn IN (
-SELECT
-  DISTINCT trn
-FROM
-  historical_inductions
-WHERE
-  (started_on >= '2021-09-01'
-    OR finished_on >= '2021-09-01')
-  AND trn NOT IN (
-  SELECT
-    DISTINCT trn
-  FROM
-    ecf2_induction_periods
-  WHERE
-    (started_on >= '2021-09-01'
-      OR finished_on >= '2021-09-01')) )
+SELECT unique_id,
+    trn,
+    appropriate_body_name,
+    started_on,
+    finished_on,
+    number_of_terms,
+    induction_programme_type,
+    data_source
+FROM ${ref('ecf2_and_historic_teacher_induction_periods')}

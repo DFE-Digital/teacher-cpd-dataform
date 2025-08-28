@@ -1,5 +1,5 @@
 config {
-    name: "ecf2_all_induction_periods",
+    name: "ls_ecf2_all_induction_periods",
     type: "table",
     bigquery: {
         clusterBy: ["appropriate_body_name", "trn", "started_on", "finished_on"]
@@ -24,15 +24,23 @@ config {
   -- ECTs with multiple participant profile ID for their TRN will have duplicate induction periods, this is by design to allow easier cross-referencing of the data
 SELECT
   ip.*,
-  idd.participant_profile_id
+  participants.id as participant_profile_id
 FROM
-  TAD.ecf2_induction_periods AS ip
-LEFT JOIN (
-  SELECT
-    *
-  FROM
-    dataform.ecf_inductions_dedupe
-  WHERE
-    participant_type = 'ParticipantProfile::ECT') AS idd
-ON
-  ip.trn = idd.TRN
+ ${ref('ecf2_and_historic_teacher_induction_periods')} AS ip
+LEFT JOIN ${ref('teacher_profiles_latest_ecf1')} as teachers
+ON ip.trn = teachers.trn
+LEFT JOIN 
+    (SELECT * FROM ${ref('participant_profiles_latest_ecf1')} WHERE type = 'ParticipantProfile::ECT') 
+    AS participants
+ON teachers.id = participants.teacher_profile_id
+
+
+-- LEFT JOIN (
+--   SELECT
+--     *
+--   FROM
+--     dataform.ecf_inductions_dedupe
+--   WHERE
+--     participant_type = 'ParticipantProfile::ECT') AS idd
+-- ON
+--   ip.trn = idd.TRN
