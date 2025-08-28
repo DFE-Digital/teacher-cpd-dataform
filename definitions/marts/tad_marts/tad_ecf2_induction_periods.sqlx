@@ -33,4 +33,4 @@ SELECT unique_id,
     number_of_terms,
     induction_programme_type,
     data_source
-FROM ${ref('ecf2_and_historic_teacher_induction_periods')}
+FROM ${ref('ecf2_post_2021_full_teacher_induction_periods')}

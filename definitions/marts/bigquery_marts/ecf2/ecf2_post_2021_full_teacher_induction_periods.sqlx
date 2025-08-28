@@ -1,6 +1,6 @@
 config {
     database: "ecf-bq",
-    name: "ecf2_and_historic_teacher_induction_periods",
+    name: "ecf2_post_2021_full_teacher_induction_periods",
     type: "table",
     assertions: {
         uniqueKey: ["unique_id"]
@@ -8,7 +8,7 @@ config {
     bigquery: {
         clusterBy: ["appropriate_body_name", "trn"]
     },
-    description: "This table is a record of all induction periods for an Early Career Teacher (ECT) where a proportion of their induction has been served since 01/09/2021. All induction periods in this data have been reported by Appropriate Bodies. This table combines data stored in the Record Inductions as an Appropriate Body (RIAB) service and the Database of Qualified Teachers (DQT) with the records origin detailed by the data_source field, it's possible values are either 'RIAB' or 'Historic import'. This data contains all ECTs with an at least one in progress or completed induction period on or after 01/09/2021. An in progress induction period is defined by an Appropriate Body having reported a start date and no finish date for a record.",
+    description: "This table is a record of all induction periods for an Early Career Teacher (ECT) where a proportion of their induction has been served since 01/09/2021. All induction periods in this data have been reported by Appropriate Bodies. This table combines data stored in the Record Inductions as an Appropriate Body (RIAB) service and the Database of Qualified Teachers (DQT) with the records origin detailed by the data_source field, it's possible values are either 'RIAB' or 'Historic import'. This data contains all ECTs with an at least one in progress or completed induction period on or after 01/09/2021. An 'in progress induction period' is defined by an Appropriate Body having reported a start date and no finish date for a record.",
     columns: {
         unique_id: "Unique id is for identifying different rows in this table, generated to join two tables together. It has no significance to RIAB or static table data extracts.",
         trn: {

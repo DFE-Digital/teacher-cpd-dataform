@@ -4,7 +4,7 @@ config {
     bigquery: {
         clusterBy: ["appropriate_body_name", "trn", "started_on", "finished_on"]
     },
-    description: "This table is a record of all induction periods for an Early Career Teacher (ECT) where a proportion of their induction has been served since 01/09/2021. All induction periods in this data have been reported by Appropriate Bodies. This table combines data stored in the Record Inductions as an Appropriate Body (RIAB) service and the Database of Qualified Teachers (DQT) with the records origin detailed by the data_source field, it's possible values are either 'RIAB' or 'Historic import'. This data contains all ECTs with an at least one in progress or completed induction period on or after 01/09/2021. An in progress induction period is defined by an Appropriate Body having reported a start date and no finish date for a record. NOTE: ECTs with multiple participant profile ID for their TRN will have duplicate induction periods, this is by design to allow easier cross-referencing of the data.",
+    description: "This table is a record of all induction periods for an Early Career Teacher (ECT) where a proportion of their induction has been served since 01/09/2021, with all periods reported by Appropriate Bodies. It combines data from the Record Inductions as an Appropriate Body (RIAB) service and the Database of Qualified Teachers (DQT), with the origin of each record shown in the data_source field, which can be either 'RIAB' or 'Historic import'. The dataset contains all ECTs with at least one in-progress or completed induction period on or after 01/09/2021, where an in-progress period is defined as having a reported start date but no finish date. ECTs with multiple participant profile IDs for the same TRN will have duplicate induction periods, which is intentional to allow easier cross-referencing of the data. In addition, the table exists to include the participant profile ID alongside induction period data for internal analytical purposes, helping to support conversations between the CPD Data and Insight team and the RIAB or other internal teams by enabling more consistent tracking, reconciliation across systems, and a clearer shared basis for analysis.",
     columns: {
         unique_id: "Unique id is for identifying different rows in this table, generated to join two tables together. It has no significance to RIAB or static table data extracts.",
         trn: {
@@ -26,7 +26,7 @@ SELECT
   ip.*,
   participants.id as participant_profile_id
 FROM
- ${ref('ecf2_and_historic_teacher_induction_periods')} AS ip
+ ${ref('ecf2_post_2021_full_teacher_induction_periods')} AS ip
 LEFT JOIN ${ref('teacher_profiles_latest_ecf1')} as teachers
 ON ip.trn = teachers.trn
 LEFT JOIN 
