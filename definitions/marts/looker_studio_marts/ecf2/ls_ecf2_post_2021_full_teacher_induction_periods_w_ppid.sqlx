@@ -29,7 +29,5 @@ FROM
  ${ref('ecf2_post_2021_full_teacher_induction_periods')} AS ip
 LEFT JOIN ${ref('teacher_profiles_latest_ecf1')} as teachers
 ON ip.trn = teachers.trn
-LEFT JOIN 
-    (SELECT * FROM ${ref('participant_profiles_latest_ecf1')} WHERE type = 'ParticipantProfile::ECT') 
-    AS participants
-ON teachers.id = participants.teacher_profile_id
+LEFT JOIN ${ref('participant_profiles_latest_ecf1')} as participants
+ON teachers.id = participants.teacher_profile_id and participants.type = 'ParticipantProfile::ECT'
