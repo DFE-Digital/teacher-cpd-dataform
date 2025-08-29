@@ -1,5 +1,5 @@
 config {
-    name: "ls_ecf2_all_induction_periods",
+    name: "ls_ecf2_post_2021_full_teacher_induction_periods_w_ppid",
     type: "table",
     bigquery: {
         clusterBy: ["appropriate_body_name", "trn", "started_on", "finished_on"]
