@@ -28,6 +28,7 @@ SELECT
   api_request_path,
   ${functions.contentGroupPath("api_request_path")} AS api_request_path_grouped,
   status_code,
+  /*This coalesce is required for this source because values were only populated in the cpd_lead_provider field when the custom events solution was set up this enables us to use the previous field to acces LPs for those historical calls */
   COALESCE(${functions.eventDataExtract("cpd_lead_provider", "name")},REPLACE(user_description,"CPD lead provider: ","")) AS lp_name,
   request_body,
   response_body,
