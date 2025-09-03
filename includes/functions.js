@@ -17,7 +17,7 @@ function contentGroupPath(path) {
       `;
 }
 
-function eventDataExtract(column, key) {
+function extractValueFromArrayField(column, key) {
     return `JSON_VALUE(${column}[SAFE_OFFSET(0)], '$.${key}')`;
 }
 
@@ -29,6 +29,6 @@ function yearStartDateToAcademicYearString(year) {
 
 module.exports = {
     contentGroupPath,
-    eventDataExtract,
+    extractValueFromArrayField,
     yearStartDateToAcademicYearString
 };
