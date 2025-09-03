@@ -17,6 +17,10 @@ function contentGroupPath(path) {
       `;
 }
 
+function eventDataExtract(column, key) {
+    return `JSON_VALUE(${column}[SAFE_OFFSET(0)], '$.${key}')`;
+}
+
 function yearStartDateToAcademicYearString(year) {
     /* Convert a date to a string representing the academic year that starts during the calendar year that date falls within. */
     /* For example, convert 2025-03-28 to the string '2025-26'. */
@@ -25,5 +29,6 @@ function yearStartDateToAcademicYearString(year) {
 
 module.exports = {
     contentGroupPath,
+    eventDataExtract,
     yearStartDateToAcademicYearString
 };
