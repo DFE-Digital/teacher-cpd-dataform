@@ -95,7 +95,8 @@ SELECT
   registration_window_week,
   registration_window_month,
   date_is_in_registration_window_to_date_or_past_registration_window,
-  date_is_comparable_to_next_registration_window_to_date,
+  /* We don't have complete registration windows' data until 2024-25 onwards for web analytics based KPIs so don't enable comparison until then */
+  IF(registration_window_year >= 2024, date_is_comparable_to_next_registration_window_to_date, FALSE) AS date_is_comparable_to_next_registration_window_to_date,
   IFNULL(occurred_on_with_metrics.number_of_users_who_started_registration_journeys, 0) AS number_of_users_who_started_registration_journeys,
   IFNULL(occurred_on_with_metrics.number_of_users_who_completed_registration_journeys_later_that_day, 0) AS number_of_users_who_completed_registration_journeys_later_that_day,
 FROM
