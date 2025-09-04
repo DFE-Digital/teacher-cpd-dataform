@@ -29,9 +29,10 @@ WITH
   SELECT
     TRN,
     lead_provider_name AS provider_name,
-    CAST(MIN(start_date) AS DATE) AS first_started_funded_mentor_training_on
+    /* Work around bug where in some cases end_date > start_date and indicates that the end_date is actually the start date. The COALESCE ensures that NULL end_dates still produce the start_date and not NULL. */
+    CAST(MIN(COALESCE(LEAST(start_date, end_date), start_date)) AS DATE) AS first_started_funded_mentor_training_on
   FROM
-    ${ref('ecf_inductions_dedupe')}
+    ${ref('ecf_inductions')}
   WHERE
     participant_type LIKE 'ParticipantProfile::Mentor'
   GROUP BY
