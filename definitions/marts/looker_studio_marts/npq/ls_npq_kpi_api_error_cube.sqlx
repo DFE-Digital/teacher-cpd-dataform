@@ -8,7 +8,7 @@ config {
         partitionBy: "date",
         labels: {usage: "kpi"}
     },
-    description: "Single-dimension cube (by date) containing aggregable NPQ lead provider API error metrics. To enable calculation of API error rate KPI & breakdowns.",
+    description: "Single-dimension cube (by date) containing aggregable NPQ lead provider API error metrics. To enable calculation of API error rate KPI & breakdowns. Only API calls post-NPQ separation (28/11/2024) are included because it is not possible to differentiate between API calls providers intended to send to NPQ & ECF endpoints completely prior to that date.",
     columns: {
         date: "Date for which these metrics have been calculated",
         status_code: "HTTP error code (4xx or 5xx) for which these metrics have been calcuated",
