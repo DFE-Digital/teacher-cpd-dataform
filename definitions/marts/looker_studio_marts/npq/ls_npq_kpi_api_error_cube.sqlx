@@ -1,0 +1,88 @@
+config {
+    type: "incremental",
+    tags: ["kpi"],
+    assertions: {
+      uniqueKey: ["date", "status_code", "lead_provider"]
+    },
+    bigquery: {
+        partitionBy: "date",
+        labels: {usage: "kpi"}
+    },
+    description: "Single-dimension cube (by date) containing aggregable NPQ lead provider API error metrics. To enable calculation of API error rate KPI & breakdowns. Only API calls post-NPQ separation (28/11/2024) are included because it is not possible to differentiate between API calls providers intended to send to NPQ & ECF endpoints completely prior to that date.",
+    columns: {
+        date: "Date for which these metrics have been calculated",
+        status_code: "HTTP error code (4xx or 5xx) for which these metrics have been calcuated",
+        lead_provider: "Lead provider who used the API when these errors were experienced. May be NULL if unknown.",
+        registration_window_start_date: "The first date in the registration window this date falls within",
+        registration_window_string: "Registration window date falls within formatted as e.g. 2032-33 for display purposes",
+        registration_window: "Calendar year registration_window_start_date falls within e.g. 2032 for the 2032-33 registration window",
+        registration_window_day: "Number of days within registration window that this date is since the registration_year_start_date, counting registration_year_start_date as day 1.",
+        registration_window_week: "Week of registration window that this date falls within, treating the registration_year_start_date as day 1 of week 1.",
+        registration_window_month: "Month of registration window that this date falls within, treating the registration_year_start_date as day 1 of month 1. An integer. For example, if a registration window started on Dec 25th 2056, Dec 27th 2056 falls in month 1, Jan 5th 2056 falls in month 1, Jan 25th 2057 falls in month 2 etc.",
+        date_is_in_registration_window_to_date_or_past_registration_window: "TRUE if date is either between the start date of the current registration window and today's date, or falls within a registration window that ended on a past date. For use to filter metrics on dashboards which are calculated for the 'registration window to date'.",
+        date_is_comparable_to_next_registration_window_to_date: "TRUE if the date with the same registration_window_day in the following registration window (i.e. the one after the registration_window date falls within) is between the start date of the current registration window and today's date, or if that date falls within a registration window that ended on a past date. For example, if two consecutive registration windows were 2nd Feb 2057 - 6th March 2058 and 7th March 2058 - 28th Feb 2059, and the current date is 8th March 2058 (registration_window_day = 2), this field would be TRUE for 2nd & 3rd Feb 2057 but FALSE after that. For use to filter metrics on dashboards which are calculated for the 'registration window to date' and then compared with the 'same period last registration window'.",
+        number_of_api_errors: "Number of API errors experienced by lead_provider for error code status_code on date. Only error codes greater than 400 are included."
+    }
+}
+
+WITH
+  api_error_metrics AS (
+    SELECT
+      DATE(occurred_at) AS date,
+      status_code,
+      lead_provider,
+      COUNT(*) AS number_of_api_errors
+    FROM
+      ${ref("persist_api_request_npq")}
+    WHERE
+      status_code >= 400
+      AND DATE(occurred_at) > event_date_checkpoint
+    GROUP BY ALL
+  )
+SELECT
+  dates.date,
+  status_code,
+  lead_provider,
+  registration_window_start_date,
+  registration_window_year,
+  registration_window_string,
+  registration_window_day,
+  registration_window_week,
+  registration_window_month,
+  date_is_in_registration_window_to_date_or_past_registration_window,
+  /* We don't have complete registration windows' data until 2024-25 onwards for web analytics based KPIs so don't enable comparison until then */
+  IF(registration_window_year >= 2024, date_is_comparable_to_next_registration_window_to_date, FALSE) AS date_is_comparable_to_next_registration_window_to_date,
+  IFNULL(number_of_api_errors, 0) AS number_of_api_errors
+FROM
+  ${ref("ls_npq_kpi_live_participants_baseline_cube")} AS dates
+LEFT JOIN
+  api_error_metrics
+ON
+  dates.date = api_error_metrics.date
+WHERE
+  dates.date > event_date_checkpoint
+
+pre_operations {
+  DECLARE
+    event_date_checkpoint DEFAULT (
+    ${
+        when(incremental(),
+            `SELECT MAX(date) FROM ${self()}`,
+            `SELECT DATE("2024-11-28")`)
+    }
+    )
+}
+
+post_operations {
+    /* This query is an incremental query, so the output is usually only updated for new days, not past dates. */
+    /* However the date_is_in_registration_window_to_date_or_past_registration_window and date_is_comparable_to_next_registration_window_to_date fields vary depending on what the current date is. */
+    /* So, implementing this incremental query would mean that these fields contain out of date values for past dates. */
+    /* This post operation updates these from the baseline, even for past dates. */
+    /* It doesn't add significantly to the bytes queried by the overall query because it doesn't reference the events table, where 99% of these bytes come from. */
+    UPDATE ${self()} AS ls_npq_kpi_api_error_cube
+    SET
+        date_is_in_registration_window_to_date_or_past_registration_window = dates.date_is_in_registration_window_to_date_or_past_registration_window,
+        date_is_comparable_to_next_registration_window_to_date = dates.date_is_comparable_to_next_registration_window_to_date
+    FROM ${ref(`ls_npq_kpi_live_participants_baseline_cube`)} AS dates
+    WHERE ls_npq_kpi_api_error_cube.date = dates.date
+}
