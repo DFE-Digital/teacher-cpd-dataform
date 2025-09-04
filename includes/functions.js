@@ -16,9 +16,10 @@ function contentGroupPath(path) {
         UNNEST(SPLIT(${path}, "/")) AS page_path_component ), "/", "")
       `;
 }
-
-function extractValueFromArrayField(column, key) {
-    return `JSON_VALUE(${column}[SAFE_OFFSET(0)], '$.${key}')`;
+/* This function allows you to extract the value from a key:value pair inside a field that contains a single element array of Json strings */
+/* You need to  identify the field which contains the array of strings and the key within that.  */
+function extractValueFromSingleElementArrayofJSONStrings(singleElementArrayFieldName, key) {
+    return `JSON_VALUE(${singleElementArrayFieldName}[SAFE_OFFSET(0)], '$.${key}')`;
 }
 
 function yearStartDateToAcademicYearString(year) {
@@ -29,6 +30,6 @@ function yearStartDateToAcademicYearString(year) {
 
 module.exports = {
     contentGroupPath,
-    extractValueFromArrayField,
+    extractValueFromSingleElementArrayofJSONStrings,
     yearStartDateToAcademicYearString
 };
