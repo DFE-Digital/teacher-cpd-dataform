@@ -21,6 +21,7 @@ config {
         registration_window_month: "Month of registration window that this date falls within, treating the registration_year_start_date as day 1 of month 1. An integer. For example, if a registration window started on Dec 25th 2056, Dec 27th 2056 falls in month 1, Jan 5th 2056 falls in month 1, Jan 25th 2057 falls in month 2 etc.",
         date_is_in_registration_window_to_date_or_past_registration_window: "TRUE if date is either between the start date of the current registration window and today's date, or falls within a registration window that ended on a past date. For use to filter metrics on dashboards which are calculated for the 'registration window to date'.",
         date_is_comparable_to_next_registration_window_to_date: "TRUE if the date with the same registration_window_day in the following registration window (i.e. the one after the registration_window date falls within) is between the start date of the current registration window and today's date, or if that date falls within a registration window that ended on a past date. For example, if two consecutive registration windows were 2nd Feb 2057 - 6th March 2058 and 7th March 2058 - 28th Feb 2059, and the current date is 8th March 2058 (registration_window_day = 2), this field would be TRUE for 2nd & 3rd Feb 2057 but FALSE after that. For use to filter metrics on dashboards which are calculated for the 'registration window to date' and then compared with the 'same period last registration window'.",
+        number_of_live_ects_baseline_estimate: "Best available actual or estimated number of live ECTs (according to RIAB) to use as a baseline in the registration window that date falls within. Live is defined as having induction recorded in RIAB where the period between the start and end dates overlaps with the first academic year that starts after the registration window begins. To act as a baseline across a range of KPIs. Note that these KPIs should be defined with the baseline (denominator) applying to the whole registration window, even if the numerator applies only to a particular day, week, month etc. RIAB data is used because it has significantly higher data quality than Manage. For the current registration window, data is not complete enough until late October, so this is set to the value from the previous registration window until 1st November.",
         number_of_api_errors: "Number of API errors experienced by lead_provider for error code status_code on date. Only error codes greater than 400 are included."
     }
 }
@@ -51,6 +52,7 @@ SELECT
   date_is_in_registration_window_to_date_or_past_registration_window,
   /* We don't have complete registration windows' data until 2024-25 onwards for web analytics based KPIs so don't enable comparison until then */
   IF(registration_window_year >= 2024, date_is_comparable_to_next_registration_window_to_date, FALSE) AS date_is_comparable_to_next_registration_window_to_date,
+  number_of_live_ects_baseline_estimate,
   IFNULL(number_of_api_errors, 0) AS number_of_api_errors
 FROM
   ${ref("ls_ecf_kpi_live_participants_baseline_cube")} AS dates
