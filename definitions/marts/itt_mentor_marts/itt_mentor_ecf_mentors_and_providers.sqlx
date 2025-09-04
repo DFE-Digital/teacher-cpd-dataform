@@ -23,25 +23,48 @@ config {
     }
 }
 
+WITH
+  ecf_induction_earliest_start_dates AS (
+  /* Find the earliest start date for any induction record this TRN has with this lead provider */
+  SELECT
+    TRN,
+    lead_provider_name AS provider_name,
+    CAST(MIN(start_date) AS DATE) AS first_started_funded_mentor_training_on
+  FROM
+    ${ref('ecf_inductions_dedupe')}
+  WHERE
+    participant_type LIKE 'ParticipantProfile::Mentor'
+  GROUP BY
+    ALL),
+  ecf_declaration_dates AS (
+  SELECT
+    CAST(TRN AS STRING) AS TRN,
+    cpd_lead_provider_name AS provider_name,
+    /* Remove CPD-specific jargon of lead providers here */
+    MIN(
+    IF
+      ( mentor_completion_reason IN ("completed_during_early_roll_out",
+          "completed_declaration_received")
+          /* i.e. not started_not_completed */
+          , COALESCE(CAST(declaration_date AS DATE), mentor_completion_date), NULL) ) AS first_completed_funded_mentor_training_with_this_lead_provider_on,
+    /* Use declaration_date over mentor_completion_date if available as it's more reliable for mentors who completed during early roll out but somehow managed to complete again after early roll out finished */
+    MAX( COALESCE(CAST(declaration_date AS DATE), mentor_completion_date) ) AS last_took_part_in_funded_mentor_training_with_this_lead_provider_on
+  FROM
+    ${ref("ecf_declarations")} AS declaration
+  WHERE
+    participant_course = "Mentor"
+    AND funded_declaration
+    /* Only include declaration states that indicate that someone has decided this period of training should be funded, even if it hasn't been paid yet */
+    AND TRN IS NOT NULL
+  GROUP BY
+    TRN,
+    cpd_lead_provider_name )
 SELECT
-  CAST(TRN AS STRING) AS TRN,
-  cpd_lead_provider_name AS provider_name, /* Remove CPD-specific jargon of lead providers here */
-  CAST(MIN(start_date) AS DATE) AS first_started_funded_mentor_training_on,
-  MIN(
-  IF
-    ( mentor_completion_reason IN ("completed_during_early_roll_out",
-        "completed_declaration_received")
-        /* i.e. not started_not_completed */
-        , COALESCE(CAST(declaration_date AS DATE), mentor_completion_date), NULL) ) AS first_completed_funded_mentor_training_with_this_lead_provider_on,
-        /* Use declaration_date over mentor_completion_date if available as it's more reliable for mentors who completed during early roll out but somehow managed to complete again after early roll out finished */
-  MAX(
-    COALESCE(CAST(declaration_date AS DATE), mentor_completion_date) ) AS last_took_part_in_funded_mentor_training_with_this_lead_provider_on
+  *
 FROM
-  ${ref("ecf_declarations")} AS declaration
-WHERE
-  participant_course = "Mentor"
-  AND funded_declaration /* Only include declaration states that indicate that someone has decided this period of training should be funded, even if it hasn't been paid yet */
-  AND TRN IS NOT NULL
-GROUP BY
-  TRN,
-  cpd_lead_provider_name
+  ecf_induction_earliest_start_dates
+JOIN
+  ecf_declaration_dates
+USING
+  (TRN,
+    provider_name)
