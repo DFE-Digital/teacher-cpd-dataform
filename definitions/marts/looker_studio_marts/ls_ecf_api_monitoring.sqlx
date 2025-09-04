@@ -21,33 +21,47 @@ config {
 }
 
 SELECT
-  DISTINCT
-  occurred_at,
+  DISTINCT occurred_at,
   request_user_id,
   request_uuid,
   api_request_method,
   api_request_path,
   ${functions.contentGroupPath("api_request_path")} AS api_request_path_grouped,
   status_code,
-  REPLACE(user_description,"CPD lead provider: ","") as lp_name,
+  /*This coalesce is required for this source because values were only populated in the cpd_lead_provider field when the custom events solution was set up this enables us to use the previous field to access LPs for those historical calls */
+  COALESCE(${functions.extractValueFromSingleElementArrayofJSONStrings("cpd_lead_provider", "name")},REPLACE(user_description,"CPD lead provider: ","")) AS lp_name,
   request_body,
   response_body,
-  'Manage Training - Production' as api_environment
+  'Manage Training - Production' AS api_environment
 FROM
   ${ref('persist_api_request_ecf1')}
 UNION ALL
 SELECT
-  DISTINCT
-  occurred_at,
+  DISTINCT occurred_at,
   request_user_id,
   request_uuid,
   api_request_method,
   api_request_path,
   ${functions.contentGroupPath("api_request_path")} AS request_path_grouped,
   status_code,
-  REPLACE(user_description,"CPD lead provider: ","") as lp_name,
+  ${functions.extractValueFromSingleElementArrayofJSONStrings("cpd_lead_provider", "name")} AS lp_name,
   request_body,
   response_body,
-  'Manage Training - Sandbox' as api_environment
+  'Manage Training - Sandbox' AS api_environment
 FROM
   ${ref('persist_api_request_ecf1_sandbox')}
+UNION ALL
+SELECT
+  DISTINCT occurred_at,
+  request_user_id,
+  request_uuid,
+  api_request_method,
+  api_request_path,
+  ${functions.contentGroupPath("api_request_path")} AS request_path_grouped,
+  status_code,
+  ${functions.extractValueFromSingleElementArrayofJSONStrings("lead_provider", "name")} AS lp_name,
+  request_body,
+  response_body,
+  'Register Early Career Teachers - Sandbox' AS api_environment
+FROM
+  ${ref('persist_api_request_ecf2_sandbox')}
