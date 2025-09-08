@@ -28,3 +28,9 @@ tableNames.forEach(tableName => {
         name: tableName + "_npq"
     });
 });
+
+declare({
+        database: "ecf-bq",
+        schema: "dfe_analytics_dataform",
+        name: "npq_entity_field_updates"
+    });
