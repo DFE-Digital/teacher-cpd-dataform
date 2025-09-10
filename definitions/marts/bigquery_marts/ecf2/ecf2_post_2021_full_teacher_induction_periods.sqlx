@@ -80,6 +80,8 @@ SELECT
 FROM
   historical_inductions
 WHERE
+  -- Removing periods with no AB recorded
+  appropriate_body_name is NOT NULL AND 
   -- Selecting all induction records from the DQT for an ECT which is not already captured in the RIAB extract and either started or finished at least one induction period on or after 01/09/2021
   trn IN (
 SELECT
