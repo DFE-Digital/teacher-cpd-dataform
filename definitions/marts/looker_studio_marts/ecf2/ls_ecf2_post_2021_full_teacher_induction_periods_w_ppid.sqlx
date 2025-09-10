@@ -4,8 +4,7 @@ config {
     bigquery: {
         clusterBy: ["appropriate_body_name", "trn", "started_on", "finished_on"]
     },
-description: "USE CAREFULLY - This is a version of the ecf2_post_2021_full_teacher_induction_periods with the ECF1 participant profile ID joined to induction periods which deliberately contains duplicate periods for an Early Career Teacher (ECT) where a proportion of their induction has been served since 01/09/2021. The participant profile ID has been included, ECTs with multiple participant profile IDs for the same TRN will have duplicate induction periods, which is intentional to allow easier cross-referencing of the data. It has been built to support conversations between the CPD Data and Insight team and the RIAB or other internal teams.It combines data from the Record Inductions as an Appropriate Body (RIAB) service and the Database of Qualified Teachers (DQT), with the origin of each record shown in the data_source field, which can be either 'RIAB' or 'Historic import'. All periods have been reported by Appropriate Bodies. The dataset contains all ECTs with at least one in-progress or completed induction period on or after 01/09/2021, where an in-progress period is defined as having a reported start date but no finish date.",
-    columns: { 
+description: "USE CAREFULLY - This is a version of the ecf2_post_2021_full_teacher_induction_periods with the ECF1 participant profile ID joined to induction periods for an Early Career Teacher (ECT) where a proportion of their induction has been served since 01/09/2021. The participant profile ID has been included, for ECTs with multiple participant profile IDs for the same TRN, the earliest created participant_profile_id will be used. It has been built to support conversations between the CPD Data and Insight team and the RIAB or other internal teams.It combines data from the Record Inductions as an Appropriate Body (RIAB) service and the Database of Qualified Teachers (DQT), with the origin of each record shown in the data_source field, which can be either 'RIAB' or 'Historic import'. All periods have been reported by Appropriate Bodies. The dataset contains all ECTs with at least one in-progress or completed induction period on or after 01/09/2021, where an in-progress period is defined as having a reported start date but no finish date.",    columns: { 
        unique_id: "Unique id is for identifying different rows in this table, generated to join two tables together. It has no significance to RIAB or static table data extracts.",
         trn: {
             description: "This comes from the teacher profile which we access via the participant profile. It has been validated with the teacher's date of birth.",
@@ -21,15 +20,18 @@ description: "USE CAREFULLY - This is a version of the ecf2_post_2021_full_teach
     }
 }
 
-  -- ECTs with multiple participant profile ID for their TRN will have duplicate induction periods, this is by design to allow easier cross-referencing of the data.
   -- As there is a many to one mapping of teachers.id to trn, we must creating a participant profiles CTE to allow teacher_profiles to be joined to participant_profiles and filtered for ECT participant types, then joining to the induciton period via trn stored in the teacher profile. 
-  -- This ensures the only duplication of induction periods comes from a trn having multiple participant_profiles.
+  -- Duplicates are removed by selecting the most earlist created participant profile for TRNs that have multiple participant profiles associated to them.
 WITH participant_profiles as (
   SELECT participants.id as participant_profile_id , teachers.trn
   FROM ${ref('participant_profiles_latest_ecf1')} as participants
   LEFT JOIN ${ref('teacher_profiles_latest_ecf1')} as teachers
   ON participants.teacher_profile_id = teachers.id
   WHERE participants.type = 'ParticipantProfile::ECT'
+  QUALIFY ROW_NUMBER() OVER (
+  PARTITION BY teachers.trn
+  ORDER BY participants.created_at ASC, participants.id
+) = 1
 )
 
 
