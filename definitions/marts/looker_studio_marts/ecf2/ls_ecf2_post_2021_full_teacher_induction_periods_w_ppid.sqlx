@@ -17,17 +17,24 @@ description: "USE CAREFULLY - This is a version of the ecf2_post_2021_full_teach
         number_of_terms: "The number of terms the induction period counts towards induction, as reported by the Appropriate Body. Values for induction records from RIAB will contain decimal places whereas historical records will not contain decimal places.",
         induction_programme_type: "The type of training that a school supported the ECT's induction with for that induction period, as reportedd by the Appropriate Body. Potential values: full_induction_programme core_induction_programme, design_our_own, school_funded_fip ",
         data_source: "Where the induction period is currently held, possible values: 'RIAB' or 'historic_import' (DQT).",
-        participant_profile_id: "The ECTs ECF 1 participant profile ID."
+        participant_profile_id: "The ECTs ECF 1 participant profile ID. Joined to the induction period by joining the trn contained in the teachers profile to the participants profile via teacher_profile_id, then joining that extract to the induction period via trn."
     }
 }
 
-  -- ECTs with multiple participant profile ID for their TRN will have duplicate induction periods, this is by design to allow easier cross-referencing of the data
-SELECT
-  ip.*,
-  participants.id as participant_profile_id
+  -- ECTs with multiple participant profile ID for their TRN will have duplicate induction periods, this is by design to allow easier cross-referencing of the data.
+  -- AS there is a many to one mapping of teachers.id to trn, we must creating a participant profiles CTE to allow teacher_profiles to be joined to participant_profiles and filtered for ECT participant types, then joining to the induciton period via trn stored in the teacher profile. 
+WITH participant_profiles as (
+  SELECT participants.id as participant_profile_id , teachers.trn
+  FROM ${ref('participant_profiles_latest_ecf1')} as participants
+  LEFT JOIN ${ref('teacher_profiles_latest_ecf1')} as teachers
+  ON participants.teacher_profile_id = teachers.id
+  WHERE participants.type = 'ParticipantProfile::ECT'
+)
+
+
+SELECT 
+ ip.*,pp.*
 FROM
  ${ref('ecf2_post_2021_full_teacher_induction_periods')} AS ip
-LEFT JOIN ${ref('teacher_profiles_latest_ecf1')} as teachers
-ON ip.trn = teachers.trn
-LEFT JOIN ${ref('participant_profiles_latest_ecf1')} as participants
-ON teachers.id = participants.teacher_profile_id and participants.type = 'ParticipantProfile::ECT'
+LEFT JOIN participant_profiles as pp
+on ip.trn = pp.trn
