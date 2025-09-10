@@ -10,7 +10,7 @@ config {
             usage: "kpi"
         }
     },
-    description: "Single-dimension cube (by date) containing aggregable NPQ data correction metrics. To enable calculation of correction KPI & breakdowns. Data is only available from November 2023 onwards, when the NPQ service and data was separated from ECTE services.",
+    description: "Single-dimension cube (by date) containing aggregable NPQ data correction metrics. For definition of correction see field description for number_of_corrections. To enable calculation of correction KPI & breakdowns. Data is only available from November 2023 onwards, when the NPQ service and data was separated from ECTE services.",
     columns: {
         date: "Date for which these metrics have been calculated",
         entity_table_name: "The table which was updated on this date",
