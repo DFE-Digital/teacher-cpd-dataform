@@ -81,7 +81,7 @@ FROM
   historical_inductions
 WHERE
 -- Removing periods with no AB recorded. 
--- According to the RIAB team, induction periods with no AB recorded are not valid and are a bade shape we do not want to include in out analysis of induction records where an ECT has served a proportion of their induction on or after the 1st September 2021.
+-- According to the RIAB team, induction periods with no AB recorded are not valid and are a bad shape we do not want to include in our analysis of induction periods where an ECT has served a proportion of their induction on or after the 1st September 2021.
   appropriate_body_name is NOT NULL AND 
   -- Selecting all induction records from the DQT for an ECT which is not already captured in the RIAB extract and either started or finished at least one induction period on or after 01/09/2021
   trn IN (
