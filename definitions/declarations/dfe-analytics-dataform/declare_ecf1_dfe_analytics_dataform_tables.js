@@ -40,3 +40,9 @@ tableNames.forEach(tableName => {
         name: tableName + "_ecf1"
     });
 });
+
+declare({
+        database: "ecf-bq",
+        schema: "dfe_analytics_dataform",
+        name: "ecf1_entity_field_updates"
+    });
