@@ -1,0 +1,81 @@
+config {
+    type: "incremental",
+    assertions: {
+        uniqueKey: ["date", "error_code", "page_path", "application", "logged_in_user"]
+    },
+    bigquery: {
+        partitionBy: "date",
+        clusterBy: ["logged_in_user", "application"]
+    },
+    description: "Cube containing aggregable metrics about attempted views of a page_path on a date by logged in or not logged in users which produced a 'page not found' error. Does not include data for the current date because this data is incomplete.",
+    columns: {
+        application: "Name of the application that received requests to view page_path for which metrics have been calculated.",
+        page_path: "Path of a page requested on a service, excluding the domain and query string. Blocks of alphanumeric characters containing 3+ digits have been grouped by replacing these blocks with '[grouped]'.",
+        date: "Date for which metrics have been calculated",
+        logged_in_user: "Type of user metrics have been calculated for. TRUE indicates users which were logged in at the time; FALSE indicates they were not.",
+        number_of_failed_web_requests: "Total number of non-unique attempted views of page_path which occurred on date."
+    }
+}
+
+WITH
+  events AS (
+  SELECT
+    "Manage Training for Early Career Teachers" AS application,
+    occurred_at,
+    response_status,
+    request_path,
+    request_user_id,
+    device_category
+  FROM
+    ${ref("events_ecf1")}
+  WHERE
+    DATE(occurred_at) > event_date_checkpoint
+  UNION ALL (
+    SELECT
+      "Register Early Career Teachers" AS application,
+      occurred_at,
+      response_status,
+      request_path,
+      request_user_id,
+      device_category
+    FROM
+      ${ref("events_ecf2")}
+    WHERE
+      DATE(occurred_at) > event_date_checkpoint )
+  UNION ALL (
+    SELECT
+      "Apply for a National Professional Qualification" AS application,
+      occurred_at,
+      response_status,
+      request_path,
+      request_user_id,
+      device_category
+    FROM
+      ${ref("events_npq")}
+    WHERE
+      DATE(occurred_at) > event_date_checkpoint ) )
+SELECT
+  DATE(occurred_at) AS date,
+  application,
+  response_status AS error_code,
+  ${functions.contentGroupPath("request_path")} AS page_path,
+  IFNULL(request_user_id IS NOT NULL, FALSE) AS logged_in_user,
+  COUNT(*) AS number_of_failed_web_requests
+FROM
+  events
+WHERE
+  response_status LIKE "4%"
+  AND device_category != "bot"
+GROUP BY
+  ALL
+
+pre_operations {
+  DECLARE
+    event_date_checkpoint DEFAULT (
+    ${
+        when(incremental(),
+            `SELECT MAX(date) FROM ${self()}`,
+            `SELECT DATE("2000-01-01")`)
+    }
+    )
+}
