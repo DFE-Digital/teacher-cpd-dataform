@@ -10,7 +10,7 @@ config {
     description: "Cube containing aggregable metrics about a particular page_path for an application on a date. Does not include data for the current date because this data is incomplete.",
     columns: {
         application: "Name of the application that received requests to view page_path for which metrics have been calculated.",
-        page_path: "Path of a page on a service, excluding the domain and query string.",
+        page_path: "Path of a page on a service, excluding the domain and query string. Blocks of alphanumeric characters containing 3+ digits have been grouped by replacing these blocks with '[grouped]'.",
         date: "Date for which metrics have been calculated",
         number_of_views: "Total number of non-unique views of page_path which occurred on date.",
         number_of_consecutively_unique_views: "Total number of views of page_path which occurred on date, counting consecutive views of the same grouped page_path only once.",
