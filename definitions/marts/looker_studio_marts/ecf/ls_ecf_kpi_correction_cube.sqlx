@@ -58,9 +58,18 @@ WITH
           AND key_updated = "state"
           AND new_value IN ("awaiting_clawback", "voided")
           AND NOT ("ParticipantDeclaration::NPQ" IN UNNEST(data.value))))
+      /* Exclude updates which are very likely to be automated application activity, and so not manual developer data corrections */
       AND entity_table_name NOT IN ("analytics_participants",
         "emails",
         "nomination_emails")
+      /* Exclude state transitions that are expected, so we only include state transitions between states that should not be allowed and so must have been done manually */
+      AND NOT (entity_table_name IN ("participant_declarations", "statement_line_items") AND key_updated = "state" AND (
+        (previous_value = "submitted" AND new_value = "eligible")
+        OR (previous_value = "submitted" AND new_value = "ineligible")
+        OR (previous_value = "eligible" AND new_value = "payable")
+        OR (previous_value = "payable" AND new_value = "paid")
+        OR (previous_value = "awaiting_clawback" AND new_value = "clawed_back")
+      ))
     GROUP BY
       ALL)),
   correction_metrics AS (
