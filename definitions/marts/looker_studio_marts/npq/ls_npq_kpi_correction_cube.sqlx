@@ -65,6 +65,14 @@ WITH
         OR (entity_table_name = "schools" AND key_updated IN ("last_changed_date"))
         OR (entity_table_name = "participant_outcomes" AND key_updated IN ("sent_to_qualified_teachers_api_at", "qualified_teachers_api_request_successful"))
         )
+      /* Exclude state transitions that are expected, so we only include state transitions between states that should not be allowed and so must have been done manually */
+      AND NOT (entity_table_name IN ("declarations", "statement_items") AND key_updated = "state" AND (
+        (previous_value = "submitted" AND new_value = "eligible")
+        OR (previous_value = "submitted" AND new_value = "ineligible")
+        OR (previous_value = "eligible" AND new_value = "payable")
+        OR (previous_value = "payable" AND new_value = "paid")
+        OR (previous_value = "awaiting_clawback" AND new_value = "clawed_back")
+      ))
     GROUP BY
       ALL)),
   correction_metrics AS (
