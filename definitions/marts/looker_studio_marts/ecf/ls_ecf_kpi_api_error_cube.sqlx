@@ -2,15 +2,17 @@ config {
     type: "incremental",
     tags: ["kpi"],
     assertions: {
-      uniqueKey: ["date"]
+      uniqueKey: ["date", "status_code", "lead_provider"]
     },
     bigquery: {
         partitionBy: "date",
         labels: {usage: "kpi"}
     },
-    description: "Single-dimension cube (by date) containing aggregable NPQ registration journey completion metrics (number of journey starts, completion & total time between start and completion). To enable calculation of completion rate KPI.",
+    description: "Single-dimension cube (by date) containing aggregable ECF1 provider API error metrics. To enable calculation of API error rate KPI & breakdowns. Only API calls post-NPQ separation (28/11/2024) are included because it is not possible to differentiate between API calls providers intended to send to NPQ & ECF endpoints completely prior to that date.",
     columns: {
         date: "Date for which these metrics have been calculated",
+        status_code: "HTTP error code (4xx or 5xx) for which these metrics have been calcuated",
+        lead_provider: "Lead provider who used the API when these errors were experienced. May be NULL if unknown.",
         registration_window_start_date: "The first date in the registration window this date falls within",
         registration_window_string: "Registration window date falls within formatted as e.g. 2032-33 for display purposes",
         registration_window: "Calendar year registration_window_start_date falls within e.g. 2032 for the 2032-33 registration window",
@@ -19,75 +21,29 @@ config {
         registration_window_month: "Month of registration window that this date falls within, treating the registration_year_start_date as day 1 of month 1. An integer. For example, if a registration window started on Dec 25th 2056, Dec 27th 2056 falls in month 1, Jan 5th 2056 falls in month 1, Jan 25th 2057 falls in month 2 etc.",
         date_is_in_registration_window_to_date_or_past_registration_window: "TRUE if date is either between the start date of the current registration window and today's date, or falls within a registration window that ended on a past date. For use to filter metrics on dashboards which are calculated for the 'registration window to date'.",
         date_is_comparable_to_next_registration_window_to_date: "TRUE if the date with the same registration_window_day in the following registration window (i.e. the one after the registration_window date falls within) is between the start date of the current registration window and today's date, or if that date falls within a registration window that ended on a past date. For example, if two consecutive registration windows were 2nd Feb 2057 - 6th March 2058 and 7th March 2058 - 28th Feb 2059, and the current date is 8th March 2058 (registration_window_day = 2), this field would be TRUE for 2nd & 3rd Feb 2057 but FALSE after that. For use to filter metrics on dashboards which are calculated for the 'registration window to date' and then compared with the 'same period last registration window'.",
-        number_of_users_who_started_registration_journeys: "Number of registration journeys that an authenticated user started on date. A start is defined as a view of /registration/teacher-reference-number, /registration/course-start-date or /registration/provider-check that returned an HTTP 2xx response.",
-        number_of_users_who_completed_registration_journeys_later_that_day: "Number of registration journeys that an authenticated user completed on date. A completion is defined as a view of /accounts/user_registrations/[grouped] that returned an HTTP 2xx response."
+        number_of_live_ects_baseline_estimate: "Best available actual or estimated number of live ECTs (according to RIAB) to use as a baseline in the registration window that date falls within. Live is defined as having induction recorded in RIAB where the period between the start and end dates overlaps with the first academic year that starts after the registration window begins. To act as a baseline across a range of KPIs. Note that these KPIs should be defined with the baseline (denominator) applying to the whole registration window, even if the numerator applies only to a particular day, week, month etc. RIAB data is used because it has significantly higher data quality than Manage. For the current registration window, data is not complete enough until late October, so this is set to the value from the previous registration window until 1st November.",
+        number_of_api_errors: "Number of API errors experienced by lead_provider for error code status_code on date. Only error codes greater than 400 are included."
     }
 }
 
 WITH
-  pageviews AS (
-  SELECT
-    occurred_at,
-    DATE(occurred_at) AS occurred_on,
-    request_user_id AS user_id,
-    ${functions.contentGroupPath("request_path")} AS path
-  FROM
-    ${ref(`events_npq`)}
-  WHERE
-    response_status LIKE "2%"
-    AND DATE(occurred_at) < CURRENT_DATE
-    AND DATE(occurred_at) > event_date_checkpoint ),
-  registration_journeys AS (
-  SELECT
-    occurred_on,
-    user_id,
-    MIN(
-    IF
-      (path IN (
-        /* New users */
-        "/registration/teacher-reference-number",
-        "/registration/course-start-date",
-        /* Existing registered users */
-        "/registration/provider-check"
-        ), occurred_at, NULL)) AS first_started_registration_journey_on_this_date_at,
-    ARRAY_AGG(
-    IF
-      (path IN (
-          "/accounts/user_registrations/[grouped]"
-          ), occurred_at, NULL) IGNORE NULLS) AS completed_registration_journey_on_this_date_ats
-  FROM
-    pageviews
-  GROUP BY
-    ALL
-  HAVING
-    first_started_registration_journey_on_this_date_at IS NOT NULL),
-  registration_journeys_with_first_completions AS (
-  SELECT
-    occurred_on,
-    user_id,
-    first_started_registration_journey_on_this_date_at,
-    (
+  api_error_metrics AS (
     SELECT
-      MIN(
-      IF
-        (completed_registration_journey_on_this_date_at > first_started_registration_journey_on_this_date_at, completed_registration_journey_on_this_date_at, NULL))
+      DATE(occurred_at) AS date,
+      status_code,
+      lp_name AS lead_provider,
+      COUNT(*) AS number_of_api_errors
     FROM
-      UNNEST(completed_registration_journey_on_this_date_ats) AS completed_registration_journey_on_this_date_at) AS first_completed_registration_journey_on_this_date_at
-  FROM
-    registration_journeys),
-  occurred_on_with_metrics AS (
-  SELECT
-    occurred_on,
-    COUNT(DISTINCT user_id) AS number_of_users_who_started_registration_journeys,
-    COUNT(DISTINCT
-    IF
-      (first_completed_registration_journey_on_this_date_at IS NOT NULL, user_id, NULL)) AS number_of_users_who_completed_registration_journeys_later_that_day,
-  FROM
-    registration_journeys_with_first_completions
-  GROUP BY
-    occurred_on)
+      ${ref("ls_ecf_api_monitoring")}
+    WHERE status_code >= 400 AND api_environment = "Manage Training - Production"
+    AND DATE(occurred_at) < CURRENT_DATE
+    GROUP BY
+      ALL
+  )
 SELECT
-  date,
+  dates.date,
+  status_code,
+  lead_provider,
   registration_window_start_date,
   registration_window_year,
   registration_window_string,
@@ -97,16 +53,17 @@ SELECT
   date_is_in_registration_window_to_date_or_past_registration_window,
   /* We don't have complete registration windows' data until 2024-25 onwards for web analytics based KPIs so don't enable comparison until then */
   IF(registration_window_year >= 2024, date_is_comparable_to_next_registration_window_to_date, FALSE) AS date_is_comparable_to_next_registration_window_to_date,
-  IFNULL(occurred_on_with_metrics.number_of_users_who_started_registration_journeys, 0) AS number_of_users_who_started_registration_journeys,
-  IFNULL(occurred_on_with_metrics.number_of_users_who_completed_registration_journeys_later_that_day, 0) AS number_of_users_who_completed_registration_journeys_later_that_day,
+  number_of_live_ects_baseline_estimate,
+  IFNULL(number_of_api_errors, 0) AS number_of_api_errors
 FROM
-  ${ref("ls_npq_kpi_live_participants_baseline_cube")} AS dates
+  ${ref("ls_ecf_kpi_live_participants_baseline_cube")} AS dates
 LEFT JOIN
-  occurred_on_with_metrics
+  api_error_metrics
 ON
-  dates.date = occurred_on_with_metrics.occurred_on
+  dates.date = api_error_metrics.date
 WHERE
   dates.date > event_date_checkpoint
+  AND dates.date < CURRENT_DATE
 
 pre_operations {
   DECLARE
@@ -114,7 +71,8 @@ pre_operations {
     ${
         when(incremental(),
             `SELECT MAX(date) FROM ${self()}`,
-            `SELECT DATE("2024-12-09")`)
+            /* Start calculating at the point of NPQ separation, because before then there is no reliable way to tell whether a provider 'intended' to send an API request relating to NPQ or ECF; that information is known only to them, not us */
+            `SELECT DATE("2024-11-28")`)
     }
     )
 }
@@ -125,10 +83,10 @@ post_operations {
     /* So, implementing this incremental query would mean that these fields contain out of date values for past dates. */
     /* This post operation updates these from the baseline, even for past dates. */
     /* It doesn't add significantly to the bytes queried by the overall query because it doesn't reference the events table, where 99% of these bytes come from. */
-    UPDATE ${self()} AS ls_npq_kpi_registration_completion_cube
+    UPDATE ${self()} AS ls_ecf_kpi_api_error_cube
     SET
         date_is_in_registration_window_to_date_or_past_registration_window = dates.date_is_in_registration_window_to_date_or_past_registration_window,
         date_is_comparable_to_next_registration_window_to_date = dates.date_is_comparable_to_next_registration_window_to_date
-    FROM ${ref(`ls_npq_kpi_live_participants_baseline_cube`)} AS dates
-    WHERE ls_npq_kpi_registration_completion_cube.date = dates.date
+    FROM ${ref(`ls_ecf_kpi_live_participants_baseline_cube`)} AS dates
+    WHERE ls_ecf_kpi_api_error_cube.date = dates.date
 }

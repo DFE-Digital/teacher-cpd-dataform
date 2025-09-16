@@ -88,9 +88,11 @@ WITH
             OR assumed_no_longer_live_date IS NULL
             )
         )
-        /* ...or in addition count TRNs that applied to do an NPQ within this registration window, regardless of whether they were accepted or not */
+        /* ...or in addition count TRNs that applied to do an NPQ within this registration window,
+        regardless of whether they were accepted or not */
         OR (
-          DATE(application_created_at) BETWEEN registration_windows.academic_year_start_date AND registration_windows.academic_year_end_date
+          DATE(application_created_at)
+          BETWEEN registration_windows.academic_year_start_date AND registration_windows.academic_year_end_date
         ), application_trn, NULL)) AS number_of_live_npq_participants_and_applicants_in_registration_window_ay,
     /* Count the number of (assumed) live participants on the first day of the academic year. */
     /* Only used as part of calculation of a forecast baseline for the current registration window, below*/
@@ -160,8 +162,6 @@ dates_with_metrics AS (
 SELECT
   *,
   LEAD(date_is_in_registration_window_to_date_or_past_registration_window)
-    OVER (PARTITION BY registration_window_day ORDER BY registration_window_year ASC)
-    /* We don't have complete registration windows' data until 2024-25 onwards so don't enable comparison until then */
-    AND registration_window_year >= 2024 AS date_is_comparable_to_next_registration_window_to_date
+    OVER (PARTITION BY registration_window_day ORDER BY registration_window_year ASC) AS date_is_comparable_to_next_registration_window_to_date
 FROM
   dates_with_metrics

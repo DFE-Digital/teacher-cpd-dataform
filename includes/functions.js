@@ -16,6 +16,11 @@ function contentGroupPath(path) {
         UNNEST(SPLIT(${path}, "/")) AS page_path_component ), "/", "")
       `;
 }
+/* This function allows you to extract the value from a key:value pair inside a field that contains a single element array of Json strings */
+/* You need to  identify the field which contains the array of strings and the key within that.  */
+function extractValueFromSingleElementArrayofJSONStrings(singleElementArrayFieldName, key) {
+    return `JSON_VALUE(${singleElementArrayFieldName}[SAFE_OFFSET(0)], '$.${key}')`;
+}
 
 function yearStartDateToAcademicYearString(year) {
     /* Convert a date to a string representing the academic year that starts during the calendar year that date falls within. */
@@ -25,5 +30,6 @@ function yearStartDateToAcademicYearString(year) {
 
 module.exports = {
     contentGroupPath,
+    extractValueFromSingleElementArrayofJSONStrings,
     yearStartDateToAcademicYearString
 };
