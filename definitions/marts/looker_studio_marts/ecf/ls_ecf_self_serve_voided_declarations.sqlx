@@ -18,14 +18,14 @@ config {
         cpd_lead_provider_id: "ID of Lead Provider that has made the declaration.",
         participant_profile_id: "This field matches the participant profile id of participant profiles within the CPD service.",
         lead_provider_name: "The name of the Lead Provider that has made the declaration.",
-        statement_cohort: "Cohort from the financial statement a declaration is stored against for ECF.",
-        participant_cohort: "The cohort/academic year corresponding to when the participant started their course. Possible fields: 2021 onwards.",
+        statement_cohort: "The cohort stamped on the declaration referring to the statement from which funds was or will be clawed back or where funds would have been paid out under.",
+        participant_cohort: "The cohort/academic year the participant's training is currently associated with as stamped on their latest induction record. Possible fields: 2021 onwards.",
         declaration_type: "The name of the stage the declaration has been made against.",
         full_name: {
             description: "The full name of the user who voided the declaration, taken from the users table.",
             bigqueryPolicyTags: ["projects/ecf-bq/locations/europe-west2/taxonomies/6302091323314055162/policyTags/301313311867345339"]
         },
-        was_declaration_paid: "A boolean field calculated to indicate whether the declaration that was voided was paid by the DfE or not."
+        declaration_was_previously_paid: "A boolean field calculated to indicate whether the declaration that was voided was paid by the DfE or not."
     }
 }
 
@@ -37,7 +37,7 @@ SELECT
   cpd_lp.name AS lead_provider_name,
   dec.participant_profile_id,
   dec.state,
-  stat_cohort.start_year AS statement_cohort,
+  dec_cohort.start_year AS statement_cohort,
   dedupe.cohort AS participant_cohort,
   dec.declaration_type,
   dec.course_identifier,
@@ -48,7 +48,7 @@ SELECT
     WHEN dec.state IN ('awaiting_clawback', 'clawed_back') THEN TRUE
     ELSE FALSE
 END
-  AS was_declaration_paid
+  AS declaration_was_previously_paid
 FROM
   ${ref('participant_declarations_latest_ecf1')} AS dec
 LEFT JOIN
@@ -60,9 +60,9 @@ LEFT JOIN
 ON
   dec.participant_profile_id = dedupe.participant_profile_id
 LEFT JOIN
-  ${ref('cohorts_latest_ecf1')} AS stat_cohort
+  ${ref('cohorts_latest_ecf1')} AS dec_cohort
 ON
-  dec.cohort_id = stat_cohort.id
+  dec.cohort_id = dec_cohort.id
 LEFT JOIN
   ${ref(`users_latest_ecf1`)} AS users
 ON
