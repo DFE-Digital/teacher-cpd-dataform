@@ -19,7 +19,7 @@ config {
         participant_profile_id: "This field matches the participant profile id of participant profiles within the CPD service.",
         lead_provider_name: "The name of the Lead Provider that has made the declaration.",
         statement_cohort: "Cohort from the financial statement a declaration is stored against for ECF.",
-        participant_cohort: "Cohort the participant is a part of as stored in ecf_inductions_dedupe.",
+        participant_cohort: "The cohort/academic year corresponding to when the participant started their course. Possible fields: 2021 onwards.",
         declaration_type: "The name of the stage the declaration has been made against.",
         full_name: {
             description: "The full name of the user who voided the declaration, taken from the users table.",
