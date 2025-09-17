@@ -17,6 +17,8 @@ SELECT
       "submitted", /* A claim has been created by a claimant but no payment has yet been made, nor has a decision been taken about whether to pay the claimant */
       "clawback_in_progress", /* A claim was paid but is now being clawed back from the recipient */
       "draft", /*a claim has been drafted by support but the school hasn't yet decided whether to submit it or not */
-      "invalid_provider" /*a set of historic claims that will not be paid unless the claimant changes them to a valid provider*/)
+      "invalid_provider", /*a set of historic claims that will not be paid unless the claimant changes them to a valid provider*/
+      "payment_information_requested", /*The ESFA need more information, typically updated bank info, before they can pay a school's claim*/
+      "payment_in_progress" /*The ESFA have received a claim that needs to be paid and conducting their internal processes*/ )
   GROUP BY
     earliest_claim_current_status
