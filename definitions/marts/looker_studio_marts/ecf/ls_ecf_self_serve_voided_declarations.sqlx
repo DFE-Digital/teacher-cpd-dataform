@@ -19,6 +19,7 @@ config {
         participant_profile_id: "This field matches the participant profile id of participant profiles within the CPD service.",
         lead_provider_name: "The name of the Lead Provider that has made the declaration.",
         statement_cohort: "Cohort from the financial statement a declaration is stored against for ECF.",
+        participant_cohort: "Cohort the participant is a part of as stored in ecf_inductions_dedupe.",
         declaration_type: "The name of the stage the declaration has been made against.",
         full_name: {
             description: "The full name of the user who voided the declaration, taken from the users table.",
@@ -29,46 +30,47 @@ config {
 }
 
 SELECT
-  vpd.id AS declaration_id,
-  vpd.created_at,
-  vpd.updated_at,
-  vpd.cpd_lead_provider_id,
+  dec.id AS declaration_id,
+  dec.created_at,
+  dec.updated_at,
+  dec.cpd_lead_provider_id,
   cpd_lp.name AS lead_provider_name,
-  vpd.participant_profile_id,
-  vpd.state,
-  vpd.declaration_type,
-  vpd.course_identifier,
-  vpd.cohort_id,
-  ppl.cohort_id as ppl_cohort_id,
-  cohort.start_year as statement_cohort,
-  vpd.voided_at,
-  vpd.voided_by_user_id,
+  dec.participant_profile_id,
+  dec.state,
+  stat_cohort.start_year AS statement_cohort,
+  dedupe.cohort AS participant_cohort,
+  dec.declaration_type,
+  dec.course_identifier,
+  dec.voided_at,
+  dec.voided_by_user_id,
   users.full_name,
-  CASE WHEN vpd.state IN ('awaiting_clawback',
-    'clawed_back') THEN true
-    ELSE false
-    END as was_declaration_paid
+  CASE
+    WHEN dec.state IN ('awaiting_clawback', 'clawed_back') THEN TRUE
+    ELSE FALSE
+END
+  AS was_declaration_paid
 FROM
-  ${ref('participant_declarations_latest_ecf1')} AS vpd
+  ${ref('participant_declarations_latest_ecf1')} AS dec
 LEFT JOIN
   ${ref(`cpd_lead_providers_latest_ecf1`)} AS cpd_lp
 ON
-  vpd.cpd_lead_provider_id = cpd_lp.id
-LEFT JOIN 
-  ${ref('participant_profiles_latest_ecf1')} as ppl
-ON 
-  vpd.participant_profile_id = ppl.id
-LEFT JOIN 
-  ${ref(`cohorts_latest_ecf1`)} as cohort
-   ON
-    ppl.cohort_id=cohort.id
+  dec.cpd_lead_provider_id = cpd_lp.id
+LEFT JOIN
+  ${ref('ecf_inductions_dedupe')} AS dedupe
+ON
+  dec.participant_profile_id = dedupe.participant_profile_id
+LEFT JOIN
+  ${ref('cohorts_latest_ecf1')} AS stat_cohort
+ON
+  dec.cohort_id = stat_cohort.id
 LEFT JOIN
   ${ref(`users_latest_ecf1`)} AS users
 ON
-  vpd.voided_by_user_id = users.id
+  dec.voided_by_user_id = users.id
   -- Filtering for the following states as are specifically looking at cases where money has exchanged hands
 WHERE
-  vpd.state IN ('awaiting_clawback',
-    'clawed_back','voided')
-  AND vpd.voided_at IS NOT NULL
-  AND vpd.voided_by_user_id IS NOT NULL
+  dec.state IN ('awaiting_clawback',
+    'clawed_back',
+    'voided')
+  AND dec.voided_at IS NOT NULL
+  AND dec.voided_by_user_id IS NOT NULL
