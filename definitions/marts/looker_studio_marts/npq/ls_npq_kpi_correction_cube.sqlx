@@ -15,7 +15,7 @@ config {
         date: "Date for which these metrics have been calculated",
         entity_table_name: "The table which was updated on this date",
         fields_updated: "Field(s) which was updated as part of this updated. Formatted as an ' and ' separated list in a string.",
-        correction_type: "Clawed back declaration, Voided declaration, Admin console (where request_path starts with /admin or /finance) or Update made without user agent.",
+        correction_type: "'Clawed back declaration', 'Voided declaration', or string beginning either 'Update from blank/null' or 'Update to existing value' followed by either 'via admin console' (where request_path starts with /admin or /finance) or 'not linked to web request' (where dfe-analytics did not link the update to a web request).",
         registration_window_start_date: "The first date in the registration window this date falls within",
         registration_window_string: "Registration window date falls within formatted as e.g. 2032-33 for display purposes",
         registration_window: "Calendar year registration_window_start_date falls within e.g. 2032 for the 2032-33 registration window",
