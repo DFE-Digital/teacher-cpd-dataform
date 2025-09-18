@@ -67,7 +67,6 @@ LEFT JOIN
   ${ref(`users_latest_ecf1`)} AS users
 ON
   dec.voided_by_user_id = users.id
-  -- Filtering for the following states as are specifically looking at cases where money has exchanged hands
 WHERE
   dec.state IN ('awaiting_clawback',
     'clawed_back',
