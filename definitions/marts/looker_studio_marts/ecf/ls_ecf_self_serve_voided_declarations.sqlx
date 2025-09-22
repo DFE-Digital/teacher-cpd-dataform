@@ -7,57 +7,69 @@ config {
         partitionBy: "DATE(voided_at)",
         clusterBy: ["lead_provider_name", "state", "statement_cohort"]
     },
-    description: "This mart supports the tracking of paid declarations voided by internal DfE and finance users through the ECF Self-Serve Voiding tool (big green button), only declarations voided by the big green button are captured in this mart. It is designed for use in the ECF - Declarations Voided by Finance Tool dashboard in Looker Studio. The mart assists in monitoring financial adjustments by identifying paid declarations that have been voided using the 'voided_at' and 'voided_by_user_id' fields, which are populated for all records voided through this tool. The mart exclusively considers paid declarations that have been voided, with the declaration state limited to either 'awaiting_clawback' or 'clawed_back'. This structure enables analysis and tracking of voided financial transactions by DfE internal and finance users, supporting financial auditing and reconciliation processes.",
+    description: "This mart supports the tracking of declarations voided by internal DfE and finance users through the ECF Self-Serve Voiding tool (big green button), only declarations voided by the big green button are captured in this mart. It is designed for use in the ECF - Declarations Voided by Finance Tool dashboard in Looker Studio. The mart assists in monitoring financial adjustments by identifying both paid and unpaid declarations that have been voided using the 'voided_at' and 'voided_by_user_id' fields, which are populated for all records voided through this tool. The mart considers paid declarations that have been voided, with the declaration state limited to either 'awaiting_clawback' or 'clawed_back' as well as unpaid declarations in the state 'voided'. This structure enables analysis and tracking of voided financial transactions by DfE internal and finance users, supporting financial auditing and reconciliation processes.",
     columns: {
         declaration_id: "The unique identifier for declarations. Taken from participant_declarations_latest_ecf1.",
         created_at: "Timestamp this entity was first saved in the database, according to the latest version of the data received from the database.",
         updated_at: "Timestamp this entity was last updated in the database, according to the latest version of the data received from the database.",
         state: "State of the declaration. Possible values: awaiting_clawback, and clawed_back.",
-        voided_at: "Timestamp when a paid declaration was voided by a DfE finance or internal user through the self-serve finance tool (big green button).",
+        voided_at: "Timestamp when a declaration was voided by a DfE finance or internal user through the self-serve finance tool (big green button).",
         voided_by_user_id: "The user_id of the DfE that voided the declaration via the finance/admin console.",
         cpd_lead_provider_id: "ID of Lead Provider that has made the declaration.",
         participant_profile_id: "This field matches the participant profile id of participant profiles within the CPD service.",
         lead_provider_name: "The name of the Lead Provider that has made the declaration.",
-        statement_cohort: "Cohort from the financial statement a declaration is stored against for ECF.",
+        statement_cohort: "The cohort stamped on the declaration referring to the statement from which funds was or will be clawed back or where funds would have been paid out under.",
+        participant_cohort: "The cohort/academic year the participant's training is currently associated with as stamped on their latest induction record. Possible fields: 2021 onwards.",
         declaration_type: "The name of the stage the declaration has been made against.",
         full_name: {
             description: "The full name of the user who voided the declaration, taken from the users table.",
             bigqueryPolicyTags: ["projects/ecf-bq/locations/europe-west2/taxonomies/6302091323314055162/policyTags/301313311867345339"]
         },
+        declaration_was_previously_paid: "A boolean field calculated to indicate whether the declaration that was voided was paid by the DfE or not."
     }
 }
 
 SELECT
-  vpd.id AS declaration_id,
-  vpd.created_at,
-  vpd.updated_at,
-  vpd.cpd_lead_provider_id,
+  dec.id AS declaration_id,
+  dec.created_at,
+  dec.updated_at,
+  dec.cpd_lead_provider_id,
   cpd_lp.name AS lead_provider_name,
-  vpd.participant_profile_id,
-  vpd.state,
-  vpd.declaration_type,
-  vpd.course_identifier,
-  cohort.start_year as statement_cohort,
-  vpd.voided_at,
-  vpd.voided_by_user_id,
-  users.full_name
+  dec.participant_profile_id,
+  dec.state,
+  dec_cohort.start_year AS statement_cohort,
+  dedupe.cohort AS participant_cohort,
+  dec.declaration_type,
+  dec.course_identifier,
+  dec.voided_at,
+  dec.voided_by_user_id,
+  users.full_name,
+  CASE
+    WHEN dec.state IN ('awaiting_clawback', 'clawed_back') THEN TRUE
+    ELSE FALSE
+END
+  AS declaration_was_previously_paid
 FROM
-  ${ref('participant_declarations_latest_ecf1')} AS vpd
+  ${ref('participant_declarations_latest_ecf1')} AS dec
 LEFT JOIN
   ${ref(`cpd_lead_providers_latest_ecf1`)} AS cpd_lp
 ON
-  vpd.cpd_lead_provider_id = cpd_lp.id
-LEFT JOIN 
-  ${ref(`cohorts_latest_ecf1`)} as cohort
-   ON
-    vpd.cohort_id=cohort.id
+  dec.cpd_lead_provider_id = cpd_lp.id
+LEFT JOIN
+  ${ref('ecf_inductions_dedupe')} AS dedupe
+ON
+  dec.participant_profile_id = dedupe.participant_profile_id
+LEFT JOIN
+  ${ref('cohorts_latest_ecf1')} AS dec_cohort
+ON
+  dec.cohort_id = dec_cohort.id
 LEFT JOIN
   ${ref(`users_latest_ecf1`)} AS users
 ON
-  vpd.voided_by_user_id = users.id
-  -- Filtering for the following states as are specifically looking at cases where money has exchanged hands
+  dec.voided_by_user_id = users.id
 WHERE
-  vpd.state IN ('awaiting_clawback',
-    'clawed_back')
-  AND vpd.voided_at IS NOT NULL
-  AND vpd.voided_by_user_id IS NOT NULL
+  dec.state IN ('awaiting_clawback',
+    'clawed_back',
+    'voided')
+  AND dec.voided_at IS NOT NULL
+  AND dec.voided_by_user_id IS NOT NULL
