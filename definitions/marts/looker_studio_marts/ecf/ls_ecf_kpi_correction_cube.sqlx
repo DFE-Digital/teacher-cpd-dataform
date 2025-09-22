@@ -2,7 +2,7 @@ config {
     type: "incremental",
     tags: ["kpi"],
     assertions: {
-        uniqueKey: ["date", "entity_table_name", "fields_updated", "correction_type"]
+        uniqueKey: ["date", "application", "entity_table_name", "fields_updated", "correction_type"]
     },
     bigquery: {
         partitionBy: "date",
@@ -13,6 +13,7 @@ config {
     description: "Single-dimension cube (by date) containing aggregable ECF1 data correction metrics. A correction is defined under the metadata for the number_of_corrections field. To enable calculation of correction KPI & breakdowns. Data is only available from September 2023 onwards because dfe-analytics was not installed on Manage before this date.",
     columns: {
         date: "Date for which these metrics have been calculated",
+        application: "Name of the ECTE application which these corrections took place in. Either Manage Training for Early Career Teachers or Register Early Career Teachers.",
         entity_table_name: "The table which was updated on this date",
         fields_updated: "Field(s) which was updated as part of this updated. Formatted as an ' and ' separated list in a string.",
         correction_type: "'Clawed back declaration', 'Voided declaration', or string beginning either 'Update from blank/null' or 'Update to existing value' followed by either 'via admin console' (where request_path starts with /admin or /finance) or 'not linked to web request' (where dfe-analytics did not link the update to a web request).",
@@ -30,9 +31,23 @@ config {
 }
 
 WITH
+  entity_field_updates AS (
+    SELECT
+      "Manage Training for Early Career Teachers" AS application,
+      *
+    FROM
+      ${ref(`ecf1_entity_field_updates`)}
+    UNION ALL
+    SELECT
+      "Register Early Career Teachers" AS application,
+      *
+    FROM
+      ${ref(`ecf2_entity_field_updates`)}
+  ),
   correction AS ( (
   /* Group updates for different fields which happened as part of the same update together so we don't double count them and can see the combinations of fields that get updated together */
     SELECT
+      application,
       entity_table_name,
       update_id,
       occurred_at,
@@ -44,7 +59,7 @@ WITH
       ORDER BY
         key_updated ASC) AS fields_updated
     FROM
-      ${ref(`ecf1_entity_field_updates`)}
+      entity_field_updates
     LEFT JOIN
       UNNEST(new_data) AS DATA
     ON
@@ -81,6 +96,7 @@ WITH
   correction_metrics AS (
   SELECT
     DATE(occurred_at) AS date,
+    application,
     entity_table_name,
     ARRAY_TO_STRING(fields_updated, " and ") AS fields_updated,
     CASE
@@ -98,11 +114,13 @@ WITH
     correction
   GROUP BY
     date,
+    application,
     correction_type,
     entity_table_name,
     fields_updated )
 SELECT
   dates.date,
+  application,
   entity_table_name,
   fields_updated,
   correction_type,
