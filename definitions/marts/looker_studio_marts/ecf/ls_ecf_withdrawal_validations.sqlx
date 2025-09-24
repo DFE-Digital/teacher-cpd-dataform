@@ -4,11 +4,16 @@ config {
         clusterBy: ["lead_provider_name"]
     },
     description: "",
-    columns: {}
+    columns: {
+        TRN: {
+            description: "This comes from a participant's teacher profile.",
+            bigqueryPolicyTags: ["projects/ecf-bq/locations/europe-west2/taxonomies/6302091323314055162/policyTags/301313311867345339"]
+        },
+    }
 }
 
 WITH
-  -- ### This identifies all the latest training state reported for a partiticipant by the given lead provider and is filtered only to those latest states that are withdrawn. It also provides the corresponding reason given for that withdrawal ####
+  -- ### This identifies all the latest training state reported for a partiticipant by the given lead provider and is filtered only to those whose latest states that are withdrawn. It also provides the corresponding reason given for that withdrawal ####
   withdrawal_reasons AS (
 SELECT
   states.participant_profile_id,
@@ -37,14 +42,14 @@ SELECT
   lp_dedupe.induction_programme_type,
   DATE(lp_dedupe.start_date) AS first_start_date,
   DATE(lp_dedupe.end_date) AS first_end_date,
---   ## Due to the systems generation of induction records the start date and end date can be mixed, this field recalculates an accurate first start date for this induction record based on the available dates##
+  --   ## Due to the systems generation of induction records the start date and end date can be mixed, this field recalculates an accurate first start date for this induction record based on the available dates##
   CASE
     WHEN lp_dedupe.end_date IS NULL THEN DATE(lp_dedupe.start_date)
     WHEN lp_dedupe.start_date < lp_dedupe.end_date THEN DATE(lp_dedupe.start_date)
     ELSE DATE(lp_dedupe.end_date)
 END
   AS min_start_date,
-    --  ## Due to the systems generation of induction records the start date and end date can be mixed, this field recalculates an accurate first end date for this induction record based on the available dates and if the end date gives it a dummy end date in the future##
+  --  ## Due to the systems generation of induction records the start date and end date can be mixed, this field recalculates an accurate first end date for this induction record based on the available dates and if the end date gives it a dummy end date in the future##
   CASE
     WHEN lp_dedupe.end_date IS NULL THEN '2050-01-01'
     WHEN lp_dedupe.start_date < lp_dedupe.end_date THEN DATE(lp_dedupe.end_date)
@@ -105,7 +110,7 @@ END
   started_on,
   finished_on
 FROM
-   `static_tables.historical_induction_period_import`),
+  `static_tables.historical_induction_period_import`),
   -- ### This combines the withdrawal records with the corresponding induction periods (reported by AB) and pulls through the next available induction period if it's available for comparison##
   withdrawn_participants_with_full_evidence AS (
 SELECT
