@@ -1,9 +1,13 @@
 config {
     type: "table",
+    tags: ["assurance bad shapes"],
     assertions: {
         uniqueKey: ["declaration_id"]
     },
     bigquery: {
+        labels: {
+            purpose: "assurance"
+        },
         partitionBy: "DATE(declaration_date)",
         clusterBy: ["cpd_lead_provider_name", "participant_profile_id"]
     },
@@ -31,26 +35,12 @@ config {
         first_day: 'Boolean check to confirm whether the declaration date matches the first date of the milestone period',
         days_from_end: 'The number of days between the declaration date and the end of the milestone period',
         last_day: 'Boolean check to confirm whether the declaration date matches the last date of the milestone period',
-        milestone_duplication: 'Count of the number of declarations evidenced for a participant within the milestone period'
+        participant_declarations_evidenced_in_milestone: 'Count of the number of declarations evidenced for a participant within the milestone period'
     }
 }
 
-  /*This generates a list of milestone periods based on the standard final dates of milestone periods and calculates what their first date of the milestone period would be*/
-WITH
-  milestone_dates AS (
-  SELECT
-    DATE_ADD(LAG(CAST(CONCAT(cohort_year,'-',milestone_months) AS date)) OVER (ORDER BY CAST(CONCAT(cohort_year,'-',milestone_months) AS date)), INTERVAL 1 DAY) AS milestone_start,
-    CAST(CONCAT(cohort_year,'-',milestone_months) AS date) AS milestone_end,
-  FROM
-    UNNEST(['10-31','12-31','03-31','07-31']) AS milestone_months
-  CROSS JOIN (
-    SELECT
-      DISTINCT(start_year)+1 AS cohort_year
-    FROM
-      ${ref("cohorts_latest_ecf1")}) AS cohorts
-  QUALIFY
-    milestone_start IS NOT NULL),
   /* This identifies declarations received for a participant and induction details from their latest induction record. It then determines where in a milestone period a declaration falls based on declaration date and whether it falls on the first or last date of a milestone period to determine whether it was received on a potential 'dummy date' */
+WITH
   declarations_extended AS (
   SELECT
     declaration_id,
@@ -68,14 +58,14 @@ WITH
     trn,
     milestone_start,
     milestone_end,
-    DATE_DIFF(DATE(declaration_date),milestone_start,day) AS days_from_start,
-    DATE_DIFF(DATE(declaration_date),milestone_start,day) = 0 AS first_day,
-    DATE_DIFF(DATE(declaration_date),milestone_end,day) AS days_from_end,
-    DATE_DIFF(DATE(declaration_date),milestone_end,day) = 0 AS last_day
+    DATE_DIFF(DATE(declaration_date),milestone_start,DAY) AS days_from_start,
+    DATE_DIFF(DATE(declaration_date),milestone_start,DAY) = 0 AS first_day,
+    DATE_DIFF(DATE(declaration_date),milestone_end,DAY) AS days_from_end,
+    DATE_DIFF(DATE(declaration_date),milestone_end,DAY) = 0 AS last_day
   FROM
     ${ref("ecf_declarations")} declarations
   CROSS JOIN
-    milestone_dates
+    ${functions.orderedCohortMilestonesWithStartAndEndDates(ctx)}
   WHERE
     (DATE(declaration_date) BETWEEN milestone_start
       AND milestone_end)
@@ -84,12 +74,12 @@ WITH
       'paid'))
 SELECT
   *,
-  COUNT(*) OVER (PARTITION BY participant_profile_id, milestone_start) AS milestone_duplication
+  COUNT(*) OVER (PARTITION BY participant_profile_id, milestone_start) AS participant_declarations_evidenced_in_milestone
 FROM
   declarations_extended
 WHERE
   cohort >= 2023
 QUALIFY
-  milestone_duplication > 1
+  participant_declarations_evidenced_in_milestone > 1
   AND first_day IS FALSE
   AND last_day IS FALSE

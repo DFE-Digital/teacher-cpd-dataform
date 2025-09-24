@@ -1,9 +1,13 @@
 config {
     type: "table",
+    tags: ["assurance bad shapes"],
     assertions: {
         uniqueKey: ["declaration_id"]
     },
     bigquery: {
+        labels: {
+            purpose: "assurance"
+        },
         partitionBy: "DATE(declaration_date)",
         clusterBy: ["cpd_lead_provider_name", "participant_profile_id"]
     },
@@ -56,4 +60,5 @@ WHERE
     'payable',
     'paid')
   AND evidence_held IS NULL
-  AND statement_cohort =2025 and cohort >= 2023
+  AND statement_cohort = 2025
+  AND cohort >= 2023
