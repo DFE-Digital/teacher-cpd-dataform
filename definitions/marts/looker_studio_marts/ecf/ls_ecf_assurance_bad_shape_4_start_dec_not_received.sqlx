@@ -1,0 +1,71 @@
+config {
+    type: "table",
+    tags: ["assurance bad shapes"],
+    assertions: {
+        uniqueKey: ["declaration_id"]
+    },
+    bigquery: {
+        labels: {
+            purpose: "assurance"
+        },
+        partitionBy: "DATE(declaration_date)",
+        clusterBy: ["cpd_lead_provider_name", "participant_profile_id"]
+    },
+    description: "This is #4 in a series of Assurance 'Bad Shapes' marts that identify declarations received that fall outside the expected declaration rules. This mart identifies missing start declarations where a declaration later in the sequence has been received. Participants on a reduced schedule with only a completed declaration are excluded from a mart as they do not need to receive a started declaration if they only have received a completed declaration. Only participants with a current cohort of 2023 or later are included",
+    columns: {
+        declaration_id: 'ID associated with the declaration which qualifies as falling into a bad shape',
+        declaration_type: 'The type of the declaration which indicates how far along a participant is in their training',
+        declaration_created_at_date: 'The date the declaration was submitted, this field is only relevant to determine which sequence should be applied, it is not used to compare declarations against each other',
+        declaration_date: 'The date the declaration was evidenced, when the participant qualified to be declared against. This field is key for determining where a declaration falls in relation to other declarations because it relates to when in the participants training it was evidenced',
+        participant_profile_id: "ID of each participant's profile.",
+        state: 'The financial state of the declaration - whether it has been paid yet or not and whether it is eligible for funding - only paid, payable and eligible declarations are relevant for bad shapes checks',
+        cpd_lead_provider_name: 'The name of the lead provider that submitted the declaration',
+        statement_id: 'The associated financial statement the declaration was included on',
+        schedule_identifier: 'The training schedule of the participant - this indicates when they started on the programme and whether they followed a standard pattern of training. Reduced schedules do not have to have a started declaration and their completed declaration can be submitted at any point because they do not have to complete the full length of training',
+        participant_type: 'Whether the participant is an ECT or a mentor',
+        cohort: 'The cohort on the participants latest induction record. This may not be the cohort they commenced training on. This mart only includes participants from cohorts from 2023 onwards, however declarations from prior cohorts are used for the bad shape calculation.',
+        statement_cohort: 'This is the cohort the declaration was submitted against. This might not match the participants induction cohort because the participant may have been rolled onto a new cohort since this declaration was submitted. ',
+        trn: {
+            description: "TRN associated with the ECT's profile.",
+            bigqueryPolicyTags: ["projects/ecf-bq/locations/europe-west2/taxonomies/6302091323314055162/policyTags/301313311867345339"]
+        },
+        declaration_count: 'The number of paid/payable/eligible declarations per participant',
+    }
+}
+
+  /*This looks at the declarations a participant has received and joins itself back onto its source to determine if that same participant hasn't received a started declaration. It uses a declaration count to exclude any participants on a reduced schedule that have only received a completed declaration*/
+SELECT
+  declarations.declaration_id,
+  declarations.declaration_type,
+  declarations.declaration_created_at_date,
+  declarations.declaration_date,
+  declarations.participant_profile_id,
+  declarations.state,
+  declarations.cpd_lead_provider_name,
+  declarations.statement_id,
+  declarations.schedule_identifier,
+  declarations.participant_type,
+  declarations.cohort,
+  declarations.statement_cohort,
+  declarations.trn,
+  COUNT(DISTINCT(declarations.declaration_id)) OVER (PARTITION BY declarations.participant_profile_id) AS declaration_count
+FROM
+  ${ref("ecf_declarations")} declarations
+LEFT JOIN
+  ${ref("ecf_declarations")} started_decs
+ON
+  declarations.participant_profile_id = started_decs.participant_profile_id
+  AND started_decs.declaration_type = 'started'
+  AND started_decs.state IN ('eligible',
+    'payable',
+    'paid')
+WHERE
+  declarations.state IN ('eligible',
+    'payable',
+    'paid')
+  AND started_decs.declaration_id IS NULL
+  AND declarations.cohort >= 2023
+QUALIFY
+  (schedule_identifier NOT LIKE '%reduced%'
+    OR declaration_count > 1
+    OR declaration_type <> 'completed')

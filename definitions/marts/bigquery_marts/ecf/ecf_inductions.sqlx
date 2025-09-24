@@ -38,7 +38,7 @@ config {
             description: "This comes from a participant's teacher profile.",
             bigqueryPolicyTags: ["projects/ecf-bq/locations/europe-west2/taxonomies/6302091323314055162/policyTags/301313311867345339"]
         },
-        cohort: "The cohort/academic year corresponding to when the participant started their course. Possible fields: 2021 onwards.",
+        cohort: "The cohort/academic year the participant's training was associated with during the duration of this induction record. Possible fields: 2021 onwards",
         school_id: "ID of the participant's school.",
         high_pupil_premium: "This indicates whether the uplift payment for X is applicable to this participant's started declaration",
         sparsity_incentive: "This indicates whether the uplift payment for X is applicable to this participant's started declaration",

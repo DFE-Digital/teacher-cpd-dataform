@@ -1,7 +1,11 @@
 config {
     type: "table",
     assertions: {
-        uniqueKey: ["application_id"]
+        uniqueKey: ["application_id"],
+        /* Check for new course identifiers where the mapping used to calculate course_usual_length_months below has not been updated. */
+        /* To fix this assertion failure, find out the usual number of months taken for courses with the new course identifier */
+        /* and add it to the CASE statement below. */
+        rowConditions: ["course_usual_length_months IS NOT NULL OR course_identifier IS NULL"]
     },
     bigquery: {
         partitionBy: "DATE(application_created_at)",
@@ -40,7 +44,9 @@ config {
         private_childcare_provider_urn: "The unique reference number given to the employer of participants who work in private childcare.",
         funding_eligiblity_status_code: "Indicates the funding status of a participant.",
         cohort: "The cohort/academic year corresponding to when the participant started their course. Possible fields: 2021 onwards.",
+        cohort_number: "A policy-oriented identifier indicating which DfE-funded applicant cohort the record belongs to. The cohort is determined by the applicant’s cohort.start_year and, for start years 2021-2023, by the schedule_identifier. Cohort 1 is the autumn schedule in the 2021 cohort; Cohort 2, the spring schedule in the 2021 cohort; Cohort 3, the autumn schedule in the 2022 cohort; Cohort 4, the spring schedule in the 2022 cohort; Cohort 5, the autumn schedule in the 2023 cohort; and Cohort 6, the spring schedule in the 2023 cohort. All 2024 applicants are assigned to Cohort 7. For 2025, applicants are split into Cohort 8 if their application was created before 18 May 2025 (spring window) and Cohort 9 if created on or after 8 September 2025 (autumn window). Applicants not matching these rules are assigned n/a.",
         course_identifier: "Shorthand of NPQ course. This comes from the participant's latest declaration.",
+        course_usual_length_months: "The length of the NPQ course, in months (an integer). Determined from course_identifier.",
         latest_state: "State of participant's latest declaration. Latest declaration is determined using the field declaration_date as this is the date when the evidence for the declaration is provided.",
         latest_declaration_type: "Type of participant's latest declaration.",
         latest_lead_provider_name: "Name of Lead Provider associated with participant's latest declaration.",
@@ -81,6 +87,7 @@ config {
         completed_declaration_date: "Date evidence was submitted for participant's completed declaration.",
         latest_outcome_state: "State of participant's latest outcome for their NPQ. Outcomes are joined in on the participant's completed declaration. Possible fields: Passed, Failed, Voided.",
         latest_outcome_date: "Date of completion for the participant's latest outcome.",
+        assumed_no_longer_live_date: "Date after which we can assume this participant's NPQ finished/will finish. The same as latest_outcome_date if the NPQ has an outcome. If not this is X months after the started_declaration_date, where X is the course_usual_length_months. Used for KPI baseline calculations.",
         count_of_fails: "Counts the number of Failed outcome states for a participant.",
         cohort_id: "ID of cohort.",
         lead_provider_id: "ID of Lead Provider.",
@@ -140,7 +147,46 @@ END
   app.updated_at,
   app.cohort_id,
   cohort.start_year AS cohort,
+    CASE
+      WHEN cohort.start_year = 2021 AND sched.identifier IN ('npq-aso-november', 'npq-aso-december', 'npq-leadership-autumn', 'npq-specialist-autumn') THEN 'Cohort 1'
+      WHEN cohort.start_year = 2021
+    AND sched.identifier IN ('npq-aso-june',
+      'npq-ehco-june',
+      'npq-leadership-spring',
+      'npq-specialist-spring') THEN 'Cohort 2'
+      WHEN cohort.start_year = 2022 AND sched.identifier IN ('npq-ehco-november', 'npq-ehco-december', 'npq-leadership-autumn', 'npq-specialist-autumn') THEN 'Cohort 3'
+      WHEN cohort.start_year = 2022
+    AND sched.identifier IN ('npq-ehco-march',
+      'npq-ehco-june',
+      'npq-leadership-spring',
+      'npq-specialist-spring') THEN 'Cohort 4'
+      WHEN cohort.start_year = 2023 AND sched.identifier IN ('npq-ehco-november', 'npq-ehco-december', 'npq-leadership-autumn', 'npq-specialist-autumn') THEN 'Cohort 5'
+      WHEN cohort.start_year = 2023
+    AND sched.identifier IN ('npq-ehco-march',
+      'npq-ehco-june',
+      'npq-leadership-spring',
+      'npq-specialist-spring') THEN 'Cohort 6'
+      WHEN cohort.start_year = 2024 THEN 'Cohort 7'
+      WHEN cohort.start_year = 2025 and app.created_at < '2025-05-18' THEN 'Cohort 8'
+      WHEN cohort.start_year = 2025 and app.created_at >= '2025-09-08' THEN 'Cohort 9'
+      ELSE 'n/a'
+  END
+    AS cohort_number,
   courses.identifier AS course_identifier,
+  CASE courses.identifier
+    WHEN "npq-additional-support-offer" THEN 12
+    WHEN "npq-early-headship-coaching-offer" THEN 12
+    WHEN "npq-early-years-leadership" THEN 18
+    WHEN "npq-executive-leadership" THEN 18
+    WHEN "npq-headship" THEN 18
+    WHEN "npq-leading-behaviour-culture" THEN 12
+    WHEN "npq-leading-literacy" THEN 12
+    WHEN "npq-leading-primary-mathematics" THEN 12
+    WHEN "npq-leading-teaching" THEN 12
+    WHEN "npq-leading-teaching-development" THEN 12
+    WHEN "npq-senco" THEN 18
+    WHEN "npq-senior-leadership" THEN 18
+  END AS course_usual_length_months,
   courses.name AS course_name,
   CASE
     WHEN courses.name = 'Additional Support Offer for new headteachers' THEN 'EHCO'
@@ -399,7 +445,11 @@ SELECT
   npq_dec_comp.* EXCEPT(application_id),
   IFNULL(npq_fails.count_of_fails, 0) AS count_of_fails,
   npq_outcomes.latest_outcome_state,
-  npq_outcomes.latest_outcome_date
+  npq_outcomes.latest_outcome_date,
+  COALESCE(
+    npq_outcomes.latest_outcome_date,
+    DATE_ADD(DATE(started_declaration_date), INTERVAL course_usual_length_months MONTH)
+   ) AS assumed_no_longer_live_date
 FROM
   npq_app
 LEFT JOIN

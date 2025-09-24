@@ -1,0 +1,103 @@
+config {
+    type: "table",
+    tags: ["assurance bad shapes"],
+    assertions: {
+        uniqueKey: ["declaration_id"],
+        rowConditions: ['expected_declaration_sequence_position is not null']
+    },
+    bigquery: {
+        labels: {
+            purpose: "assurance"
+        },
+        partitionBy: "DATE(declaration_date)",
+        clusterBy: ["cpd_lead_provider_name", "participant_profile_id"]
+    },
+    description: "This is #5 in a series of Assurance 'Bad Shapes' marts that identify declarations received that fall outside the expected declaration rules. This mart identifies where a declaration was evidenced too early based on when their start declaration was evidenced. Declarations may not be evidenced too early, they must be evidenced in the corresponding milestone period to the declaration type or later. i.e. a retained-1 declaration cannot be dated before milestone period 2, a retained-4 declaration cannot be dated before milestone period 5. The acceptable milestone period a declaration can be evidenced corresponds with its position in the approved sequence of declarations (See 'expected_declaration_sequence_position' field for correct sequence). Participants on a reduced training schedule are excluded from this bad shape and only participants currently in a cohort of 2023 or later are included",
+    columns: {
+        declaration_id: 'ID associated with the declaration which qualifies as falling into a bad shape',
+        declaration_type: 'The type of the declaration which indicates how far along a participant is in their training',
+        declaration_created_at_date: 'The date the declaration was submitted, this field is only relevant to determine which sequence should be applied, it is not used to compare declarations against each other',
+        declaration_date: 'The date the declaration was evidenced, when the participant qualified to be declared against. This field is key for determining where a declaration falls in relation to other declarations because it relates to when in the participants training it was evidenced',
+        participant_profile_id: "ID of each participant's profile.",
+        state: 'The financial state of the declaration - whether it has been paid yet or not and whether it is eligible for funding - only paid, payable and eligible declarations are relevant for bad shapes checks',
+        cpd_lead_provider_name: 'The name of the lead provider that submitted the declaration',
+        statement_id: 'The associated financial statement the declaration was included on',
+        schedule_identifier: 'The training schedule of the participant - this indicates when they started on the programme and whether they followed a standard pattern of training. Reduced schedules do not have to have a started declaration and their completed declaration can be submitted at any point because they do not have to complete the full length of training',
+        participant_type: 'Whether the participant is an ECT or a mentor',
+        cohort: 'The cohort on the participants latest induction record. This may not be the cohort they commenced training on. This mart only includes participants from cohorts from 2023 onwards, however declarations from prior cohorts are used for the bad shape calculation.',
+        statement_cohort: 'This is the cohort the declaration was submitted against. This might not match the participants induction cohort because the participant may have been rolled onto a new cohort since this declaration was submitted. ',
+        trn: {
+            description: "TRN associated with the ECT's profile.",
+            bigqueryPolicyTags: ["projects/ecf-bq/locations/europe-west2/taxonomies/6302091323314055162/policyTags/301313311867345339"]
+        },
+        expected_declaration_sequence_position: "This is the declaration sequence position we would expect this declaration type to be evidenced in. The proper sequence changed after 01/08/2025 shifting the order from S-R1-R2-R3-R4-E1-E2-E3-C to S-R1-R2-R3-R4-C-E1-E2-E3 (moving completed declarations earlier in the correct sequence). Declarations evidenced prior to that date follow the first pattern, after that date they should follow the second pattern",
+        milestone_start_received: "This is the overall milestone in which the start declaration for this participant was received, overall milestone counting starts from 1 in the first milestone of '01/08/2021' and counts from there.",
+        milestone_current_declaration_was_received: "This is the overall milestone in which this current declaration was received, overall milestone counting starts from 1 in the first milestone of '01/08/2021' and counts from there.",
+        milestone_delta: "This is a calculation subtracting 'milestone_start_received' from  'milestone_current_declaration_was_received' and then adding one to identify a normalised milestone position which the declaration was received to compare with the expected sequence the type of declaration should be received in. For example, if the current declaration is a retained-2 declaration received in the overall milestone 12 and the start declaration for the same participant was received in the overall milestone 11 this field would equal 2 (12 - 11 +1) because it was received in a normalised milestone position of milestone 2 compared to an expected sequence position of 3 which means this record would qualify as being a bad shape. Records are filtered here to those declarations which were received with a milestone_delta position that is less than the expected_declaration_sequence_position field"
+    }
+}
+
+  /*This identifies the first milestone period in which a participant received a funded start declaration. This will be used as a base milestone to compare with the other milestones in which the participant received declarations. */
+WITH
+  started_declaration_milestones AS (
+  SELECT
+    participant_profile_id,
+    MIN(milestone_order) AS milestone_start_received
+  FROM
+    ${ref("ecf_declarations")} declarations
+  CROSS JOIN
+    ${functions.orderedCohortMilestonesWithStartAndEndDates(ctx)} AS milestone_dates
+  WHERE
+    (DATE(declaration_date) BETWEEN milestone_start
+      AND milestone_end)
+    AND declaration_type = 'started'
+    AND state IN ('eligible',
+      'payable',
+      'paid')
+  GROUP BY
+    participant_profile_id)
+    /*This identifies declarations received for a participant and induction details from their latest induction record. It then merges in the correct sequence for declarations and the details of the participant's started declaration.*/
+    /*It identifies the milestone in which the current declaration was evidenced and normalises its position based on when the start declaration was received and compares that to the expected sequence of declarations to check if it was received early. */
+    /*Reduced participant's declarations are excluded from this shape because their training can be abridged. Only participants currently in the 2023 cohort or later are included*/
+SELECT
+  declaration_id,
+  declarations.declaration_type,
+  declaration_created_at_date,
+  declaration_date,
+  participant_profile_id,
+  state,
+  cpd_lead_provider_name,
+  statement_id,
+  schedule_identifier,
+  participant_type,
+  cohort,
+  statement_cohort,
+  trn,
+  expected_declaration_sequence_position,
+  milestone_start_received,
+  milestone_order AS milestone_current_declaration_was_received,
+  (milestone_order - milestone_start_received + 1) AS milestone_delta
+FROM
+  ${ref("ecf_declarations")} declarations
+INNER JOIN
+  ${functions.correctOrderDeclarationsTypesShouldBeReceived()} AS declaration_sequence_list
+ON
+  declarations.declaration_type = declaration_sequence_list.declaration_type
+  AND DATE(declaration_created_at_date) BETWEEN declaration_date_start
+  AND declaration_date_end
+INNER JOIN
+  started_declaration_milestones
+USING
+  (participant_profile_id)
+CROSS JOIN
+  ${functions.orderedCohortMilestonesWithStartAndEndDates(ctx)}
+WHERE
+  (DATE(declaration_date) BETWEEN milestone_start
+    AND milestone_end)
+  AND state IN ( 'eligible',
+    'payable',
+    'paid')
+  AND (milestone_order - milestone_start_received + 1) < expected_declaration_sequence_position
+  AND (declarations.schedule_identifier NOT LIKE '%reduced%'
+    OR declarations.declaration_type <> 'completed')
+  AND cohort >= 2023

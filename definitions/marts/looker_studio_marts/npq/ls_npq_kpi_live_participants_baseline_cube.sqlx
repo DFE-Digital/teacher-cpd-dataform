@@ -1,0 +1,167 @@
+config {
+    type: "table",
+    tags: ["kpi"],
+    assertions: {
+        uniqueKey: ["date"]
+    },
+    bigquery: {
+        partitionBy: "date",
+        labels: {usage: "kpi"}
+    },
+    description: "Single-dimension cube (by date) containing the best available actual or estimated number of live NPQ participants and applicants to use as a baseline in the registration window that date falls within. To act as a baseline across a range of KPIs. Note that these KPIs should be defined with the baseline (denominator) applying to the whole registration window, even if the numerator applies only to a particular day, week, month etc.",
+    columns: {
+        date: "Date for which this baseline metric has been calculated",
+        registration_window_start_date: "The first date in the registration window this date falls within",
+        registration_window_end_date: "The last date in the registration window this date falls within. NULL if the next registration window has not yet been added to the query that generates this table.",
+        registration_window_string: "Registration window date falls within formatted as e.g. 2032-33 for display purposes",
+        registration_window: "Calendar year registration_window_start_date falls within e.g. 2032 for the 2032-33 registration window",
+        registration_window_day: "Number of days within registration window that this date is since the registration_year_start_date, counting registration_year_start_date as day 1.",
+        registration_window_week: "Week of registration window that this date falls within, treating the registration_year_start_date as day 1 of week 1.",
+        registration_window_month: "Month of registration window that this date falls within, treating the registration_year_start_date as day 1 of month 1. An integer. For example, if a registration window started on Dec 25th 2056, Dec 27th 2056 falls in month 1, Jan 5th 2056 falls in month 1, Jan 25th 2057 falls in month 2 etc.",
+        date_is_in_registration_window_to_date_or_past_registration_window: "TRUE if date is either between the start date of the current registration window and today's date, or falls within a registration window that ended on a past date. For use to filter metrics on dashboards which are calculated for the 'registration window to date'.",
+        date_is_comparable_to_next_registration_window_to_date: "TRUE if the date with the same registration_window_day in the following registration window (i.e. the one after the registration_window date falls within) is between the start date of the current registration window and today's date, or if that date falls within a registration window that ended on a past date. For example, if two consecutive registration windows were 2nd Feb 2057 - 6th March 2058 and 7th March 2058 - 28th Feb 2059, and the current date is 8th March 2058 (registration_window_day = 2), this field would be TRUE for 2nd & 3rd Feb 2057 but FALSE after that. For use to filter metrics on dashboards which are calculated for the 'registration window to date' and then compared with the 'same period last registration window'.",
+        number_of_live_npq_participants_and_applicants_baseline_estimate: "Best available actual or estimated number of live NPQ participants or applicants to use as a baseline in the registration window that date falls within. Live is defined as the period between the start declaration date and assumed no longer live date overlapping with the first academic year that starts after the registration window begins. To act as a baseline across a range of KPIs. Note that these KPIs should be defined with the baseline (denominator) applying to the whole registration window, even if the numerator applies only to a particular day, week, month etc. For the current registration window, data is not complete enough until late March, so this is set to the value from the previous registration window until 1st January.",
+    }
+}
+
+pre_operations {
+  /* Forecast number of NPQ applications in the current registration window. Used before January 1st to estimate baseline number of live NPQ participants and applicants while actual data is not yet available. */
+  DECLARE forecast_npq_applications_in_current_registration_window INT64 DEFAULT 20000;
+  /* The registration window for which forecast_npq_applications_in_current_registration_window applies. Powers assertion failure. Update this when you update forecast_npq_applications_in_current_registration_window. */
+  DECLARE registration_window_start_date_forecast_last_set_for DATE DEFAULT "2025-09-01";
+  /* Array of start dates of NPQ registration windows. For new registration windows this should be the day applications first open for the coming academic year. For past windows this has been deduced from the dates application numbers increased substantially above zero for NPQs which were then started in the coming academic year. */
+  DECLARE registration_window_start_dates ARRAY<DATE> DEFAULT
+    [
+      DATE("2021-07-01"),
+      DATE("2022-06-06"),
+      DATE("2023-04-15"),
+      DATE("2024-06-28"),
+      DATE("2025-09-08")
+    ];
+}
+
+post_operations {
+  ASSERT (
+    SELECT DATE_DIFF(CURRENT_DATE, MAX(registration_window_start_date), DAY) < 360 FROM UNNEST(registration_window_start_dates) AS registration_window_start_date
+  ) AS "Latest registration window is more than 360 days ago. Please add this to registration_window_start_dates variable in ls_npq_kpi_live_participants_baseline_cube.sqlx pre_operations block.";
+  ASSERT (
+    SELECT DATE_DIFF(CURRENT_DATE, registration_window_start_date_forecast_last_set_for, DAY) < 360
+  ) AS "Forecast number of NPQ applications for latest registration window was set more than 360 days ago. Please update forecast_npq_applications_in_current_registration_window and registration_window_start_date_forecast_last_set_for variables in ls_npq_kpi_live_participants_baseline_cube.sqlx pre_operations block."
+}
+
+WITH
+  registration_windows AS (
+  SELECT
+    DATE(registration_start_date) AS registration_window_start_date,
+    LEAD(DATE(registration_start_date)) OVER (ORDER BY registration_start_date ASC) - 1 AS registration_window_end_date,
+    EXTRACT(YEAR
+    FROM
+      registration_start_date) AS registration_window_year,
+    ${functions.yearStartDateToAcademicYearString("DATE(registration_start_date)")} AS registration_window_string,
+    DATE(EXTRACT(YEAR
+      FROM
+        registration_start_date), 9, 1) AS academic_year_start_date,
+    DATE(EXTRACT(YEAR
+      FROM
+        registration_start_date) + 1, 8, 31) AS academic_year_end_date
+  FROM
+    UNNEST(registration_window_start_dates) AS registration_start_date
+  WHERE
+    DATE(registration_start_date) < CURRENT_DATE ),
+  registration_windows_with_metrics AS (
+  SELECT
+    registration_window_string,
+    registration_window_year,
+    registration_window_start_date,
+    registration_window_end_date,
+    academic_year_start_date,
+    academic_year_end_date,
+    COUNT(DISTINCT
+    IF
+      (
+        /* Count TRNs that started NPQs before the end of the academic year applications in this registration window are for */
+        (
+          DATE(started_declaration_date) <= registration_windows.academic_year_end_date
+        /* ...and which cannot be assumed to be no longer live before the start of that academic year... */
+          AND (
+            DATE(assumed_no_longer_live_date) >= registration_windows.academic_year_start_date
+            OR assumed_no_longer_live_date IS NULL
+            )
+        )
+        /* ...or in addition count TRNs that applied to do an NPQ within this registration window,
+        regardless of whether they were accepted or not */
+        OR (
+          DATE(application_created_at)
+          BETWEEN registration_windows.academic_year_start_date AND registration_windows.academic_year_end_date
+        ), application_trn, NULL)) AS number_of_live_npq_participants_and_applicants_in_registration_window_ay,
+    /* Count the number of (assumed) live participants on the first day of the academic year. */
+    /* Only used as part of calculation of a forecast baseline for the current registration window, below*/
+    COUNT(DISTINCT
+    IF
+      (
+        DATE(started_declaration_date) < registration_windows.academic_year_start_date
+        AND (
+          DATE(assumed_no_longer_live_date) >= registration_windows.academic_year_start_date
+          OR assumed_no_longer_live_date IS NULL
+          )
+        , application_trn, NULL)) AS number_of_live_npq_participants_at_start_of_registration_window_ay
+  FROM
+    ${ref(`npq_enrolments`)},
+    registration_windows
+  GROUP BY
+    ALL ),
+dates_with_metrics AS (
+    SELECT
+    date,
+    DATE_DIFF(date, registration_window_start_date, DAY) + 1 AS registration_window_day,
+    DATE_DIFF(date, registration_window_start_date, WEEK) + 1 AS registration_window_week,
+    DATE_DIFF(date, registration_window_start_date, MONTH) + 1 AS registration_window_month,
+    registration_window_string,
+    registration_window_year,
+    registration_window_start_date,
+    registration_window_end_date,
+    academic_year_start_date,
+    academic_year_end_date,
+        CASE
+        WHEN
+            (CURRENT_DATE BETWEEN registration_window_start_date AND registration_window_end_date)
+            OR (registration_window_end_date IS NULL AND CURRENT_DATE >= registration_window_start_date)
+            THEN date < CURRENT_DATE
+        WHEN
+            CURRENT_DATE > registration_window_end_date
+            THEN TRUE
+        ELSE FALSE
+        END AS date_is_in_registration_window_to_date_or_past_registration_window,
+    CASE
+        WHEN
+            /* When date is in the current registration window */
+            (CURRENT_DATE BETWEEN registration_window_start_date AND registration_window_end_date
+            OR (
+                CURRENT_DATE >= registration_window_start_date
+                AND registration_window_end_date IS NULL
+                )
+            )
+            /* And when it's not yet 1st January in the calendar year after the registration window started */
+            AND CURRENT_DATE < DATE(registration_window_year + 1, 1, 1)
+            THEN forecast_npq_applications_in_current_registration_window + number_of_live_npq_participants_at_start_of_registration_window_ay
+        ELSE number_of_live_npq_participants_and_applicants_in_registration_window_ay
+    END
+    AS number_of_live_npq_participants_and_applicants_baseline_estimate
+    FROM
+    UNNEST(GENERATE_DATE_ARRAY((
+        SELECT
+            MIN(registration_window_start_date)
+        FROM
+            registration_windows), CURRENT_DATE - 1)) AS date
+    LEFT JOIN
+    registration_windows_with_metrics
+    ON
+    ((date BETWEEN registration_window_start_date AND registration_window_end_date)
+        OR (date >= registration_window_start_date AND registration_window_end_date IS NULL))
+)
+SELECT
+  *,
+  LEAD(date_is_in_registration_window_to_date_or_past_registration_window)
+    OVER (PARTITION BY registration_window_day ORDER BY registration_window_year ASC) AS date_is_comparable_to_next_registration_window_to_date
+FROM
+  dates_with_metrics

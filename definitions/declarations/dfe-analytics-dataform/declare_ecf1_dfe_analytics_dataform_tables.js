@@ -4,6 +4,7 @@ const tableNames = [
     "cohorts_latest",
     "cpd_lead_providers_latest",
     "delivery_partners_latest",
+    "events",
     "induction_coordinator_profiles_latest",
     "induction_coordinator_profiles_schools_latest",
     "induction_programmes_latest",
@@ -20,6 +21,7 @@ const tableNames = [
     "partnerships_field_updates",
     "partnerships_latest",
     "partnerships_version",
+    "persist_api_request",
     "pupil_premiums_latest",
     "schedules_latest",
     "school_cohorts_latest",
@@ -38,3 +40,9 @@ tableNames.forEach(tableName => {
         name: tableName + "_ecf1"
     });
 });
+
+declare({
+        database: "ecf-bq",
+        schema: "dfe_analytics_dataform",
+        name: "ecf1_entity_field_updates"
+    });

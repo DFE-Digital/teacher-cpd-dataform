@@ -14,15 +14,15 @@ config {
         session_id: "UID of this session",
         user_id: "ID of the user logged in at some point during this session - if they were. Traffic from separate user_ids is always separated into separate sessions.",
         session_start_timestamp: "Time at which the session began",
-        page_path: "Path of the page that was viewed, excluding domain and query string.",
-        referer_path: "Path of the previous page that was viewed, if it was. May be an external site or an internal pageview from a previous session. Not the same as previous_step.",
+        page_path: "Path of the page that was viewed, excluding domain and query string. Blocks of alphanumeric characters containing 3+ digits have been grouped by replacing these blocks with '[grouped]'.",
+        referer_path: "Path of the previous page that was viewed, if it was. May be an external site or an internal pageview from a previous session. Not the same as previous_step. Blocks of alphanumeric characters containing 3+ digits have been grouped by replacing these blocks with '[grouped]'.",
         referer_domain: "Domain of the previous page that was viewed, if it was and if this is available. May be an external site or an internal pageview from a previous session.",
         page_entry_time: "Time at which this pageview happened.",
-        next_step: "Path of the next page that was viewed on this service within this session, if it was. If it wasn't, contains the string 'End of session'.",
+        next_step: "Path of the next page that was viewed on this service within this session, if it was. If it wasn't, contains the string 'End of session'. Blocks of alphanumeric characters containing 3+ digits have been grouped by replacing these blocks with '[grouped]'.",
         next_step_for_display: "next_step optimised for display in Sankey diagrams in Looker Studio",
-        first_step: "Path of the first page that was viewed in the session this pageview falls within.",
-        last_step: "Path of the last page that was viewed in the session this pageview falls within.",
-        previous_step: "Path of the previous page that was viewed on this service *within this session*, if it was. If it wasn't, contains the string 'End of session'. Not the same as referer_path.",
+        first_step: "Path of the first page that was viewed in the session this pageview falls within. Blocks of alphanumeric characters containing 3+ digits have been grouped by replacing these blocks with '[grouped]'.",
+        last_step: "Path of the last page that was viewed in the session this pageview falls within. Blocks of alphanumeric characters containing 3+ digits have been grouped by replacing these blocks with '[grouped]'.",
+        previous_step: "Path of the previous page that was viewed on this service *within this session*, if it was. If it wasn't, contains the string 'End of session'. Not the same as referer_path. Blocks of alphanumeric characters containing 3+ digits have been grouped by replacing these blocks with '[grouped]'.",
         pageview_number_in_session: "Number indicating that this pageview was the Nth pageview within this session.",
         time_on_page: "Number of seconds between page_entry_time and the page_entry_time of the next pageview which is not the same grouped page_path if it exists. NULL otherwise.",
         number_of_immediate_repeat_pageviews: "Number of views of the same grouped page_path within this session which took place with no views of any other grouped page_paths in between.",
@@ -508,24 +508,8 @@ FROM
             /* This subquery replaces UID page path components in page and referer paths with the string "[grouped]" so that paths which are essentially the same are displayed as being the same in funnel analysis dashboards */
             /* UID page path components are defined as whole page path components (between two /s or between a / and the end of the page path) which either contain only numbers, or contain at least 1 number, only letters or hyphens (-) as other characters, and 4 or more characters in total */
             SELECT
-                ARRAY_TO_STRING(ARRAY(
-                    SELECT
-                        CASE
-                            WHEN (REGEXP_CONTAINS(page_path_component, "^[a-zA-Z0-9-]*[0-9][a-zA-Z0-9-]*$") AND LENGTH(page_path_component) > 3) OR REGEXP_CONTAINS(page_path_component, "^[0-9]+$") THEN "[grouped]"
-                        ELSE page_path_component
-                        END
-                    FROM
-                        UNNEST(SPLIT(page, "/")) AS page_path_component
-                ), "/", "") AS page_path,
-                ARRAY_TO_STRING(ARRAY(
-                    SELECT
-                        CASE
-                            WHEN (REGEXP_CONTAINS(previous_page_path_component, "^[a-zA-Z0-9-]*[0-9][a-zA-Z0-9-]*$") AND LENGTH(previous_page_path_component) > 3) OR REGEXP_CONTAINS(previous_page_path_component, "^[0-9]+$") THEN "[grouped]"
-                        ELSE previous_page_path_component
-                        END
-                    FROM
-                        UNNEST(SPLIT(previous_page, "/")) AS previous_page_path_component
-                ), "/", "") AS referer_path,
+                ${functions.contentGroupPath("page")} AS page_path,
+                ${functions.contentGroupPath("previous_page")} AS referer_path,
                 page_entry_time,
                 previous_page_domain AS referer_domain,
                 duration AS time_on_page,

@@ -5,9 +5,11 @@ const tableNames = [
     "cohorts_latest",
     "courses_latest",
     "declarations_latest",
+    "events",
     "lead_providers_latest",
     "participant_outcome_api_requests_latest",
     "participant_outcomes_latest",
+    "persist_api_request",
     "private_childcare_providers_latest",
     "schedules_latest",
     "schools_latest",
@@ -26,3 +28,9 @@ tableNames.forEach(tableName => {
         name: tableName + "_npq"
     });
 });
+
+declare({
+        database: "ecf-bq",
+        schema: "dfe_analytics_dataform",
+        name: "npq_entity_field_updates"
+    });
