@@ -5,8 +5,7 @@ config {
         clusterBy: ["ab_name_riab"]
     },
 description:
-"This mart is designed to be used as part of the Appropriate Body KPI report for the AB and regs team. It contains the most recent induction period per ECT created in the RIAB service where there is no registration for that ECT in the ECF1 service, indicated by the in_ecf1 field being NULL. It joins induction periods created in RIAB to registrations by TRN. For this mart to be adjusted for future AB KPI reports, the induction_period_created_at filter should be updated with the appropriate date. The static table ab_to_hub_region_mapping_2025_09_15 should also be checked to ensure the mapping of ECF1 appropriate body names to RIAB appropriate body names remains correct.",
-    columns: {
+"This mart is designed to support conversations between The Digital Engagement team and Appropriate Body. It contains the most recent induction period per ECT created in the RIAB service where there is no registration for that ECT in the ECF1 service, indicated by the in_ecf1 field being NULL. It joins induction periods created in RIAB to registrations by TRN. For this mart to be adjusted for future AB KPI reports, the induction_period_created_at filter should be updated with the appropriate date. ",    columns: {
         trn: {
             description: "TRN for the teacher this declaration related to training for",
             bigqueryPolicyTags: ["projects/ecf-bq/locations/europe-west2/taxonomies/6302091323314055162/policyTags/301313311867345339"]
