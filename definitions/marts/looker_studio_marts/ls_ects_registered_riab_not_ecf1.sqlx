@@ -4,8 +4,8 @@ config {
         partitionBy: "",
         clusterBy: ["ab_name_riab"]
     },
-description:
-"This mart is designed to support conversations between The Digital Engagement team and Appropriate Body. It contains the most recent induction period per ECT created in the RIAB service where there is no registration for that ECT in the ECF1 service, indicated by the in_ecf1 field being NULL. It joins induction periods created in RIAB to registrations by TRN. For this mart to be adjusted for future AB KPI reports, the induction_period_created_at filter should be updated with the appropriate date. ",    columns: {
+    description: "This mart is designed to support conversations between The Digital Engagement team and Appropriate Body. It contains the most recent induction period per ECT created in the RIAB service where there is no registration for that ECT in the ECF1 service, indicated by the in_ecf1 field being NULL. It joins induction periods created in RIAB to registrations by TRN. For this mart to be adjusted for future AB KPI reports, the induction_period_created_at filter should be updated with the appropriate date. ",
+    columns: {
         trn: {
             description: "TRN for the teacher this declaration related to training for",
             bigqueryPolicyTags: ["projects/ecf-bq/locations/europe-west2/taxonomies/6302091323314055162/policyTags/301313311867345339"]
@@ -27,15 +27,15 @@ WITH
   riab AS (
   SELECT
     periods.trn,
-      CASE periods.induction_programme
-    WHEN 'fip' THEN 'Provider led'
-    WHEN 'diy' THEN 'School led'
-    WHEN 'cip' THEN 'School led'
-    ELSE periods.induction_programme
-END
-  AS programme_choice,
+    CASE periods.induction_programme
+      WHEN 'fip' THEN 'Provider led'
+      WHEN 'diy' THEN 'School led'
+      WHEN 'cip' THEN 'School led'
+      ELSE periods.induction_programme
+  END
+    AS programme_choice,
     periods.trs_induction_status,
-    DATE(periods.induction_period_created_at) as induction_period_created_at,
+    DATE(periods.induction_period_created_at) AS induction_period_created_at,
     periods.appropriate_body_name AS ab_name_riab,
     CONCAT(abs.local_authority_code, "/", abs.establishment_number) AS ab_la_code,
     NULL AS ab_urn,
@@ -48,8 +48,7 @@ END
   ON
     periods.appropriate_body_id = abs.id
   WHERE
-
-  -- for future registration windows, this date should be updated with the first opportunitty to create induction windows in the registration window
+    -- for future registration windows, this date should be updated with the first opportunitty to create induction windows in the registration window
     periods.induction_period_created_at >= '2025-04-01'
   QUALIFY
     ROW_NUMBER() OVER (PARTITION BY trn ORDER BY periods.induction_period_created_at DESC ) = 1),
@@ -61,7 +60,6 @@ END
     ${ref('ecf_inductions_dedupe')} )
 SELECT
   riab.*
-
 FROM
   riab
 LEFT JOIN
