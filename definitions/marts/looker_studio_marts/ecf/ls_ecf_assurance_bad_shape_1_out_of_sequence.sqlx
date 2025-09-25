@@ -1,0 +1,111 @@
+config {
+    type: "table",
+    tags: ["assurance bad shapes"],
+    assertions: {
+        uniqueKey: ["declaration_id"],
+        rowConditions: ['expected_declaration_sequence_position is not null']
+    },
+    bigquery: {
+        labels: {
+            purpose: "assurance"
+        },
+        partitionBy: "DATE(declaration_date)",
+        clusterBy: ["cpd_lead_provider_name", "participant_profile_id"]
+    },
+    description: "This is #1 in a series of Assurance 'Bad Shapes' marts that identify declarations received that fall outside the expected declaration rules. Each declaration type has an expected sequence position (see 'expected_declaration_sequence_position' field for sequence), this mart checks if the declaration falls out of that expected sequence based on the date it was evidenced. It checks the sequence of the declaration_dates (evidence date) of the declarations received and checks whether a declaration was evidenced out of sequence compared to the declarations evidenced before and after the given declaration. The logic in this mart is adjusted to accomodate a change in the approved sequence for declarations submitted after '01/08/2025' when 'completed' declarations were shifted to be evidenced before 'extended' type declarations. Prior to that date, 'completed' declarations were to be evidenced last. This mart modifies the expected sequence based on when those completed and extended declarations were received. Similarly, adjustments are included to permit ECTs on a reduced schedule to receive a 'completed' declaration at any point to accomodate their reduced period of training. The sequence of declarations evidenced on the same day are not considered here as they fall under a separate bad shapes mart. Only participants with a current cohort of 2023 or later are included",
+    columns: {
+        declaration_id: 'ID associated with the declaration which qualifies as falling into a bad shape',
+        declaration_type: 'The type of the declaration which indicates how far along a participant is in their training',
+        declaration_created_at_date: 'The date the declaration was submitted, this field is only relevant to determine which sequence should be applied, it is not used to compare declarations against each other',
+        declaration_date: 'The date the declaration was evidenced, when the participant qualified to be declared against. This field is key for determining where a declaration falls in relation to other declarations because it relates to when in the participants training it was evidenced',
+        participant_profile_id: "ID of each participant's profile.",
+        state: 'The financial state of the declaration - whether it has been paid yet or not and whether it is eligible for funding - only paid, payable and eligible declarations are relevant for bad shapes checks',
+        cpd_lead_provider_name: 'The name of the lead provider that submitted the declaration',
+        statement_id: 'The associated financial statement the declaration was included on',
+        schedule_identifier: 'The training schedule of the participant - this indicates when they started on the programme and whether they followed a standard pattern of training. Reduced schedules do not have to have a started declaration and their completed declaration can be submitted at any point because they do not have to complete the full length of training',
+        participant_type: 'Whether the participant is an ECT or a mentor',
+        cohort: 'The cohort on the participants latest induction record. This may not be the cohort they commenced training on. This mart only includes participants from cohorts from 2023 onwards, however declarations from prior cohorts are used for the bad shape calculation.',
+        statement_cohort: 'This is the cohort the declaration was submitted against. This might not match the participants induction cohort because the participant may have been rolled onto a new cohort since this declaration was submitted. ',
+        trn: {
+            description: "TRN associated with the ECT's profile.",
+            bigqueryPolicyTags: ["projects/ecf-bq/locations/europe-west2/taxonomies/6302091323314055162/policyTags/301313311867345339"]
+        },
+        expected_declaration_sequence_position: "This is the declaration sequence position we would expect this declaration type to be evidenced in. The proper sequence changed after 01/08/2025 shifting the order from S-R1-R2-R3-R4-E1-E2-E3-C to S-R1-R2-R3-R4-C-E1-E2-E3 (moving completed declarations earlier in the correct sequence). Declarations evidenced prior to that date follow the first pattern, after that date they should follow the second pattern",
+        actual_evidenced_sequence_position: "This is the actual sequence position this declaration was evidenced in",
+        max_declaration_sequence_evidenced_before_date: "This is the highest expected sequence position that was evidenced before the current declaration. For example, if this declaration was a 'started' declaration and only a 'retained-1' declaration was evidenced prior to this declaration, the value of this field would be 2 because that is the expected sequence of the 'retained-1' declaration",
+        max_declaration_date_evidenced_before_date: "This is the 'declaration_date' associated with the declaration with highest expected sequence position evidenced before this current declaration.",
+        min_declaration_sequence_evidenced_after_date: "This is the lowest expected sequence position that was evidenced after the current declaration. For example, if this declaration was a 'completed' declaration and a 'started' declaration was evidenced after this declaration, the value of this field would be 1 because that is the expected sequence of the 'started' declaration",
+        min_declaration_date_evidenced_after_date: "This is the 'declaration_date' associated with the declaration with the lowest expected sequence position evidenced after this current declaration."
+    }
+}
+
+  /* This identifies declarations received for a participant and induction details from their latest induction record. It joins in what should be the correct sequence for that declaration type based on when the declaration was received */
+  /* Only declarations eligible for funding are permitted for the calculation*/
+WITH
+  extended_declarations AS (
+  SELECT
+    declaration_id,
+    declaration_type,
+    declaration_created_at_date,
+    declaration_date,
+    participant_profile_id,
+    state,
+    cpd_lead_provider_name,
+    statement_id,
+    schedule_identifier,
+    participant_type,
+    cohort,
+    statement_cohort,
+    trn,
+    declaration_sequence_list.expected_declaration_sequence_position,
+    /* This date logic in the 'order by' exists to ensure that if a declaration is out of order compared to declarations received earlier on a different date but also evidenced on the same day as a declaration that should be later in the sequence, that declaration won't eclipse the prior declaration and prevent the qualify statement from working at the end of this mart*/
+    /* For example, if you were to evidence a retained 3 declaration on Sep 15th and then on Sep 17th evidence a completed declaration at 9AM and then a retained 2 declaration at 10 AM,for the purposes of the queries below, you would want the retained 2 declaration ordered immediately after the retained 3 declaration and then the completed declaration ordered after the retained 2 declaration - So Ret 3, Ret 2, Completed */
+    /* This prevents this misordered retained 2 declaration from being excluded by the qualify statement excluding declarations out of order simply because they were evidenced on the same date, as this ordering logic compares it to the retained 3 declaration instead of the completed declaration. */
+    ROW_NUMBER() OVER (PARTITION BY participant_profile_id ORDER BY DATE(declaration_date) ASC,
+      expected_declaration_sequence_position ASC) AS actual_evidenced_sequence_position,
+  FROM
+    ${ref('ecf_declarations')} declarations
+  LEFT JOIN
+    ${functions.correctOrderDeclarationsTypesShouldBeReceived()} AS declaration_sequence_list
+  USING
+    (declaration_type)
+  WHERE
+    DATE(declaration_created_at_date) BETWEEN declaration_date_start
+    AND declaration_date_end
+    AND cohort >= 2023
+    AND state IN ('eligible',
+      'payable',
+      'paid'))
+      /* This identifies the declarations evidenced before and after a given record's declaration based on declaration_date. It checks if the permitted sequence number of the record's declaration falls out of order compared to the maximum expected order of the declarations evidenced before or compared to the minimum expected order of the declarations evidenced after*/
+      /* It does not consider the declaration to fall under this bad shape if the declaration is evidenced on the same date as the prior or next declarations, this is covered under another bad shape */
+      /* It does not consider the declaration to fall under this bad shape if this participant is on a 'reduced' schedule and the declaration is a 'completed' type */
+SELECT
+  *,
+  MAX(expected_declaration_sequence_position) OVER participant_declarations_evidenced_prior_to_current_record AS max_declaration_sequence_evidenced_before_date,
+  MAX(DATE(declaration_date)) OVER participant_declarations_evidenced_prior_to_current_record AS max_declaration_date_evidenced_before_date,
+  MIN(expected_declaration_sequence_position) OVER participant_declarations_evidenced_after_current_record AS min_declaration_sequence_evidenced_after_date,
+  MIN(DATE(declaration_date)) OVER participant_declarations_evidenced_after_current_record AS min_declaration_date_evidenced_after_date
+FROM
+  extended_declarations
+QUALIFY
+  (max_declaration_sequence_evidenced_before_date > expected_declaration_sequence_position
+    AND max_declaration_date_evidenced_before_date <> DATE(declaration_date)
+    AND max_declaration_sequence_evidenced_before_date IS NOT NULL)
+  OR (min_declaration_sequence_evidenced_after_date <= expected_declaration_sequence_position
+    AND min_declaration_date_evidenced_after_date <> DATE(declaration_date)
+    AND min_declaration_sequence_evidenced_after_date IS NOT NULL)
+  AND (schedule_identifier NOT LIKE '%reduced%'
+    OR declaration_type <> 'completed')
+WINDOW
+  participant_declarations_evidenced_prior_to_current_record AS (
+  PARTITION BY
+    participant_profile_id
+  ORDER BY
+    actual_evidenced_sequence_position ROWS BETWEEN UNBOUNDED PRECEDING
+    AND 1 PRECEDING ),
+  participant_declarations_evidenced_after_current_record AS (
+  PARTITION BY
+    participant_profile_id
+  ORDER BY
+    actual_evidenced_sequence_position ROWS BETWEEN 1 FOLLOWING
+    AND UNBOUNDED FOLLOWING )
