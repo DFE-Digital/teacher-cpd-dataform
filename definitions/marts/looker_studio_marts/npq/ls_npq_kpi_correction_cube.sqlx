@@ -15,7 +15,7 @@ config {
         date: "Date for which these metrics have been calculated",
         entity_table_name: "The table which was updated on this date",
         fields_updated: "Field(s) which was updated as part of this updated. Formatted as an ' and ' separated list in a string.",
-        correction_type: "'Clawed back declaration', 'Voided declaration', or string beginning either 'Update from blank/null' or 'Update to existing value' followed by either 'via admin console' (where request_path starts with /admin or /finance) or 'not linked to web request' (where dfe-analytics did not link the update to a web request).",
+        correction_type: "'Clawed back declaration', 'Voided declaration', or string beginning either 'Update from blank/null' or 'Update to existing value' followed by either 'via admin console' (where request_path starts with /admin) or 'not linked to web request' (where dfe-analytics did not link the update to a web request).",
         registration_window_start_date: "The first date in the registration window this date falls within",
         registration_window_string: "Registration window date falls within formatted as e.g. 2032-33 for display purposes",
         registration_window: "Calendar year registration_window_start_date falls within e.g. 2032 for the 2032-33 registration window",
@@ -25,7 +25,7 @@ config {
         date_is_in_registration_window_to_date_or_past_registration_window: "TRUE if date is either between the start date of the current registration window and today's date, or falls within a registration window that ended on a past date. For use to filter metrics on dashboards which are calculated for the 'registration window to date'.",
         date_is_comparable_to_next_registration_window_to_date: "TRUE if the date with the same registration_window_day in the following registration window (i.e. the one after the registration_window date falls within) is between the start date of the current registration window and today's date, or if that date falls within a registration window that ended on a past date. For example, if two consecutive registration windows were 2nd Feb 2057 - 6th March 2058 and 7th March 2058 - 28th Feb 2059, and the current date is 8th March 2058 (registration_window_day = 2), this field would be TRUE for 2nd & 3rd Feb 2057 but FALSE after that. For use to filter metrics on dashboards which are calculated for the 'registration window to date' and then compared with the 'same period last registration window'.",
         number_of_live_npq_participants_and_applicants_baseline_estimate: "Best available actual or estimated number of live NPQ participants or applicants to use as a baseline in the registration window that date falls within. Live is defined as the period between the start declaration date and assumed no longer live date overlapping with the first academic year that starts after the registration window begins. To act as a baseline across a range of KPIs. Note that these KPIs should be defined with the baseline (denominator) applying to the whole registration window, even if the numerator applies only to a particular day, week, month etc. For the current registration window, data is not complete enough until late March, so this is set to the value from the previous registration window until 1st January.",
-        number_of_corrections: "Number of corrections made of type 'correction_type' to the 'fields_updated' fields in table 'entity_table_name' on 'date'. A correction is a set of updates to fields on a single entity that took place at exactly the same time that represent either a developer updating the database manually, a response to a web request handled by the admin console (paths beginning /admin or /finance), or a status change on a declaration to voided or awaiting_clawback."
+        number_of_corrections: "Number of corrections made of type 'correction_type' to the 'fields_updated' fields in table 'entity_table_name' on 'date'. A correction is a set of updates to fields on a single entity that took place at exactly the same time that represent either a developer updating the database manually, a response to a web request handled by the admin console (paths beginning /admin), or a status change on a declaration to voided or awaiting_clawback."
     }
 }
 
@@ -52,8 +52,7 @@ WITH
     WHERE
       DATE(occurred_at) > event_date_checkpoint
       AND DATE(occurred_at) < CURRENT_DATE
-      AND (request_path LIKE ANY ("/admin%",
-          "/finance%")
+      AND (request_path LIKE "/admin%"
         OR LOWER(request_user_agent) IS NULL
         OR (entity_table_name = "declarations"
           AND key_updated = "state"
@@ -86,7 +85,7 @@ WITH
       WHEN entity_table_name = "declarations"
     AND "state" IN UNNEST(fields_updated)
     AND new_value = "voided" THEN "Voided declaration"
-      WHEN request_path LIKE ANY ("/admin%", "/finance%") THEN IF((previous_value = "" OR previous_value IS NULL) AND new_value IS NOT NULL AND new_value != "", "Update from blank/null", "Update to existing value") || " via admin console"
+      WHEN request_path LIKE "/admin%" THEN IF((previous_value = "" OR previous_value IS NULL) AND new_value IS NOT NULL AND new_value != "", "Update from blank/null", "Update to existing value") || " via admin console"
       WHEN LOWER(request_user_agent) IS NULL THEN IF((previous_value = "" OR previous_value IS NULL) AND new_value IS NOT NULL AND new_value != "", "Update from blank/null", "Update to existing value") || " not linked to web request"
       ELSE "Unknown"
   END
