@@ -36,6 +36,7 @@ WITH
     FROM
       ${ref("ls_ecf_api_monitoring")}
     WHERE status_code >= 400 AND api_environment = "Manage Training - Production"
+    AND DATE(occurred_at) < CURRENT_DATE
     GROUP BY
       ALL
   )
@@ -62,6 +63,7 @@ ON
   dates.date = api_error_metrics.date
 WHERE
   dates.date > event_date_checkpoint
+  AND dates.date < CURRENT_DATE
 
 pre_operations {
   DECLARE

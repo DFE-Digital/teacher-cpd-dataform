@@ -1,5 +1,6 @@
 const tableNames = [
     "appropriate_bodies_latest",
+    "events",
     "induction_periods_field_updates",
     "induction_periods_latest",
     "induction_periods_version",
@@ -14,3 +15,9 @@ tableNames.forEach(tableName => {
         name: tableName + "_ecf2"
     });
 });
+
+declare({
+        database: "ecf-bq",
+        schema: "dfe_analytics_dataform",
+        name: "ecf2_entity_field_updates"
+    });

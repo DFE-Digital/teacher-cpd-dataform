@@ -38,6 +38,7 @@ WITH
     WHERE
       status_code >= 400
       AND DATE(occurred_at) > event_date_checkpoint
+      AND DATE(occurred_at) < CURRENT_DATE
     GROUP BY ALL
   )
 SELECT
@@ -63,6 +64,7 @@ ON
   dates.date = api_error_metrics.date
 WHERE
   dates.date > event_date_checkpoint
+  AND dates.date < CURRENT_DATE
 
 pre_operations {
   DECLARE
