@@ -67,8 +67,7 @@ WITH
     WHERE
       DATE(occurred_at) > event_date_checkpoint
       AND DATE(occurred_at) < CURRENT_DATE
-      AND (request_path LIKE ANY ("/admin%",
-          "/finance%")
+      AND (request_path LIKE "/admin%"
         OR LOWER(request_user_agent) IS NULL
         OR (entity_table_name = "participant_declarations"
           AND key_updated = "state"
@@ -104,7 +103,7 @@ WITH
       WHEN entity_table_name = "participant_declarations"
     AND "state" IN UNNEST(fields_updated)
     AND new_value = "voided" THEN "Voided declaration"
-      WHEN request_path LIKE ANY ("/admin%", "/finance%") THEN IF((previous_value = "" OR previous_value IS NULL) AND new_value IS NOT NULL AND new_value != "", "Update from blank/null", "Update to existing value") || " via admin console"
+      WHEN request_path LIKE "/admin%" THEN IF((previous_value = "" OR previous_value IS NULL) AND new_value IS NOT NULL AND new_value != "", "Update from blank/null", "Update to existing value") || " via admin console"
       WHEN LOWER(request_user_agent) IS NULL THEN IF((previous_value = "" OR previous_value IS NULL) AND new_value IS NOT NULL AND new_value != "", "Update from blank/null", "Update to existing value") || " not linked to web request"
       ELSE "Unknown"
   END
@@ -152,8 +151,8 @@ pre_operations {
     ${
         when(incremental(),
             `SELECT MAX(date) FROM ${self()}`,
-            /* Start calculating at the point of dfe-analytics installation on Manage, because no data is available before then */
-            `SELECT DATE("2023-09-18")`)
+            /* Start calculating at the point of NPQ separation from Manage, because it is too complex to distinguish between ECTE and NPQ data corrections before then */
+            `SELECT DATE("2024-12-11")`)
     }
     )
 }

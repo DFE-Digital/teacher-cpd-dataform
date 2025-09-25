@@ -52,8 +52,7 @@ WITH
     WHERE
       DATE(occurred_at) > event_date_checkpoint
       AND DATE(occurred_at) < CURRENT_DATE
-      AND (request_path LIKE ANY ("/admin%",
-          "/finance%")
+      AND (request_path LIKE "/admin%"
         OR LOWER(request_user_agent) IS NULL
         OR (entity_table_name = "declarations"
           AND key_updated = "state"
@@ -86,7 +85,7 @@ WITH
       WHEN entity_table_name = "declarations"
     AND "state" IN UNNEST(fields_updated)
     AND new_value = "voided" THEN "Voided declaration"
-      WHEN request_path LIKE ANY ("/admin%", "/finance%") THEN IF((previous_value = "" OR previous_value IS NULL) AND new_value IS NOT NULL AND new_value != "", "Update from blank/null", "Update to existing value") || " via admin console"
+      WHEN request_path LIKE "/admin%" THEN IF((previous_value = "" OR previous_value IS NULL) AND new_value IS NOT NULL AND new_value != "", "Update from blank/null", "Update to existing value") || " via admin console"
       WHEN LOWER(request_user_agent) IS NULL THEN IF((previous_value = "" OR previous_value IS NULL) AND new_value IS NOT NULL AND new_value != "", "Update from blank/null", "Update to existing value") || " not linked to web request"
       ELSE "Unknown"
   END
