@@ -24,7 +24,6 @@ config {
         date_ect_registered_ecf1: "The date the ECT registered on the ECF1 service.",
         induction_period_created_riab: "The date the ECT recorded an induction on the RIAB service",
         in_riab: "A calculated field used to determine whether an ECTs registration in ECF1, also has an induction period created in riab in the same cohort / registration window.",
-        ab_mismatch: "A calculated field used to indicate whether there is a mismatch between the AB recorded on the ECTs registration in ECF1 and the induction period created in RIAB."
     }
 }
 WITH riab as (
@@ -68,11 +67,7 @@ SELECT
   ecf1.date_ect_registered_ecf1,
   riab.induction_period_created_riab,
   IFNULL(riab.in_riab, false) as in_riab,
-  CASE 
-    WHEN SPLIT(riab.appropriate_body_name, ' ')[OFFSET(0)] = SPLIT(ecf1.ab_indicated_on_ecf1, ' ')[OFFSET(0)]
-      THEN FALSE
-    ELSE TRUE
-  END AS ab_mismatch,
+
 
 
 FROM ecf1
