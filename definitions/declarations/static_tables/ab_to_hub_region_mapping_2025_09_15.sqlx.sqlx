@@ -1,0 +1,5 @@
+config {
+  type: "declaration",
+  schema: "static_tables",
+  name: "ab_to_hub_region_mapping_2025_09_15"
+}
