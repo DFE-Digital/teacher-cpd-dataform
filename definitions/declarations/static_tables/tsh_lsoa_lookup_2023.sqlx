@@ -1,0 +1,5 @@
+config {
+  type: "declaration",
+  schema: "static_tables",
+  name: "tsh_lsoa_lookup_2023"
+}
