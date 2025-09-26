@@ -2,15 +2,13 @@ config {
     type: "table",
     assertions: {
         uniqueKey: ["id"],
-        
 
     },
     bigquery: {
         partitionBy: "DATE(declaration_date)",
         clusterBy: ["lp_name", "course_identifier"]
     },
-description: "This mart is intended for use in the NPQ - Self-Serve Data dashboard suite. It holds the most recent state for each NPQ and mentor declaration for analytical purposes and to support conversations between the NPQ product team, contract managers, and other Digital colleagues. It joins the most recent statement information from statement_line_items to find the financial statement's cohort the declaration is stored against.",
-    columns: {
+    description: "This mart holds the most recent state for each declaration, it is intended for use in the NPQ - Self-Serve Data dashboard. It holds the most recent state of each declaration for analytical purposes and to support conversations between the NPQ product team, contract managers, and other Digital colleagues. It joins the most recent statement information from statement_line_items to find the financial statement's cohort the declaration is stored against.",    columns: {
         id: "Unique ID of the declaration.",
         profile_id: "The ID of the user profile on the application used to join with users from the new NPQ Service.",
         cohort: "The cohort/academic year corresponding to when the participant started their course. Possible fields: 2021 onwards.",
@@ -33,24 +31,8 @@ description: "This mart is intended for use in the NPQ - Self-Serve Data dashboa
     }
 }
 
-WITH
-  ecf_statement_information AS (
   /*This section pulls together statement info for all declarations from the tables statement_line_items and statements and gives the cohort associated with the statement that each declaration was made against*/
-  SELECT
-    stat_li.participant_declaration_id,
-    MIN(cohort.start_year) AS statement_cohort
-  FROM
-    ${ref(`statement_line_items_latest_ecf1`)} stat_li
-  LEFT JOIN
-    ${ref(`statements_latest_ecf1`)} stat
-  ON
-    stat_li.statement_id=stat.id
-  LEFT JOIN
-    ${ref(`cohorts_latest_ecf1`)} cohort
-  ON
-    stat.cohort_id=cohort.id
-  GROUP BY
-    stat_li.participant_declaration_id ),
+WITH
   npq_statement_information AS (
   SELECT
     sli.declaration_id,
@@ -58,71 +40,69 @@ WITH
   FROM
     ${ref('statement_items_latest_npq')} AS sli
   LEFT JOIN
-    ${ref('statements_latest_npq')} AS stm
+    ${ref('statements_latest_npq')} AS statements
   ON
-    stm.id = sli.statement_id
+    statements.id = sli.statement_id
   LEFT JOIN
     ${ref('cohorts_latest_npq')} AS coh
   ON
-    coh.id = stm.cohort_id
+    coh.id = statements.cohort_id
   GROUP BY
     sli.declaration_id )
 SELECT
-  dec.id,
-  app.user_id AS profile_id,
+  declarations.id,
+  applications.user_id AS profile_id,
   cohort.start_year AS cohort,
-  sched.identifier AS schedule_identifier,
+  schedules.identifier AS schedule_identifier,
   courses.identifier AS course_identifier,
-  dec.declaration_date,
-  dec.declaration_type,
-  dec.state as declaration_state,
-  lp.name AS lp_name,
-  stm.statement_cohort,
-  dec.delivery_partner_id AS delivery_partner_id,
-  dps.name AS delivery_partner_name,
-  dec.created_at,
-  dec.updated_at,
-
-  dec.lead_provider_id AS lead_provider_id,
+  declarations.declaration_date,
+  declarations.declaration_type,
+  declarations.state AS declaration_state,
+  lead_providers.name AS lp_name,
+  statements.statement_cohort,
+  declarations.delivery_partner_id AS delivery_partner_id,
+  delivery_partners.name AS delivery_partner_name,
+  declarations.created_at,
+  declarations.updated_at,
+  declarations.lead_provider_id AS lead_provider_id,
   users.ecf_id AS ecf_user_id,
   CASE
     WHEN users.trn_verified = TRUE THEN users.trn
     ELSE NULL
 END
   AS verified_trn,
-  app.id AS application_id,
-
+  applications.id AS application_id,
 FROM
-  ${ref('declarations_latest_npq')} AS dec
+  ${ref('declarations_latest_npq')} AS declarations
 LEFT JOIN
-  ${ref('applications_latest_npq')} AS app
+  ${ref('applications_latest_npq')} AS applications
 ON
-  dec.application_id = app.id
+  declarations.application_id = applications.id
 LEFT JOIN
   ${ref('users_latest_npq')} AS users
 ON
-  users.id = app.user_id
+  users.id = applications.user_id
 LEFT JOIN
-  ${ref('schedules_latest_npq')} AS sched
+  ${ref('schedules_latest_npq')} AS schedules
 ON
-  sched.id = app.schedule_id
+  schedules.id = applications.schedule_id
 LEFT JOIN
   ${ref('cohorts_latest_npq')} AS cohort
 ON
-  cohort.id = app.cohort_id
+  cohort.id = applications.cohort_id
 LEFT JOIN
-  ${ref('lead_providers_latest_npq')} AS lp
+  ${ref('lead_providers_latest_npq')} AS lead_providers
 ON
-  lp.id = dec.lead_provider_id
+  lead_providers.id = declarations.lead_provider_id
 LEFT JOIN
   ${ref('courses_latest_npq')} AS courses
 ON
-  courses.id = app.course_id
+  courses.id = applications.course_id
 LEFT JOIN
-  npq_statement_information AS stm
+  npq_statement_information AS statements
 ON
-  stm.declaration_id = dec.id
+  statements.declaration_id = declarations.id
 LEFT JOIN
-  ${ref('delivery_partners_latest_npq')} AS dps
+  ${ref('delivery_partners_latest_npq')} AS delivery_partners
 ON
-  dec.delivery_partner_id = dps.id
+  declarations.delivery_partner_id = delivery_partners.id

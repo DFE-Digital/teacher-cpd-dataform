@@ -122,14 +122,14 @@ WITH
   QUALIFY
     ROW_NUMBER() OVER(PARTITION BY id ORDER BY valid_from ASC) = 1 ),
   -- Gather the reason for deferring or withdrawing from an NPQ by looking a the most recent training status for each application
-  withdraw_or_defer_reason AS (
+  application_withdraw_or_defer_reason AS (
 SELECT
   application_id,
   reason AS not_active_reason,
 FROM
   ${ref('application_states_latest_npq')}
 QUALIFY
-  ROW_NUMBER() OVER (PARTITION BY application_id ORDER BY created_at DESC) =1 ),
+  ROW_NUMBER() OVER (PARTITION BY application_id ORDER BY created_at DESC) = 1 ),
   -- NPQ Application records in the ECF Service Data prior to separation.
   --- Used to obtain application_trn associated with the application prior to separation where this information needs to calculated differently.
   previous_application_trns AS (
@@ -249,7 +249,7 @@ END
 FROM
   ${ref('applications_latest_npq')} AS app
 LEFT JOIN
-  withdraw_or_defer_reason AS reasons
+  application_withdraw_or_defer_reason AS reasons
 ON
   app.id = reasons.application_id
   -- Join on User Profile for TRN Verified, TRN Auto-Verified and ECF User ID.
