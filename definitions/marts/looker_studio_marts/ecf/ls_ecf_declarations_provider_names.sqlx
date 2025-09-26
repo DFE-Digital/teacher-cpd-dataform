@@ -1,7 +1,7 @@
 config {
     type: "table",
     assertions: {
-        uniqueKey: ["id"]
+        uniqueKey: ["declaration_id"]
     },
     bigquery: {
         partitionBy: "DATE(declaration_date)",
