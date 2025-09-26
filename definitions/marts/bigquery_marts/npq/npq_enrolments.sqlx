@@ -60,6 +60,7 @@ config {
         employment_role: "Shows the employment role of non-school users. Text field.",
         employment_type: "For non-school users, shows the type of institution they are employed in. Possible fields: Local authority supply teachers, Local authority virtual school, Young offender institute, Hospital school, Other.",
         training_status: "Pulled from participant profile which is created when application is accepted by lead provider.",
+        not_active_reason: "The reason for a participant to withdrawn or defer from their NPQ course.",
         schedule_identifier: "This indicates which sub-cohort or tranche the participant commenced training within an annual cohort. For NPQ, the schedule identifier also distinguishes between the leadership and specialist NPQ types. Pulled from participant profile which is created when application is accepted by lead provider.",
         started_declaration_id: "ID of the participant's started declaration.",
         started_declaration_state: "State of the participant's started declaration.",
@@ -120,6 +121,15 @@ WITH
     trn IS NOT NULL
   QUALIFY
     ROW_NUMBER() OVER(PARTITION BY id ORDER BY valid_from ASC) = 1 ),
+  -- Gather the reason for deferring or withdrawing from an NPQ by looking a the most recent training status for each application
+  application_withdraw_or_defer_reason AS (
+SELECT
+  application_id,
+  reason AS not_active_reason,
+FROM
+  ${ref('application_states_latest_npq')}
+QUALIFY
+  ROW_NUMBER() OVER (PARTITION BY application_id ORDER BY created_at DESC) = 1 ),
   -- NPQ Application records in the ECF Service Data prior to separation.
   --- Used to obtain application_trn associated with the application prior to separation where this information needs to calculated differently.
   previous_application_trns AS (
@@ -147,31 +157,32 @@ END
   app.updated_at,
   app.cohort_id,
   cohort.start_year AS cohort,
-    CASE
-      WHEN cohort.start_year = 2021 AND sched.identifier IN ('npq-aso-november', 'npq-aso-december', 'npq-leadership-autumn', 'npq-specialist-autumn') THEN 'Cohort 1'
-      WHEN cohort.start_year = 2021
-    AND sched.identifier IN ('npq-aso-june',
-      'npq-ehco-june',
-      'npq-leadership-spring',
-      'npq-specialist-spring') THEN 'Cohort 2'
-      WHEN cohort.start_year = 2022 AND sched.identifier IN ('npq-ehco-november', 'npq-ehco-december', 'npq-leadership-autumn', 'npq-specialist-autumn') THEN 'Cohort 3'
-      WHEN cohort.start_year = 2022
-    AND sched.identifier IN ('npq-ehco-march',
-      'npq-ehco-june',
-      'npq-leadership-spring',
-      'npq-specialist-spring') THEN 'Cohort 4'
-      WHEN cohort.start_year = 2023 AND sched.identifier IN ('npq-ehco-november', 'npq-ehco-december', 'npq-leadership-autumn', 'npq-specialist-autumn') THEN 'Cohort 5'
-      WHEN cohort.start_year = 2023
-    AND sched.identifier IN ('npq-ehco-march',
-      'npq-ehco-june',
-      'npq-leadership-spring',
-      'npq-specialist-spring') THEN 'Cohort 6'
-      WHEN cohort.start_year = 2024 THEN 'Cohort 7'
-      WHEN cohort.start_year = 2025 and app.created_at < '2025-05-18' THEN 'Cohort 8'
-      WHEN cohort.start_year = 2025 and app.created_at >= '2025-09-08' THEN 'Cohort 9'
-      ELSE 'n/a'
-  END
-    AS cohort_number,
+  CASE
+    WHEN cohort.start_year = 2021 AND sched.identifier IN ('npq-aso-november', 'npq-aso-december', 'npq-leadership-autumn', 'npq-specialist-autumn') THEN 'Cohort 1'
+    WHEN cohort.start_year = 2021
+  AND sched.identifier IN ('npq-aso-june',
+    'npq-ehco-june',
+    'npq-leadership-spring',
+    'npq-specialist-spring') THEN 'Cohort 2'
+    WHEN cohort.start_year = 2022 AND sched.identifier IN ('npq-ehco-november', 'npq-ehco-december', 'npq-leadership-autumn', 'npq-specialist-autumn') THEN 'Cohort 3'
+    WHEN cohort.start_year = 2022
+  AND sched.identifier IN ('npq-ehco-march',
+    'npq-ehco-june',
+    'npq-leadership-spring',
+    'npq-specialist-spring') THEN 'Cohort 4'
+    WHEN cohort.start_year = 2023 AND sched.identifier IN ('npq-ehco-november', 'npq-ehco-december', 'npq-leadership-autumn', 'npq-specialist-autumn') THEN 'Cohort 5'
+    WHEN cohort.start_year = 2023
+  AND sched.identifier IN ('npq-ehco-march',
+    'npq-ehco-june',
+    'npq-leadership-spring',
+    'npq-specialist-spring') THEN 'Cohort 6'
+    WHEN cohort.start_year = 2024 THEN 'Cohort 7'
+    WHEN cohort.start_year = 2025
+  AND app.created_at < '2025-05-18' THEN 'Cohort 8'
+    WHEN cohort.start_year = 2025 AND app.created_at >= '2025-09-08' THEN 'Cohort 9'
+    ELSE 'n/a'
+END
+  AS cohort_number,
   courses.identifier AS course_identifier,
   CASE courses.identifier
     WHEN "npq-additional-support-offer" THEN 12
@@ -186,7 +197,8 @@ END
     WHEN "npq-leading-teaching-development" THEN 12
     WHEN "npq-senco" THEN 18
     WHEN "npq-senior-leadership" THEN 18
-  END AS course_usual_length_months,
+END
+  AS course_usual_length_months,
   courses.name AS course_name,
   CASE
     WHEN courses.name = 'Additional Support Offer for new headteachers' THEN 'EHCO'
@@ -220,6 +232,7 @@ END
   app.employment_type,
   app.employment_role,
   app.training_status,
+  reasons.not_active_reason,
   app.primary_establishment,
   pcp.provider_urn AS private_childcare_provider_urn,
   app.ukprn AS school_ukprn,
@@ -235,6 +248,10 @@ END
   app.senco_start_date AS senco_start_date
 FROM
   ${ref('applications_latest_npq')} AS app
+LEFT JOIN
+  application_withdraw_or_defer_reason AS reasons
+ON
+  app.id = reasons.application_id
   -- Join on User Profile for TRN Verified, TRN Auto-Verified and ECF User ID.
 LEFT JOIN
   ${ref('users_latest_npq')} AS users
@@ -446,10 +463,7 @@ SELECT
   IFNULL(npq_fails.count_of_fails, 0) AS count_of_fails,
   npq_outcomes.latest_outcome_state,
   npq_outcomes.latest_outcome_date,
-  COALESCE(
-    npq_outcomes.latest_outcome_date,
-    DATE_ADD(DATE(started_declaration_date), INTERVAL course_usual_length_months MONTH)
-   ) AS assumed_no_longer_live_date
+  COALESCE( npq_outcomes.latest_outcome_date, DATE_ADD(DATE(started_declaration_date), INTERVAL course_usual_length_months MONTH) ) AS assumed_no_longer_live_date
 FROM
   npq_app
 LEFT JOIN

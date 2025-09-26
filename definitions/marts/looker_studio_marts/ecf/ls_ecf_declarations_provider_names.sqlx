@@ -1,0 +1,92 @@
+config {
+    type: "table",
+    assertions: {
+        uniqueKey: ["id"]
+    },
+    bigquery: {
+        partitionBy: "DATE(declaration_date)",
+        clusterBy: ["cpd_lp_name", "course_identifier"]
+    },
+    description: "This mart is intended for use in the ECTE - Self-Serve Data dashboard suite. It holds the most recent state for each ECTE and mentor declaration for analytical purposes and to support conversations between the ECTE product team, contract managers, and other Digital colleagues. It joins the most recent statement information from statement_line_items to find the financial statement's cohort the declaration is stored against.",
+    columns: {
+        declaration_id: "ID of declaration.",
+        profile_id: "participant_profile_id of the participant.",
+        cohort: "The cohort/academic year the participant's training is currently associated with as stamped on their latest induction record. ",
+        schedule_identifier: "The sub cohort or tranche of participants ths declartion commenced training with. It inducates if a participant is following a non-standard training route at any point.",
+        mentor_user_id: "The participant_profile_id of an ECTs mentor the declaration relates to. This field is only populated if the partiticpant type is ECT. If a mentor is specified when an ECT is added, the induction record is created with that mentor. Assigning or changing the mentor after the ECT has been added triggers the creation of a new induction record.",
+        course_identifier: "ID of the ECF course the declaration is associated with.",
+        declaration_date: "Date evidence was received.",
+        declaration_type: "The type of declaration submitted. Possible values: started, retained-1, retained-2, retained-3, retained-4, extended-1, extended-2, extended-3, exstended-4, completed",
+        declaration_state: "State of the declaration. Can be submitted, eligible, payable, paid, ineligible, voided, awaiting_clawback, and clawed_back.",
+        cpd_lp_name: "Name of Lead Provider indicated on the declaration",
+        cpd_dp_name: "Name of Delivery Partner indicated on the declaration",
+        created_at: "Date when the declaration was created.",
+        updated_at: "Date of when any updates occurred to the declaration.",
+        evidence_held: "Details any evidence provided with the declaration.",
+        verified_trn: {
+            description: "The TRN of the participant that has been verified by the Database of Qualified Teachers (DQT).",
+            bigqueryPolicyTags: ["projects/ecf-bq/locations/europe-west2/taxonomies/6302091323314055162/policyTags/301313311867345339"]
+        },
+        participant_type: "Either ECT or Mentor",
+        statement_cohort: "Cohort from the financial statement a declaration is stored against for ECF."
+    }
+}
+
+WITH
+  ecf_statement_information AS (
+  --This section pulls together statement info for all declarations from the tables statement_line_items and statements and gives the cohort associated with the statement that each declaration was made against
+  SELECT
+    statement_line_items.participant_declaration_id,
+    MIN(cohort.start_year) AS statement_cohort
+  FROM
+    ${ref(`statement_line_items_latest_ecf1`)} AS statement_line_items
+  LEFT JOIN
+    ${ref(`statements_latest_ecf1`)} AS statements
+  ON
+    statement_line_items.statement_id=statements.id
+  LEFT JOIN
+    ${ref(`cohorts_latest_ecf1`)} AS cohort
+  ON
+    statements.cohort_id=cohort.id
+  GROUP BY
+    statement_line_items.participant_declaration_id )
+SELECT
+  declarations.id as declaration_id,
+  declarations.participant_profile_id AS profile_id,
+  inductions_dedupe.cohort AS cohort,
+  inductions_dedupe.schedule_identifier,
+  declarations.mentor_user_id,
+  declarations.course_identifier,
+  declarations.declaration_date,
+  declarations.declaration_type,
+  declarations.state AS declaration_state,
+  lead_providers.name AS cpd_lp_name,
+  delivery_partners.name AS cpd_dp_name,
+  declarations.created_at,
+  declarations.updated_at,
+  declarations.evidence_held,
+  inductions_dedupe.TRN AS verified_trn,
+  CASE
+    WHEN LOWER(inductions_dedupe.participant_type) LIKE '%ect' THEN 'ECT'
+    WHEN LOWER(inductions_dedupe.participant_type) LIKE '%mentor' THEN 'Mentor'
+END
+  AS participant_type,
+  state_info.statement_cohort
+FROM
+  ${ref("participant_declarations_latest_ecf1")} AS declarations
+LEFT JOIN
+  ${ref("ecf_inductions_dedupe")} AS inductions_dedupe
+USING
+  (participant_profile_id)
+LEFT JOIN
+  ecf_statement_information AS state_info
+ON
+  declarations.id=state_info.participant_declaration_id
+LEFT JOIN
+  ${ref("lead_providers_latest_ecf1")} AS lead_providers
+USING
+  (cpd_lead_provider_id)
+LEFT JOIN
+  ${ref("delivery_partners_latest_ecf1")} AS delivery_partners
+ON
+  declarations.delivery_partner_id = delivery_partners.ID

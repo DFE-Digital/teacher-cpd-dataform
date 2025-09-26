@@ -1,0 +1,62 @@
+config {
+    type: "table",
+    assertions: {
+        uniqueKey: ["id"]
+    },
+    bigquery: {
+        partitionBy: "DATE(created_at)",
+        clusterBy: ["training_status", "reason", "lead_provider_name"]
+    },
+    description: "Mart containing the most recent state of a ECF participants participant profile. It provides the current trianing status for all ECF participants. This information is provided to users in the ECF Self-Serve Dashboard where it is filtered to show only withdrawn or deferred participants and the reason for their withdrawal/deferall. The primary users are the ECF schools team.",
+    columns: {
+        participant_profile_state_id: "Unique ID of the most recent participant profile state taken from the participant_profile_states table.",
+        created_at: "Timestamp of when the record being pulled from participant_profile_states was created. Since participants can go through different training statuses, only the most recently created record for each participant is pulled.",
+        updated_at: "Timestamp of when the record being pulled from participant_profile_states was updated.",
+        lead_provider_id: "ID of the Lead Provider linked to the participant in participant_profile_state.",
+        profile_id: "participant_profile_id of each participant's profile.",
+        reason: "Explains why a participant is in a certain state.",
+        training_status: "This is the participant's training_status. It can be active, deferred, or withdrawn.",
+        last_streamed_event_occurred_at: "Timestamp of when the record  from participant_profile_states was most recently imported or updated",
+        last_streamed_event_type: "Whether the most recent event for this record from participant_profile_states was it being imported or updated.",
+        cohort: "Participant's cohort from ecf_indcutions_dedupe.",
+        schedule_identifier: "Participant's schedule from ecf_indcutions_dedupe.",
+        lead_provider_name: "Name of the Lead Provider linked to the participant.",
+        participant_type: "Details if a participant is an ECT or Mentor."
+    }
+}
+
+WITH
+  most_recent_training_status AS (
+  SELECT
+    participant_profile_states.id AS participant_profile_state_id,
+    participant_profile_states.participant_profile_id,
+    participant_profile_states.created_at,
+    participant_profile_states.updated_at,
+    participant_profile_states.cpd_lead_provider_id AS lead_provider_id,
+    participant_profile_states.participant_profile_id AS profile_id,
+    participant_profile_states.reason,
+    participant_profile_states.state AS training_status,
+    participant_profile_states.last_streamed_event_occurred_at,
+    participant_profile_states.last_streamed_event_type,
+  FROM
+    ${ref(`participant_profile_states_latest_ecf1`)} AS participant_profile_states
+  -- Active states being filtered out to improve dashboard load time
+  QUALIFY
+    ROW_NUMBER() OVER (PARTITION BY participant_profile_states.participant_profile_id ORDER BY participant_profile_states.created_at DESC) = 1
+    AND state!= 'active')
+SELECT
+  most_recent_training_status.* EXCEPT(participant_profile_id),
+  inductions_dedupe.cohort AS cohort,
+  inductions_dedupe.schedule_identifier AS schedule_identifier,
+  inductions_dedupe.lead_provider_name AS lead_provider_name,
+  CASE
+    WHEN inductions_dedupe.participant_type LIKE '%ECT' THEN 'ECT'
+    WHEN inductions_dedupe.participant_type LIKE '%Mentor' THEN 'Mentor'
+END
+  AS participant_type,
+FROM
+  most_recent_training_status
+INNER JOIN
+  ${ref(`ecf_inductions_dedupe`)} AS inductions_dedupe
+USING
+  (participant_profile_id)
