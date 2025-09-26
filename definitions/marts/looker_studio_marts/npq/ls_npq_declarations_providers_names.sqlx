@@ -1,0 +1,108 @@
+config {
+    type: "table",
+    assertions: {
+        uniqueKey: ["id"],
+
+    },
+    bigquery: {
+        partitionBy: "DATE(declaration_date)",
+        clusterBy: ["lp_name", "course_identifier"]
+    },
+    description: "This mart holds the most recent state for each declaration, it is intended for use in the NPQ - Self-Serve Data dashboard. It holds the most recent state of each declaration for analytical purposes and to support conversations between the NPQ product team, contract managers, and other Digital colleagues. It joins the most recent statement information from statement_line_items to find the financial statement's cohort the declaration is stored against.",    columns: {
+        id: "Unique ID of the declaration.",
+        profile_id: "The ID of the user profile on the application used to join with users from the new NPQ Service.",
+        cohort: "The cohort/academic year corresponding to when the participant started their course. Possible fields: 2021 onwards.",
+        schedule_identifier: "This indicates which sub-cohort or tranche the participant commenced training within an annual cohort. For NPQ, the schedule identifier also distinguishes between the leadership and specialist NPQ types. Pulled from participant profile which is created when application is accepted by lead provider.",
+        course_identifier: "Name of the NPQ course indicated on the application.",
+        declaration_date: "Date evidence was submitted for participants most recent declaration",
+        declaration_type: "Type of participant's latest declaration.",
+        declaration_state: "State of participant's latest declaration. Latest declaration is determined using the field declaration_date as this is the date when the evidence for the declaration is provided.",
+        lp_name: "The name of the lead provider indicated on the application.",
+        delivery_partner_name: "The name of the delivery partner indicated on the applciation.",
+        created_at: "Timestamp of when the declaration was created.",
+        updated_at: "Timestamp of when the declaration was most recently updated.",
+        statement_cohort: "The cohort stored against the declaration.",
+
+        application_id: "The unique identifier of the application the declaration relates to.",
+        verified_trn: {
+            description: "The TRN of the participant that has been verified by the Database of Qualified Teachers (DQT).",
+            bigqueryPolicyTags: ["projects/ecf-bq/locations/europe-west2/taxonomies/6302091323314055162/policyTags/301313311867345339"]
+        }
+    }
+}
+
+  /*This section pulls together statement info for all declarations from the tables statement_line_items and statements and gives the cohort associated with the statement that each declaration was made against*/
+WITH
+  npq_statement_information AS (
+  SELECT
+    sli.declaration_id,
+    MAX(coh.start_year) AS statement_cohort
+  FROM
+    ${ref('statement_items_latest_npq')} AS sli
+  LEFT JOIN
+    ${ref('statements_latest_npq')} AS statements
+  ON
+    statements.id = sli.statement_id
+  LEFT JOIN
+    ${ref('cohorts_latest_npq')} AS coh
+  ON
+    coh.id = statements.cohort_id
+  GROUP BY
+    sli.declaration_id )
+SELECT
+  declarations.id,
+  applications.user_id AS profile_id,
+  cohort.start_year AS cohort,
+  schedules.identifier AS schedule_identifier,
+  courses.identifier AS course_identifier,
+  declarations.declaration_date,
+  declarations.declaration_type,
+  declarations.state AS declaration_state,
+  lead_providers.name AS lp_name,
+  statements.statement_cohort,
+  declarations.delivery_partner_id AS delivery_partner_id,
+  delivery_partners.name AS delivery_partner_name,
+  declarations.created_at,
+  declarations.updated_at,
+  declarations.lead_provider_id AS lead_provider_id,
+  users.ecf_id AS ecf_user_id,
+  CASE
+    WHEN users.trn_verified = TRUE THEN users.trn
+    ELSE NULL
+END
+  AS verified_trn,
+  applications.id AS application_id,
+FROM
+  ${ref('declarations_latest_npq')} AS declarations
+LEFT JOIN
+  ${ref('applications_latest_npq')} AS applications
+ON
+  declarations.application_id = applications.id
+LEFT JOIN
+  ${ref('users_latest_npq')} AS users
+ON
+  users.id = applications.user_id
+LEFT JOIN
+  ${ref('schedules_latest_npq')} AS schedules
+ON
+  schedules.id = applications.schedule_id
+LEFT JOIN
+  ${ref('cohorts_latest_npq')} AS cohort
+ON
+  cohort.id = applications.cohort_id
+LEFT JOIN
+  ${ref('lead_providers_latest_npq')} AS lead_providers
+ON
+  lead_providers.id = declarations.lead_provider_id
+LEFT JOIN
+  ${ref('courses_latest_npq')} AS courses
+ON
+  courses.id = applications.course_id
+LEFT JOIN
+  npq_statement_information AS statements
+ON
+  statements.declaration_id = declarations.id
+LEFT JOIN
+  ${ref('delivery_partners_latest_npq')} AS delivery_partners
+ON
+  declarations.delivery_partner_id = delivery_partners.id

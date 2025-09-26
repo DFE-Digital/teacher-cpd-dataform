@@ -1,0 +1,101 @@
+config {
+    type: "table",
+    assertions: {
+        uniqueKey: ["user_id"]
+    },
+    description: "This mart is designed to be used as part of the Appropriate Body KPI report for the AB and regs team. It contains all ECT registrations in the ECF1 service made in the 2025 cohort and joins the ECTs’ respective induction period created in RIAB, if it exists. Registrations in ECF1 are joined to created induction periods via TRN. The existence of an induction period created in RIAB for that ECT is indicated by the in_riab boolean field. For this mart to be adjusted for future use, the cohort filter in the ECF1 CTE should be changed, and the induction periods created after the opening window date should be updated in the RIAB CTE. This mart uses two static tables, which should also be checked before future use. The first, tsh_lsoa_lookup_2023, maps schools to hub regions through the GIAS LSOA code. The second, ab_to_hub_region_mapping_2025_09_15, maps ECF1 appropriate body names to RIAB appropriate body names; this is used to extract the AB region.",
+    columns: {
+        user_id: "The ECF1 user ID, this comes from the teacher profile associated with the participant profile",
+        trn: {
+            description: "TRN for the ECT that registered for training in the ECF1 service.",
+            bigqueryPolicyTags: ["projects/ecf-bq/locations/europe-west2/taxonomies/6302091323314055162/policyTags/301313311867345339"]
+        },
+        ect_name: {
+            description: "Full name for the ECT that registered for training in the ECF1 service.",
+            bigqueryPolicyTags: ["projects/ecf-bq/locations/europe-west2/taxonomies/6302091323314055162/policyTags/301313311867345339"]
+        },
+        school_urn: "URN of the ECT's school.",
+        school_name: "Name of the ECT's school",
+        ab_indicated_on_ecf1: "The ECF1 name of the appropriate body indicated on the ECTs registration in ECF1.",
+        ab_hub_region: "The hub region of the appropriate body indicated on the ECTs registration in ECF1.",
+        school_hub_region: "The region of the school indicated on the ECTs registration in ECF1.",
+        induction_programme_type: "The induction programme the ECT is undertaking (FIP / CIP / DIY) : potential values: full_induction_programme core_induction_programme, design_our_own, school_funded_fip.",
+        date_ect_registered_ecf1: "The date the ECT was registered on the ECF1 service.",
+        induction_period_created_riab: "The date the AB logged an induction for that ECT on the RIAB service.",
+        in_riab: "TRUE if an ECT was registered in ECF1 and an induction period recorded in the same KPI measurement window.",
+    }
+}
+
+  -- One row
+WITH
+  teachers_in_riab AS (
+  SELECT
+    trn,
+    appropriate_body_name,
+    TRUE AS in_riab,
+    DATE(induction_period_created_at) AS induction_period_created_riab
+  FROM
+    ${ref('ecf2_teacher_induction_periods')}
+    -- for future registration windows, this date should be updated with the first opportunitty to create induction windows in the registration window
+  WHERE
+    induction_period_created_at >= '2025-04-01'
+  QUALIFY
+    ROW_NUMBER() OVER (PARTITION BY trn ORDER BY induction_period_created_at DESC ) = 1),
+  teachers_in_ecf1 AS (
+  SELECT
+    user_id,
+    trn,
+    school_urn,
+    appropriate_body_name AS ab_indicated_on_ecf1,
+    induction_programme_type,
+    DATE(created_at) AS date_ect_registered_ecf1,
+    appropriate_body_id
+  FROM
+    ${ref('ecf_inductions_dedupe')}
+  WHERE
+    -- for future registration windows, the cohort should be updated
+    cohort = 2025
+    AND participant_type = 'ParticipantProfile::ECT'
+    AND training_status != 'withdrawn'
+    AND (eligible_for_funding IS TRUE
+      OR eligible_for_funding IS NULL) )
+SELECT
+  teachers_in_ecf1.user_id,
+  teachers_in_ecf1.trn,
+  users.full_name AS ect_name,
+  teachers_in_ecf1.school_urn,
+  schools.name AS school_name,
+  teachers_in_ecf1.ab_indicated_on_ecf1,
+  ab_regions.hub_region AS ab_hub_region,
+  school_regions.tsh_area AS school_hub_region,
+  teachers_in_ecf1.induction_programme_type,
+  teachers_in_ecf1.date_ect_registered_ecf1,
+  teachers_in_riab.induction_period_created_riab,
+  IFNULL(teachers_in_riab.in_riab, FALSE) AS in_riab,
+FROM
+  teachers_in_ecf1
+LEFT JOIN
+  teachers_in_riab
+ON
+  teachers_in_ecf1.trn = teachers_in_riab.trn
+LEFT JOIN
+  ${ref('ecf_schools')} AS schools
+ON
+  teachers_in_ecf1.school_urn = schools.urn
+LEFT JOIN
+  ${ref('users_latest_ecf1')} AS users
+ON
+  teachers_in_ecf1.user_id = users.id
+LEFT JOIN
+  ${ref('establishments')} AS gias
+ON
+  teachers_in_ecf1.school_urn = SAFE_CAST(gias.urn AS int64)
+  -- For future registration windows, the following two static tables should be looked at and ensure the mapping is correct
+LEFT JOIN
+  ${(ref('tsh_lsoa_lookup_2023'))} AS school_regions
+ON
+  gias.lsoa_code = school_regions.lsoa21cd
+LEFT JOIN
+  ${ref('ab_to_hub_region_mapping_2025_09_15')} AS ab_regions
+ON
+  teachers_in_ecf1.appropriate_body_id = ab_regions.appropriate_body_id
