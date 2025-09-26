@@ -10,7 +10,7 @@ config {
     },
     description: "This mart holds the most recent state for each declaration, it is intended for use in the NPQ - Self-Serve Data dashboard. It holds the most recent state of each declaration for analytical purposes and to support conversations between the NPQ product team, contract managers, and other Digital colleagues. It joins the most recent statement information from statement_line_items to find the financial statement's cohort the declaration is stored against.",    columns: {
         id: "Unique ID of the declaration.",
-        profile_id: "The ID of the user profile on the application used to join with users from the new NPQ Service.",
+        applciation: "The ID of the applciation associated to the declaration",
         cohort: "The cohort/academic year corresponding to when the participant started their course. Possible fields: 2021 onwards.",
         schedule_identifier: "This indicates which sub-cohort or tranche the participant commenced training within an annual cohort. For NPQ, the schedule identifier also distinguishes between the leadership and specialist NPQ types. Pulled from participant profile which is created when application is accepted by lead provider.",
         course_identifier: "Name of the NPQ course indicated on the application.",
@@ -50,8 +50,8 @@ WITH
   GROUP BY
     sli.declaration_id )
 SELECT
-  declarations.id,
-  applications.user_id AS profile_id,
+  declarations.ecf_id as declaration_id,
+  applications.ecf_id as application_id
   cohort.start_year AS cohort,
   schedules.identifier AS schedule_identifier,
   courses.identifier AS course_identifier,
