@@ -8,10 +8,13 @@ config {
         partitionBy: "DATE(declaration_date)",
         clusterBy: ["lp_name", "course_identifier"]
     },
-    description: "This mart holds the most recent state for each declaration, it is intended for use in the NPQ - Self-Serve Data dashboard. It holds the most recent state of each declaration for analytical purposes and to support conversations between the NPQ product team, contract managers, and other Digital colleagues. It joins the most recent statement information from statement_line_items to find the financial statement's cohort the declaration is stored against.",    columns: {
+    description: "This mart holds the most recent state for each declaration, it is intended for use in the NPQ - Self-Serve Data dashboard. It holds the most recent state of each declaration for analytical purposes and to support conversations between the NPQ product team, contract managers, and other Digital colleagues. It joins the most recent statement information from statement_line_items to find the financial statement's cohort the declaration is stored against.",
+    columns: {
         declaration_id: "Unique ID of the declaration.",
         application_id: "The ID of the application associated to the declaration",
         cohort: "The cohort/academic year corresponding to when the participant started their course. Possible fields: 2021 onwards.",
+        cohort_number: "A policy-oriented identifier indicating which DfE-funded applicant cohort the record belongs to. The cohort is determined by the applicant’s cohort.start_year and, for start years 2021-2023, by the schedule_identifier. Cohort 1 is the autumn schedule in the 2021 cohort; Cohort 2, the spring schedule in the 2021 cohort; Cohort 3, the autumn schedule in the 2022 cohort; Cohort 4, the spring schedule in the 2022 cohort; Cohort 5, the autumn schedule in the 2023 cohort; and Cohort 6, the spring schedule in the 2023 cohort. All 2024 applicants are assigned to Cohort 7. For 2025, applicants are split into Cohort 8 if their application was created before 18 May 2025 (spring window) and Cohort 9 if created on or after 8 September 2025 (autumn window). Applicants not matching these rules are assigned n/a.",
+
         schedule_identifier: "This indicates which sub-cohort or tranche the participant commenced training within an annual cohort. For NPQ, the schedule identifier also distinguishes between the leadership and specialist NPQ types. Pulled from participant profile which is created when application is accepted by lead provider.",
         course_identifier: "Name of the NPQ course indicated on the application.",
         declaration_date: "Date evidence was submitted for participants most recent declaration",
@@ -33,7 +36,7 @@ config {
 WITH
   npq_statement_information AS (
   SELECT
-    statement_line_items.declaration_id as internal_declaration_id,
+    statement_line_items.declaration_id AS internal_declaration_id,
     MAX(cohorts.start_year) AS statement_cohort
   FROM
     ${ref('statement_items_latest_npq')} AS statement_line_items
@@ -48,8 +51,8 @@ WITH
   GROUP BY
     statement_line_items.declaration_id )
 SELECT
-  declarations.ecf_id as declaration_id,
-  applications.ecf_id as application_id,
+  declarations.ecf_id AS declaration_id,
+  applications.ecf_id AS application_id,
   cohort.start_year AS cohort,
   schedules.identifier AS schedule_identifier,
   courses.identifier AS course_identifier,
@@ -69,6 +72,32 @@ SELECT
     ELSE NULL
 END
   AS verified_trn,
+  CASE
+    WHEN cohort.start_year = 2021 AND schedules.identifier IN ('npq-aso-november', 'npq-aso-december', 'npq-leadership-autumn', 'npq-specialist-autumn') THEN 'Cohort 1'
+    WHEN cohort.start_year = 2021
+  AND schedules.identifier IN ('npq-aso-june',
+    'npq-ehco-june',
+    'npq-leadership-spring',
+    'npq-specialist-spring') THEN 'Cohort 2'
+    WHEN cohort.start_year = 2022 AND schedules.identifier IN ('npq-ehco-november', 'npq-ehco-december', 'npq-leadership-autumn', 'npq-specialist-autumn') THEN 'Cohort 3'
+    WHEN cohort.start_year = 2022
+  AND schedules.identifier IN ('npq-ehco-march',
+    'npq-ehco-june',
+    'npq-leadership-spring',
+    'npq-specialist-spring') THEN 'Cohort 4'
+    WHEN cohort.start_year = 2023 AND schedules.identifier IN ('npq-ehco-november', 'npq-ehco-december', 'npq-leadership-autumn', 'npq-specialist-autumn') THEN 'Cohort 5'
+    WHEN cohort.start_year = 2023
+  AND schedules.identifier IN ('npq-ehco-march',
+    'npq-ehco-june',
+    'npq-leadership-spring',
+    'npq-specialist-spring') THEN 'Cohort 6'
+    WHEN cohort.start_year = 2024 THEN 'Cohort 7'
+    WHEN cohort.start_year = 2025
+  AND applications.created_at < '2025-05-18' THEN 'Cohort 8'
+    WHEN cohort.start_year = 2025 AND applications.created_at >= '2025-09-08' THEN 'Cohort 9'
+    ELSE 'n/a'
+END
+  AS cohort_number,
 FROM
   ${ref('declarations_latest_npq')} AS declarations
 LEFT JOIN
