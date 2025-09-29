@@ -14,14 +14,14 @@ config {
         application_id: "The ID of the application associated to the declaration",
         cohort: "The cohort/academic year corresponding to when the participant started their course. Possible fields: 2021 onwards.",
         cohort_number: "A policy-oriented identifier indicating which DfE-funded applicant cohort the record belongs to. The cohort is determined by the applicant’s cohort.start_year and, for start years 2021-2023, by the schedule_identifier. Cohort 1 is the autumn schedule in the 2021 cohort; Cohort 2, the spring schedule in the 2021 cohort; Cohort 3, the autumn schedule in the 2022 cohort; Cohort 4, the spring schedule in the 2022 cohort; Cohort 5, the autumn schedule in the 2023 cohort; and Cohort 6, the spring schedule in the 2023 cohort. All 2024 applicants are assigned to Cohort 7. For 2025, applicants are split into Cohort 8 if their application was created before 18 May 2025 (spring window) and Cohort 9 if created on or after 8 September 2025 (autumn window). Applicants not matching these rules are assigned n/a.",
-
         schedule_identifier: "This indicates which sub-cohort or tranche the participant commenced training within an annual cohort. For NPQ, the schedule identifier also distinguishes between the leadership and specialist NPQ types. Pulled from participant profile which is created when application is accepted by lead provider.",
         course_identifier: "Name of the NPQ course indicated on the application.",
         declaration_date: "Date evidence was submitted for participants most recent declaration",
         declaration_type: "Type of participant's latest declaration.",
         declaration_state: "State of participant's latest declaration. Latest declaration is determined using the field declaration_date as this is the date when the evidence for the declaration is provided.",
         lp_name: "The name of the lead provider indicated on the application.",
-        delivery_partner_name: "The name of the delivery partner indicated on the application.",
+        delivery_partner_name: "The name of the delivery partner indicated on the declaration.",
+        secondary_delivery_partner_name: "The name of the secondary delivery partner indicated on the declaration.",
         created_at: "Timestamp of when the declaration was created.",
         updated_at: "Timestamp of when the declaration was most recently updated.",
         statement_cohort: "The cohort stored against the declaration.",
@@ -63,6 +63,7 @@ SELECT
   statements.statement_cohort,
   declarations.delivery_partner_id AS delivery_partner_id,
   delivery_partners.name AS delivery_partner_name,
+  secondary_delivery_partners.name as secondary_delivery_partner_name,
   declarations.created_at,
   declarations.updated_at,
   declarations.lead_provider_id AS lead_provider_id,
@@ -132,3 +133,7 @@ LEFT JOIN
   ${ref('delivery_partners_latest_npq')} AS delivery_partners
 ON
   declarations.delivery_partner_id = delivery_partners.id
+LEFT JOIN
+  ${ref('delivery_partners_latest_npq')} AS secondary_delivery_partners
+ON
+  declarations.secondary_delivery_partner_id = secondary_delivery_partners.id
