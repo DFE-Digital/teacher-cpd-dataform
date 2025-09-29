@@ -1,7 +1,7 @@
 config {
     type: "table",
     assertions: {
-        uniqueKey: ["id"],
+        uniqueKey: ["declaration_id"],
 
     },
     bigquery: {
@@ -9,8 +9,8 @@ config {
         clusterBy: ["lp_name", "course_identifier"]
     },
     description: "This mart holds the most recent state for each declaration, it is intended for use in the NPQ - Self-Serve Data dashboard. It holds the most recent state of each declaration for analytical purposes and to support conversations between the NPQ product team, contract managers, and other Digital colleagues. It joins the most recent statement information from statement_line_items to find the financial statement's cohort the declaration is stored against.",    columns: {
-        id: "Unique ID of the declaration.",
-        applciation: "The ID of the applciation associated to the declaration",
+        declaration_id: "Unique ID of the declaration.",
+        application_id: "The ID of the application associated to the declaration",
         cohort: "The cohort/academic year corresponding to when the participant started their course. Possible fields: 2021 onwards.",
         schedule_identifier: "This indicates which sub-cohort or tranche the participant commenced training within an annual cohort. For NPQ, the schedule identifier also distinguishes between the leadership and specialist NPQ types. Pulled from participant profile which is created when application is accepted by lead provider.",
         course_identifier: "Name of the NPQ course indicated on the application.",
@@ -18,12 +18,10 @@ config {
         declaration_type: "Type of participant's latest declaration.",
         declaration_state: "State of participant's latest declaration. Latest declaration is determined using the field declaration_date as this is the date when the evidence for the declaration is provided.",
         lp_name: "The name of the lead provider indicated on the application.",
-        delivery_partner_name: "The name of the delivery partner indicated on the applciation.",
+        delivery_partner_name: "The name of the delivery partner indicated on the application.",
         created_at: "Timestamp of when the declaration was created.",
         updated_at: "Timestamp of when the declaration was most recently updated.",
         statement_cohort: "The cohort stored against the declaration.",
-
-        application_id: "The unique identifier of the application the declaration relates to.",
         verified_trn: {
             description: "The TRN of the participant that has been verified by the Database of Qualified Teachers (DQT).",
             bigqueryPolicyTags: ["projects/ecf-bq/locations/europe-west2/taxonomies/6302091323314055162/policyTags/301313311867345339"]
@@ -35,23 +33,23 @@ config {
 WITH
   npq_statement_information AS (
   SELECT
-    sli.declaration_id,
-    MAX(coh.start_year) AS statement_cohort
+    statement_line_items.declaration_id as internal_declaration_id,
+    MAX(cohorts.start_year) AS statement_cohort
   FROM
-    ${ref('statement_items_latest_npq')} AS sli
+    ${ref('statement_items_latest_npq')} AS statement_line_items
   LEFT JOIN
     ${ref('statements_latest_npq')} AS statements
   ON
-    statements.id = sli.statement_id
+    statements.id = statement_line_items.statement_id
   LEFT JOIN
-    ${ref('cohorts_latest_npq')} AS coh
+    ${ref('cohorts_latest_npq')} AS cohorts
   ON
-    coh.id = statements.cohort_id
+    cohorts.id = statements.cohort_id
   GROUP BY
-    sli.declaration_id )
+    statement_line_items.declaration_id )
 SELECT
   declarations.ecf_id as declaration_id,
-  applications.ecf_id as application_id
+  applications.ecf_id as application_id,
   cohort.start_year AS cohort,
   schedules.identifier AS schedule_identifier,
   courses.identifier AS course_identifier,
@@ -71,7 +69,6 @@ SELECT
     ELSE NULL
 END
   AS verified_trn,
-  applications.id AS application_id,
 FROM
   ${ref('declarations_latest_npq')} AS declarations
 LEFT JOIN
@@ -101,7 +98,7 @@ ON
 LEFT JOIN
   npq_statement_information AS statements
 ON
-  statements.declaration_id = declarations.id
+  statements.internal_declaration_id = declarations.id
 LEFT JOIN
   ${ref('delivery_partners_latest_npq')} AS delivery_partners
 ON
