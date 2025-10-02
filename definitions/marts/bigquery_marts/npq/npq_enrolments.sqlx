@@ -23,7 +23,8 @@ config {
             description: "This is the TRN sourced from the User Profile",
             bigqueryPolicyTags: ["projects/ecf-bq/locations/europe-west2/taxonomies/6302091323314055162/policyTags/301313311867345339"]
         },
-        trn_auto_verified: "This refers to whether the TRN provided in the application process was verified.",
+        is_trn_verified: "The source of truth as to whether the TRN provided in the application process has been verified.",
+        trn_auto_verified: "Indicates whether the TRN provided in the application process was automatically verified by DfE ID.",
         application_created_at: "Refers to the date the application was created.",
         headteacher_status: "Indicates whether the participant is a headteacher in their first five years.",
         eligible_for_funding: "Indicates whether the applicant is eligible for funding for their course.",
@@ -152,6 +153,7 @@ SELECT
     ELSE NULL
 END
   AS trn_verified,
+  users.trn_verified as is_trn_verified,
   users.trn_auto_verified,
   users.id AS user_id,
   users.ecf_id AS ecf_user_id,
