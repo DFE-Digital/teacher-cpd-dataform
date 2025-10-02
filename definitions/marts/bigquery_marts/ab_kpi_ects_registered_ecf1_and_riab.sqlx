@@ -28,12 +28,12 @@ config {
 
 pre_operations {
   /* Start date from which induction periods are counted towards the upcoming Appropriate Body KPI measurement window. */
-  DECLARE earliest_induction_period_created_at_date DATE DEFAULT "2025-04-02"
+  DECLARE earliest_induction_period_created_at DATE DEFAULT "2025-04-02"
 }
 
 post_operations {
-  ASSERT ( DATE_DIFF(CURRENT_DATE,earliest_induction_period_created_at_date, MONTH) < 10) AS 
-  "The KPI cutoff date used by this table is more than 10 months old. Update the project variable kpi_window_start_date to the first induction period date that should be included in the upcoming Appropriate Body KPI measurement window. Please also ensure update the ab_to_hub_region_mapping_2025_09_15 static table with the most up-to-date AB to hub region mapping."
+  ASSERT ( DATE_DIFF(CURRENT_DATE,earliest_induction_period_created_at, MONTH) < 10) AS 
+  "The earliest_induction_period_created_at date used by this table is more than 10 months old. Update the project variable earliest_induction_period_created_at to the first induction period date that should be included in the upcoming Appropriate Body KPI measurement window. Please also ensure update the ab_to_hub_region_mapping_2025_09_15 static table with the most up-to-date AB to hub region mapping."
 }
 
 
@@ -49,7 +49,7 @@ WITH
     ${ref('ecf2_teacher_induction_periods')}
     -- for future registration windows, this date should be updated with the first opportunitty to create induction windows in the registration window
   WHERE
-    DATE(induction_period_created_at) >= earliest_induction_period_created_at_date
+    DATE(induction_period_created_at) >= earliest_induction_period_created_at
   QUALIFY
     ROW_NUMBER() OVER (PARTITION BY trn ORDER BY induction_period_created_at DESC ) = 1),
   teachers_in_ecf1 AS (
