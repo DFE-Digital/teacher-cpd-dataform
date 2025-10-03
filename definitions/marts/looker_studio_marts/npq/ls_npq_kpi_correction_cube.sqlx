@@ -64,6 +64,8 @@ WITH
       AND NOT (
         (entity_table_name = "users" AND key_updated IN ("significantly_updated_at", "updated_from_tra_at"))
         OR (entity_table_name = "participant_outcomes" AND key_updated IN ("sent_to_qualified_teachers_api_at", "qualified_teachers_api_request_successful"))
+        OR (entity_table_name = "applications" AND key_updated IN ("lead_provider_approval_status"))
+        OR (entity_table_name = "statements" AND key_updated IN ("state"))
         OR key_updated IN ("created_at", "updated_at")
         )
       /* Exclude state transitions that are expected, so we only include state transitions between states that should not be allowed and so must have been done manually */
