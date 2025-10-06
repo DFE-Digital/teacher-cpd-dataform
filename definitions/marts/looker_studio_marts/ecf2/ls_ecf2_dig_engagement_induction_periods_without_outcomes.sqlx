@@ -8,7 +8,7 @@ config {
         partitionBy: "induction_started",
         clusterBy: ["appropriate_body_name"]
     },
-    description: "This mart is designed to support conversations between The Digital Engagement team and Appropriate Bodies. It identifies ECTs with an open induction period that have served more than 700 days of induction, which indicates they have met induction requirements, but have not had a pass outcome recorded against them by their appropriate body",
+    description: "This mart is designed to support conversations between The Digital Engagement team and Appropriate Bodies. It identifies ECTs with an open induction period that have served more than 700 days of induction, which indicates they have met induction requirements, but have not had a pass outcome recorded against them by their appropriate body and have not had an extension recorded for their induction.",
     columns: {
         trn: {
             description: "TRN for the teacher this declaration related to training for",
@@ -24,25 +24,28 @@ config {
     }
 }
 
+WITH
+  induction_periods AS (
+  SELECT
+    trn,
+    appropriate_body_name,
+    started_on,
+    finished_on,
+    DATE_DIFF(COALESCE(finished_on,CURRENT_DATE()),started_on,day) AS induction_period_duration,
+    outcome,
+    teacher_id
+  FROM
+    ${ref(`ecf2_teacher_induction_periods`)}))
 SELECT
   trn,
   MIN(started_on) OVER (PARTITION BY trn) AS induction_started,
   finished_on,
   outcome,
   appropriate_body_name,
-  SUM(induction_duration) OVER (PARTITION BY trn) AS induction_duration_over_periods,
+  SUM(induction_period_duration) OVER (PARTITION BY trn) AS induction_duration_over_periods,
   COUNT(*) OVER (PARTITION BY trn) AS total_periods
-FROM (
-  SELECT
-    trn,
-    appropriate_body_name,
-    started_on,
-    finished_on,
-    DATE_DIFF(COALESCE(finished_on,CURRENT_DATE()),started_on,day) AS induction_duration,
-    outcome,
-    teacher_id
-  FROM
-    ${ref(`ecf2_teacher_induction_periods`)}) T1
+FROM
+  induction_periods
 WHERE
   teacher_id NOT IN (
   SELECT
