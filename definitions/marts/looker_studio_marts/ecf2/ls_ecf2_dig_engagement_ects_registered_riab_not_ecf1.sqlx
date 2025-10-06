@@ -3,22 +3,19 @@ config {
     assertions: {
         uniqueKey: ["trn"]
     },
-    description: "This mart is designed to support conversations between The Digital Engagement team and Appropriate Body. It contains the most recent induction period per ECT created in the RIAB service where there is no registration for that ECT in the ECF1 service, indicated by the in_ecf1 field being NULL. It joins induction periods created in RIAB to registrations by TRN. For this mart to be adjusted for future AB KPI reports, the induction_period_created_on filter should be updated with the appropriate date. ",
+    description: "This mart is designed to support conversations between The Digital Engagement team and Appropriate Bodies. It contains the most recent open induction period per ECT created in the RIAB service after 01/04/2025 where there is no registration for that ECT in the ECF1 service, indicated by the in_ecf1 field being NULL. It joins induction periods created in RIAB to registrations by TRN. ",
     columns: {
         trn: {
             description: "TRN for the teacher this declaration related to training for",
             bigqueryPolicyTags: ["projects/ecf-bq/locations/europe-west2/taxonomies/6302091323314055162/policyTags/301313311867345339"]
         },
-        programme_choice: "The induction programme the ECT is undertaking",
-        induction_status: "The ECT's overall induction status as indicated as held on TRS. Note this is not the induction period outcome. ",
+        programme_choice: "The induction programme the ECT is undertaking as reported by the Appropriate Body",
+        trs_induction_status: "The ECT's overall induction status as indicated as held on TRS. Note this is not the induction period outcome. ",
         induction_period_created_on: "The date the ECTs induction period was created in the RIAB service.",
-        appropriate_body_riab: "The name of the appropriate body the ECT has been claimed by as held in RIAB.",
-        ab_hub_region: "The hub region of the appropriate body.",
+        ab_name: "The name of the appropriate body the ECT has been claimed by as held in RIAB.",
         ab_la_code: "The LA code of the appropriate body, this is a combination of the local authority code and the establishment number in the format 'la_code/establishment_number'",
-        ab_urn: "The URB of the appropriate body indicated by the URN of the lead school.",
         induction_period_start_date: "The recorded start date of the ECTs induction period.",
-        induction_period_end_date: "The recorded end date of the ECTs induction period.",
-        trs_induction_status: "The induction status of the ECT as stored in TRS."
+        induction_period_end_date: "The recorded end date of the ECTs induction period."
     }
 }
 
@@ -26,18 +23,18 @@ WITH
   teachers_in_riab AS (
   SELECT
     periods.trn,
-    CASE periods.induction_programme
-      WHEN 'fip' THEN 'Provider led'
-      WHEN 'diy' THEN 'School led'
-      WHEN 'cip' THEN 'School led'
-      ELSE periods.induction_programme
-  END
-    AS programme_choice,
+    IFNULL(training_programme,
+      CASE
+        WHEN induction_programme = 'fip' THEN 'provider_led'
+        WHEN induction_programme IN ('cip',
+        'diy') THEN 'school_led'
+        ELSE induction_programme
+    END
+      ) AS programme_choice,
     periods.trs_induction_status,
     DATE(periods.induction_period_created_at) AS induction_period_created_on,
-    periods.appropriate_body_name AS appropriate_body_riab,
+    periods.appropriate_body_name AS ab_name,
     CONCAT(appropriate_bodies.local_authority_code, "/", appropriate_bodies.establishment_number) AS ab_la_code,
-    NULL AS ab_urn,
     periods.started_on AS induction_period_start_date,
     periods.finished_on AS induction_period_end_date
   FROM
@@ -48,10 +45,11 @@ WITH
     periods.appropriate_body_id = appropriate_bodies.id
   WHERE
     -- for future registration windows, this date should be updated with the first opportunitty to create induction windows in the registration window
-    periods.induction_period_created_at >= '2025-04-01'
+    periods.started_on >= '2025-04-01'
+    AND periods.finished_on IS NULL
   QUALIFY
-    ROW_NUMBER() OVER (PARTITION BY trn ORDER BY periods.induction_period_created_at DESC ) = 1),
-  ects AS (
+    ROW_NUMBER() OVER (PARTITION BY trn ORDER BY periods.finished_on DESC ) = 1),
+  ecf1_ects AS (
   SELECT
     trn,
     TRUE AS in_ecf1
@@ -62,8 +60,8 @@ SELECT
 FROM
   teachers_in_riab
 LEFT JOIN
-  ects
+  ecf1_ects
 USING
   (trn)
 WHERE
-  ects.in_ecf1 IS NULL
+  ecf1_ects.in_ecf1 IS NULL
