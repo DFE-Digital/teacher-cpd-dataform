@@ -97,10 +97,47 @@ function orderedCohortMilestonesWithStartAndEndDates(ctx) {
     milestone_start IS NOT NULL)`;
 }
 
+function stateToStateHierarchy(stateField) {
+    return `
+      CASE ${stateField}
+          WHEN 'paid' THEN 7
+          WHEN 'payable' THEN 6
+          WHEN 'eligible' THEN 5
+          WHEN 'submitted' THEN 4
+          WHEN 'clawed_back' THEN 3
+          WHEN 'awaiting_clawback' THEN 2
+          WHEN 'voided' THEN 1
+          ELSE 0
+      END
+    `;
+}
+
+function declarationTypeToDeclarationTypeHierarchy(declarationTypeField) {
+    return `
+      CASE ${declarationTypeField}
+          WHEN 'completed' THEN 12
+          WHEN 'extended-6' THEN 11
+          WHEN 'extended-5' THEN 10
+          WHEN 'extended-4' THEN 9
+          WHEN 'extended-3' THEN 8
+          WHEN 'extended-2' THEN 7
+          WHEN 'extended-1' THEN 6
+          WHEN 'retained-4' THEN 5
+          WHEN 'retained-3' THEN 4
+          WHEN 'retained-2' THEN 3
+          WHEN 'retained-1' THEN 2
+          WHEN 'started' THEN 1
+          ELSE 0
+      END
+    `;
+}
+
 module.exports = {
     contentGroupPath,
     extractValueFromSingleElementArrayofJSONStrings,
     yearStartDateToAcademicYearString,
     correctOrderDeclarationsTypesShouldBeReceived,
-    orderedCohortMilestonesWithStartAndEndDates
+    orderedCohortMilestonesWithStartAndEndDates,
+    stateToStateHierarchy,
+    declarationTypeToDeclarationTypeHierarchy
 };

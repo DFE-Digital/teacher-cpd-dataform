@@ -32,18 +32,7 @@ SELECT
   ,dec.participant_profile_id
   ,dec.declaration_type
   ,dec.state AS declaration_state
-  ,CASE
-    -- WHEN dec.declaration_type = 'started' THEN 1
-    -- WHEN dec.declaration_type = 'retained-1' THEN 2
-    -- WHEN dec.declaration_type = 'retained-2' THEN 3
-    WHEN dec.declaration_type = 'retained-3' THEN 4
-    WHEN dec.declaration_type = 'retained-4' THEN 5
-    -- WHEN dec.declaration_type = 'extended-1' THEN 6
-    -- WHEN dec.declaration_type = 'extended-2' THEN 7
-    -- WHEN dec.declaration_type = 'extended-3' THEN 8
-    WHEN dec.declaration_type = 'completed' THEN 9
-    ELSE NULL
-   END AS declaration_type_hierarchy
+  ,${functions.declarationTypeToDeclarationTypeHierarchy(`IF(dec.declaration_type IN ('retained-3', 'retained-4', 'completed'), dec.declaration_type, NULL)`)} AS declaration_type_hierarchy
   ,DATE(dp.created_at) AS declaration_created_at_date
   ,DATE(dec.declaration_date) AS declaration_date
   ,dec.cpd_lead_provider_name AS lead_provider_name
