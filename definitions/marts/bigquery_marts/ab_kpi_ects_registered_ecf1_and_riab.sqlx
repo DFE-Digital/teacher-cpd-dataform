@@ -16,12 +16,12 @@ config {
         },
         school_urn: "URN of the ECT's school.",
         school_name: "Name of the ECT's school",
-        ab_indicated_on_training_registration: "The ECF1 name of the appropriate body indicated on the ECTs registration in ECF1.",
+        ab_indicated_on_training_registration: "The ECF1 name of the appropriate body indicated on the ECTs registration in ECF1. It is not a requirement for a school to indicate an AB when registering an ECT for training, 'No_AB_recorded' indicates where no AB was provided. ",
         ab_hub_region: "The hub region of the appropriate body indicated on the ECTs registration in ECF1.",
         school_hub_region: "The region of the school indicated on the ECTs registration in ECF1.",
         induction_programme_type: "The induction programme the ECT is undertaking (FIP / CIP / DIY) : potential values: full_induction_programme core_induction_programme, design_our_own, school_funded_fip.",
         training_registration_occurred_on: "The date the ECT was registered on the ECF1 service.",
-        induction_preriod_created_at: "The date the AB logged an induction for that ECT on the RIAB service.",
+        induction_period_created_at: "The date the AB logged an induction for that ECT on the RIAB service.",
         in_riab: "TRUE if an ECT was registered in ECF1 and an induction period recorded in the same KPI measurement window.",
     }
 }
@@ -44,7 +44,7 @@ WITH
     trn,
     appropriate_body_name,
     TRUE AS in_riab,
-    DATE(induction_period_created_at) AS induction_preriod_created_at
+    DATE(induction_period_created_at) AS induction_period_created_at
   FROM
     ${ref('ecf2_teacher_induction_periods')}
     -- for future registration windows, this date should be updated with the first opportunitty to create induction windows in the registration window
@@ -82,7 +82,7 @@ SELECT
   school_regions.tsh_area AS school_hub_region,
   teachers_in_ecf1.induction_programme_type,
   teachers_in_ecf1.training_registration_occurred_on,
-  teachers_in_riab.induction_preriod_created_at,
+  teachers_in_riab.induction_period_created_at,
   IFNULL(teachers_in_riab.in_riab, FALSE) AS in_riab,
 FROM
   teachers_in_ecf1
