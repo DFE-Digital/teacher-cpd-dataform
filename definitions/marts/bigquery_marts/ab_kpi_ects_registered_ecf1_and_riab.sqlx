@@ -50,6 +50,7 @@ WITH
     -- for future registration windows, this date should be updated with the first opportunitty to create induction windows in the registration window
   WHERE
     DATE(induction_period_created_at) >= earliest_induction_period_created_at
+
   QUALIFY
     ROW_NUMBER() OVER (PARTITION BY trn ORDER BY induction_period_created_at DESC ) = 1),
   teachers_in_ecf1 AS (
@@ -57,7 +58,7 @@ WITH
     user_id,
     trn,
     school_urn,
-    appropriate_body_name AS ab_indicated_on_training_registration,
+    IFNULL(appropriate_body_name,'No_AB_indicated') AS ab_indicated_on_training_registration,
     induction_programme_type,
     DATE(created_at) AS training_registration_occurred_on,
     appropriate_body_id
