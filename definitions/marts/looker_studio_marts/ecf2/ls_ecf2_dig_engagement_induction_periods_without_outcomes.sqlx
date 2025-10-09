@@ -1,14 +1,13 @@
 config {
     type: "table",
     assertions: {
-        uniqueKey: ["trn"],
-        rowConditions: ['finished_on is null']
+        uniqueKey: ["trn"]
     },
     bigquery: {
         partitionBy: "induction_started",
         clusterBy: ["appropriate_body_name"]
     },
-    description: "This mart is designed to support conversations between The Digital Engagement team and Appropriate Bodies. It identifies ECTs with an open induction period that have served more than 700 days of induction, which indicates they have met induction requirements, but have not had a pass outcome recorded against them by their appropriate body and have not had an extension recorded for their induction.",
+    description: "This mart is designed to support conversations between The Digital Engagement team and Appropriate Bodies. It identifies the latest open induction period for ECTs, signified by a lack of a finished_on date, that have served more than 700 days of induction, which indicates they have met induction requirements, but have not had a pass outcome recorded against them by their appropriate body and have not had an extension recorded for their induction.",
     columns: {
         trn: {
             description: "TRN for the teacher this declaration related to training for",
