@@ -57,19 +57,7 @@ WITH
     dec.TRN,
     dec.declaration_type,
     dec.state AS declaration_state,
-    CASE
-      WHEN dec.declaration_type = 'started' THEN 1
-      WHEN dec.declaration_type = 'retained-1' THEN 2
-      WHEN dec.declaration_type = 'retained-2' THEN 3
-      WHEN dec.declaration_type = 'retained-3' THEN 4
-      WHEN dec.declaration_type = 'retained-4' THEN 5
-      WHEN dec.declaration_type = 'extended-1' THEN 6
-      WHEN dec.declaration_type = 'extended-2' THEN 7
-      WHEN dec.declaration_type = 'extended-3' THEN 8
-      WHEN dec.declaration_type = 'completed' THEN 9
-      ELSE NULL
-  END
-    AS declaration_type_hierarchy,
+    ${functions.declarationTypeToDeclarationTypeHierarchy('dec.declaration_type')} AS declaration_type_hierarchy,
     DATE(dec.declaration_date) AS declaration_date,
     dec.cpd_lead_provider_name AS lead_provider_name,
     COALESCE(dp.cpd_dp_name, dec.delivery_partner_name) AS delivery_partner_name,
