@@ -1,1 +1,1 @@
-![image](https://github.com/DFE-Digital/teacher-cpd-dataform/assets/145556040/3869944e-3474-42d4-8f7c-ea703db3f251)
+<img width="1325" height="727" alt="image" src="https://github.com/user-attachments/assets/f0dcf0cd-20cd-4de4-8335-2edbbda90072" />
