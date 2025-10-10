@@ -1,0 +1,54 @@
+config {
+    type: "table",
+    assertions: {
+        uniqueKey: ["date", "headcount_group"]
+    },
+    description: "Headcount metrics on particular dates provided by a Programme Delivery manager in the includes/headcounts.js file in the teacher-cpd-dataform Github repository.",
+    columns: {
+        date: "Date on which these headcount metrics were valid.",
+        headcount_group: "ECTE or NPQ - the group of digital product(s) or service(s) these people were working on",
+        number_of_ftes: "Number of FTEs working on headcount_group on date"
+    }
+}
+
+SELECT
+  *
+FROM
+  UNNEST([
+  ${
+      headcounts.headcounts.map(metricsDate => {
+          return `    STRUCT(
+            SAFE_CAST("${metricsDate.date}" AS DATE) AS date,
+            "ECTE" AS headcount_group,
+            SAFE_CAST(${metricsDate.ecteHeadcount} AS FLOAT64) AS number_of_ftes
+        ),
+        STRUCT(
+            SAFE_CAST("${metricsDate.date}" AS DATE) AS date,
+            "NPQ" AS headcount_group,
+            SAFE_CAST(${metricsDate.npqHeadcount} AS FLOAT64) AS number_of_ftes
+        )`;
+      }).join(',\n')
+  }
+  ])
+WHERE
+  date IS NOT NULL
+  AND number_of_ftes IS NOT NULL
+
+post_operations {
+  ASSERT
+    (
+    SELECT
+      MAX(date) > DATE_SUB(CURRENT_DATE, INTERVAL 2 MONTH)
+    FROM
+      ${self()}
+    WHERE
+      headcount_group = "ECTE") AS "Latest headcount figure for ECTE headcount group is more than 2 months old. Please add to includes/headcounts.js in the teacher-cpd-dataform Github repository.";
+  ASSERT
+    (
+    SELECT
+      MAX(date) > DATE_SUB(CURRENT_DATE, INTERVAL 2 MONTH)
+    FROM
+      ${self()}
+    WHERE
+      headcount_group = "NPQ") AS "Latest headcount figure for NPQ headcount group is more than 2 months old. Please add to includes/headcounts.js in the teacher-cpd-dataform Github repository.";
+}
