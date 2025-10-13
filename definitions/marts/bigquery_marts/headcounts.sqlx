@@ -3,11 +3,11 @@ config {
     assertions: {
         uniqueKey: ["date", "headcount_group"]
     },
-    description: "Headcount metrics on particular dates provided by a Programme Delivery manager in the includes/headcounts.js file in the teacher-cpd-dataform Github repository.",
+    description: "Headcount metrics on particular dates provided by a Programme Delivery manager in the includes/headcounts.js file in the teacher-cpd-dataform Github repository, which are then transformed into this mart and checked for recency. Used to create the ls_kpi_headcount_cube mart which is used for headcount related KPIs as part of the NPQ and ECTE product performance frameworks.",
     columns: {
         date: "Date on which these headcount metrics were valid.",
         headcount_group: "ECTE or NPQ - the group of digital product(s) or service(s) these people were working on",
-        number_of_ftes: "Number of FTEs working on headcount_group on date"
+        number_of_ftes: "Number of Full Time Equivalent people (FTEs) working on headcount_group on date. Includes employees, managed services and contractors."
     }
 }
 

@@ -8,7 +8,7 @@ config {
     assertions: {
       uniqueKey: ["date", "headcount_group"]
     },
-    description: "Headcount metrics on particular dates provided by a Programme Delivery manager in the includes/headcounts.js file in the teacher-cpd-dataform Github repository, together with date dimensions & baseline metrics to enable calculation of headcount per 1000 live participant KPIs, over periods of time relative to the NPQ and ECTE registration windows.",
+    description: "Headcount metrics on particular dates provided by a Programme Delivery manager in the includes/headcounts.js file in the teacher-cpd-dataform Github repository, together with date dimensions, headcount_group (ECTE or NPQ) & baseline metrics to enable calculation of headcount per 1000 live participant KPIs, over periods of time relative to the NPQ and ECTE registration windows.",
     columns: {
         date: "Date on which these headcount metrics were valid.",
         headcount_group: "ECTE or NPQ - the group of digital product(s) or service(s) these people were working on",
