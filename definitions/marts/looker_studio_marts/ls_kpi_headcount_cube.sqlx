@@ -54,12 +54,12 @@ WITH
   SELECT
     date
   FROM
-    UNNEST(GENERATE_DATE_ARRAY((SELECT MIN(date) FROM kpi_cube),CURRENT_DATE)) AS date )
+    UNNEST(GENERATE_DATE_ARRAY((SELECT MIN(date) FROM kpi_cube),CURRENT_DATE - 1)) AS date )
 SELECT
   dates.date,
   headcount_groups.headcount_group,
   /* Fill in number_of_ftes with the most recent value for which we have data if there is no value available for this date. */
-  IFNULL(number_of_ftes, FIRST_VALUE(number_of_ftes) OVER (PARTITION BY headcount_groups.headcount_group ORDER BY dates.date ROWS BETWEEN UNBOUNDED PRECEDING AND 1 PRECEDING)) AS number_of_ftes,
+  IFNULL(number_of_ftes, LAST_VALUE(number_of_ftes IGNORE NULLS) OVER (PARTITION BY headcount_groups.headcount_group ORDER BY dates.date ROWS BETWEEN UNBOUNDED PRECEDING AND 1 PRECEDING)) AS number_of_ftes,
   ecf_baseline_cube.registration_window_day AS ecte_registration_window_day,
   ecf_baseline_cube.registration_window_week AS ecte_registration_window_week,
   ecf_baseline_cube.registration_window_month AS ecte_registration_window_month,
