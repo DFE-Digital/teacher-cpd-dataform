@@ -5,7 +5,8 @@ const tableNames = [
     "induction_periods_latest",
     "induction_periods_version",
     "session_details",
-    "teachers_latest"
+    "teachers_latest",
+    "induction_extensions_latest"
 ];
 
 tableNames.forEach(tableName => {
