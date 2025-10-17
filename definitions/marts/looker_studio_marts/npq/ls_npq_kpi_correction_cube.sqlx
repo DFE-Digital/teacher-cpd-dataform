@@ -64,6 +64,11 @@ WITH
       AND NOT (
         (entity_table_name = "users" AND key_updated IN ("significantly_updated_at", "updated_from_tra_at"))
         OR (entity_table_name = "participant_outcomes" AND key_updated IN ("sent_to_qualified_teachers_api_at", "qualified_teachers_api_request_successful"))
+        OR (entity_table_name = "applications" AND key_updated IN ("lead_provider_approval_status"))
+        OR (entity_table_name = "statements" AND key_updated IN ("state"))
+        OR key_updated IN ("created_at", "updated_at")
+        /* Exclude updates to tables which are intended to be maintained by once a year updates to the database via a Rake task (generated from a CSV) */
+        OR entity_table_name IN ("itt_providers", "private_childcare_providers")
         )
       /* Exclude state transitions that are expected, so we only include state transitions between states that should not be allowed and so must have been done manually */
       AND NOT (entity_table_name IN ("declarations", "statement_items") AND key_updated = "state" AND (
@@ -86,7 +91,7 @@ WITH
     AND "state" IN UNNEST(fields_updated)
     AND new_value = "voided" THEN "Voided declaration"
       WHEN request_path LIKE "/admin%" THEN IF((previous_value = "" OR previous_value IS NULL) AND new_value IS NOT NULL AND new_value != "", "Update from blank/null", "Update to existing value") || " via admin console"
-      WHEN LOWER(request_user_agent) IS NULL THEN IF((previous_value = "" OR previous_value IS NULL) AND new_value IS NOT NULL AND new_value != "", "Update from blank/null", "Update to existing value") || " not linked to web request"
+      WHEN LOWER(request_user_agent) IS NULL THEN IF((previous_value = "" OR previous_value IS NULL) AND new_value IS NOT NULL AND new_value != "", "Update from blank/null", "Update to existing value") || " - likely manual database change by a developer"
       ELSE "Unknown"
   END
     AS correction_type,

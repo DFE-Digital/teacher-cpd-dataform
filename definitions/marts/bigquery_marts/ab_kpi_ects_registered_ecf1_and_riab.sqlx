@@ -16,15 +16,26 @@ config {
         },
         school_urn: "URN of the ECT's school.",
         school_name: "Name of the ECT's school",
-        ab_indicated_on_ecf1: "The ECF1 name of the appropriate body indicated on the ECTs registration in ECF1.",
+        ab_indicated_on_training_registration: "The ECF1 name of the appropriate body indicated on the ECTs registration in ECF1. It is not a requirement for a school to indicate an AB when registering an ECT for training, 'No_AB_recorded' indicates where no AB was provided. ",
         ab_hub_region: "The hub region of the appropriate body indicated on the ECTs registration in ECF1.",
         school_hub_region: "The region of the school indicated on the ECTs registration in ECF1.",
         induction_programme_type: "The induction programme the ECT is undertaking (FIP / CIP / DIY) : potential values: full_induction_programme core_induction_programme, design_our_own, school_funded_fip.",
-        date_ect_registered_ecf1: "The date the ECT was registered on the ECF1 service.",
-        induction_period_created_riab: "The date the AB logged an induction for that ECT on the RIAB service.",
+        training_registration_occurred_on: "The date the ECT was registered on the ECF1 service.",
+        induction_period_created_at: "The date the AB logged an induction for that ECT on the RIAB service.",
         in_riab: "TRUE if an ECT was registered in ECF1 and an induction period recorded in the same KPI measurement window.",
     }
 }
+
+pre_operations {
+  /* Start date from which induction periods are counted towards the upcoming Appropriate Body KPI measurement window. */
+  DECLARE earliest_induction_period_created_at DATE DEFAULT "2025-04-02"
+}
+
+post_operations {
+  ASSERT ( DATE_DIFF(CURRENT_DATE,earliest_induction_period_created_at, MONTH) < 10) AS 
+  "The earliest_induction_period_created_at date used by this table is more than 10 months old. Update the project variable earliest_induction_period_created_at to the first induction period date that should be included in the upcoming Appropriate Body KPI measurement window. Please also ensure update the ab_to_hub_region_mapping_2025_09_15 static table with the most up-to-date AB to hub region mapping."
+}
+
 
   -- One row
 WITH
@@ -33,12 +44,13 @@ WITH
     trn,
     appropriate_body_name,
     TRUE AS in_riab,
-    DATE(induction_period_created_at) AS induction_period_created_riab
+    DATE(induction_period_created_at) AS induction_period_created_at
   FROM
     ${ref('ecf2_teacher_induction_periods')}
     -- for future registration windows, this date should be updated with the first opportunitty to create induction windows in the registration window
   WHERE
-    induction_period_created_at >= '2025-04-01'
+    DATE(induction_period_created_at) >= earliest_induction_period_created_at
+
   QUALIFY
     ROW_NUMBER() OVER (PARTITION BY trn ORDER BY induction_period_created_at DESC ) = 1),
   teachers_in_ecf1 AS (
@@ -46,9 +58,9 @@ WITH
     user_id,
     trn,
     school_urn,
-    appropriate_body_name AS ab_indicated_on_ecf1,
+    IFNULL(appropriate_body_name,'No_AB_indicated') AS ab_indicated_on_training_registration,
     induction_programme_type,
-    DATE(created_at) AS date_ect_registered_ecf1,
+    DATE(created_at) AS training_registration_occurred_on,
     appropriate_body_id
   FROM
     ${ref('ecf_inductions_dedupe')}
@@ -65,12 +77,12 @@ SELECT
   users.full_name AS ect_name,
   teachers_in_ecf1.school_urn,
   schools.name AS school_name,
-  teachers_in_ecf1.ab_indicated_on_ecf1,
+  teachers_in_ecf1.ab_indicated_on_training_registration,
   ab_regions.hub_region AS ab_hub_region,
   school_regions.tsh_area AS school_hub_region,
   teachers_in_ecf1.induction_programme_type,
-  teachers_in_ecf1.date_ect_registered_ecf1,
-  teachers_in_riab.induction_period_created_riab,
+  teachers_in_ecf1.training_registration_occurred_on,
+  teachers_in_riab.induction_period_created_at,
   IFNULL(teachers_in_riab.in_riab, FALSE) AS in_riab,
 FROM
   teachers_in_ecf1

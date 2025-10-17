@@ -77,11 +77,15 @@ WITH
       AND entity_table_name NOT IN ("analytics_participants",
         "emails",
         "nomination_emails",
-        "schools")
+        "schools",
+        "pending_induction_submission_batches")
       AND NOT (entity_table_name = "induction_records" AND key_updated IN ("end_date", "induction_status"))
       AND NOT (entity_table_name = "participant_profiles" AND key_updated IN ("induction_completion_date", "induction_start_date", "schedule_id"))
       AND NOT (entity_table_name = "support_queries" AND key_updated IN ("zendesk_ticket_id"))
       AND NOT (entity_table_name = "participant_profiles" AND key_updated IN ("training_status", "mentor_completion_date", "mentor_completion_reason"))
+      AND NOT (entity_table_name = "teachers" AND key_updated LIKE "trs_%")
+      AND NOT (entity_table_name = "induction_periods" AND key_updated IN ("number_of_terms", "finished_on", "outcome"))
+      AND NOT key_updated IN ("created_at", "updated_at")
       /* Exclude state transitions that are expected, so we only include state transitions between states that should not be allowed and so must have been done manually */
       AND NOT (entity_table_name IN ("participant_declarations", "statement_line_items") AND key_updated = "state" AND (
         (previous_value = "submitted" AND new_value = "eligible")
@@ -104,7 +108,7 @@ WITH
     AND "state" IN UNNEST(fields_updated)
     AND new_value = "voided" THEN "Voided declaration"
       WHEN request_path LIKE "/admin%" THEN IF((previous_value = "" OR previous_value IS NULL) AND new_value IS NOT NULL AND new_value != "", "Update from blank/null", "Update to existing value") || " via admin console"
-      WHEN LOWER(request_user_agent) IS NULL THEN IF((previous_value = "" OR previous_value IS NULL) AND new_value IS NOT NULL AND new_value != "", "Update from blank/null", "Update to existing value") || " not linked to web request"
+      WHEN LOWER(request_user_agent) IS NULL THEN IF((previous_value = "" OR previous_value IS NULL) AND new_value IS NOT NULL AND new_value != "", "Update from blank/null", "Update to existing value") || " - likely manual database change by a developer"
       ELSE "Unknown"
   END
     AS correction_type,
