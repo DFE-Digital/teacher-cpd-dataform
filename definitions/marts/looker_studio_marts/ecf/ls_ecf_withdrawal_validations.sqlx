@@ -1,20 +1,38 @@
 config {
     type: "table",
+    assertions: {
+        uniqueKey: ["induction_record_id"]
+    },
     bigquery: {
         clusterBy: ["lead_provider_name"]
     },
     description: "",
     columns: {
-        TRN: {
-            description: "This comes from a participant's teacher profile.",
-            bigqueryPolicyTags: ["projects/ecf-bq/locations/europe-west2/taxonomies/6302091323314055162/policyTags/301313311867345339"]
-        },
+        user_id: 'This comes from the teacher profile associated with the participant profile.',
+        participant_profile_id: 'Participant profiles are automatically generated for ECTs/Mentors when induction tutors register the ECT/Mentor details. Meaning a participant_profile_id (and full participant_profile) should be available for each ECF participant with an induction record. ECF participants have one participant_profile for each type of participation (ECT or Mentor).',
+        induction_record_id: 'This is the latest induction records id for a participant at a LP where they were reported as having withdrawn from training. Only withdrawn induction records should appear in this table',
+        school_urn: 'The URN of the school at which this induction record was associated with',
+        lead_provider_name: 'The name of the lead provider with which the participant was recorded as training with on the associated induction record.',
+        induction_programme_type: 'The type of induction programme being served by the school as recorded on the induction record',
+        lead_provider_induction_start: 'The start date of the associated induction record.',
+        lead_provider_induction_end: 'The end date of the associated induction record.',
+        next_induction_start_date: 'The start date on the subsequent induction record for this participant. If this is null no further induction record was created after this current one.',
+        next_lead_provider: 'The lead provider on the subsequent induction record for this participant. This should not be the same lead provider because the current induction record should show the latest record with the given provider. If this is null no further induction record was created after this current one.',
+        next_school_urn: 'The school urn on the subsequent induction record for this participant. If this is null no further induction record was created after this current one.',
+        next_induction_programme: 'The induction programme on the subsequent induction record for this participant. If this is null no further induction record was created after this current one.',
+        ab_induction_period_start: 'The start date on the induction period recorded by the participants AB that corresponds with the time period of the induction record. Finished on date on this induction period must be later than the start date of the induction record and should be the latest induction period started where that is the case.',
+        ab_induction_period_end: 'The finished on date on the induction period recorded by the participants AB that corresponds with the time period of the induction record. Finished on date on this induction period must be later than the start date of the induction record and should be the latest induction period started where that is the case.',
+        next_ab_induction_period_start: 'The start date on the subsequent induction period recorded by the participants AB. If this is null no further induction period was recorded.',
+        next_ab_induction_period_finished_on: 'The finsished date on the subsequent induction period recorded by the participants AB. If this is null no further induction period was recorded.',
+        withdrawal_reason: 'This is the withdrawal reason provided by the lead provider for why the participant is no longer training with them. Possible reasons include: left teaching profession, moved school, mentor no longer being mentor, switched to school led, school left fip, started in error and other',
+        withdrawal_reason_validity: 'This boolean checks whether, using the available information about the participant, the withdrawal reason provided by the lead provider is accurate.',
+        calculated_reason: 'This calculated field uses the available information to identify what the withdrawal reason should be. It tries to accurately identify the following cases: left teaching profession, moved school or school left fip'
     }
 }
 
 WITH
-  -- ### This identifies all the latest training state reported for a partiticipant by the given lead provider and is filtered only to those whose latest states that are withdrawn. It also provides the corresponding reason given for that withdrawal ####
-  withdrawal_reasons AS (
+  -- ### This identifies all the latest training state reported for a participant by the given lead provider and is filtered only to those whose latest states that are withdrawn. It also provides the corresponding reason given for that withdrawal ####
+  latest_lp_withdrawal_reasons AS (
 SELECT
   states.participant_profile_id,
   states.state,
@@ -40,8 +58,6 @@ SELECT
   lp_dedupe.school_urn,
   lp_dedupe.lead_provider_name,
   lp_dedupe.induction_programme_type,
-  DATE(lp_dedupe.start_date) AS first_start_date,
-  DATE(lp_dedupe.end_date) AS first_end_date,
   --   ## Due to the systems generation of induction records the start date and end date can be mixed, this field recalculates an accurate first start date for this induction record based on the available dates##
   CASE
     WHEN lp_dedupe.end_date IS NULL THEN DATE(lp_dedupe.start_date)
@@ -51,7 +67,7 @@ END
   AS min_start_date,
   --  ## Due to the systems generation of induction records the start date and end date can be mixed, this field recalculates an accurate first end date for this induction record based on the available dates and if the end date gives it a dummy end date in the future##
   CASE
-    WHEN lp_dedupe.end_date IS NULL THEN '2050-01-01'
+    WHEN lp_dedupe.end_date IS NULL THEN DATE(lp_dedupe.end_date)
     WHEN lp_dedupe.start_date < lp_dedupe.end_date THEN DATE(lp_dedupe.end_date)
     ELSE DATE(lp_dedupe.start_date)
 END
@@ -60,58 +76,56 @@ END
 FROM
   ${ref(`ls_ecf_induction_lp_dedupe_start_decs`)} lp_dedupe
 INNER JOIN
-  withdrawal_reasons
+  latest_lp_withdrawal_reasons
 ON
-  lp_dedupe.participant_profile_id = withdrawal_reasons.participant_profile_id
-  AND lp_dedupe.lead_provider_name = withdrawal_reasons.lp_name
+  lp_dedupe.participant_profile_id = latest_lp_withdrawal_reasons.participant_profile_id
+  AND lp_dedupe.lead_provider_name = latest_lp_withdrawal_reasons.lp_name
 WHERE
   lp_dedupe.training_status = 'withdrawn'
   AND participant_type = 'ParticipantProfile::ECT' ),
-  -- #This combines the lead provider + participant withdrawn induction records above with the next available induction record it can find for that participant that started on or after the end date of that deduped final record at that lead provider. This will allow us to confirm the validity of the withdrawal reason provided##
-  withdrawn_participants_extended_training AS (
+  --# This looks at all inductions records and calculates the start date using the same logic above. This will enable us to slot the latest withdrawn induction record with a lead provider into the order of all induction records for a participant and identify their next induction record that occurred after their final induction record at the LP they were reported as withdrawn with.
+  full_induction_records AS (
 SELECT
-  withdrawn_participants.*,
-  DATE(inductions.start_date) AS next_start_date,
+  CASE
+    WHEN end_date IS NULL THEN DATE(start_date)
+    WHEN start_date < end_date THEN DATE(start_date)
+    ELSE DATE(end_date)
+END
+  AS next_start_date,
+  induction_record_id,
+  inductions.participant_profile_id,
   inductions.induction_record_id AS next_id,
   inductions.lead_provider_name AS next_lp,
   inductions.school_urn AS next_school_urn,
   inductions.induction_programme_type AS next_induction_programme
 FROM
+  ${ref(`ecf_inductions`)} inductions ),
+  -- #This combines the lead provider + participant withdrawn induction records above with the next available induction record it can find for that participant that started on or after the end date of that deduped final record at that lead provider. This will allow us to confirm the validity of the withdrawal reason provided##
+  withdrawn_participants_extended_training AS (
+SELECT
+  withdrawn_participants.*,
+  full_induction_records.* EXCEPT(participant_profile_id,
+    induction_record_id)
+FROM
   withdrawn_participants
 LEFT JOIN
-  ${ref(`ecf_inductions`)} inductions
+  full_induction_records
 ON
-  withdrawn_participants.participant_profile_id = inductions.participant_profile_id
-  AND withdrawn_participants.first_end_date <= DATE(inductions.start_date)
-  AND withdrawn_participants.induction_record_id <> inductions.induction_record_id
+  withdrawn_participants.participant_profile_id = full_induction_records.participant_profile_id
+  AND withdrawn_participants.max_end_date <= full_induction_records.next_start_date
+  AND withdrawn_participants.induction_record_id <> full_induction_records.induction_record_id
 QUALIFY
-  ROW_NUMBER() OVER (PARTITION BY withdrawn_participants.participant_profile_id, withdrawn_participants.lead_provider_name ORDER BY DATE(inductions.start_date) ASC) = 1),
+  ROW_NUMBER() OVER (PARTITION BY withdrawn_participants.participant_profile_id, withdrawn_participants.lead_provider_name ORDER BY DATE(full_induction_records.next_start_date) ASC) = 1),
   -- #### This pulls together induction periods reported by appropriate bodies to cross check with withdrawals provided by lead providers. It fills in open records with a dummy date ###
   induction_periods AS (
 SELECT
   trn AS induction_trn,
-  CASE
-    WHEN finished_on IS NULL THEN '2051-01-01'
-    ELSE finished_on
-END
-  AS finished_on_join,
+  IFNULL(finished_on,CURRENT_DATE()) AS finished_on_join,
   started_on,
   finished_on
 FROM
-  ${ref(`ecf2_teacher_induction_periods`)}
-UNION ALL
-SELECT
-  CAST(trn AS string) AS induction_trn,
-  CASE
-    WHEN finished_on IS NULL THEN '2051-01-01'
-    ELSE finished_on
-END
-  AS finished_on_join,
-  started_on,
-  finished_on
-FROM
-  `static_tables.historical_induction_period_import`),
-  -- ### This combines the withdrawal records with the corresponding induction periods (reported by AB) and pulls through the next available induction period if it's available for comparison##
+  ${ref(`ecf2_post_2021_full_teacher_induction_periods`)}),
+  -- ### This combines the withdrawal records with the corresponding induction periods (reported by AB) for that participant that were completed after the induction training record began. In the record it calculates the subsequent induction period dates (if it's available for comparison) and then filters to a single record corresponding with the first induction period that aligns with the withdrawn induction record##
   withdrawn_participants_with_full_evidence AS (
 SELECT
   *,
@@ -126,22 +140,25 @@ ON
   AND withdrawals.min_start_date < ips.finished_on_join
 QUALIFY
   ROW_NUMBER() OVER (PARTITION BY lead_provider_name, participant_profile_id ORDER BY started_on ASC)=1),
+  --#This generates the associated boolean flags that identify if the common reasons reported for withdrawal by LPs are true or false for this particular record.
   withdrawn_participants_validated AS (
-  SELECT
-    *,
-    (school_urn = next_school_urn
-      AND induction_programme_type = 'full_induction_programme'
-      AND next_induction_programme <> "full_induction_programme"
-      AND next_induction_programme IS NOT NULL) AS school_left_fip_flag,
-    (school_urn <> next_school_urn
-      AND next_school_urn IS NOT NULL) AS moved_school_flag,
-    (started_on IS NULL
-      OR next_id IS NOT NULL
-      OR (next_started_on IS NULL
-        AND finished_on IS NOT NULL
-        AND finished_on < DATE_ADD(max_end_date,INTERVAL 60 day))) AS left_teaching_flag,
-  FROM
-    withdrawn_participants_with_full_evidence)
+SELECT
+  *,
+  (school_urn = next_school_urn
+    AND induction_programme_type = 'full_induction_programme'
+    AND next_induction_programme <> "full_induction_programme"
+    AND next_induction_programme IS NOT NULL) AS school_left_fip_flag,
+  (school_urn <> next_school_urn
+    AND next_school_urn IS NOT NULL) AS moved_school_flag,
+  (started_on IS NULL
+    OR next_id IS NULL
+    /*This is checking the AB induction periods to see that the corresponding AB induction period's finish date is within sixty days of the induction training record's end date, this is because of AB reporting timelines and this ensuring enough time has passed for another AB to report induction */
+    OR (next_started_on IS NULL
+      AND finished_on IS NOT NULL
+      AND finished_on < DATE_ADD(COALESCE(max_end_date,CURRENT_DATE()),INTERVAL 60 day))) AS left_teaching_flag,
+FROM
+  withdrawn_participants_with_full_evidence)
+  -- #This compares the logic calculated above with the reason provided by the LP to check if that provided reason is valid
 SELECT
   user_id,
   participant_profile_id,
