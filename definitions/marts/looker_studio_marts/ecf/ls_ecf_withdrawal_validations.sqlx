@@ -6,7 +6,7 @@ config {
     bigquery: {
         clusterBy: ["lead_provider_name"]
     },
-    description: "",
+    description: "This mart is used to cross-check withdrawal reasons provided by lead providers with the information we have available for participants on our system. It is used by contract managers to challenge provided withdrawal reasons and recommend the correct withdrawal reason as evidenced by the data we have. It uses subsequent induction records and corresponding induction periods from RIAB to calculate whether participants are still training, what schools and training programmes they've moved to and identify if they've possibly left the profession." ,
     columns: {
         user_id: 'This comes from the teacher profile associated with the participant profile.',
         participant_profile_id: 'Participant profiles are automatically generated for ECTs/Mentors when induction tutors register the ECT/Mentor details. Meaning a participant_profile_id (and full participant_profile) should be available for each ECF participant with an induction record. ECF participants have one participant_profile for each type of participation (ECT or Mentor).',
