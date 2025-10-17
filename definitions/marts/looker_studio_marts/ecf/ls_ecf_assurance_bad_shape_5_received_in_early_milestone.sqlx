@@ -3,7 +3,7 @@ config {
     tags: ["assurance bad shapes"],
     assertions: {
         uniqueKey: ["declaration_id"],
-        rowConditions: ['expected_declaration_sequence_position is not null']
+        rowConditions: ['earliest_declaration_can_be_received is not null']
     },
     bigquery: {
         labels: {
@@ -12,7 +12,7 @@ config {
         partitionBy: "DATE(declaration_date)",
         clusterBy: ["cpd_lead_provider_name", "participant_profile_id"]
     },
-    description: "This is #5 in a series of Assurance 'Bad Shapes' marts that identify declarations received that fall outside the expected declaration rules. This mart identifies where a declaration was evidenced too early based on when their start declaration was evidenced. Declarations may not be evidenced too early, they must be evidenced in the corresponding milestone period to the declaration type or later. i.e. a retained-1 declaration cannot be dated before milestone period 2, a retained-4 declaration cannot be dated before milestone period 5. The acceptable milestone period a declaration can be evidenced corresponds with its position in the approved sequence of declarations (See 'expected_declaration_sequence_position' field for correct sequence). Participants on a reduced training schedule are excluded from this bad shape and only participants currently in a cohort of 2023 or later are included",
+    description: "This is #5 in a series of Assurance 'Bad Shapes' marts that identify declarations received that fall outside the expected declaration rules. This mart identifies where a declaration was evidenced too early based on when their start declaration was evidenced. Declarations may not be evidenced too early, they must be evidenced in the corresponding milestone period to the declaration type or later. i.e. a retained-1 declaration cannot be dated before milestone period 2, a retained-4 declaration cannot be dated before milestone period 5. The acceptable milestone period a declaration can be evidenced corresponds with its position in the approved sequence of declarations (See 'earliest_declaration_can_be_received' field for correct sequence). Participants on a reduced training schedule are excluded from this bad shape and only participants currently in a cohort of 2023 or later are included",
     columns: {
         declaration_id: 'ID associated with the declaration which qualifies as falling into a bad shape',
         declaration_type: 'The type of the declaration which indicates how far along a participant is in their training',
@@ -30,10 +30,7 @@ config {
             description: "TRN associated with the ECT's profile.",
             bigqueryPolicyTags: ["projects/ecf-bq/locations/europe-west2/taxonomies/6302091323314055162/policyTags/301313311867345339"]
         },
-        expected_declaration_sequence_position: "This is the declaration sequence position we would expect this declaration type to be evidenced in. The proper sequence changed after 01/08/2025 shifting the order from S-R1-R2-R3-R4-E1-E2-E3-C to S-R1-R2-R3-R4-C-E1-E2-E3 (moving completed declarations earlier in the correct sequence). Declarations evidenced prior to that date follow the first pattern, after that date they should follow the second pattern",
-        milestone_start_received: "This is the overall milestone in which the start declaration for this participant was received, overall milestone counting starts from 1 in the first milestone of '01/08/2021' and counts from there.",
-        milestone_current_declaration_was_received: "This is the overall milestone in which this current declaration was received, overall milestone counting starts from 1 in the first milestone of '01/08/2021' and counts from there.",
-        milestone_delta: "This is a calculation subtracting 'milestone_start_received' from  'milestone_current_declaration_was_received' and then adding one to identify a normalised milestone position which the declaration was received to compare with the expected sequence the type of declaration should be received in. For example, if the current declaration is a retained-2 declaration received in the overall milestone 12 and the start declaration for the same participant was received in the overall milestone 11 this field would equal 2 (12 - 11 +1) because it was received in a normalised milestone position of milestone 2 compared to an expected sequence position of 3 which means this record would qualify as being a bad shape. Records are filtered here to those declarations which were received with a milestone_delta position that is less than the expected_declaration_sequence_position field"
+        earliest_declaration_can_be_received: "This is the earliest milestone period we would expect this declaration type to be evidenced in. Earliest Period: S:1, R1:2, R2:3, R3:4, R4:5, C:6, Extended declarations received after 01/08/2025 are E1:7, E2:8, E3:9, prior to that date they are E1:6, E2:7, E3:8"
     }
 }
 
@@ -73,7 +70,7 @@ SELECT
   cohort,
   statement_cohort,
   trn,
-  expected_declaration_sequence_position,
+  earliest_declaration_can_be_received,
   milestone_start_received,
   milestone_order AS milestone_current_declaration_was_received,
   (milestone_order - milestone_start_received + 1) AS milestone_delta
@@ -97,7 +94,7 @@ WHERE
   AND state IN ( 'eligible',
     'payable',
     'paid')
-  AND (milestone_order - milestone_start_received + 1) < expected_declaration_sequence_position
+  AND (milestone_order - milestone_start_received + 1) < earliest_declaration_can_be_received
   AND (declarations.schedule_identifier NOT LIKE '%reduced%'
     OR declarations.declaration_type <> 'completed')
   AND cohort >= 2023
