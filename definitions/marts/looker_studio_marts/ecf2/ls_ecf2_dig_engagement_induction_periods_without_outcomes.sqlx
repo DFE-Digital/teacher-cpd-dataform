@@ -50,7 +50,7 @@ WHERE
   SELECT
     DISTINCT(teacher_id) AS teacher_id
   FROM
-    ${ref(`induction_extensions_latest_ecf2`)}
+    ${ref(`induction_extensions_latest_ecf2`)})
 /*QUALIFY is being used here to filter after the calculations in the SELECT statement has run (due to SQL order of operations) because we want to run a calculation across all induction periods but we only want to show ECTs with a longer duration and no outcome and their final, open induction period and the associated appropriate body*/
 QUALIFY
   finished_on IS NULL
