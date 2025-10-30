@@ -74,7 +74,20 @@ WITH
   SELECT
     cpd_prog_data.*,
     CASE
-    -- First classification layer: uses the group_name to assign classification
+
+      -- First classification layer: classifies support tickets based on tags and issue_types associated to each ticket
+      WHEN (SELECT LOGICAL_OR(val LIKE '%induction_and_ab%') FROM UNNEST(cpd_prog_data.issue_type || cpd_prog_data.tags) AS val) THEN 'ECTE - Induction and AB'
+      WHEN (SELECT LOGICAL_OR(val LIKE '%funding%') and LOGICAL_OR(val LIKE '%npq%') FROM  UNNEST(cpd_prog_data.issue_type || cpd_prog_data.tags) AS val) THEN 'NPQ - Funding'
+      WHEN (SELECT LOGICAL_OR(STARTS_WITH(val, 'get_a_trn')) FROM UNNEST(cpd_prog_data.issue_type || cpd_prog_data.tags) AS val ) THEN 'NPQ - Get a TRN'      
+      WHEN (SELECT LOGICAL_OR(val LIKE '%funding%') FROM UNNEST(cpd_prog_data.issue_type || cpd_prog_data.tags) AS val) THEN 'ECTE - Funding'
+      WHEN (SELECT LOGICAL_OR(val LIKE '%npq%') FROM UNNEST(cpd_prog_data.issue_type || cpd_prog_data.tags) AS val) THEN 'CPD - NPQ'
+      WHEN (SELECT LOGICAL_OR(val LIKE ANY ('%cpd%', 'fip%', 'ect%', '%ecte%', '%induction%', '%appropriate%', 'ab-%')) FROM UNNEST(cpd_prog_data.issue_type || cpd_prog_data.tags) AS val) THEN 'CPD - ECTE'
+      WHEN (SELECT LOGICAL_OR(STARTS_WITH(val, 'ecf') OR STARTS_WITH(val, 'ecte')) FROM UNNEST(cpd_prog_data.issue_type || cpd_prog_data.tags) AS val ) THEN 'CPD - ECTE'    
+      WHEN LOWER(service_name) = 'ecf'
+        OR LOWER(service_name) = 'ecte' THEN 'CPD - ECTE'
+      WHEN LOWER(service_name) = 'npq' THEN 'CPD - NPQ'
+
+      -- Second classification layer: uses the group_name to assign classification
       WHEN cpd_prog_data.group_name IN ('CPD - ECTE', 'CPD - 2nd Line- LP and DP Queries', 'CPD - 2nd Line: Appropriate Bodies & Regs', 'CPD - 2nd line - Withdrawing or reinstating ECTs/mentors', 'CPD - 3rd Line Support (Dfe admin)', 'CPD - ECF', 'CPD - ECF - Access to DfE service', 'CPD - ECF - ECT registration issues', 'CPD - ECF - Mentor registration issues', 'CPD - ECF - Partnerships', 'CPD - 2nd line ECF review (policy)', 'CPD - 2nd line- Unable to change cohort due to declaration errors on the service') THEN 'CPD - ECTE'
       WHEN cpd_prog_data.group_name IN ('CPD - ECF - 2nd line Funding Enquiries',
       'CPD - ECF Funding',
@@ -85,16 +98,7 @@ WITH
       WHEN cpd_prog_data.group_name IN ('CPD - 2nd Line - NPQ Digital', 'CPD - 2nd Line NPQ Policy Provider Engagement', 'CPD - 2nd line - NQTplus1 overpayments', 'CPD - 3rd Line - NPQ Digital - Developer to action', 'CPD - NPQ', 'CPD - NPQ - General Enquiries', 'CPD - 2nd Line-NPQ TSF') THEN 'CPD - NPQ'
       WHEN cpd_prog_data.group_name = 'CPD - 2nd line - NPQ Funding' THEN 'NPQ - Funding'
       WHEN cpd_prog_data.group_name = 'CPD - Triage' THEN 'CPD - Triage'
-      -- Second classification layer: classifies support tickets based on tags and issue_types associated to each ticket
-      WHEN (SELECT LOGICAL_OR(val LIKE '%induction_and_ab%') FROM UNNEST(cpd_prog_data.issue_type || cpd_prog_data.tags) AS val) THEN 'ECTE - Induction and AB'
-      WHEN (SELECT LOGICAL_OR(val LIKE '%funding%') and LOGICAL_OR(val LIKE '%npq%') FROM  UNNEST(cpd_prog_data.issue_type || cpd_prog_data.tags) AS val) THEN 'NPQ - Funding'
-      WHEN (SELECT LOGICAL_OR(val LIKE '%funding%') FROM UNNEST(cpd_prog_data.issue_type || cpd_prog_data.tags) AS val) THEN 'ECTE - Funding'
-      WHEN (SELECT LOGICAL_OR(val LIKE '%npq%') FROM UNNEST(cpd_prog_data.issue_type || cpd_prog_data.tags) AS val) THEN 'CPD - NPQ'
-      WHEN (SELECT LOGICAL_OR(val LIKE ANY ('%cpd%', 'fip%', 'ect%', '%ecte%', '%induction%', '%appropriate%', 'ab-%')) FROM UNNEST(cpd_prog_data.issue_type || cpd_prog_data.tags) AS val) THEN 'CPD - ECTE'
-      WHEN (SELECT LOGICAL_OR(STARTS_WITH(val, 'ecf') OR STARTS_WITH(val, 'ecte')) FROM UNNEST(cpd_prog_data.issue_type || cpd_prog_data.tags) AS val ) THEN 'CPD - ECTE'      
-      WHEN LOWER(service_name) = 'ecf'
-        OR LOWER(service_name) = 'ecte' THEN 'CPD - ECTE'
-      WHEN LOWER(service_name) = 'npq' THEN 'CPD - NPQ'
+      
       -- Third classification layer: uses the migrated subject from a data extract provided by Shaun Osborne and Declan Fisher. This extract contains the original ticket_id and the ticket_id after migration as well as the subject
       WHEN subject LIKE '%npq%' THEN 'CPD - NPQ'
       WHEN subject LIKE '%induction_and_ab%' THEN 'ECTE - Induction and AB'
