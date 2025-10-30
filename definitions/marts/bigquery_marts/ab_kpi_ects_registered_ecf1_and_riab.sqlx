@@ -70,7 +70,8 @@ WITH
     AND participant_type = 'ParticipantProfile::ECT'
     AND training_status != 'withdrawn'
     AND (eligible_for_funding IS TRUE
-      OR eligible_for_funding IS NULL) )
+      OR eligible_for_funding IS NULL)
+    AND trn is not null)
 SELECT
   teachers_in_ecf1.user_id,
   teachers_in_ecf1.trn,
