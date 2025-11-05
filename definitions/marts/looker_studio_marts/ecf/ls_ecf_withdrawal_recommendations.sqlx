@@ -42,6 +42,7 @@ WITH
     LOGICAL_OR(outcome = 'pass') AS passed_induction
   FROM
     ${ref(`ecf2_teacher_induction_periods`)}
+  WHERE trn is not null
   GROUP BY
     trn)
 
