@@ -9,6 +9,7 @@ config {
         ticket_id: "UID of each support ticket taken from Zendesk.",
         programme_type: "A calculated field which indicates which programme the ticket belongs to. Possible values: ECTE, NPQ or Triage",
         classification: "The derived classification for the ticket. Possible values: CPD - ECTE, ECTE - Funding, NPQ - Get a TRN, ECTE - Induction and AB, CPD - NPQ, NPQ - Funding, CPD - Triage. Tickets marked as 'Unclassifiable - bad data' cannot be classified with the data available from Zendesk or the migrated subject.",
+        support_ticket_theme: "NPQ PROGRAMME TYPE ONLY: The theme of the request contained in the support ticket. Derived from the issue_types assigned to the ticket.",
         group_name: "Name of group this ticket relates to taken from Zendesk e.g. CPD",
         service_name: "Name of service this ticket relates to taken from Zendesk e.g. ECTE",
         issue_type: "ARRAY of issue types selected for this ticket_id. This combines all issue types from all Zendesk instances.",
@@ -74,23 +75,23 @@ WITH
     cpd_prog_data.*,
     CASE
     -- First classification layer: uses the group_name to assign classification
-      WHEN group_name IN ('CPD - ECTE', 'CPD - 2nd Line- LP and DP Queries', 'CPD - 2nd Line: Appropriate Bodies & Regs', 'CPD - 2nd line - Withdrawing or reinstating ECTs/mentors', 'CPD - 3rd Line Support (Dfe admin)', 'CPD - ECF', 'CPD - ECF - Access to DfE service', 'CPD - ECF - ECT registration issues', 'CPD - ECF - Mentor registration issues', 'CPD - ECF - Partnerships', 'CPD - 2nd line ECF review (policy)', 'CPD - 2nd line- Unable to change cohort due to declaration errors on the service') THEN 'CPD - ECTE'
-      WHEN group_name IN ('CPD - ECF - 2nd line Funding Enquiries',
+      WHEN cpd_prog_data.group_name IN ('CPD - ECTE', 'CPD - 2nd Line- LP and DP Queries', 'CPD - 2nd Line: Appropriate Bodies & Regs', 'CPD - 2nd line - Withdrawing or reinstating ECTs/mentors', 'CPD - 3rd Line Support (Dfe admin)', 'CPD - ECF', 'CPD - ECF - Access to DfE service', 'CPD - ECF - ECT registration issues', 'CPD - ECF - Mentor registration issues', 'CPD - ECF - Partnerships', 'CPD - 2nd line ECF review (policy)', 'CPD - 2nd line- Unable to change cohort due to declaration errors on the service') THEN 'CPD - ECTE'
+      WHEN cpd_prog_data.group_name IN ('CPD - ECF - 2nd line Funding Enquiries',
       'CPD - ECF Funding',
       'CPD - ECTE Funding') THEN 'ECTE - Funding'
-      WHEN group_name = 'CPD - Get a TRN' THEN 'NPQ - Get a TRN'
-      WHEN group_name IN ('CPD - Induction and AB',
+      WHEN cpd_prog_data.group_name = 'CPD - Get a TRN' THEN 'NPQ - Get a TRN'
+      WHEN cpd_prog_data.group_name IN ('CPD - Induction and AB',
       'CPD - Legacy Induction') THEN 'ECTE - Induction and AB'
-      WHEN group_name IN ('CPD - 2nd Line - NPQ Digital', 'CPD - 2nd Line NPQ Policy Provider Engagement', 'CPD - 2nd line - NQTplus1 overpayments', 'CPD - 3rd Line - NPQ Digital - Developer to action', 'CPD - NPQ', 'CPD - NPQ - General Enquiries', 'CPD - 2nd Line-NPQ TSF') THEN 'CPD - NPQ'
-      WHEN group_name = 'CPD - 2nd line - NPQ Funding' THEN 'NPQ - Funding'
-      WHEN group_name = 'CPD - Triage' THEN 'CPD - Triage'
+      WHEN cpd_prog_data.group_name IN ('CPD - 2nd Line - NPQ Digital', 'CPD - 2nd Line NPQ Policy Provider Engagement', 'CPD - 2nd line - NQTplus1 overpayments', 'CPD - 3rd Line - NPQ Digital - Developer to action', 'CPD - NPQ', 'CPD - NPQ - General Enquiries', 'CPD - 2nd Line-NPQ TSF') THEN 'CPD - NPQ'
+      WHEN cpd_prog_data.group_name = 'CPD - 2nd line - NPQ Funding' THEN 'NPQ - Funding'
+      WHEN cpd_prog_data.group_name = 'CPD - Triage' THEN 'CPD - Triage'
       -- Second classification layer: classifies support tickets based on tags and issue_types associated to each ticket
-      WHEN (SELECT LOGICAL_OR(val LIKE '%induction_and_ab%') FROM UNNEST(issue_type || tags) AS val) THEN 'ECTE - Induction and AB'
-      WHEN (SELECT LOGICAL_OR(val LIKE '%funding%') and LOGICAL_OR(val LIKE '%npq%') FROM  UNNEST(issue_type || tags) AS val) THEN 'NPQ - Funding'
-      WHEN (SELECT LOGICAL_OR(val LIKE '%funding%') FROM UNNEST(issue_type || tags) AS val) THEN 'ECTE - Funding'
-      WHEN (SELECT LOGICAL_OR(val LIKE '%npq%') FROM UNNEST(issue_type || tags) AS val) THEN 'CPD - NPQ'
-      WHEN (SELECT LOGICAL_OR(val LIKE ANY ('%cpd%', 'fip%', 'ect%', '%ecte%', '%induction%', '%appropriate%', 'ab-%')) FROM UNNEST(issue_type || tags) AS val) THEN 'CPD - ECTE'
-      WHEN (SELECT LOGICAL_OR(STARTS_WITH(val, 'ecf') OR STARTS_WITH(val, 'ecte')) FROM UNNEST(issue_type || tags) AS val ) THEN 'CPD - ECTE'      
+      WHEN (SELECT LOGICAL_OR(val LIKE '%induction_and_ab%') FROM UNNEST(cpd_prog_data.issue_type || cpd_prog_data.tags) AS val) THEN 'ECTE - Induction and AB'
+      WHEN (SELECT LOGICAL_OR(val LIKE '%funding%') and LOGICAL_OR(val LIKE '%npq%') FROM  UNNEST(cpd_prog_data.issue_type || cpd_prog_data.tags) AS val) THEN 'NPQ - Funding'
+      WHEN (SELECT LOGICAL_OR(val LIKE '%funding%') FROM UNNEST(cpd_prog_data.issue_type || cpd_prog_data.tags) AS val) THEN 'ECTE - Funding'
+      WHEN (SELECT LOGICAL_OR(val LIKE '%npq%') FROM UNNEST(cpd_prog_data.issue_type || cpd_prog_data.tags) AS val) THEN 'CPD - NPQ'
+      WHEN (SELECT LOGICAL_OR(val LIKE ANY ('%cpd%', 'fip%', 'ect%', '%ecte%', '%induction%', '%appropriate%', 'ab-%')) FROM UNNEST(cpd_prog_data.issue_type || cpd_prog_data.tags) AS val) THEN 'CPD - ECTE'
+      WHEN (SELECT LOGICAL_OR(STARTS_WITH(val, 'ecf') OR STARTS_WITH(val, 'ecte')) FROM UNNEST(cpd_prog_data.issue_type || cpd_prog_data.tags) AS val ) THEN 'CPD - ECTE'      
       WHEN LOWER(service_name) = 'ecf'
         OR LOWER(service_name) = 'ecte' THEN 'CPD - ECTE'
       WHEN LOWER(service_name) = 'npq' THEN 'CPD - NPQ'
@@ -109,24 +110,27 @@ WITH
       '%mentor%') THEN 'CPD - ECTE'
       ELSE 'Unclassifiable - bad data'
   END
-    AS classification
+    AS classification,
+  themes.support_ticket_theme
   FROM
-    cpd_prog_data )
+    cpd_prog_data
+  LEFT JOIN ${ref('support_ticket_issue_type_to_theme_mapping')} as themes
+  ON cpd_prog_data.issue_type[SAFE_OFFSET(0)] = themes.issue_type )
 SELECT
-  cl.*,
+  classified_tickets.*,
   CASE
-    WHEN classification IN ('CPD - ECTE', 'ECTE - Induction and AB', 'ECTE - Funding') THEN 'ECTE'
-    WHEN classification IN ('CPD - NPQ',
+    WHEN classified_tickets.classification IN ('CPD - ECTE', 'ECTE - Induction and AB', 'ECTE - Funding') THEN 'ECTE'
+    WHEN classified_tickets.classification IN ('CPD - NPQ',
     'NPQ - Funding',
     'NPQ - Get a TRN') THEN 'NPQ'
-    WHEN classification IN ('CPD - Triage') THEN 'Triage'
+    WHEN classified_tickets.classification IN ('CPD - Triage') THEN 'Triage'
     ELSE NULL
 END
   AS programme_type,
-  dp.is_duplicate
+  duplicate_tickets.is_duplicate
 FROM
-  classification_logic AS cl
+  classification_logic AS classified_tickets
 LEFT JOIN
-  duplicate_tickets AS dp
+  duplicate_tickets AS duplicate_tickets
 ON
-  cl.ticket_id = dp.ticket_id
+  classified_tickets.ticket_id = duplicate_tickets.ticket_id

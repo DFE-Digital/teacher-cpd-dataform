@@ -1,0 +1,59 @@
+config {
+    type: "table",
+    assertions: {
+        uniqueKey: ["trn"]
+    },
+    bigquery: {
+        partitionBy: "induction_started",
+        clusterBy: ["appropriate_body_name"]
+    },
+    description: "This mart is designed to support conversations between The Digital Engagement team and Appropriate Bodies. It identifies the latest open induction period for ECTs, signified by a lack of a finished_on date, that have served more than 700 days of induction, which indicates they have met induction requirements, but have not had a pass outcome recorded against them by their appropriate body and have not had an extension recorded for their induction.",
+    columns: {
+        trn: {
+            description: "TRN for the teacher this declaration related to training for",
+            bigqueryPolicyTags: ["projects/ecf-bq/locations/europe-west2/taxonomies/6302091323314055162/policyTags/301313311867345339"]
+        },
+        induction_started: "The start date of the ECT's first induction period",
+        finished_on: "The finish date of the latest induction period. For this mart, this value should be null because these ECTs are still serving induction and have an open induction period",
+        outcome: "The overall outcome of the ECTs induction. In this mart this value should be null or the value should not equal 'pass' as participants that have completed induction are excluded.",
+        appropriate_body_name: "The AB the ECT is currently serving their induction with.",
+        induction_duration_over_periods: "The duration of induction the ECT has served which is calculated by combining the duration of each of their induction periods.",
+        total_periods: "The number of induction periods associated with this ECT."
+
+    }
+}
+
+WITH
+  induction_periods AS (
+  SELECT
+    trn,
+    appropriate_body_name,
+    started_on,
+    finished_on,
+    DATE_DIFF(COALESCE(finished_on,CURRENT_DATE()),started_on,day) AS induction_period_duration,
+    outcome,
+    teacher_id
+  FROM
+    ${ref(`ecf2_teacher_induction_periods`)})
+SELECT
+  trn,
+  MIN(started_on) OVER (PARTITION BY trn) AS induction_started,
+  finished_on,
+  outcome,
+  appropriate_body_name,
+  SUM(induction_period_duration) OVER (PARTITION BY trn) AS induction_duration_over_periods,
+  COUNT(*) OVER (PARTITION BY trn) AS total_periods
+FROM
+  induction_periods
+WHERE
+  teacher_id NOT IN (
+  SELECT
+    DISTINCT(teacher_id) AS teacher_id
+  FROM
+    ${ref(`induction_extensions_latest_ecf2`)})
+/*QUALIFY is being used here to filter after the calculations in the SELECT statement has run (due to SQL order of operations) because we want to run a calculation across all induction periods but we only want to show ECTs with a longer duration and no outcome and their final, open induction period and the associated appropriate body*/
+QUALIFY
+  finished_on IS NULL
+  AND induction_period_duration >= 700
+  AND (outcome IS NULL
+    OR outcome != 'pass')

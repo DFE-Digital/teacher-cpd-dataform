@@ -40,43 +40,43 @@ function correctOrderDeclarationsTypesShouldBeReceived() {
     UNNEST([ STRUCT(DATE '2021-09-01' AS declaration_date_start,
         DATE_ADD(CURRENT_DATE(), INTERVAL 1 DAY) AS declaration_date_end,
         'started' AS declaration_type,
-        1 AS expected_declaration_sequence_position), STRUCT(DATE '2021-09-01',
+        1 AS expected_declaration_sequence_position, 1 as earliest_declaration_can_be_received), STRUCT(DATE '2021-09-01',
         DATE_ADD(CURRENT_DATE(), INTERVAL 1 DAY),
         'retained-1',
-        2), STRUCT(DATE '2021-09-01',
+        2,2), STRUCT(DATE '2021-09-01',
         DATE_ADD(CURRENT_DATE(), INTERVAL 1 DAY),
         'retained-2',
-        3), STRUCT(DATE '2021-09-01',
+        3,3), STRUCT(DATE '2021-09-01',
         DATE_ADD(CURRENT_DATE(), INTERVAL 1 DAY),
         'retained-3',
-        4), STRUCT(DATE '2021-09-01',
+        4,4), STRUCT(DATE '2021-09-01',
         DATE_ADD(CURRENT_DATE(), INTERVAL 1 DAY),
         'retained-4',
-        5), STRUCT(DATE '2025-08-01',
+        5,5), STRUCT(DATE '2025-08-01',
         DATE_ADD(CURRENT_DATE(), INTERVAL 1 DAY),
         'completed',
-        6), STRUCT(DATE '2025-08-01',
+        6,6), STRUCT(DATE '2025-08-01',
         DATE_ADD(CURRENT_DATE(), INTERVAL 1 DAY),
         'extended-1',
-        7), STRUCT(DATE '2025-08-01',
+        7,7), STRUCT(DATE '2025-08-01',
         DATE_ADD(CURRENT_DATE(), INTERVAL 1 DAY),
         'extended-2',
-        8), STRUCT(DATE '2025-08-01',
+        8,8), STRUCT(DATE '2025-08-01',
         DATE_ADD(CURRENT_DATE(), INTERVAL 1 DAY),
         'extended-3',
-        9), STRUCT(DATE '2021-09-01',
+        9,9), STRUCT(DATE '2021-09-01',
         DATE '2025-07-31',
         'completed',
-        9), STRUCT(DATE '2021-09-01',
+        9,6), STRUCT(DATE '2021-09-01',
         DATE '2025-07-31',
         'extended-1',
-        6), STRUCT(DATE '2021-09-01',
+        6,6), STRUCT(DATE '2021-09-01',
         DATE '2025-07-31',
         'extended-2',
-        7), STRUCT(DATE '2021-09-01',
+        7,7), STRUCT(DATE '2021-09-01',
         DATE '2025-07-31',
         'extended-3',
-        8) ]))`;
+        8,8) ]))`;
 }
 
 function orderedCohortMilestonesWithStartAndEndDates(ctx) {
@@ -97,10 +97,47 @@ function orderedCohortMilestonesWithStartAndEndDates(ctx) {
     milestone_start IS NOT NULL)`;
 }
 
+function stateToStateHierarchy(stateField) {
+    return `
+      CASE ${stateField}
+          WHEN 'paid' THEN 7
+          WHEN 'payable' THEN 6
+          WHEN 'eligible' THEN 5
+          WHEN 'submitted' THEN 4
+          WHEN 'clawed_back' THEN 3
+          WHEN 'awaiting_clawback' THEN 2
+          WHEN 'voided' THEN 1
+          ELSE 0
+      END
+    `;
+}
+
+function declarationTypeToDeclarationTypeHierarchy(declarationTypeField) {
+    return `
+      CASE ${declarationTypeField}
+          WHEN 'completed' THEN 12
+          WHEN 'extended-6' THEN 11
+          WHEN 'extended-5' THEN 10
+          WHEN 'extended-4' THEN 9
+          WHEN 'extended-3' THEN 8
+          WHEN 'extended-2' THEN 7
+          WHEN 'extended-1' THEN 6
+          WHEN 'retained-4' THEN 5
+          WHEN 'retained-3' THEN 4
+          WHEN 'retained-2' THEN 3
+          WHEN 'retained-1' THEN 2
+          WHEN 'started' THEN 1
+          ELSE 0
+      END
+    `;
+}
+
 module.exports = {
     contentGroupPath,
     extractValueFromSingleElementArrayofJSONStrings,
     yearStartDateToAcademicYearString,
     correctOrderDeclarationsTypesShouldBeReceived,
-    orderedCohortMilestonesWithStartAndEndDates
+    orderedCohortMilestonesWithStartAndEndDates,
+    stateToStateHierarchy,
+    declarationTypeToDeclarationTypeHierarchy
 };
