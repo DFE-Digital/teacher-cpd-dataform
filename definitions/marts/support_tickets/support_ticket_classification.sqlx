@@ -80,8 +80,7 @@ WITH
       WHEN (SELECT LOGICAL_OR(STARTS_WITH(val, 'get_a_trn')) FROM UNNEST(cpd_prog_data.issue_type ) AS val ) THEN 'NPQ - Get a TRN'      
       WHEN (SELECT LOGICAL_OR(val LIKE '%funding%') FROM UNNEST(cpd_prog_data.issue_type ) AS val) THEN 'ECTE - Funding'
       WHEN (SELECT LOGICAL_OR(val LIKE '%npq%') FROM UNNEST(cpd_prog_data.issue_type ) AS val) THEN 'CPD - NPQ'
-      WHEN (SELECT LOGICAL_OR(val LIKE ANY ('%cpd%', 'fip%', 'ect%', '%ecte%', '%induction%', '%appropriate%', 'ab-%')) FROM UNNEST(cpd_prog_data.issue_type ) AS val) THEN 'CPD - ECTE'
-      WHEN (SELECT LOGICAL_OR(STARTS_WITH(val, 'ecf') OR STARTS_WITH(val, 'ecte')) FROM UNNEST(cpd_prog_data.issue_type ) AS val ) THEN 'CPD - ECTE'    
+      WHEN (SELECT LOGICAL_OR(val LIKE ANY ('%cpd%', 'fip%', 'ect%', '%ecte%', '%induction%', '%appropriate%', 'ab-%', 'ecf%')) FROM UNNEST(cpd_prog_data.issue_type ) AS val) THEN 'CPD - ECTE'
 
 
       -- Second classification layer: uses the group_name to assign classification
@@ -99,14 +98,12 @@ WITH
       WHEN LOWER(service_name) = 'npq' THEN 'CPD - NPQ'
 
       -- Third classification layer: classifies support tickets based on tags associated to each ticket
-
       WHEN (SELECT LOGICAL_OR(val LIKE '%induction_and_ab%') FROM UNNEST( cpd_prog_data.tags) AS val) THEN 'ECTE - Induction and AB'
       WHEN (SELECT LOGICAL_OR(val LIKE '%funding%') and LOGICAL_OR(val LIKE '%npq%') FROM  UNNEST( cpd_prog_data.tags) AS val) THEN 'NPQ - Funding'
       WHEN (SELECT LOGICAL_OR(STARTS_WITH(val, 'get_a_trn')) FROM UNNEST( cpd_prog_data.tags) AS val ) THEN 'NPQ - Get a TRN'      
       WHEN (SELECT LOGICAL_OR(val LIKE '%funding%') FROM UNNEST( cpd_prog_data.tags) AS val) THEN 'ECTE - Funding'
       WHEN (SELECT LOGICAL_OR(val LIKE '%npq%') FROM UNNEST( cpd_prog_data.tags) AS val) THEN 'CPD - NPQ'
-      WHEN (SELECT LOGICAL_OR(val LIKE ANY ('%cpd%', 'fip%', 'ect%', '%ecte%', '%induction%', '%appropriate%', 'ab-%')) FROM UNNEST( cpd_prog_data.tags) AS val) THEN 'CPD - ECTE'
-      WHEN (SELECT LOGICAL_OR(STARTS_WITH(val, 'ecf') OR STARTS_WITH(val, 'ecte')) FROM UNNEST( cpd_prog_data.tags) AS val ) THEN 'CPD - ECTE' 
+      WHEN (SELECT LOGICAL_OR(val LIKE ANY ('%cpd%', 'fip%', 'ect%', '%ecte%', '%induction%', '%appropriate%', 'ab-%', 'ecf%')) FROM UNNEST( cpd_prog_data.tags) AS val) THEN 'CPD - ECTE'
       
       -- Forth classification layer: uses the migrated subject from a data extract provided by Shaun Osborne and Declan Fisher. This extract contains the original ticket_id and the ticket_id after migration as well as the subject
       WHEN subject LIKE '%npq%' THEN 'CPD - NPQ'
