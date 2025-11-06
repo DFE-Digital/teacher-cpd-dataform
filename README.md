@@ -44,26 +44,7 @@ https://github.com/DFE-Digital/teacher-cpd-dataform/blob/master/Explanation/data
 https://github.com/DFE-Digital/teacher-cpd-dataform/blob/master/Explanation/data_models/cpd_data_data_hierarchy.md
 
 # MART QUICK START GUIDE
-config {
-    type: "table",
-    assertions: {
-        /* The primary key should always be included in this
-        uniqueKey: ["a", "b", "c", "d"],
-        /* Row conditions like a != b and c<= d
-        rowConditions: [""]
-    },
-    bigquery: {
-        partitionBy: "DATE(C)",
-        clusterBy: ["a"]
-    },
-    description: "Table description. What is 1 row of data, who is it used by and what is it designed to do?",
-    columns: {
-        a: "Field a description",
-        b: {
-            description: "field b description. This is a hidden field",
-            bigqueryPolicyTags: ["projects/ecf-bq/locations/europe-west2/taxonomies/6302091323314055162/policyTags/301313311867345339"]} 
-    }
-}
+
 
 
 
