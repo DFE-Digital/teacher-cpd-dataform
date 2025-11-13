@@ -16,17 +16,25 @@
 ```
 config {
     type: "table",
+    /* tag types should be the service the mart relates to. can be kpi, npq, ecte, riab 
+    tags: [""]
     assertions: {
-        uniqueKey: ["xxxxx"]
+        /* The primary key should always be included in this
+        uniqueKey: ["a", "b", "c", "d"],
+        /* Row conditions like a != b and c<= d
+        rowConditions: [""]
     },
     bigquery: {
-        partitionBy: "",
-        clusterBy: ["xxxxx", "xxxxx", "xxxxx","xxxxx"]
+        /* can partition by any data types. Typically dates are most useful for the work we do.
+        partitionBy: "DATE(C)",
+        clusterBy: ["a","b","c"]
     },
-    description: "xxxxx ",
+    description: "Table description. What is 1 row of data, who is it used by and what is it designed to do?",
     columns: {
-        xxxxx: "xxxxx",
-        xxxxx: "xxxxx"
+        a: "Field a description",
+        b: {
+            description: "field b description. This is a hidden field",
+            bigqueryPolicyTags: ["projects/ecf-bq/locations/europe-west2/taxonomies/6302091323314055162/policyTags/301313311867345339"]} 
     }
 }
 ```
