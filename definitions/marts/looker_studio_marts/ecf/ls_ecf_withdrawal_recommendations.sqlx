@@ -1,0 +1,81 @@
+config {
+    type: "table",
+    assertions: {
+        uniqueKey: ["participant_profile_id"]
+    },
+    bigquery: {
+        clusterBy: ["lead_provider_name"]
+    },
+    description: "This mart is used for flagging participants who should be classified as withdrawn by their Lead Providers because they do not appear to actively be serving their induction. It identifies ECTs who have an active training status on their latest school induction training record but, based on AB induction data stored in RIAB, appear to not be currently serving and have not completed their induction according to an AB. The output of this mart is to be used by contract managers to flag ECTs for withdrawal to Lead Providers who have not registered that the participant is withdrawn from training",
+    columns: {
+        participant_profile_id: "ID for the participant within the Manager service. Participant profiles are automatically generated for ECTs/Mentors when induction tutors register the ECT/Mentor details. Meaning a participant_profile_id (and full participant_profile) should be available for each ECF participant with an induction record. ECF participants have one participant_profile for each type of participation (ECT or Mentor)." ,
+        user_id: "This comes from the teacher profile associated with the participant profile within the Manage service" ,
+        TRN: {
+            description: "This comes from a participant's teacher profile.",
+            bigqueryPolicyTags: ["projects/ecf-bq/locations/europe-west2/taxonomies/6302091323314055162/policyTags/301313311867345339"]
+        },
+        school_name: "Name of the participant's school associated with their latest induction training record on the Manage service.",
+        school_urn: "URN of the participant's school associated with their latest induction training record on the Manage service.",
+        schedule_identifier: "This indicates which sub-cohort or tranche the participant commenced training within an annual cohort. For ECF, the schedule identifier also indicates if a participant is following a non-standard training route at any point (e.g. extended or reduced).",
+        appropriate_body_name: "The name of the appropriate body associated with the school on the latest induction record. This field is from the Manage service, not RIAB.",
+        induction_status:  "A status value used to manage the state of an induction record. It can indicate that a record is the active record or that something has changed and the record is not the active record (or will not be in the future). Only active induction statuses should be present in this mart ",
+        training_status: "This is managed on the lead provider side and indicates whether the participant is being trained by a provider or not. Only active training statuses should be present in this mart",
+        start_date: "Start date for this induction record",
+        end_date:"End date for this induction record.This is not the completion date for a participant's full induction.",
+        cohort: "The cohort/academic year the participant's training is currently associated with as linked to their induction programme on their latest induction record in the Manage service. Possible fields: 2021 onwards",
+        lead_provider_name:"Name of the Lead Provider partnered with the participant's school. If the partnership is challenged, the field will say 'No lead provider'.",
+        delivery_partner_name:"Name of the Delivery Partner partnered with the participant's school. If the partnership is challenged, the field will say 'No delivery partner'",
+        participant_type: "Only ECTs should be present in this mart because only they go through the required induction period",
+        open_induction_period_present:"This identifies if this TRN has an associated induction period that is open on the RIAB service and they are currently being trained",
+        max_finished_on:"This identifies the latest date an induction period for this ECT on the RIAB service was completed",
+        passed_induction: "This identifies if this ECT has successfully passed their induction."
+
+    }
+}
+/*This checks for a given TRN the status of an ECT, whether they have open induction period, whether they've completed an induction period and whether they've passed their induction*/
+WITH
+  induction_periods AS (
+  SELECT
+    trn,
+    LOGICAL_OR(finished_on IS NULL) AS open_induction_period_present,
+    MAX(finished_on) AS max_finished_on,
+    LOGICAL_OR(outcome = 'pass') AS passed_induction
+  FROM
+    ${ref(`ecf2_teacher_induction_periods`)}
+  WHERE trn is not null
+  GROUP BY
+    trn)
+
+/*This joins the RIAB induction period data onto the latest induction record for a participant, identifying active ECTs who appear not to be training based on RIAB data */
+SELECT
+  participant_profile_id,
+  user_id,
+  TRN,
+  school_name,
+  school_urn,
+  schedule_identifier,
+  appropriate_body_name,
+  induction_status,
+  training_status,
+  start_date,
+  end_date,
+  cohort,
+  lead_provider_name,
+  delivery_partner_name,
+  participant_type,
+  induction_periods.* EXCEPT (trn,
+    passed_induction)
+FROM
+  ${ref(`ecf_inductions_dedupe`)}
+LEFT JOIN
+  induction_periods
+USING
+  (TRN)
+WHERE
+  training_status = 'active'
+  AND induction_status = 'active'
+  AND participant_type = 'ParticipantProfile::ECT'
+  AND completion_date IS NULL
+  AND (open_induction_period_present IS FALSE
+    OR open_induction_period_present IS NULL)
+  AND passed_induction IS NOT TRUE
