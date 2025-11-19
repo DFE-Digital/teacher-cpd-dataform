@@ -30,7 +30,8 @@ const tableNames = [
     "statement_line_items_latest",
     "statements_latest",
     "teacher_profiles_latest",
-    "users_latest"
+    "users_latest",
+    "participant_identities_latest"
 ];
 
 tableNames.forEach(tableName => {

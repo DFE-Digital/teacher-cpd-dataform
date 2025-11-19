@@ -33,37 +33,63 @@ config {
         participant_type: "When joining to declarations it is important to confirm the declaration record matches on participant_type (so ECT record & ECT declaration and Mentor record & Mentor declaration)",
         high_pupil_premium: "This indicates whether the uplift payment for X is applicable to this participant's started declaration",
         sparsity_incentive: "This indicates whether the uplift payment for X is applicable to this participant's started declaration",
-        cohort_rolled_over_21_24: "This identifies a participant that has some declarations originally paid under the 2021 contract/cohort. They are now continuing training under the 2024 cohort/contract"
-
+        cohort_rolled_over_21_24: "This identifies a participant that has some declarations originally paid under the 2021 contract/cohort. They are now continuing training under the 2024 cohort/contract",
+        full_name: {
+            description: "The full name of the participant, taken from the users table",
+            bigqueryPolicyTags: ["projects/ecf-bq/locations/europe-west2/taxonomies/6302091323314055162/policyTags/301313311867345339"]
+        },
+        emails: {
+            description: "Array of emails associated to the participant. These are taken from the participant_identities table.",
+            bigqueryPolicyTags: ["projects/ecf-bq/locations/europe-west2/taxonomies/6302091323314055162/policyTags/301313311867345339"]
+        },
     }
 }
 
+WITH
+  emails_list AS (
+  SELECT
+    user_id,
+    ARRAY_AGG(email) AS emails
+  FROM
+    ${ref('participant_identities_latest_ecf1')}
+  GROUP BY
+    user_id )
 SELECT
-  induction_record_id,
-  participant_profile_id,
-  TRN,
-  user_id,
-  induction_programme_id,
-  induction_programme_type,
-  school_name,
-  school_urn,
-  schedule_identifier,
-  mentor_id,
-  appropriate_body_id,
-  appropriate_body_name,
-  start_date,
-  end_date,
-  induction_status,
-  training_status,
-  created_at,
-  updated_at,
-  completion_date,
-  cohort_id,
-  participant_type,
-  cohort,
-  school_id,
-  high_pupil_premium,
-  sparsity_incentive,
-  cohort_rolled_over_21_24
+  induction_periods.induction_record_id,
+  induction_periods.participant_profile_id,
+  induction_periods.TRN,
+  induction_periods.user_id,
+  induction_periods.induction_programme_id,
+  induction_periods.induction_programme_type,
+  induction_periods.school_name,
+  induction_periods.school_urn,
+  induction_periods.schedule_identifier,
+  induction_periods.mentor_id,
+  induction_periods.appropriate_body_id,
+  induction_periods.appropriate_body_name,
+  induction_periods.start_date,
+  induction_periods.end_date,
+  induction_periods.induction_status,
+  induction_periods.training_status,
+  induction_periods.created_at,
+  induction_periods.updated_at,
+  induction_periods.completion_date,
+  induction_periods.cohort_id,
+  induction_periods.participant_type,
+  induction_periods.cohort,
+  induction_periods.school_id,
+  induction_periods.high_pupil_premium,
+  induction_periods.sparsity_incentive,
+  induction_periods.cohort_rolled_over_21_24,
+  users.full_name,
+  emails_list.emails
 FROM
-  ${ref(`ecf_inductions`)}
+  ${ref(`ecf_inductions`)} AS induction_periods
+LEFT JOIN
+  ${ref('users_latest_ecf1')} AS users
+ON
+  induction_periods.user_id = users.id
+LEFT JOIN
+  emails_list
+USING
+  (user_id)
