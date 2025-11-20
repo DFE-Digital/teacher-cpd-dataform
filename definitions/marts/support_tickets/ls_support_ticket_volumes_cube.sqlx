@@ -14,9 +14,8 @@ config {
         duplicate_tickets_count: "The number of duplicate tickets received on a given day, grouped by programme_type and classification. Tickets are identified as duplicates when the 'closed_by_merge' tag is present in the ticket.",
         tickets_reopened_count: "The number of tickets received on a given day that were later reopened, grouped by programme_type and classification.",
         tickets_reply_outside_sla_count: "The number of tickets received on a given day that were replied to outside of SLA period (SLA = 5 days), grouped by programme_type and classification.",
-        tickets_escalated_2nd_line_count: "The number of tickets received on a given day that were escalated to 2nd line support, grouped by programme_type and classification.",
-        tickets_escalated_3rd_line_count: "The number of tickets received on a given day that were escalated to 3rd line support, grouped by programme_type and classification.",
-        bad_ticket_count: "The number of tickets received on a given that that either were reopened, the first reply was ouside of SLA or escalated to the 2nd line of support.",
+        tickets_escalated_2nd_3rd_line_count: "The number of tickets received on a given day that were escalated to the product team (2nd or 3rd line of support), grouped by programme_type and classification.",
+        bad_ticket_count: "The number of tickets received on a given that that either were reopened, the first reply was ouside of SLA or escalated to the product team (2nd or 3rd line of support).",
         ecte_registration_window_start_date: "The first date in the ECTE registration window this date falls within",
         ecte_registration_window_string: "ECTE registration window date falls within formatted as e.g. 2032-33 for display purposes",
         ecte_registration_window: "Calendar year ecte_registration_window_start_date falls within e.g. 2032 for the 2032-33 registration window",
@@ -45,13 +44,13 @@ WITH
     created_at,
     programme_type,
     classification,
+    support_ticket_theme,
     COUNT(*) AS ticket_count,
     COUNTIF(is_duplicate) AS duplicate_tickets_count,
     COUNTIF(reopened_ticket) AS tickets_reopened_count,
     COUNTIF(NOT first_reply_within_sla) AS tickets_reply_outside_sla_count,
-    COUNTIF(escalated_2nd_line) AS tickets_escalated_2nd_line_count,
-    COUNTIF(escalated_3rd_line) AS tickets_escalated_3rd_line_count,
-    COUNTIF(escalated_2nd_line
+    COUNTIF(escalated_to_product_team) AS tickets_escalated_2nd_3rd_line_count,
+    COUNTIF(escalated_to_product_team
       OR reopened_ticket
       OR NOT first_reply_within_sla) AS bad_ticket_count
   FROM
@@ -78,6 +77,12 @@ WHERE
     created_at
   FROM
     UNNEST(GENERATE_DATE_ARRAY('2021-04-15',CURRENT_DATE)) AS created_at ),
+support_ticket_themes as (
+    SELECT 
+        DISTINCT support_ticket_theme
+    FROM ${ref('support_ticket_classification')}
+    
+),
   -- We begin by proportionately assigning tickets created before 2024-01-01 to either the ECTE or NPQ service, based on the distribution of ECTE and NPQ service tickets created in 2024. These tickets lack sufficient information to be classified in the support_tickets_classification mart due to poor historical data quality. However, as they are valid tickets—not duplicates or mis-migrated ones—their volumes should still be reflected in the overall counts.
   classification_proportions AS (
 SELECT
@@ -103,12 +108,12 @@ WHERE
     created_at,
     'NPQ' AS programme_type,
     'CPD - NPQ' AS classification,
+    NULL as support_ticket_theme,
     ticket_count * classification_proportions.npq_proportion AS ticket_count,
     duplicate_tickets_count * classification_proportions.npq_proportion AS duplicate_tickets_count,
     tickets_reopened_count * classification_proportions.npq_proportion AS tickets_reopened_count,
     tickets_reply_outside_sla_count * classification_proportions.npq_proportion AS tickets_reply_outside_sla_count,
-    tickets_escalated_2nd_line_count * classification_proportions.npq_proportion AS tickets_escalated_2nd_line_count,
-    tickets_escalated_3rd_line_count * classification_proportions.npq_proportion AS tickets_escalated_3rd_line_count,
+    tickets_escalated_2nd_3rd_line_count * classification_proportions.npq_proportion AS tickets_escalated_2nd_3rd_line_count,
     bad_ticket_count * classification_proportions.npq_proportion AS bad_ticket_count
   FROM
     kpi_cube,
@@ -123,12 +128,12 @@ WHERE
     created_at,
     'ECTE' AS programme_type,
     'CPD - ECTE' AS classification,
+    NULL as support_ticket_theme,
     ticket_count * classification_proportions.ecte_proportion AS ticket_count,
     duplicate_tickets_count * classification_proportions.ecte_proportion AS duplicate_tickets_count,
     tickets_reopened_count * classification_proportions.ecte_proportion AS tickets_reopened_count,
     tickets_reply_outside_sla_count * classification_proportions.ecte_proportion AS tickets_reply_outside_sla_count,
-    tickets_escalated_2nd_line_count * classification_proportions.ecte_proportion AS tickets_escalated_2nd_line_count,
-    tickets_escalated_3rd_line_count * classification_proportions.ecte_proportion AS tickets_escalated_3rd_line_count,
+    tickets_escalated_2nd_3rd_line_count * classification_proportions.ecte_proportion as tickets_escalated_2nd_3rd_line_count,
     bad_ticket_count * classification_proportions.ecte_proportion AS bad_ticket_count
   FROM
     kpi_cube,
@@ -143,12 +148,12 @@ WHERE
     created_at,
     programme_type,
     classification,
+    support_ticket_theme,
     SUM(ticket_count) AS ticket_count,
     SUM(duplicate_tickets_count) AS duplicate_tickets_count,
     SUM(tickets_reopened_count) AS tickets_reopened_count,
     SUM(tickets_reply_outside_sla_count) AS tickets_reply_outside_sla_count,
-    SUM(tickets_escalated_2nd_line_count) AS tickets_escalated_2nd_line_count,
-    SUM(tickets_escalated_3rd_line_count) AS tickets_escalated_3rd_line_count,
+    SUM(tickets_escalated_2nd_3rd_line_count) as tickets_escalated_2nd_3rd_line_count,
     SUM(bad_ticket_count) AS bad_ticket_count
   FROM
     proportionately_assigning_classification
@@ -158,12 +163,12 @@ SELECT
   dates.created_at,
   programme_types.programme_type,
   classifications.classification,
+  support_ticket_themes.support_ticket_theme,
   IFNULL(ticket_count, 0.0) AS ticket_count,
   IFNULL(duplicate_tickets_count, 0.0) AS duplicate_tickets_count,
   IFNULL(tickets_reopened_count, 0.0) AS tickets_reopened_count,
   IFNULL(tickets_reply_outside_sla_count, 0.0) AS tickets_reply_outside_sla_count,
-  IFNULL(tickets_escalated_2nd_line_count, 0.0) AS tickets_escalated_2nd_line_count,
-  IFNULL(tickets_escalated_3rd_line_count, 0.0) AS tickets_escalated_3rd_line_count,
+  IFNULL(tickets_escalated_2nd_3rd_line_count,0.0) AS tickets_escalated_2nd_3rd_line_count,
   IFNULL(bad_ticket_count, 0.0) AS bad_ticket_count,
   ecf_baseline_cube.registration_window_day AS ecte_registration_window_day,
   ecf_baseline_cube.registration_window_week AS ecte_registration_window_week,
@@ -192,13 +197,15 @@ SELECT
 FROM
   dates,
   programme_types,
-  classifications
+  classifications,
+  support_ticket_themes
 LEFT JOIN
   summing_metrics
 USING
   (created_at,
     programme_type,
-    classification)
+    classification, 
+    support_ticket_theme)
 LEFT JOIN
   ${ref(`ls_ecf_kpi_live_participants_baseline_cube`)} AS ecf_baseline_cube
   ON dates.created_at = ecf_baseline_cube.date

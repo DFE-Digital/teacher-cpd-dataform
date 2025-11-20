@@ -22,8 +22,7 @@ config {
         subject: "The subject of tickets migrated to the new instance of CPD. Any tickets created after December 2023 will not have a subject. This data has been provided by Shaun Osborne and Declan Fisher to help classify historic support tickets whose data was lost as part of the migration to the new instance of Zendesk",
         reopened_ticket: "TRUE if ticket has been reopened at least once",
         first_reply_within_sla: "TRUE if the first reply on the ticket was within SLA. Note: for CPD, SLA = 5 working days.",
-        escalated_2nd_line: "TRUE if the ticket was escalated to 2nd line support.",
-        escalated_3rd_line: "TRUE if the ticket was escalated to 3rd line support."
+         escalated_to_product_team: "TRUE if the ticket was excalated to the product team (2nd and 3rd line support)."
     }
 }
 
@@ -51,8 +50,7 @@ WITH
     LOWER(stm.subject) AS subject,
     reopened_ticket,
     first_reply_within_sla,
-    IFNULL(LOWER(group_name) LIKE '%2nd line%',FALSE) AS escalated_2nd_line,
-    IFNULL(LOWER(group_name) LIKE '%3rd line%', FALSE) AS escalated_3rd_line
+    (trello_card_id IS NOT NULL OR REGEXP_CONTAINS(LOWER(COALESCE(group_name, '')), '(2nd line|3rd line)')) AS escalated_to_product_team
   FROM
     ${ref('support_ticket_details_anonymised')} AS sta
   LEFT JOIN
