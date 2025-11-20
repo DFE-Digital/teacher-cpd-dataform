@@ -3,8 +3,8 @@
 const headcounts = [
     {
    date: "2025-11-20",
-   ecteHeadcount: 35,
-   npqHeadcount: 15
+   ecteHeadcount: 36,
+   npqHeadcount: 16
    },{
    date: "2025-10-23",
    ecteHeadcount: 36,
@@ -74,4 +74,5 @@ const headcounts = [
 module.exports = {
     headcounts
 };
+
 
