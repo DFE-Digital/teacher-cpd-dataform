@@ -400,7 +400,37 @@ WITH
     FROM
       ${ref("session_details_npq")}
     WHERE
-      session_start_timestamp > session_timestamp_checkpoint ) )
+      session_start_timestamp > session_timestamp_checkpoint ) ),
+--- Using sessions corrected to replace underscores with hyphens in page URLs
+sessions_corrected AS (
+  SELECT
+    * EXCEPT(start_page,
+      exit_page,
+      pages_visited_details),
+    CASE
+      WHEN REGEXP_CONTAINS(start_page, '_') THEN REGEXP_REPLACE(start_page, '_', '-')
+      ELSE start_page
+  END
+    AS start_page,
+    CASE
+      WHEN REGEXP_CONTAINS(exit_page, '_') THEN REGEXP_REPLACE(exit_page, '_', '-')
+      ELSE exit_page
+  END
+    AS exit_page,
+    (
+    SELECT
+      ARRAY_AGG( STRUCT( d.anonymised_user_agent_and_ip AS anonymised_user_agent_and_ip,
+          REGEXP_REPLACE(d.page, '_', '-') AS page,
+          d.previous_page_domain AS previous_page_domain,
+          REGEXP_REPLACE(d.previous_page, '_', '-') AS previous_page,
+          page_entry_time as page_entry_time,
+          page_exit_time as page_exit_time,
+          duration as duration,
+          next_step as next_step ) )
+    FROM
+      UNNEST(pages_visited_details) AS d ) AS pages_visited_details
+  FROM
+    sessions)
 SELECT
   application,
   session_id,
@@ -422,121 +452,123 @@ SELECT
   ${
       funnels.map(funnel =>
           `SELECT "${funnel.name}" AS funnel,
-                  application = "${funnel.application}"
-                  AND (
-                      /* Loop through the funnelPaths array of path strings within each funnel object and generate a WHERE clause for each one, separated by an OR */
-                      ${funnel.funnelPaths.map((path, index) => {
-                          /* Exclude backward steps */
-                          return `(
-                          page_path = "${path}"
-                          ${index > 0 ?
-                              `AND next_step NOT IN ("${funnel.funnelPaths.slice(0, index).join('", "')}")`
-                          : ''}
-                      )`
-                      }).join('\n OR \n')}
-                      /* If sidePaths exists for this funnel, loop through the sidePaths array of sidePath objects within each funnel object and generate a WHERE clause for each one, separated by an OR */
-                      ${funnel.sidePaths ? funnel.sidePaths.map((sidePath, index) => {
-                          /* Include additional paths that aren't part of the main funnel in funnelPaths (but not onward steps from them) */
-                          return ` OR (
-                          page_path = "${sidePath.path}"
-                          AND next_step = "${sidePath.nextStep}"
-                      )`
-                      }).join('\n') : []}
-                  )
-                  /* If sidePath exists for this funnel, loop through the sidePaths array of sidePath objects within each funnel object and generate a WHERE NOT clause for each one, separated by an OR */
-                  ${funnel.sidePaths ? `AND NOT (
-                      ${funnel.sidePaths.map((sidePath, index) => {
-                          /* Exclude backwards steps along sidePaths */
-                          return `(
-                          page_path = "${sidePath.nextStep}"
-                          AND next_step = "${sidePath.path}"
-                      )`
-                      }).join('\n OR \n')}
-                  )` : ``}
-                  AS next_step_is_in_this_funnel
-          `).join(`\nUNION ALL\n`)
+                    application = "${funnel.application}"
+                    AND (
+                        /* Loop through the funnelPaths array of path strings within each funnel object and generate a WHERE clause for each one, separated by an OR */
+                        ${funnel.funnelPaths.map((path, index) => {
+                            /* Exclude backward steps */
+                            return `(
+                            page_path = "${path}"
+                            ${index > 0 ?
+                                `AND next_step NOT IN ("${funnel.funnelPaths.slice(0, index).join('", "')}")`
+                            : ''}
+                        )`
+                        }).join('\n OR \n')}
+                        /* If sidePaths exists for this funnel, loop through the sidePaths array of sidePath objects within each funnel object and generate a WHERE clause for each one, separated by an OR */
+                        ${funnel.sidePaths ? funnel.sidePaths.map((sidePath, index) => {
+                            /* Include additional paths that aren't part of the main funnel in funnelPaths (but not onward steps from them) */
+                            return ` OR (
+                            page_path = "${sidePath.path}"
+                            AND next_step = "${sidePath.nextStep}"
+                        )`
+                        }).join('\n') : []}
+                    )
+                    /* If sidePath exists for this funnel, loop through the sidePaths array of sidePath objects within each funnel object and generate a WHERE NOT clause for each one, separated by an OR */
+                    ${funnel.sidePaths ? `AND NOT (
+                        ${funnel.sidePaths.map((sidePath, index) => {
+                            /* Exclude backwards steps along sidePaths */
+                            return `(
+                            page_path = "${sidePath.nextStep}"
+                            AND next_step = "${sidePath.path}"
+                        )`
+                        }).join('\n OR \n')}
+                    )` : ``}
+                    AS next_step_is_in_this_funnel
+            `).join(`\nUNION ALL\n`)
   }
   )
   WHERE
     next_step_is_in_this_funnel) AS funnels
 FROM
-  sessions,
+  sessions_corrected,
   UNNEST(ARRAY(
-    /* *After* all these calculations are complete, the QUALIFY at the end of this subquery excludes pageviews which are repeat pageviews of the previous pageview in the session. */
-    /* Before this is done, next_step and time_on_page are recalculated so that they are the correct value despite this. */
+  /* *After* all these calculations are complete, the QUALIFY at the end of this subquery excludes pageviews which are repeat pageviews of the previous pageview in the session. */
+  /* Before this is done, next_step and time_on_page are recalculated so that they are the correct value despite this. */
     SELECT
-      AS STRUCT
-        * EXCEPT(time_on_page, next_page_entry_time, next_step_has_same_page_path, previous_step_has_same_page_path, next_step),
+      AS STRUCT * EXCEPT(time_on_page,
+        next_page_entry_time,
+        next_step_has_same_page_path,
+        previous_step_has_same_page_path,
+        next_step),
         /* If this is a view in a set of repeat pageviews, set next_step to the next step after the set of repeat pageviews, not the next step of this pageview (which might just be the same page) */
-        CASE
-            WHEN next_step_has_same_page_path IS TRUE THEN FIRST_VALUE(IF(next_step_has_same_page_path IS FALSE, next_step, NULL) IGNORE NULLS) OVER future_pageviews_with_same_page_path_in_order
-            ELSE next_step
-        END AS next_step,
-        /* If this is a view in a set of repeat pageviews, set number_of_immediate_repeat_pageviews to the total number of repeat pageviews between this one and the next pageview not in the set. */
-        /* In practise this will be the total number of pageviews in the set because pageviews midway through the set will be excluded by the QUALIFY at the end of the subquery. */
-        CASE
-            WHEN next_step_has_same_page_path IS TRUE THEN
-                1 + IFNULL(MIN(IF(next_step_has_same_page_path IS FALSE, pageview_number_in_session, NULL)) OVER future_pageviews_with_same_page_path_in_order - pageview_number_in_session, 0)
-            ELSE 1
-        END AS number_of_immediate_repeat_pageviews,
-        /* If this is a view in a set of repeat pageviews, set time_on_page to the total time for all the repeat pageviews in the set, not just this one. */
-        CASE
-            WHEN next_step_has_same_page_path IS TRUE THEN
-                TIMESTAMP_DIFF(MIN(IF(next_step_has_same_page_path IS FALSE, next_page_entry_time, NULL)) OVER future_pageviews_with_same_page_path_in_order, page_entry_time, SECOND)
-            ELSE time_on_page
-        END AS time_on_page
+      CASE
+        WHEN next_step_has_same_page_path IS TRUE THEN FIRST_VALUE( IF (next_step_has_same_page_path IS FALSE, next_step, NULL) IGNORE NULLS) OVER future_pageviews_with_same_page_path_in_order
+        ELSE next_step
+    END
+      AS next_step,
+      /* If this is a view in a set of repeat pageviews, set number_of_immediate_repeat_pageviews to the total number of repeat pageviews between this one and the next pageview not in the set. */
+      /* In practise this will be the total number of pageviews in the set because pageviews midway through the set will be excluded by the QUALIFY at the end of the subquery. */
+      CASE
+        WHEN next_step_has_same_page_path IS TRUE THEN 1 + IFNULL(MIN( IF (next_step_has_same_page_path IS FALSE, pageview_number_in_session, NULL)) OVER future_pageviews_with_same_page_path_in_order - pageview_number_in_session, 0)
+        ELSE 1
+    END
+      AS number_of_immediate_repeat_pageviews,
+      /* If this is a view in a set of repeat pageviews, set time_on_page to the total time for all the repeat pageviews in the set, not just this one. */
+      CASE
+        WHEN next_step_has_same_page_path IS TRUE THEN TIMESTAMP_DIFF(MIN( IF (next_step_has_same_page_path IS FALSE, next_page_entry_time, NULL)) OVER future_pageviews_with_same_page_path_in_order, page_entry_time, SECOND)
+        ELSE time_on_page
+    END
+      AS time_on_page
     FROM (
-        SELECT
+      SELECT
         AS STRUCT
         /* Initial calculations with analytic functions here serve various purposes, including enabling outer subqueries to tell whether this pageview is a repeat pageview of the previous pageview in the session via previous_step_has_same_page_path */
-            page_path,
-            referer_path,
-            page_entry_time,
-            IFNULL(LEAD(page_path) OVER pageviews_in_order, "End of session") AS next_step,
-            LEAD(page_entry_time) OVER pageviews_in_order AS next_page_entry_time,
-            IFNULL(LAG(page_path) OVER pageviews_in_order, "Start of session") AS previous_step,
-            FIRST_VALUE(page_path) OVER pageviews_in_order AS first_step,
-            LAST_VALUE(page_path) OVER pageviews_in_order AS last_step,
-            ROW_NUMBER() OVER pageviews_in_order AS pageview_number_in_session,
-            referer_domain,
-            time_on_page,
-            LOGICAL_OR(CONTAINS_SUBSTR(page_path, "/admin")) OVER pageviews_in_order AS admin_session,
-            IFNULL(LEAD(page_path) OVER pageviews_in_order = page_path, FALSE) AS next_step_has_same_page_path,
-            IFNULL(LAG(page_path) OVER pageviews_in_order = page_path, FALSE) AS previous_step_has_same_page_path
-        FROM (
-            /* pages_visited_details is an array of STRUCTs, one for each pageview within a session.*/
-            /* This subquery replaces UID page path components in page and referer paths with the string "[grouped]" so that paths which are essentially the same are displayed as being the same in funnel analysis dashboards */
-            /* UID page path components are defined as whole page path components (between two /s or between a / and the end of the page path) which either contain only numbers, or contain at least 1 number, only letters or hyphens (-) as other characters, and 4 or more characters in total */
-            SELECT
-                ${functions.contentGroupPath("page")} AS page_path,
-                ${functions.contentGroupPath("previous_page")} AS referer_path,
-                page_entry_time,
-                previous_page_domain AS referer_domain,
-                duration AS time_on_page,
-                application,
-                session_id
-            FROM
-                UNNEST(pages_visited_details)
-        )
-        WINDOW
+        page_path,
+        referer_path,
+        page_entry_time,
+        IFNULL(LEAD(page_path) OVER pageviews_in_order, "End of session") AS next_step,
+        LEAD(page_entry_time) OVER pageviews_in_order AS next_page_entry_time,
+        IFNULL(LAG(page_path) OVER pageviews_in_order, "Start of session") AS previous_step,
+        FIRST_VALUE(page_path) OVER pageviews_in_order AS first_step,
+        LAST_VALUE(page_path) OVER pageviews_in_order AS last_step,
+        ROW_NUMBER() OVER pageviews_in_order AS pageview_number_in_session,
+        referer_domain,
+        time_on_page,
+        LOGICAL_OR(CONTAINS_SUBSTR(page_path, "/admin")) OVER pageviews_in_order AS admin_session,
+        IFNULL(LEAD(page_path) OVER pageviews_in_order = page_path, FALSE) AS next_step_has_same_page_path,
+        IFNULL(LAG(page_path) OVER pageviews_in_order = page_path, FALSE) AS previous_step_has_same_page_path
+      FROM (
+      /* pages_visited_details is an array of STRUCTs, one for each pageview within a session.*/
+      /* This subquery replaces UID page path components in page and referer paths with the string "[grouped]" so that paths which are essentially the same are displayed as being the same in funnel analysis dashboards */
+      /* UID page path components are defined as whole page path components (between two /s or between a / and the end of the page path) which either contain only numbers, or contain at least 1 number, only letters or hyphens (-) as other characters, and 4 or more characters in total */
+        SELECT
+          ${functions.contentGroupPath("page")} AS page_path,
+          ${functions.contentGroupPath("previous_page")} AS referer_path,
+          page_entry_time,
+          previous_page_domain AS referer_domain,
+          duration AS time_on_page,
+          application,
+          session_id
+        FROM
+          UNNEST(pages_visited_details) )
+      WINDOW
         pageviews_in_order AS (
         PARTITION BY
-            application,
-            session_id
+          application,
+          session_id
         ORDER BY
-            page_entry_time ASC))
+          page_entry_time ASC))
     QUALIFY
-        previous_step_has_same_page_path IS NOT TRUE
+      previous_step_has_same_page_path IS NOT TRUE
     WINDOW
-        future_pageviews_with_same_page_path_in_order AS (
-        PARTITION BY
-            application,
-            session_id,
-            page_path
-        ORDER BY
-            page_entry_time ASC
-        ROWS BETWEEN 1 FOLLOWING AND UNBOUNDED FOLLOWING)
-    )) AS pageview
+      future_pageviews_with_same_page_path_in_order AS (
+      PARTITION BY
+        application,
+        session_id,
+        page_path
+      ORDER BY
+        page_entry_time ASC ROWS BETWEEN 1 FOLLOWING
+        AND UNBOUNDED FOLLOWING) )) AS pageview
 
 pre_operations {
   DECLARE
