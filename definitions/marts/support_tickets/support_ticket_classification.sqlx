@@ -119,7 +119,7 @@ WITH
       ELSE 'Unclassifiable - bad data'
   END
     AS classification,
-  themes.support_ticket_theme
+  IFNULL(themes.support_ticket_theme,'no_mapped_theme') as support_ticket_theme
   FROM
     cpd_prog_data
   LEFT JOIN ${ref('support_ticket_issue_type_to_theme_mapping')} as themes
