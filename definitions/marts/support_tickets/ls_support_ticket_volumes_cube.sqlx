@@ -15,7 +15,7 @@ config {
         tickets_reopened_count: "The number of tickets received on a given day that were later reopened, grouped by programme_type and classification.",
         tickets_reply_outside_sla_count: "The number of tickets received on a given day that were replied to outside of SLA period (SLA = 5 days), grouped by programme_type and classification.",
         tickets_escalated_2nd_3rd_line_count: "The number of tickets received on a given day that were escalated to the product team (2nd or 3rd line of support), grouped by programme_type and classification.",
-        bad_ticket_count: "The number of tickets received on a given that that either were reopened, the first reply was ouside of SLA or escalated to the product team (2nd or 3rd line of support).",
+        bad_ticket_count: "The number of tickets received on a given date that were either reopened, replied to outside SLA or escalated to the product team (2nd or 3rd line of support).",
         ecte_registration_window_start_date: "The first date in the ECTE registration window this date falls within",
         ecte_registration_window_string: "ECTE registration window date falls within formatted as e.g. 2032-33 for display purposes",
         ecte_registration_window: "Calendar year ecte_registration_window_start_date falls within e.g. 2032 for the 2032-33 registration window",
