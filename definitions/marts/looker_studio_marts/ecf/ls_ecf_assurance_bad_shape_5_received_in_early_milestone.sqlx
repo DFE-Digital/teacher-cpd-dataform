@@ -25,7 +25,7 @@ config {
         schedule_identifier: 'The training schedule of the participant - this indicates when they started on the programme and whether they followed a standard pattern of training. Reduced schedules do not have to have a started declaration and their completed declaration can be submitted at any point because they do not have to complete the full length of training',
         participant_type: 'Whether the participant is an ECT or a mentor',
         cohort: 'The cohort on the participants latest induction record. This may not be the cohort they commenced training on. This mart only includes participants from cohorts from 2023 onwards, however declarations from prior cohorts are used for the bad shape calculation.',
-        statement_cohort: 'This is the cohort the declaration was submitted against. This might not match the participants induction cohort because the participant may have been rolled onto a new cohort since this declaration was submitted. ',
+        statement_cohort: 'This is the cohort the declaration was submitted against. This might not match the participants induction cohort because the participant may have been rolled onto a new cohort since this declaration was submitted. The milestone dates for a given declaration are based on the milestone dates associated with this cohort, not the current cohort the participant is on. ',
         trn: {
             description: "TRN associated with the ECT's profile.",
             bigqueryPolicyTags: ["projects/ecf-bq/locations/europe-west2/taxonomies/6302091323314055162/policyTags/301313311867345339"]
