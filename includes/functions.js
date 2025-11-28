@@ -79,23 +79,37 @@ function correctOrderDeclarationsTypesShouldBeReceived() {
         8,8) ]))`;
 }
 
-function orderedCohortMilestonesWithStartAndEndDates(ctx) {
-    /*This generates a list of milestone periods based on the standard final dates of milestone periods and calculates what their first date of the milestone period would be. It also numbers the milestones in ascending order of milestone end date. */
+
+function cohortMilestonesWithStartAndEndDateswithordering(ctx) {
+    /*This generates a list of milestone periods based on the standard final dates of milestone periods and calculates what their first date of the milestone period would be. It DOES NOT number the milestones in ascending order of milestone end date. */
     return `
     (SELECT
-    DATE_ADD(LAG(CAST(CONCAT(cohort_year,'-',milestone_months) AS date)) OVER (ORDER BY CAST(CONCAT(cohort_year,'-',milestone_months) AS date)), INTERVAL 1 DAY) AS milestone_start,
-    CAST(CONCAT(cohort_year,'-',milestone_months) AS date) AS milestone_end,
-    row_number () OVER (ORDER BY CAST(CONCAT(cohort_year,'-',milestone_months) AS date) ASC) AS milestone_order
+    CAST(CONCAT((cohort_year+cohort_offset),'-',milestone_start_date) AS date) AS milestone_start,
+    CAST(CONCAT((cohort_year+cohort_offset),'-',milestone_end_date) AS date) AS milestone_end,
+    cohorts.cohort_year,
+    row_number () OVER (ORDER BY cohort_year ASC, CAST(CONCAT((cohort_year+cohort_offset),'-',milestone_start_date) AS date) ASC) AS milestone_order
   FROM
-    UNNEST(['10-31','12-31','03-31','07-31']) AS milestone_months
-  CROSS JOIN (
+   UNNEST([
+    STRUCT('06-01' AS milestone_start_date, '12-31' AS milestone_end_date, 0 AS cohort_offset),
+    STRUCT('01-01', '03-31', 1),
+    STRUCT('04-01', '07-31', 1),
+    STRUCT('08-01', '12-31', 1),
+    STRUCT('01-01', '03-31', 2),
+    STRUCT('04-01', '07-31', 2),
+    STRUCT('08-01', '12-31', 2),
+    STRUCT('01-01', '03-31', 3),
+    STRUCT('04-01', '07-31', 3)
+]) AS milestones
+CROSS JOIN (
     SELECT
-      DISTINCT(start_year)+1 AS cohort_year
+      DISTINCT(start_year) AS cohort_year
     FROM
-      ${ctx.ref("cohorts_latest_ecf1")}) AS cohorts
-  QUALIFY
-    milestone_start IS NOT NULL)`;
+      ${ctx.ref("cohorts_latest_ecf1")}
+    WHERE start_year >=2023) AS cohorts
+ORDER BY cohort_year asc, milestone_start asc)`;
 }
+
+
 
 function stateToStateHierarchy(stateField) {
     return `
@@ -137,7 +151,7 @@ module.exports = {
     extractValueFromSingleElementArrayofJSONStrings,
     yearStartDateToAcademicYearString,
     correctOrderDeclarationsTypesShouldBeReceived,
-    orderedCohortMilestonesWithStartAndEndDates,
+    cohortMilestonesWithStartAndEndDateswithordering,
     stateToStateHierarchy,
     declarationTypeToDeclarationTypeHierarchy
 };

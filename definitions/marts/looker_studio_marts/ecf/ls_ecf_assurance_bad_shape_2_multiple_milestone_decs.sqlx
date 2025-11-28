@@ -58,6 +58,7 @@ WITH
     trn,
     milestone_start,
     milestone_end,
+    cohort_year,
     DATE_DIFF(DATE(declaration_date),milestone_start,DAY) AS days_from_start,
     DATE_DIFF(DATE(declaration_date),milestone_start,DAY) = 0 AS first_day,
     DATE_DIFF(DATE(declaration_date),milestone_end,DAY) AS days_from_end,
@@ -65,16 +66,16 @@ WITH
   FROM
     ${ref("ecf_declarations")} declarations
   CROSS JOIN
-    ${functions.orderedCohortMilestonesWithStartAndEndDates(ctx)}
+    ${functions.cohortMilestonesWithStartAndEndDateswithordering(ctx)}
   WHERE
     (DATE(declaration_date) BETWEEN milestone_start
       AND milestone_end)
     AND state IN ('eligible',
       'payable',
-      'paid'))
+      'paid') and statement_cohort = cohort_year)
 SELECT
   *,
-  COUNT(*) OVER (PARTITION BY participant_profile_id, milestone_start) AS participant_declarations_evidenced_in_milestone
+  COUNT(*) OVER (PARTITION BY participant_profile_id, milestone_start,cohort_year) AS participant_declarations_evidenced_in_milestone
 FROM
   declarations_extended
 WHERE

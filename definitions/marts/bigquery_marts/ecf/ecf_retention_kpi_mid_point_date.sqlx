@@ -13,7 +13,7 @@ For each cohort the retention KPI needs to measure the percentage of participant
 In order to determine if a participant is still with the lead provider, we look at the induction record version valid as of the mid-point date to check the associated lead provider. If this is null we assess the last declaration evidenced by the mid-point date for the associated lead provider. \n \
 Started participants are any with an eligible, paid or payable started declaration with the lead provider in the statement cohort being measured as of the mid-point date. \n \
 We also include any participants with a completed declaration on a reduced September schedule that have no started declaration; these are classed as one-term inductions. \n \
-The cut off point is the 31st July 2 years after the cohort. For example 31/07/2024 is the cut off point for the 2022 cohort. \n \
+The mid-point point is the 31st July 1 year after the cohort. For example 31/07/2024 is the cut off point for the 2022 cohort. \n \
 ECT retention is measured as the number of participants still with the started lead provider and their training status is not withdrawn out of the total started participants. \n \
 Mentor retention is the same until it comes to the withdrawn status where the lead provider is the same as when started. If a Mentor is withdrawn at the time of review, a check is then done to see if the ECTs they were mentoring have since been assigned a new mentor which has an active training status. If so, the withdrawn Mentor is considered retained. \n \
 A freeze has been applied to the relevant data within the script for any cohorts where the final cut off date has passed. \n \
