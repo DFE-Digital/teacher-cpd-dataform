@@ -64,7 +64,7 @@ WHERE
     'payable',
     'paid')
   AND started_decs.declaration_id IS NULL
-  AND declarations.cohort >= 2023
+  AND declarations.cohort >= 2025 and declarations.statement_cohort >=2025
 QUALIFY
   (schedule_identifier NOT LIKE '%reduced%'
     OR declaration_count > 1

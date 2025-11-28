@@ -43,7 +43,7 @@ WITH
   FROM
     ${ref("ecf_declarations")} declarations
   CROSS JOIN
-    ${functions.orderedCohortMilestonesWithStartAndEndDates(ctx)} AS milestone_dates
+    ${functions.cohortMilestonesWithStartAndEndDateswithordering(ctx)} AS milestone_dates
   WHERE
     (DATE(declaration_date) BETWEEN milestone_start
       AND milestone_end)
@@ -51,6 +51,7 @@ WITH
     AND state IN ('eligible',
       'payable',
       'paid')
+    AND declarations.statement_cohort=milestone_dates.cohort_year
   GROUP BY
     participant_profile_id)
     /*This identifies declarations received for a participant and induction details from their latest induction record. It then merges in the correct sequence for declarations and the details of the participant's started declaration.*/
@@ -87,13 +88,14 @@ INNER JOIN
 USING
   (participant_profile_id)
 CROSS JOIN
-  ${functions.orderedCohortMilestonesWithStartAndEndDates(ctx)}
+  ${functions.cohortMilestonesWithStartAndEndDateswithordering(ctx)}
 WHERE
   (DATE(declaration_date) BETWEEN milestone_start
     AND milestone_end)
   AND state IN ( 'eligible',
     'payable',
     'paid')
+  and statement_cohort = cohort_year
   AND (milestone_order - milestone_start_received + 1) < earliest_declaration_can_be_received
   AND (declarations.schedule_identifier NOT LIKE '%reduced%'
     OR declarations.declaration_type <> 'completed')
