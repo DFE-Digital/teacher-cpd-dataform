@@ -43,3 +43,9 @@ https://github.com/DFE-Digital/teacher-cpd-dataform/blob/master/Explanation/data
 #### CPD Data Team Structural Logic Hierarchy
 https://github.com/DFE-Digital/teacher-cpd-dataform/blob/master/Explanation/data_models/cpd_data_data_hierarchy.md
 
+# MART QUICK START GUIDE
+
+
+
+
+
