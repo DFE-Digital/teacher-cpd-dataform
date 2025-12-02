@@ -8,9 +8,9 @@ config {
         partitionBy: "DATE(session_start_timestamp)",
         clusterBy: ["application"]
     },
-    description: "Pageviews that occurred on a CPD service, along with details of previous and next steps users took within their session. Sessions defined Google Analytics style from the dfe-analytics-dataform session_details table. Consecutive repeat views of the same grouped page_path have been excluded and counted in number_of_immediate_repeat_pageviews. Intended to support a funnel analysis dashboard.",
+    description: "Pageviews that occurred on the NPQ service, along with details of previous and next steps users took within their session. Sessions defined Google Analytics style from the dfe-analytics-dataform session_details table. Consecutive repeat views of the same grouped page_path have been excluded and counted in number_of_immediate_repeat_pageviews. Intended to support a funnel analysis dashboard.",
     columns: {
-        application: "Name of the application that received the request to view this page.",
+        application: "Name of the application that received the request to view this page. Will always be NPQ",
         session_id: "UID of this session",
         user_id: "ID of the user logged in at some point during this session - if they were. Traffic from separate user_ids is always separated into separate sessions.",
         npq_overseas_participant: "NPQ ONLY. Infers whether the user_id is linked to an overseas application, taken from NPQ_enrolments.",
@@ -36,17 +36,23 @@ config {
     }
 }
 
+WITH npq_pageviews as (
+    SELECT *
+    FROM ${ref("ls_pageview_next_steps")}
+    WHERE application = 'Apply for a National Professional Qualification'
+)
 
-SELECT pageviews.*,
+SELECT npq_pageviews.*,
 CASE
-        WHEN teacher_catchment_iso_country_code = 'GBR' AND application = 'Apply for a National Professional Qualification' THEN 'GBR'
-        WHEN teacher_catchment_iso_country_code IS NULL AND application = 'Apply for a National Professional Qualification' THEN 'n/a'
-        WHEN application = 'Apply for a National Professional Qualification' THEN 'overseas'
-        ELSE NULL  END
-      AS npq_overseas_participant,      eligible_for_funding AS npq_eligible_for_funding
+        WHEN teacher_catchment_iso_country_code = 'GBR' THEN 'GBR'
+        WHEN teacher_catchment_iso_country_code IS NULL THEN 'n/a'
+        ELSE 'overseas'
+        END
+      AS npq_overseas_participant,      
+      eligible_for_funding AS npq_eligible_for_funding
     FROM
-      ${ref("ls_pageview_next_steps")} AS pageviews
+      npq_pageviews
     LEFT JOIN
       ${ref('npq_enrolments')} AS enrolments
     ON
-      pageviews.user_id = enrolments.user_id
+      npq_pageviews.user_id = enrolments.user_id
