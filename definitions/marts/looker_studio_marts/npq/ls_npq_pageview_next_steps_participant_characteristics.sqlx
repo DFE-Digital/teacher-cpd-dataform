@@ -44,9 +44,8 @@ WITH npq_pageviews as (
 
 SELECT npq_pageviews.*,
 CASE
-        WHEN teacher_catchment_iso_country_code = 'GBR' THEN 'GBR'
-        WHEN teacher_catchment_iso_country_code IS NULL THEN 'n/a'
-        ELSE 'overseas'
+        WHEN teacher_catchment = 'england' THEN 'england'
+        WHEN teacher_catchment = 'another' THEN 'overseas'
         END
       AS npq_overseas_participant,      
       eligible_for_funding AS npq_eligible_for_funding
