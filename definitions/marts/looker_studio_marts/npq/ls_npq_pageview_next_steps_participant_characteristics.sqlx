@@ -1,0 +1,52 @@
+config {
+    type: "incremental",
+    assertions: {
+        uniqueKey: ["application", "session_id", "pageview_number_in_session", "user_id"],
+        rowConditions: ["next_step != page_path"]
+    },
+    bigquery: {
+        partitionBy: "DATE(session_start_timestamp)",
+        clusterBy: ["application"]
+    },
+    description: "Pageviews that occurred on a CPD service, along with details of previous and next steps users took within their session. Sessions defined Google Analytics style from the dfe-analytics-dataform session_details table. Consecutive repeat views of the same grouped page_path have been excluded and counted in number_of_immediate_repeat_pageviews. Intended to support a funnel analysis dashboard.",
+    columns: {
+        application: "Name of the application that received the request to view this page.",
+        session_id: "UID of this session",
+        user_id: "ID of the user logged in at some point during this session - if they were. Traffic from separate user_ids is always separated into separate sessions.",
+        npq_overseas_participant: "NPQ ONLY. Infers whether the user_id is linked to an overseas application, taken from NPQ_enrolments.",
+        npq_eligible_for_funding: "NPQ ONLY. Infers whether the user_id is linked to an eligible for DfE funding appplication.",
+        session_start_timestamp: "Time at which the session began",
+        page_path: "Path of the page that was viewed, excluding domain and query string. Blocks of alphanumeric characters containing 3+ digits have been grouped by replacing these blocks with '[grouped]'.",
+        referer_path: "Path of the previous page that was viewed, if it was. May be an external site or an internal pageview from a previous session. Not the same as previous_step. Blocks of alphanumeric characters containing 3+ digits have been grouped by replacing these blocks with '[grouped]'.",
+        referer_domain: "Domain of the previous page that was viewed, if it was and if this is available. May be an external site or an internal pageview from a previous session.",
+        page_entry_time: "Time at which this pageview happened.",
+        next_step: "Path of the next page that was viewed on this service within this session, if it was. If it wasn't, contains the string 'End of session'. Blocks of alphanumeric characters containing 3+ digits have been grouped by replacing these blocks with '[grouped]'.",
+        next_step_for_display: "next_step optimised for display in Sankey diagrams in Looker Studio",
+        first_step: "Path of the first page that was viewed in the session this pageview falls within. Blocks of alphanumeric characters containing 3+ digits have been grouped by replacing these blocks with '[grouped]'.",
+        last_step: "Path of the last page that was viewed in the session this pageview falls within. Blocks of alphanumeric characters containing 3+ digits have been grouped by replacing these blocks with '[grouped]'.",
+        previous_step: "Path of the previous page that was viewed on this service *within this session*, if it was. If it wasn't, contains the string 'End of session'. Not the same as referer_path. Blocks of alphanumeric characters containing 3+ digits have been grouped by replacing these blocks with '[grouped]'.",
+        pageview_number_in_session: "Number indicating that this pageview was the Nth pageview within this session.",
+        time_on_page: "Number of seconds between page_entry_time and the page_entry_time of the next pageview which is not the same grouped page_path if it exists. NULL otherwise.",
+        number_of_immediate_repeat_pageviews: "Number of views of the same grouped page_path within this session which took place with no views of any other grouped page_paths in between.",
+        admin_session: "TRUE if this user was an internal DfE admin user, deduced from whether they viewed any page path containing 'admin' at any point in the session.",
+        session_utm_source: "Value of the utm_source UTM parameter for the first pageview in the session, if it was set. Useful to categorise traffic for marketing purposes.",
+        session_utm_medium: "Value of the utm_medium UTM parameter for the first pageview in the session, if it was set. Useful to categorise traffic for marketing purposes.",
+        session_utm_campaign: "Value of the utm_campaign UTM parameter for the first pageview in the session, if it was set. Useful to categorise traffic for marketing purposes.",
+        funnels: "Array of strings listing the funnel(s) this step was a part of, if any."
+    }
+}
+
+
+SELECT pageviews.*,
+CASE
+        WHEN teacher_catchment_iso_country_code = 'GBR' AND application = 'Apply for a National Professional Qualification' THEN 'GBR'
+        WHEN teacher_catchment_iso_country_code IS NULL AND application = 'Apply for a National Professional Qualification' THEN 'n/a'
+        WHEN application = 'Apply for a National Professional Qualification' THEN 'overseas'
+        ELSE NULL  END
+      AS npq_overseas_participant,      eligible_for_funding AS npq_eligible_for_funding
+    FROM
+      ${ref("ls_pageview_next_steps")} AS pageviews
+    LEFT JOIN
+      ${ref('npq_enrolments')} AS enrolments
+    ON
+      pageviews.user_id = enrolments.user_id
