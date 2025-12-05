@@ -36,22 +36,35 @@ config {
     }
 }
 
-WITH npq_pageviews as (
-    SELECT *
-    FROM ${ref("ls_pageview_next_steps")}
-    WHERE application = 'Apply for a National Professional Qualification'
-)
-
-SELECT npq_pageviews.*,
-CASE
-        WHEN teacher_catchment = 'england' THEN 'england'
-        WHEN teacher_catchment = 'another' THEN 'overseas'
-        END
-      AS npq_overseas_participant,      
-      eligible_for_funding AS npq_eligible_for_funding
-    FROM
-      npq_pageviews
-    LEFT JOIN
-      ${ref('npq_enrolments')} AS enrolments
-    ON
-      npq_pageviews.user_id = enrolments.user_id
+WITH
+  npq_pageviews AS (
+  SELECT
+    *
+  FROM
+    ${ref("ls_pageview_next_steps")}
+  WHERE
+    application = 'Apply for a National Professional Qualification' ),
+  latest_applicant_characteristics AS (
+  SELECT
+    user_id,
+    teacher_catchment,
+    eligible_for_funding,
+    application_created_at
+  FROM
+    ${ref('npq_enrolments')}
+  QUALIFY
+    ROW_NUMBER () OVER(PARTITION BY user_id ORDER BY application_created_at DESC) = 1 )
+SELECT
+  npq_pageviews.*,
+  CASE
+    WHEN teacher_catchment = 'england' THEN 'england'
+    WHEN teacher_catchment = 'another' THEN 'overseas'
+END
+  AS npq_overseas_participant,
+  eligible_for_funding AS npq_eligible_for_funding
+FROM
+  npq_pageviews
+LEFT JOIN
+  latest_applicant_characteristics AS enrolments
+ON
+  npq_pageviews.user_id = enrolments.user_id
