@@ -79,7 +79,7 @@ WITH
   FROM
     ${ref("npq_enrolments")}
   WHERE
-    cohort = 2024
+    cohort = '2024a'
     AND
     eligible_for_funding = TRUE
   GROUP BY
