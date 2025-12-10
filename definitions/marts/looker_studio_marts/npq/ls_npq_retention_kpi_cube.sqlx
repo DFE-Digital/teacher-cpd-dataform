@@ -28,8 +28,6 @@ WITH
     course_identifier,
     course_name,
     funded_start_declaration,
-    cohort,
-    schedule_identifier,
     cohort_number,
     COALESCE((CASE
           WHEN completed_declaration_state IN ('eligible', 'payable', 'paid') THEN 'completed'
