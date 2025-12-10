@@ -41,7 +41,7 @@ WITH intake_applications as (
    ${ref('npq_enrolments')}
   WHERE
     -- Logic to ensure only applications for the summer registration window and captured in this mart
-    cohort = 'Cohort 9'
+    cohort_number = 'Cohort 9'
     AND
     eligible_for_funding = TRUE
   GROUP BY ALL
