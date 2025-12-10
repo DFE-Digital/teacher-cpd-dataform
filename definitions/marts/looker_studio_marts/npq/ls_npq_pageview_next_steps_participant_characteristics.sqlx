@@ -1,5 +1,5 @@
 config {
-    type: "incremental",
+    type: "table",
     assertions: {
         uniqueKey: ["application", "session_id", "pageview_number_in_session", "user_id"],
         rowConditions: ["next_step != page_path"]
