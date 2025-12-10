@@ -12,7 +12,7 @@ config {
     columns: {
         declaration_id: "Unique ID of the declaration.",
         application_id: "The ID of the application associated to the declaration",
-        cohort: "The cohort/academic year corresponding to when the participant started their course. Possible fields: 2021 onwards.",
+        cohort: "The cohort corresponding to when the participant started their course. Possible fields: 2021 onwards.",
         cohort_number: "A policy-oriented identifier indicating which DfE-funded applicant cohort the record belongs to. The cohort is determined by the applicant’s cohort.start_year and, for start years 2021-2023, by the schedule_identifier. Cohort 1 is the autumn schedule in the 2021 cohort; Cohort 2, the spring schedule in the 2021 cohort; Cohort 3, the autumn schedule in the 2022 cohort; Cohort 4, the spring schedule in the 2022 cohort; Cohort 5, the autumn schedule in the 2023 cohort; and Cohort 6, the spring schedule in the 2023 cohort. All 2024 applicants are assigned to Cohort 7. For 2025, applicants are split into Cohort 8 if their application was created before 18 May 2025 (spring window) and Cohort 9 if created on or after 8 September 2025 (autumn window). Applicants not matching these rules are assigned n/a.",
         schedule_identifier: "This indicates which sub-cohort or tranche the participant commenced training within an annual cohort. For NPQ, the schedule identifier also distinguishes between the leadership and specialist NPQ types. Pulled from participant profile which is created when application is accepted by lead provider.",
         course_identifier: "Name of the NPQ course indicated on the application.",
@@ -37,7 +37,7 @@ WITH
   npq_statement_information AS (
   SELECT
     statement_line_items.declaration_id AS internal_declaration_id,
-    MAX(cohorts.start_year) AS statement_cohort
+    MAX(cohorts.identifier) AS statement_cohort
   FROM
     ${ref('statement_items_latest_npq')} AS statement_line_items
   LEFT JOIN
@@ -53,7 +53,7 @@ WITH
 SELECT
   declarations.ecf_id AS declaration_id,
   applications.ecf_id AS application_id,
-  cohort.start_year AS cohort,
+  cohort.identifier AS cohort,
   schedules.identifier AS schedule_identifier,
   courses.identifier AS course_identifier,
   declarations.declaration_date,
