@@ -14,13 +14,25 @@ config {
     }
 }
 
-WITH all_ofsted_establishments AS (
+WITH december_24_ofsted_establishments AS (
+  SELECT 
+    `Provider URN` as establishment_urn,
+    'Childcare provider' AS phase_of_education,
+    `Provider Type` AS establishment_type,
+    `Provider Subtype` AS establishment_subtype,
+    `Local Authority` AS la_name,
+    `Provider Name` AS establishment_name,    
+    DATE('2025-06-01') AS extract_date
+  FROM ${ref('Ofsted_Establishments_June_2025')}
+UNION ALL 
+
   SELECT 
     provider_URN as establishment_urn,
     'Childcare provider' AS phase_of_education,
     Provider_Type AS establishment_type,
     Provider_Subtype AS establishment_subtype,
     Local_Authority AS la_name,
+    Provider_Name as establishment_name,
     DATE('2024-12-01') AS extract_date
   FROM ${ref('Ofsted_Establishments_December_2024')}
 UNION ALL
@@ -30,6 +42,7 @@ SELECT
     establishment_type,
     establishment_subtype,
     la_name,
+    'unknown' as establishment_name,
     DATE('2020-01-01') as extract_date
   FROM
      ${ref('all_gias_ofsted_establishments')}
@@ -37,5 +50,5 @@ SELECT
     data_source LIKE 'Ofsted%')
 
 SELECT *
-FROM all_ofsted_establishments
+FROM december_24_ofsted_establishments
 QUALIFY ROW_NUMBER() OVER (PARTITION BY establishment_urn ORDER BY extract_date DESC) = 1
