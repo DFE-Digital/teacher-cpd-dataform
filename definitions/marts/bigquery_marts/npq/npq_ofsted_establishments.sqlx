@@ -10,11 +10,12 @@ config {
         establishment_type: "Establishment type as stored in Ofsted.",
         establishment_subtype: "Establishment subtype as stored in Ofsted.",
         la_name: "Name of local authority.",
-        extract_date: "The date of the taken extract, hard coded when we add a new extract. The date 2020-01-01 is hard coded for the historical extract all_gias_ofsted_establishments."
+        extract_date: "The date of the taken extract, hard coded when we add a new extract. The date 2020-01-01 is hard coded for the historical extract all_gias_ofsted_establishments.",
+        establishment_name: "Name of an establishment as stored in Ofsted"
     }
 }
 
-WITH december_24_ofsted_establishments AS (
+WITH all_ofsted_establishments AS (
   SELECT 
     `Provider URN` as establishment_urn,
     'Childcare provider' AS phase_of_education,
@@ -50,5 +51,5 @@ SELECT
     data_source LIKE 'Ofsted%')
 
 SELECT *
-FROM december_24_ofsted_establishments
+FROM all_ofsted_establishments
 QUALIFY ROW_NUMBER() OVER (PARTITION BY establishment_urn ORDER BY extract_date DESC) = 1
