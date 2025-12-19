@@ -16,6 +16,8 @@ SELECT
       "sampling_not_approved" /* Same as sampling_provider_not_approved but for a different problem with the claim */,
       "submitted", /* A claim has been created by a claimant but no payment has yet been made, nor has a decision been taken about whether to pay the claimant */
       "clawback_in_progress", /* A claim was paid but is now being clawed back from the recipient */
+      "clawback_requested", /* TO BE REVIEWED -- ADDED TO RESOLVE PIPELINE ERROR */
+      "clawback_requires_approval", /* TO BE REVIEWED -- ADDED TO RESOLVE PIPELINE ERROR */
       "draft", /*a claim has been drafted by support but the school hasn't yet decided whether to submit it or not */
       "invalid_provider", /*a set of historic claims that will not be paid unless the claimant changes them to a valid provider*/
       "payment_information_requested", /*The ESFA need more information, typically updated bank info, before they can pay a school's claim*/
