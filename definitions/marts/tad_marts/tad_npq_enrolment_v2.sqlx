@@ -45,6 +45,7 @@ config {
         course_name: "Text name of NPQ course",
         provider_name: "Name of lead provider",
         targeted_delivery_funding_eligibility: "Indicates whether this NPQ participant is eligible for targeted delivery uplift payment",
+        work_setting: "The setting the participant works in as recorded on the application, this is user entered data rather than data derived from GIAS or Ofsted.",
         kind_of_nursery: "If the participant works in a nursery, indicates which type of nursery. Possible fields: Local authority maintained nursery, Preschool class as part of school, Private nursery, Another Early Years Setting",
         private_childcare_provider_urn: "The unique reference number given to the employer of participants who work in private childcare.",
         funding_eligiblity_status_code: "Indicates the funding status of a participant. ",
@@ -63,7 +64,9 @@ config {
         teacher_catchment_country: "The country the participant works in ",
         tsf_primary_eligibility: "TRUE/FALSE for whether a school is eligible for TSF (£200) owing to it being a primary establishment.",
         tsf_primary_plus_eligibility: "TRUE/ FALSE for whether a school is eligible for the base £200 as well as the additional £600 based on whether they are a primary school and have fewer than 150 pupils. Pupil count based on GIAS data at time of registration.",
-        works_in_school: "Indicates whether the participant works in a school."
+        works_in_school: "Indicates whether the participant works in a school.",
+        senco_in_role: "Answer selected for question 'Are you a SENCO?' during the application stage. Possible results are; yes, no but I plan to be, no and I do not plan to be.",
+        senco_start_date: "Provided at time of application and only answered if 'yes' is selected for Are you a SENCO. Format is MM/YYYY stored as a string."
     }
 }
 
@@ -89,6 +92,7 @@ SELECT
   enrolments.course_name,
   enrolments.provider_name,
   enrolments.targeted_delivery_funding_eligibility,
+  enrolments.work_setting,
   enrolments.kind_of_nursery,
   enrolments.private_childcare_provider_urn,
   enrolments.funding_eligiblity_status_code,
@@ -109,7 +113,9 @@ SELECT
   enrolments.teacher_catchment_iso_country_code,
   enrolments.tsf_primary_eligibility,
   enrolments.tsf_primary_plus_eligibility,
-  enrolments.works_in_school
+  enrolments.works_in_school,
+  enrolments.senco_in_role,
+  enrolments.senco_start_date
 FROM
   ${ref(`npq_enrolments`)} as enrolments
 LEFT JOIN ${ref('users_latest_npq')} as users
