@@ -161,32 +161,7 @@ END
   app.updated_at,
   app.cohort_id,
   cohort.identifier AS cohort,
-  CASE
-    WHEN cohort.start_year = 2021 AND sched.identifier IN ('npq-aso-november', 'npq-aso-december', 'npq-leadership-autumn', 'npq-specialist-autumn') THEN 'Cohort 1'
-    WHEN cohort.start_year = 2021
-  AND sched.identifier IN ('npq-aso-june',
-    'npq-ehco-june',
-    'npq-leadership-spring',
-    'npq-specialist-spring') THEN 'Cohort 2'
-    WHEN cohort.start_year = 2022 AND sched.identifier IN ('npq-ehco-november', 'npq-ehco-december', 'npq-leadership-autumn', 'npq-specialist-autumn') THEN 'Cohort 3'
-    WHEN cohort.start_year = 2022
-  AND sched.identifier IN ('npq-ehco-march',
-    'npq-ehco-june',
-    'npq-leadership-spring',
-    'npq-specialist-spring') THEN 'Cohort 4'
-    WHEN cohort.start_year = 2023 AND sched.identifier IN ('npq-ehco-november', 'npq-ehco-december', 'npq-leadership-autumn', 'npq-specialist-autumn') THEN 'Cohort 5'
-    WHEN cohort.start_year = 2023
-  AND sched.identifier IN ('npq-ehco-march',
-    'npq-ehco-june',
-    'npq-leadership-spring',
-    'npq-specialist-spring') THEN 'Cohort 6'
-    WHEN cohort.start_year = 2024 THEN 'Cohort 7'
-    WHEN cohort.start_year = 2025
-  AND app.created_at < '2025-05-18' THEN 'Cohort 8'
-    WHEN cohort.start_year = 2025 AND app.created_at >= '2025-09-08' THEN 'Cohort 9'
-    ELSE 'n/a'
-END
-  AS cohort_number,
+  CONCAT('Cohort ',sched.policy_descriptor) AS cohort_number,
   courses.identifier AS course_identifier,
   CASE courses.identifier
     WHEN "npq-additional-support-offer" THEN 12
