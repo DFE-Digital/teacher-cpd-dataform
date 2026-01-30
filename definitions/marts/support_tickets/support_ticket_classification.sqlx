@@ -125,7 +125,7 @@ WITH
   LEFT JOIN ${ref('support_ticket_issue_type_to_theme_mapping')} as themes
   ON cpd_prog_data.issue_type[SAFE_OFFSET(0)] = themes.issue_type )
 SELECT
-  classified_tickets.*,
+  classified_tickets.* EXCEPT(classification),
   CASE
     WHEN classified_tickets.classification IN ('CPD - ECTE', 'ECTE - Induction and AB', 'ECTE - Funding') THEN 'ECTE'
     WHEN classified_tickets.classification IN ('CPD - NPQ',
@@ -135,6 +135,8 @@ SELECT
     ELSE NULL
 END
   AS programme_type,
+  CASE WHEN LOWER(classified_tickets.support_ticket_theme) = 'get_a_trn' and classified_tickets.classification IN ('CPD - NPQ', 'NPQ - Funding') then 'NPQ - Get a TRN'
+  ELSE classified_tickets.classification END as classification,
   duplicate_tickets.is_duplicate
 FROM
   classification_logic AS classified_tickets
