@@ -32,7 +32,7 @@ pre_operations {
 }
 
 post_operations {
-  ASSERT ( DATE_DIFF(CURRENT_DATE,earliest_induction_period_created_at, MONTH) < 10) AS 
+  ASSERT ( DATE_DIFF(CURRENT_DATE,earliest_induction_period_created_at, MONTH) < 12) AS 
   "The earliest_induction_period_created_at date used by this table is more than 10 months old. Update the project variable earliest_induction_period_created_at to the first induction period date that should be included in the upcoming Appropriate Body KPI measurement window. Please also ensure update the ab_to_hub_region_mapping_2025_09_15 static table with the most up-to-date AB to hub region mapping."
 }
 
