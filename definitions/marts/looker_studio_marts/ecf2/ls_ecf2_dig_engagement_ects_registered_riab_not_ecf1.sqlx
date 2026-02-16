@@ -42,7 +42,7 @@ WITH
   LEFT JOIN
     ${ref('appropriate_bodies_latest_ecf2')} AS appropriate_bodies
   ON
-    periods.appropriate_body_id = appropriate_bodies.id
+    periods.appropriate_body_period_id = appropriate_bodies.id
   WHERE
     -- for future registration windows, this date should be updated with the first opportunitty to create induction windows in the registration window
     periods.started_on >= '2025-04-01'
