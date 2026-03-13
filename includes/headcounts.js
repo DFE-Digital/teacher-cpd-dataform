@@ -6,7 +6,6 @@ const headcounts = [
    ecteHeadcount: 36,
    npqHeadcount: 18
    }, {
-   {
    date: "2026-01-27",
    ecteHeadcount: 35,
    npqHeadcount: 16
