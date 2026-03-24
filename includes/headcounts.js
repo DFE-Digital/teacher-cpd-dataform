@@ -1,7 +1,11 @@
 /* To be updated by a Programme Delivery Manager once per quarter. */
 
 const headcounts = [
-   {
+     {
+   date: "2026-01-28",
+   ecteHeadcount: 36,
+   npqHeadcount: 18
+   }, {
    date: "2026-01-27",
    ecteHeadcount: 35,
    npqHeadcount: 16
@@ -78,5 +82,6 @@ const headcounts = [
 module.exports = {
     headcounts
 };
+
 
 

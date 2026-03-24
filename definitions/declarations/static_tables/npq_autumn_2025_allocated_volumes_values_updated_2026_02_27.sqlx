@@ -1,0 +1,5 @@
+config {
+    type: "declaration",
+    schema: "static_tables",
+    name: "npq_autumn_2025_allocated_volumes_values_updated_2026_02_27"
+}

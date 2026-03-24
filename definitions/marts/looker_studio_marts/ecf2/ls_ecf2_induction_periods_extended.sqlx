@@ -10,7 +10,7 @@ config {
     description: "PLEASE NOTE THIS MART IS A REDUCED VERSION OF THE SAME ecf2_induction_periods mart. THE ONLY DIFFERENCE IS THE ABSENCE OF PII TO MAKE IT AVAILABLE FOR LOOKER STUDIO. This mart pulls together the induction periods that ABs have registered for teachers with the associated profile records of the relevant teacher and the appropriate body induction with whom the induction was registered. This mart is designed to give as much detail as possible about the induction period that was registered, the teacher who it was registered for and the appropriate body that registered the induction. All potentially relevant fields from the three main tables: Induction Periods, Teachers and Appropriate Bodies have been combined with the a single record representing an induction period. It is meant as a base from which further marts can be generated. AB's are required to register the induction of ECTs training with them. ECTs are required to complete a full 2 years of induction before receiving qualified teacher status. They can complete their induction in multiple periods with multiple Appropriate Bodies. So it is possible that a single teacher will have multiple induction periods registered in this mart",
     columns: {
         induction_period_id: "ID of single registered induction period",
-        appropriate_body_id: "",
+        appropriate_body_period_id: "",
         number_of_terms: "Number of terms served in the induction period",
         started_on: "Date an induction period was started on",
         finished_on: "Date and time an extension was updated",

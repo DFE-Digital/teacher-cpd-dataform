@@ -1,0 +1,71 @@
+config {
+    type: "table",
+    tags: ["ecf2"],
+    assertions: {
+        uniqueKey: ["school_partnership_id"],
+    },
+    bigquery: {
+        partitionBy: "DATE(created_at)"
+    },
+    description: "WARNING - SANDBOX DATA ONLY. A table of which school, Lead Provider and Delivery Partner combinations for an ECT or Mentor are active in a contract period.",
+    columns: {
+        school_partnership_id: "PK of the school_partnerships_latest table. The school partnership that determines the Lead Provider Delivery Partner combination an ECT or Mentor is training with at their school.",
+        school_partnership_external_id: "The ID exposed over the API of the school, lead provider, delivery partner and contract period combination.",
+        lead_provider_delivery_partnership_id: "",
+        delivery_partner_id: "PK of the delivery_partners table",
+        delivery_partner_external_id: "The unique identifier for delivery partners as exposed over the API.",
+        delivery_partner_name: "The name of the delivery partner.",
+        active_lead_provider_id: "PK of the active_lead_providers table. Used to indicate which lead providers are active when.",
+        lead_provider_id: "PK of the lead_providers table.",
+        lead_provider_name: "The name of the lead_provider",
+        contract_period_year: "The year this partnership delivered training to one or more participants.",
+        school_id: "PK of the schools table.",
+        school_name : "The name of the school as stored in GIAS.",
+        school_urn: "The URN of the school.",
+        created_at: "When the partnership was created",
+        updated_at: "When the partnership was last updated"
+    }
+}
+
+SELECT
+  school_partnerships.id AS school_partnership_id,
+  school_partnerships.api_id AS school_partnership_external_id,
+  school_partnerships.lead_provider_delivery_partnership_id,
+  lpdp.delivery_partner_id,
+  delivery_partners.api_id as delivery_partner_external_id,
+  delivery_partners.name AS delivery_partner_name,
+  lpdp.active_lead_provider_id,
+  active_lead_providers.lead_provider_id,
+  lead_providers.name AS lead_provider_name,
+  active_lead_providers.contract_period_year,
+  school_partnerships.school_id,
+  gias_schools.name AS school_name,
+  schools.urn AS school_urn,
+  school_partnerships.created_at,
+  school_partnerships.updated_at,
+FROM
+  ${ref('school_partnerships_latest_ecf2_sandbox')} AS school_partnerships
+LEFT JOIN
+  ${ref('lead_provider_delivery_partnerships_latest_ecf2_sandbox')} AS lpdp
+ON
+  school_partnerships.lead_provider_delivery_partnership_id = lpdp.id
+LEFT JOIN
+  ${ref('delivery_partners_latest_ecf2_sandbox')} AS delivery_partners
+ON
+  lpdp.delivery_partner_id = delivery_partners.id
+LEFT JOIN
+  ${ref('active_lead_providers_latest_ecf2_sandbox')} AS active_lead_providers
+ON
+  lpdp.active_lead_provider_id = active_lead_providers.id
+LEFT JOIN
+  ${ref('lead_providers_latest_ecf2_sandbox')} AS lead_providers
+ON
+  active_lead_providers.lead_provider_id = lead_providers.id
+LEFT JOIN
+  ${ref('schools_latest_ecf2_sandbox')} AS schools
+ON
+  school_partnerships.school_id = schools.id
+LEFT JOIN
+  ${ref('gias_schools_latest_ecf2_sandbox')} as gias_schools
+ON 
+  schools.urn = gias_schools.urn

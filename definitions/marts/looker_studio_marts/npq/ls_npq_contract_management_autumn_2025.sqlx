@@ -53,7 +53,7 @@ provider_targets as (
     ,lp.name AS provider_name
   FROM
     -- This static table should be updated with new allocations when recived by the contract managers
-    ${ref('npq_autumn_2025_allocated_volumes_values')} AS exp_vol
+    ${ref('npq_autumn_2025_allocated_volumes_values_updated_2026_02_27')} AS exp_vol
   LEFT JOIN
     ${ref('lead_providers_latest_npq')} AS lp
   ON
