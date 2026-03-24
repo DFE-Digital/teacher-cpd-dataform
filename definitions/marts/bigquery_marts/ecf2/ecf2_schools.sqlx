@@ -54,7 +54,6 @@ SELECT
   gias_schools.section_41_approved,
   gias_schools.phase_name AS school_phase,
   gias_schools.type_name AS school_type,
-  gias_schools.section_41_approved as section_41_approved,
   schools.marked_as_eligible AS eligible,
   schools.last_chosen_appropriate_body_id,
   appropriate_bodies.name AS last_chosen_appropriate_body_name,
