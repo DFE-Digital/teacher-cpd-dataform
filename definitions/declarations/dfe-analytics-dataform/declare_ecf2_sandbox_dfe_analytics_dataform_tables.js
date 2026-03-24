@@ -1,4 +1,5 @@
 const tableNames = [
+    "persist_api_request",
     "appropriate_bodies_latest",
     "events",
     "induction_periods_field_updates",
@@ -22,7 +23,7 @@ const tableNames = [
     "statements_latest",
     "lead_provider_delivery_partnerships_latest",
     "schedules_latest",
-    "users_latest"
+    "users_latest",
 ];
 
 tableNames.forEach(tableName => {
