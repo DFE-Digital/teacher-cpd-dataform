@@ -1,0 +1,49 @@
+config {
+    type: "table",
+    tags: ["ecf2"],
+    assertions: {
+        uniqueKey: ["school_id"],
+    },
+    bigquery: {
+        partitionBy: "DATE(created_at)"
+    },
+    description: "WARNING - SANDBOX DATA ONLY. All schools an ECT or Mentor is training at, join GIAS_schools on URN for school level attributes",
+    columns: {
+        school_partnership_id: "",
+        
+    }
+}
+
+SELECT
+  schools.id AS school_id,
+  schools.api_id AS school_api_id,
+  schools.urn AS school_urn,
+  gias_schools.establishment_number,
+  gias_schools.name AS school_name,
+  gias_schools.postcode,
+  gias_schools.local_authority_code,
+  gias_schools.local_authority_name,
+  gias_schools.administrative_district_name,
+  gias_schools.status AS school_status,
+  gias_schools.section_41_approved,
+  gias_schools.phase_name AS school_phase,
+  gias_schools.type_name AS school_type,
+  gias_schools.section_41_approved as section_41_approved,
+  schools.marked_as_eligible AS eligible,
+  schools.last_chosen_appropriate_body_id,
+  appropriate_bodies.name AS last_chosen_appropriate_body_name,
+  schools.last_chosen_lead_provider_id,
+  lead_providers.name AS last_chosen_lead_provider_name,
+  schools.last_chosen_training_programme,
+  schools.induction_tutor_name,
+  schools.induction_tutor_email,
+  schools.induction_tutor_last_nominated_in,
+  schools.created_at,
+  schools.updated_at
+FROM ${ref('schools_latest_ecf2_sandbox')} as schools
+LEFT JOIN ${ref('gias_schools_latest_ecf2_sandbox')} as gias_schools
+  ON schools.urn = gias_schools.urn 
+LEFT JOIN ${ref('appropriate_bodies_latest_ecf2')} as appropriate_bodies
+  ON schools.last_chosen_appropriate_body_id = appropriate_bodies.id
+LEFT JOIN ${ref('lead_providers_latest_ecf2_sandbox')} as lead_providers
+  ON schools.last_chosen_lead_provider_id = lead_providers.id
