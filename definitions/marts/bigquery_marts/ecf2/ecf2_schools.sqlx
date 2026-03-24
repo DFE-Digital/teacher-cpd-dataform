@@ -21,11 +21,11 @@ config {
         school_status: "Whether the school is 'Closed', 'Open', 'Open, but proposed to close' or 'Proposed to Open' as stored in GIAS.",
         section_41_approved: "Indicates whether the institution is (currently) approved under Section 41 of the Children and Families Act 2014 as an independent special school or specialist post-16 institution eligible to be named in an Education, Health and Care (EHC) plan.",
         eligible: "",
-        last_chosen_appropriate_body_id: "The ID of the appropriate body last chosen by the school",
-        last_chosen_appropriate_body_name: "The name of the appropriate body last chosen by the school",
-        last_chosen_lead_provider_id: "",
-        last_chosen_lead_provider_name: "",
-        last_chosen_training_programme: "",
+        last_chosen_appropriate_body_id: "The ID of the appropriate body last chosen by the school. Can be helpful to answer questions like 'show all schools with this current provier etc.'",
+        last_chosen_appropriate_body_name: "The name of the appropriate body last chosen by the school. Can be helpful to answer questions like 'show all schools with this current provier etc.'",
+        last_chosen_lead_provider_id: "ID of the lead provider last chosen by the school. Can be helpful to answer questions like 'show all schools with this current provier etc.'",
+        last_chosen_lead_provider_name: "Name of the lead provider last chosen by the school. Can be helpful to answer questions like 'show all schools with this current provier etc.'",
+        last_chosen_training_programme: "The training programme last chosen by the school. Can be helpful to answer questions like 'show all schools with this current provier etc.'",
         induction_tutor_name: {
             description: "The name of the induction tutor at the school.",
             bigqueryPolicyTags: ["projects/ecf-bq/locations/europe-west2/taxonomies/6302091323314055162/policyTags/301313311867345339"]
