@@ -129,28 +129,28 @@ WITH base_training_periods AS (
 
     -- appropriate body
     ect.school_reported_appropriate_body_id,
-    ab.name AS appropriate_body_name
+    ab.name AS appropriate_body_name,
 
     ect.working_pattern,  -- note: only available for ECTs
 
     tp.created_at,
-    tp.updated_at,
+    tp.updated_at
 
-  FROM ${ref('training_periods_latest_ecf2_sandbox')} tp
+  FROM ${ref('training_periods_latest_ecf2_sandbox')} AS tp
 
-  LEFT JOIN ${ref('ect_at_school_periods_latest_ecf2_sandbox')} ect
+  LEFT JOIN ${ref('ect_at_school_periods_latest_ecf2_sandbox')} AS ect
     ON tp.ect_at_school_period_id = ect.id
 
-  LEFT JOIN ${ref('mentor_at_school_periods_latest_ecf2_sandbox')} mentor
+  LEFT JOIN ${ref('mentor_at_school_periods_latest_ecf2_sandbox')} AS mentor
     ON tp.mentor_at_school_period_id = mentor.id
 
-  LEFT JOIN ${ref('schedules_latest_ecf2_sandbox')} schedules
+  LEFT JOIN ${ref('schedules_latest_ecf2_sandbox')} AS schedules
     ON tp.schedule_id = schedules.id
 
-  LEFT JOIN ${ref('ecf2_partnerships')} p
+  LEFT JOIN ${ref('ecf2_partnerships')} AS p
     ON tp.school_partnership_id = p.school_partnership_id
 
-  LEFT JOIN ${ref('appropriate_bodies_latest_ecf2')} ab
+  LEFT JOIN ${ref('appropriate_bodies_latest_ecf2')} AS ab
     ON ect.school_reported_appropriate_body_id = ab.id
 ),
 
@@ -179,14 +179,14 @@ training_periods AS (
     s.school_name,
     s.school_type,
     s.school_phase,
-    s.school_urn,
+    s.school_urn
 
   FROM base_training_periods tp
 
-  LEFT JOIN ${ref('teachers_latest_ecf2_sandbox')} t
+  LEFT JOIN ${ref('teachers_latest_ecf2_sandbox')} AS t
     ON tp.teacher_id = t.id
 
-  LEFT JOIN ${ref('ecf2_schools')} s
+  LEFT JOIN ${ref('ecf2_schools')} AS s
     ON tp.school_id = s.school_id
 
 )
