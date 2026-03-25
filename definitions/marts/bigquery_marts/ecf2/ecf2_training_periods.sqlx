@@ -67,7 +67,35 @@ WITH base_training_periods AS (
     tp.expression_of_interest_id,
     tp.ect_at_school_period_id,
     tp.mentor_at_school_period_id,
+     
+    -- derive a sinlge participant type column
+    CASE 
+      WHEN tp.ect_at_school_period_id IS NOT NULL AND tp.mentor_at_school_period_id IS NULL THEN 'ect'
+      WHEN tp.mentor_at_school_period_id IS NOT NULL AND tp.ect_at_school_period_id IS NULL THEN 'mentor'
+      ELSE 'unknown'
+    END AS participant_type,
+
     tp.training_programme,
+
+    -- safely select the teacher_id
+    -- CASE over COALESCE to avoid silently picking the ect_teacher_id
+    CASE 
+      WHEN ect.teacher_id IS NOT NULL AND mentor.teacher_id IS NULL THEN ect.teacher_id
+      WHEN mentor.teacher_id IS NOT NULL AND ect.teacher_id IS NULL THEN mentor.teacher_id
+      ELSE NULL
+    END AS teacher_id,
+
+    -- Derive a training status field
+    -- Deferred takes priority over withdrawn over finished;
+    -- finished_on will always be populated if deferred or withdrawn are also populated
+    CASE
+      WHEN tp.deferred_at IS NOT NULL THEN 'deferred'  
+      WHEN tp.withdrawn_at IS NOT NULL THEN 'withdrawn'
+      WHEN tp.finished_on IS NOT NULL THEN 'finished'
+      ELSE 'active'
+    END AS training_status,
+
+
     tp.schedule_id,
     tp.started_on,
     tp.finished_on,
@@ -75,16 +103,19 @@ WITH base_training_periods AS (
     tp.withdrawn_at,
     tp.deferral_reason,
     tp.withdrawal_reason,
-    tp.created_at,
-    tp.updated_at,
 
     -- at_school_periods 
-    ect.teacher_id AS ect_teacher_id,
-    mentor.teacher_id AS mentor_teacher_id,
-    ect.school_id AS ect_school_id,
-    mentor.school_id AS mentor_school_id,
-    ect.working_pattern,
-    ect.school_reported_appropriate_body_id,
+    -- ect.teacher_id AS ect_teacher_id,
+    -- mentor.teacher_id AS mentor_teacher_id,
+    -- ect.school_id AS ect_school_id,
+    -- mentor.school_id AS mentor_school_id,  
+    -- consolidate one school_id field  
+    -- CASE over COALESCE to avoid silently picking the ect_school_id
+    CASE 
+      WHEN ect.school_id IS NOT NULL AND mentor.school_id IS NULL THEN ect.school_id
+      WHEN mentor.school_id IS NOT NULL AND ect.school_id IS NULL THEN mentor.school_id
+      ELSE NULL
+    END AS school_id,
 
     -- schedules  
     schedules.identifier AS schedule_identifier,
@@ -97,64 +128,32 @@ WITH base_training_periods AS (
     p.delivery_partner_name AS delivery_partner,
 
     -- appropriate body
-    ab.name AS appropriate_body_name
+    ect.school_reported_appropriate_body_id,
+    ab.name AS appropriate_body_name,
 
-  FROM ${ref('training_periods_latest_ecf2_sandbox')} tp
+    ect.working_pattern,  -- note: only available for ECTs
 
-  LEFT JOIN ${ref('ect_at_school_periods_latest_ecf2_sandbox')} ect
+    tp.created_at,
+    tp.updated_at
+
+  FROM ${ref('training_periods_latest_ecf2_sandbox')} AS tp
+
+  LEFT JOIN ${ref('ect_at_school_periods_latest_ecf2_sandbox')} AS ect
     ON tp.ect_at_school_period_id = ect.id
 
-  LEFT JOIN ${ref('mentor_at_school_periods_latest_ecf2_sandbox')} mentor
+  LEFT JOIN ${ref('mentor_at_school_periods_latest_ecf2_sandbox')} AS mentor
     ON tp.mentor_at_school_period_id = mentor.id
 
-  LEFT JOIN ${ref('schedules_latest_ecf2_sandbox')} schedules
+  LEFT JOIN ${ref('schedules_latest_ecf2_sandbox')} AS schedules
     ON tp.schedule_id = schedules.id
 
-  LEFT JOIN ${ref('ecf2_partnerships')} p
+  LEFT JOIN ${ref('ecf2_partnerships')} AS p
     ON tp.school_partnership_id = p.school_partnership_id
 
-  LEFT JOIN ${ref('appropriate_bodies_latest_ecf2')} ab
+  LEFT JOIN ${ref('appropriate_bodies_latest_ecf2')} AS ab
     ON ect.school_reported_appropriate_body_id = ab.id
 ),
 
-training_periods_derived AS (
-  -- CTE to derive and clean up fields
-  SELECT
-    *,
-    -- derive a sinlge participant type column
-    CASE 
-      WHEN ect_at_school_period_id IS NOT NULL AND mentor_at_school_period_id IS NULL THEN 'ect'
-      WHEN mentor_at_school_period_id IS NOT NULL AND ect_at_school_period_id IS NULL THEN 'mentor'
-      ELSE 'unknown'
-    END AS participant_type,
-
-    -- safely select the teacher_id
-    -- CASE over COALESCE to avoid silently picking the ect_teacher_id
-    CASE 
-      WHEN ect_teacher_id IS NOT NULL AND mentor_teacher_id IS NULL THEN ect_teacher_id
-      WHEN mentor_teacher_id IS NOT NULL AND ect_teacher_id IS NULL THEN mentor_teacher_id
-      ELSE NULL
-    END AS teacher_id,
-
-    -- CASE over COALESCE to avoid silently picking the ect_school_id
-    CASE 
-      WHEN ect_school_id IS NOT NULL AND mentor_school_id IS NULL THEN ect_school_id
-      WHEN mentor_school_id IS NOT NULL AND ect_school_id IS NULL THEN mentor_school_id
-      ELSE NULL
-    END AS school_id,
-
-    -- Derive a training status field
-    -- Deferred takes priority over withdrawn over finished;
-    -- finished_on will always be populated if deferred or withdrawn are also populated
-    CASE
-      WHEN deferred_at IS NOT NULL THEN 'deferred'  
-      WHEN withdrawn_at IS NOT NULL THEN 'withdrawn'
-      WHEN finished_on IS NOT NULL THEN 'finished'
-      ELSE 'active'
-    END AS training_status
-
-  FROM base_training_periods
-),
 
 training_periods AS (
 
@@ -180,14 +179,14 @@ training_periods AS (
     s.school_name,
     s.school_type,
     s.school_phase,
-    s.school_urn,
+    s.school_urn
 
-  FROM training_periods_derived tp
+  FROM base_training_periods tp
 
-  LEFT JOIN ${ref('teachers_latest_ecf2_sandbox')} t
+  LEFT JOIN ${ref('teachers_latest_ecf2_sandbox')} AS t
     ON tp.teacher_id = t.id
 
-  LEFT JOIN ${ref('ecf2_schools')} s
+  LEFT JOIN ${ref('ecf2_schools')} AS s
     ON tp.school_id = s.school_id
 
 )
