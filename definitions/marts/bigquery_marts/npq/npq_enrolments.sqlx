@@ -49,6 +49,7 @@ config {
         cohort_number: "A policy-oriented identifier indicating which DfE-funded applicant cohort the record belongs to. The cohort is determined by the applicant’s cohort.start_year and, for start years 2021-2023, by the schedule_identifier. Cohort 1 is the autumn schedule in the 2021 cohort; Cohort 2, the spring schedule in the 2021 cohort; Cohort 3, the autumn schedule in the 2022 cohort; Cohort 4, the spring schedule in the 2022 cohort; Cohort 5, the autumn schedule in the 2023 cohort; and Cohort 6, the spring schedule in the 2023 cohort. All 2024 applicants are assigned to Cohort 7. For 2025, applicants are split into Cohort 8 if their application was created before 18 May 2025 (spring window) and Cohort 9 if created on or after 8 September 2025 (autumn window). Applicants not matching these rules are assigned n/a.",
         course_identifier: "Shorthand of NPQ course. This comes from the participant's latest declaration.",
         course_usual_length_months: "The length of the NPQ course, in months (an integer). Determined from course_identifier.",
+        expected_declaration_count: "The number of declarations expected for the NPQ course indicated on the application",
         latest_state: "State of participant's latest declaration. Latest declaration is determined using the field declaration_date as this is the date when the evidence for the declaration is provided.",
         latest_declaration_type: "Type of participant's latest declaration.",
         latest_lead_provider_name: "Name of Lead Provider associated with participant's latest declaration.",
@@ -442,6 +443,10 @@ QUALIFY
   -- Build final output joining all CTEs together.
 SELECT
   npq_app.*,
+  CASE 
+    WHEN npq_app.short_course_name IN ('NPQLBC','NPQLL','NPQLPM','NPQLT','NPQLTD') THEN 3
+    WHEN npq_app.short_course_name IN ('EHCO','NPQEL','NPQEYL','NPQH','NPQSL','NPQSENCO') THEN 4
+    END AS expected_declaration_count,
   npq_dec_latest.* EXCEPT(application_id),
   npq_dec_start.* EXCEPT(application_id),
   npq_dec_ret1.* EXCEPT(application_id),
