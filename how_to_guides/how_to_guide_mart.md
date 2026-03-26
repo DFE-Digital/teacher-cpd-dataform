@@ -17,7 +17,7 @@
 config {
     type: "table",
     /* tag types should be the service the mart relates to. can be kpi, npq, ecte, riab 
-    tags: [""]
+    tags: [""],
     assertions: {
         /* The primary key should always be included in this
         uniqueKey: ["a", "b", "c", "d"],
