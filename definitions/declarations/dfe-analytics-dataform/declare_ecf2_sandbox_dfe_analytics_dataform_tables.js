@@ -12,7 +12,7 @@ const tableNames = [
     "schools_latest",
     "training_periods_latest",
     "school_partnerships_latest",
-    "mentorship_periods_latest_latest",
+    "mentorship_periods_latest",
     "mentor_at_school_periods_latest",
     "lead_providers_latest",
     "ect_at_school_periods_latest",
