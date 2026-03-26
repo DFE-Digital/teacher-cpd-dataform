@@ -5,7 +5,7 @@ config {
         uniqueKey: ["training_period_id"],
     },
     bigquery: {
-        partitionBy: "DATE(started_on)",
+        partitionBy: "started_on",
         clusterBy: ["participant_type", "training_status"]
     },
     
