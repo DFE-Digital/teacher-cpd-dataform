@@ -1,7 +1,7 @@
 config {
     schema: "TAD",
     database: "ecf-bq",
-    name: "tad_npq_enrolment_v2",
+    name: "tad_npq_enrolment",
     type: "table",
     assertions: {
         uniqueKey: ["application_id"]
