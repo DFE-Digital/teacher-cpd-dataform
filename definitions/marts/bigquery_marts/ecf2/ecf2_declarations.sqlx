@@ -1,0 +1,144 @@
+config {
+    type: "table",
+    tags: ["ecf2"],
+    assertions: {
+        uniqueKey: ["declaration_id"],
+    },
+    bigquery: {
+        partitionBy: "started_on",
+        clusterBy: ["declaration_type", "contract_period_year", "training_programme", "lead_provider"]
+    },
+    
+    description: "WARNING - SANDBOX DATA ONLY. All declarations for an ECT or Mentor, join atributes from ecf2_training_periods",
+    columns: {
+        declaration_id: "PK of this table",
+        declaration_api_id: "The school partnership that determines the Lead Provider Delivery Partner combination an ECT or Mentor is training with at their school. NULL if training_programme is 'school-led'.",
+        declaration_type: "The primary key of the active_lead_providers table. The expression of interest indicates which lead provider wish to deliver the training to a participant. Only always populated when training_programme is provider-led AND there is no partnership (identified by the presence of school_partnership_id).",
+        declaration_date: "The id of an ect spending a period of time at a school. Must be null when mentor_at_school_period_id is present",
+        training_period_id: "The id of a mentor spending a period of time at a school. Must be null when ect_at_school_period_id is present",
+        participant_type: "Either ECT or Mentor. Derived from ect or mentor_at_school_period_id.",
+        teacher_id: "",
+        teacher_api_id: "The external id of the teacher in the ECF2 Service.",
+        trn: {
+            description: "The teacher reference number.",
+            bigqueryPolicyTags: ["projects/ecf-bq/locations/europe-west2/taxonomies/6302091323314055162/policyTags/301313311867345339"]
+        },
+        started_on: "Start date of the training period. A single mentor or ect at_school_period_id could indicated on multiple training_perioods, the started_on date of each training_period will be the date that training_period with specific characteristics started.",
+        finished_on: "End date of the training period with the specified characteristics. A single at_school_period may contain multiple training_periods, so this does not indicate that the overall at_school_period has ended. The date reflects when this training period stopped, either because the at_school_period ended or the participant was withdrawn or deferred. Withdrawals and deferrals are indicated by the deferred_at or withdrawn_at dates being present respectively",
+        deferred_at: "Datetime when an ECT or Mentor was reported as having deferred from training via the API. If NULL the ECT or Mentor has not deferred from training",
+        withdrawn_at: "Datetime when an ECT or Mentor was reported as having withdrawn from training via the API. If NULL the ECT or Mentor has not withdrawn from training",
+        deferral_reason: "The reason provided by the provider for the ECT deferring",
+        withdrawal_reason: "The reason provided by the provider for an ECT or Mentor withdrawing",
+        training_programme: "",
+        training_status: "",
+        schedule_id: "The ID of the schedule",
+        schedule_identifier: "The name of the schedule the teacher is on, e.g., 'ecf-standard-september' or 'ecf-extended-september'.",
+        contract_period_year: "The year the contract period began in",
+        working_pattern: "Only available for ECTs. Possible values: Full-Time or Part-Time",
+        school_id: "The ID of the school",
+        school_urn: "Unique Reference Number (URN) assigned to a school. Note that a URN is not persistent across structural changes: if a school closes and re-opens with materially different characteristics, a new URN is issued and a new record is created rather than updating the existing one.",
+        school_name: "The name of the school as stored in GIAS",
+        ect_first_became_eligible_for_training_at: "The date at which an ECT first became eligible for funding.",
+        mentor_first_became_eligible_for_training_at: "The date at which a Mentor first became eligible for funding.",        
+        lead_provider_id: "ID of the lead provider responsible for the training period.",
+        lead_provider: "The name of the lead_provider",
+        delivery_partner_id: "The ID of the delivery partner",
+        delivery_partner: "The name of the delivery partner",
+        contract_period_year: "",
+        mentorship_period_id: "",
+        payment_statement_id: "",
+        clawback_statement_id: "",
+        payment_status: "",
+        clawback_status: "",
+        declaration_state: "",
+        evidence_type: "",
+        voided_by_user_at: "",
+        voided_by_user_id: "",
+        payment_year: "from statements",
+        sparsity_uplift: "",
+        pupil_premium_uplift: "",
+
+        api_updated_at: "",
+        created_at: "When the training_period was created in the ECF2 service",
+        updated_at: "When the training_period was last updated in the ECF2 service"
+    }
+}
+
+
+
+
+SELECT 
+    dec.id as declaration_id,
+    dec.api_id as declaration_api_id,
+    dec.declaration_type,
+    dec.declaration_date,
+    dec.training_period_id,
+    tp.participant_type,
+    tp.teacher_id,
+    -- tp.teacher_api_id,
+    tp.trn,
+    -- tp.ect_first_became_eligible_for_training_at,
+    -- tp.mentor_first_became_eligible_for_training_at,
+    tp.training_programme,
+    tp.training_status,
+    tp.started_on,
+    tp.finished_on,
+    tp.deferred_at,
+    tp.withdrawn_at,
+    tp.deferral_reason,
+    tp.withdrawal_reason,
+    tp.schedule_id,
+    tp.schedule_identifier,
+    tp.school_id,
+    tp.school_urn,
+    tp.school_name,
+    tp.lead_provider_id,
+    -- tp.lead_provider_api_id,
+    tp.lead_provider,
+    tp.delivery_partner_id,
+    -- tp.delivery_partner_api_id,
+    tp.delivery_partner,
+    -- tp.school_reported_appropriate_body_id,
+    -- tp.school_reported_appropriate_body,
+   
+    tp.contract_period_year,
+    dec.mentorship_period_id,
+    dec.payment_statement_id,
+    -- st.api_id as payment_statement_api_id, 
+    -- st.status as payment_status,
+    -- st.deadline_date as payment_deadline_date,
+    -- st.payment_date as payment_payment_date,
+    -- st.marked_as_paid_at as payment_marked_as_paid_at,
+    -- st.month as payment_month,
+    -- st.contract_id as payment_contract_id,
+    -- st.fee_type as payment_fee_type,
+    dec.clawback_statement_id,
+    dec.payment_status,
+    dec.clawback_status,
+    CASE
+        WHEN dec.clawback_statement_id IS NOT NULL THEN dec.clawback_status
+        WHEN dec.payment_statement_id IS NOT NULL THEN dec.payment_status
+        ELSE dec.payment_status
+    END AS declaration_state,
+    dec.evidence_type,
+    dec.voided_by_user_at,
+    dec.voided_by_user_id,
+    st.year as payment_year,
+    -- dec.delivery_partner_when_created_id,
+    -- dp.api_id as delivery_partner_api_id,
+    -- dp.name as delivery_partner_name,
+    dec.sparsity_uplift,
+    dec.pupil_premium_uplift,
+    dec.api_updated_at,
+    dec.created_at,
+    dec.updated_at
+FROM `ecf-bq.dfe_analytics_dataform.declarations_latest_ecf2_sandbox` dec
+LEFT JOIN `ecf-bq.dataform.ecf2_training_periods_latest` tp
+    ON dec.training_period_id = tp.training_period_id
+
+-- LEFT JOIN
+-- `ecf-bq.dfe_analytics_dataform.delivery_partners_latest_ecf2_sandbox` dp
+-- ON dec.delivery_partner_when_created_id = dp.id
+LEFT JOIN `ecf-bq.dfe_analytics_dataform.statements_latest_ecf2_sandbox` st
+    ON dec.payment_statement_id = st.id
+
