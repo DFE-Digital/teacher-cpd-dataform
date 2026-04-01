@@ -38,7 +38,7 @@ post_operations {
   ASSERT
     (
     SELECT
-      MAX(date) > DATE_SUB(CURRENT_DATE, INTERVAL 3 MONTH)
+      MAX(date) > DATE_SUB(CURRENT_DATE, INTERVAL 2 MONTH)
     FROM
       ${self()}
     WHERE
@@ -46,7 +46,7 @@ post_operations {
   ASSERT
     (
     SELECT
-      MAX(date) > DATE_SUB(CURRENT_DATE, INTERVAL 3 MONTH)
+      MAX(date) > DATE_SUB(CURRENT_DATE, INTERVAL 2 MONTH)
     FROM
       ${self()}
     WHERE
