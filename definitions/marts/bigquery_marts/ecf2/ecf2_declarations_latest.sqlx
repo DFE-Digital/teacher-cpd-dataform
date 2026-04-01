@@ -9,7 +9,7 @@ config {
         clusterBy: ["declaration_type", "contract_period_year", "training_programme", "lead_provider"]
     },
     
-    description: "WARNING - SANDBOX DATA ONLY. All declarations for an ECT or Mentor, join LATEST preferred participant atributes from ecf2_training_periods",
+    description: "WARNING - SANDBOX DATA ONLY. Latest preferred declarations for an ECT or Mentor, join LATEST preferred participant atributes from ecf2_training_periods. The latest preferred declaration groups declarations from the same tpye (e.g., started, retained, etc.) and selects the latest one per participant and participant type.",
     columns: {
         declaration_id: "PK of this table",
         declaration_api_id: "The id of the declaration as it is served to Lead Providers in the API.",
@@ -62,81 +62,20 @@ config {
     }
 }
 
+SELECT *,
+-- TODO: handle "no_payment" state
+${functions.stateToStateHierarchy('d.declaration_state')} AS state_hierarchy,
+${functions.declarationTypeToDeclarationTypeHierarchy('d.declaration_type')} AS type_hierarchy,
 
-SELECT 
-    d.id AS declaration_id,
-    d.api_id AS declaration_api_id,
-    d.declaration_type,
-    d.declaration_date,
-    d.training_period_id,
-    tp.participant_type,
-    tp.teacher_id,
-    -- tp.teacher_api_id,
-    tp.trn,
-    -- tp.ect_first_became_eligible_for_training_at,
-    -- tp.mentor_first_became_eligible_for_training_at,
-    tp.training_programme,
-    tp.training_status,
-    tp.started_on,
-    tp.finished_on,
-    tp.deferred_at,
-    tp.withdrawn_at,
-    tp.deferral_reason,
-    tp.withdrawal_reason,
-    tp.schedule_id,
-    tp.schedule_identifier,
-    tp.school_id,
-    tp.school_urn,
-    tp.school_name,
-    tp.lead_provider_id,
-    -- tp.lead_provider_api_id,
-    tp.lead_provider,
-    tp.delivery_partner_id,
-    -- tp.delivery_partner_api_id,
-    tp.delivery_partner,
-    -- tp.school_reported_appropriate_body_id,
-    -- tp.school_reported_appropriate_body,
-   
-    tp.contract_period_year,
-    d.mentorship_period_id,
-    d.payment_statement_id,
-    -- st.api_id as payment_statement_api_id, 
-    -- st.status as payment_status,
-    -- st.deadline_date as payment_deadline_date,
-    -- st.payment_date as payment_payment_date,
-    -- st.marked_as_paid_at as payment_marked_as_paid_at,
-    -- st.month as payment_month,
-    -- st.contract_id as payment_contract_id,
-    -- st.fee_type as payment_fee_type,
-    d.clawback_statement_id,
-    d.payment_status,
-    d.clawback_status,
-    CASE
-        WHEN d.clawback_statement_id IS NOT NULL THEN d.clawback_status
-        WHEN d.payment_statement_id IS NOT NULL THEN d.payment_status
-        ELSE d.payment_status
-    END AS declaration_state,
-    -- IFNULL(d.declaration_state IN ('paid', 'eligible', 'payable'), FALSE) AS funded_declaration,
-    d.evidence_type,
-    d.voided_by_user_at,
-    d.voided_by_user_id,
-    st.year AS payment_year,
-    -- d.delivery_partner_when_created_id,
-    -- dp.api_id as delivery_partner_api_id,
-    -- dp.name as delivery_partner_name,
-    d.sparsity_uplift,
-    d.pupil_premium_uplift,
-    d.api_updated_at,
-    d.created_at,
-    d.updated_at
-FROM ${ref('declarations_latest_ecf2_sandbox')} AS d
+FROM ${ref('ecf2_declarations')} AS d
 
-LEFT JOIN ${ref('ecf2_training_periods_latest')} AS tp
-    ON d.training_period_id = tp.training_period_id
-
--- LEFT JOIN ${ref('delivery_partners_latest_ecf2_sandbox')} AS dp
--- ON d.delivery_partner_when_created_id = dp.id
-
-LEFT JOIN ${ref('statements_latest_ecf2_sandbox')} AS st
-    ON d.payment_statement_id = st.id
-
+QUALIFY
+  ROW_NUMBER() OVER (
+    PARTITION BY 
+        d.teacher_id,
+        d.participant_type,
+        d.declaration_type
+    ORDER BY 
+        d.state_hierarchy DESC, 
+        d.declaration_date desc
+    ) = 1
