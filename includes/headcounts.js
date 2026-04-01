@@ -1,8 +1,11 @@
 /* To be updated by a Programme Delivery Manager once per quarter. */
 
-const headcounts = [
-     {
-   date: "2026-01-28",
+const headcounts = [{
+   date: "2026-03-31",
+   ecteHeadcount: 36,
+   npqHeadcount: 18
+   }, {
+   date: "2026-02-28",
    ecteHeadcount: 36,
    npqHeadcount: 18
    }, {
