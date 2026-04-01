@@ -1,0 +1,81 @@
+config {
+    type: "table",
+    tags: ["ecf2"],
+    assertions: {
+        uniqueKey: ["declaration_id"],
+    },
+    bigquery: {
+        partitionBy: "started_on",
+        clusterBy: ["declaration_type", "contract_period_year", "training_programme", "lead_provider"]
+    },
+    
+    description: "WARNING - SANDBOX DATA ONLY. Latest preferred declarations for an ECT or Mentor, join LATEST preferred participant atributes from ecf2_training_periods. The latest preferred declaration groups declarations from the same tpye (e.g., started, retained, etc.) and selects the latest one per participant and participant type.",
+    columns: {
+        declaration_id: "PK of this table",
+        declaration_api_id: "The id of the declaration as it is served to Lead Providers in the API.",
+        declaration_date: "The date the milestone can be evidenced as having been met, when the participant qualified to be declared against. This field is key for determining where a declaration falls in relation to other declarations because it relates to when in the participants training it was evidenced",
+        training_period_id: "The id of the latest preferred training period for an ECT or Mentor. This determines what period of time the Mentor or ECT was training in, the school and school partnership they are registered with, their training programme and relevant mentorship period data. A new record is created when an ECT or Mentor has been registered for training for the first time or the ECT, resumed their training (deferred to active) or Mentor has changed school, cohort or provide",
+        participant_type: "Either ECT or Mentor. Derived from ect or mentor_at_school_period_id.",
+        teacher_id: "The internal id of a teacher",
+        teacher_api_id: "The external id of the teacher in the ECF2 Service.",
+        trn: {
+            description: "The teacher reference number.",
+            bigqueryPolicyTags: ["projects/ecf-bq/locations/europe-west2/taxonomies/6302091323314055162/policyTags/301313311867345339"]
+        },
+        started_on: "Start date of the training period. A single mentor or ect at_school_period_id could indicated on multiple training_perioods, the started_on date of each training_period will be the date that training_period with specific characteristics started.",
+        finished_on: "End date of the training period with the specified characteristics. A single at_school_period may contain multiple training_periods, so this does not indicate that the overall at_school_period has ended. The date reflects when this training period stopped, either because the at_school_period ended or the participant was withdrawn or deferred. Withdrawals and deferrals are indicated by the deferred_at or withdrawn_at dates being present respectively",
+        deferred_at: "Datetime when an ECT or Mentor was reported as having deferred from training via the API. If NULL the ECT or Mentor has not deferred from training",
+        withdrawn_at: "Datetime when an ECT or Mentor was reported as having withdrawn from training via the API. If NULL the ECT or Mentor has not withdrawn from training",
+        deferral_reason: "The reason provided by the provider for the ECT deferring",
+        withdrawal_reason: "The reason provided by the provider for an ECT or Mentor withdrawing",
+        training_programme: "The type of training the ECT or Mentor is registered for. Possible values: provider_led, school_led",
+        training_status: "The status of the given training_periods. Dervied in order of (1) Deferrals, (2) Withdrawals, and (3) Finished dates. If not finished, status is Active.",
+        schedule_id: "The ID of the schedule",
+        schedule_identifier: "The name of the schedule the teacher is on, e.g., 'ecf-standard-september' or 'ecf-extended-september'.",
+        contract_period_year: "The year the contract period began in",
+        working_pattern: "Only available for ECTs. Possible values: Full-Time or Part-Time",
+        school_id: "The ID of the school",
+        school_urn: "Unique Reference Number (URN) assigned to a school. Note that a URN is not persistent across structural changes: if a school closes and re-opens with materially different characteristics, a new URN is issued and a new record is created rather than updating the existing one.",
+        school_name: "The name of the school as stored in GIAS",
+        ect_first_became_eligible_for_training_at: "The date at which an ECT first became eligible for funding.",
+        mentor_first_became_eligible_for_training_at: "The date at which a Mentor first became eligible for funding.",        
+        lead_provider_id: "ID of the lead provider responsible for the training period.",
+        lead_provider: "The name of the lead_provider",
+        delivery_partner_id: "The ID of the delivery partner",
+        delivery_partner: "The name of the delivery partner",
+        mentorship_period_id: "",
+        payment_statement_id: "The id of the statement for a payment. A populated statement id does not necessarily infer a paid status. Refer to the payment_status instead.",
+        clawback_statement_id: "The of the statement for a clawback. A populated statement id does not necessarily infer a clawbacked status. Refer to the clawback_status instead.",
+        payment_status: "The payment state of the declaration. Possible values are: no_payment, eligible, payable, paid, voided",
+        clawback_status: "The clawback status of the declaration. Possible values are: no_clawback, awaiting_clawback, clawed_back",
+        declaration_state: "Dervied from payment and clawback status. If a clawback is present it takes priority over payment_status.",
+        evidence_type: "The evidence type indicated by the lead provider when the declaration was submitted.",
+        voided_by_user_at: "Timestamp when a declaration was voided by a DfE finance or internal user via the finance/admin console.",
+        voided_by_user_id: "The user_id of the DfE that voided the declaration via the finance/admin console.",
+        payment_year: "The year of the payment taken from the statement",
+        sparsity_uplift: "Indicated whether the sparisty uplift payment is applicable to this participant's declaration (started declarations only)",
+        pupil_premium_uplift: "Indicated whether the pupil premium uplift payment is applicable to this participants declaration (started declarations only)",
+
+        api_updated_at: "",
+        created_at: "When the training_period was created in the ECF2 service",
+        updated_at: "When the training_period was last updated in the ECF2 service"
+    }
+}
+
+SELECT *,
+-- TODO: handle "no_payment" state
+${functions.stateToStateHierarchy('d.declaration_state')} AS state_hierarchy,
+${functions.declarationTypeToDeclarationTypeHierarchy('d.declaration_type')} AS type_hierarchy,
+
+FROM ${ref('ecf2_declarations')} AS d
+
+QUALIFY
+  ROW_NUMBER() OVER (
+    PARTITION BY 
+        d.teacher_id,
+        d.participant_type,
+        d.declaration_type
+    ORDER BY 
+        d.state_hierarchy DESC, 
+        d.declaration_date desc
+    ) = 1

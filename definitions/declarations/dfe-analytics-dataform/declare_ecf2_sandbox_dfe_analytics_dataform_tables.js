@@ -17,7 +17,7 @@ const tableNames = [
     "lead_providers_latest",
     "ect_at_school_periods_latest",
     "delivery_partners_latest",
-    "delcarations_latest",
+    "declarations_latest",
     "contract_periods_latest",
     "active_lead_providers_latest",
     "statements_latest",
