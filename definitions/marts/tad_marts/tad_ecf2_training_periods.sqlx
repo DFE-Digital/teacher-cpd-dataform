@@ -5,8 +5,8 @@ config {
     type: "table",
 
     bigquery: {
-        partitionBy: "DATE(induction_period_created_at)",
-        clusterBy: ["appropriate_body_name"]
+        partitionBy: "DATE(created_at)",
+        clusterBy: ["ect_at_school_period_id","mentor_at_school_period_id","training_programme","participant_type"]
     },
     description: "WARNING - SANDBOX DATA ONLY. Holds all training periods for ECTs and Mentors, what period of time the Mentor or ECT was training in, the school and school partnership they are registered with, their training programme and relevant mentorship period data. A new record is created when an ECT or Mentor has been registered for training for the first time or the ECT, resumed their training (deferred to active) or Mentor has changed school, cohort or provider. ",
     columns: {
@@ -50,7 +50,6 @@ config {
         updated_at: "When the training_period was last updated in the ECF2 service"
     }
 }
-
 SELECT
   training_periods.training_period_id,
   training_periods.trn,
@@ -86,7 +85,9 @@ SELECT
 -- TODO:  training_periods.high_pupil_premium,
   teachers.trs_first_name,
   teachers.trs_last_name,
-  COALESCE(ect_at_school_periods.email,mentor_at_school_periods.email) AS teacher_email
+  COALESCE(ect_at_school_periods.email,mentor_at_school_periods.email) AS teacher_email,
+  training_periods.created_at,
+  training_periods.updated_at
 FROM
   ${ref('ecf2_training_periods')} AS training_periods
 LEFT JOIN
