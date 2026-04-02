@@ -67,7 +67,7 @@ SELECT
   cpd_lead_provider_name,
   statement_id,
   schedule_identifier,
-  participant_type,
+  declarations.participant_type,
   cohort,
   statement_cohort,
   trn,
@@ -81,6 +81,7 @@ INNER JOIN
   ${functions.correctOrderDeclarationsTypesShouldBeReceived()} AS declaration_sequence_list
 ON
   declarations.declaration_type = declaration_sequence_list.declaration_type
+  AND declarations.participant_course = declaration_sequence_list.participant_type
   AND DATE(declaration_created_at_date) BETWEEN declaration_date_start
   AND declaration_date_end
 INNER JOIN
