@@ -36,47 +36,62 @@ function correctOrderDeclarationsTypesShouldBeReceived() {
 
     return `(SELECT
     *
-  FROM
-    UNNEST([ STRUCT(DATE '2021-09-01' AS declaration_date_start,
-        DATE_ADD(CURRENT_DATE(), INTERVAL 1 DAY) AS declaration_date_end,
-        'started' AS declaration_type,
-        1 AS expected_declaration_sequence_position, 1 as earliest_declaration_can_be_received), STRUCT(DATE '2021-09-01',
-        DATE_ADD(CURRENT_DATE(), INTERVAL 1 DAY),
-        'retained-1',
-        2,2), STRUCT(DATE '2021-09-01',
-        DATE_ADD(CURRENT_DATE(), INTERVAL 1 DAY),
-        'retained-2',
-        3,3), STRUCT(DATE '2021-09-01',
-        DATE_ADD(CURRENT_DATE(), INTERVAL 1 DAY),
-        'retained-3',
-        4,4), STRUCT(DATE '2021-09-01',
-        DATE_ADD(CURRENT_DATE(), INTERVAL 1 DAY),
-        'retained-4',
-        5,5), STRUCT(DATE '2025-08-01',
-        DATE_ADD(CURRENT_DATE(), INTERVAL 1 DAY),
-        'completed',
-        6,6), STRUCT(DATE '2025-08-01',
-        DATE_ADD(CURRENT_DATE(), INTERVAL 1 DAY),
-        'extended-1',
-        7,7), STRUCT(DATE '2025-08-01',
-        DATE_ADD(CURRENT_DATE(), INTERVAL 1 DAY),
-        'extended-2',
-        8,8), STRUCT(DATE '2025-08-01',
-        DATE_ADD(CURRENT_DATE(), INTERVAL 1 DAY),
-        'extended-3',
-        9,9), STRUCT(DATE '2021-09-01',
-        DATE '2025-07-31',
-        'completed',
-        9,6), STRUCT(DATE '2021-09-01',
-        DATE '2025-07-31',
-        'extended-1',
-        6,6), STRUCT(DATE '2021-09-01',
-        DATE '2025-07-31',
-        'extended-2',
-        7,7), STRUCT(DATE '2021-09-01',
-        DATE '2025-07-31',
-        'extended-3',
-        8,8) ]))`;
+    FROM
+        UNNEST([
+            -- ECT SEQUENCE
+            -- Started
+            STRUCT(
+                DATE '2021-09-01' AS declaration_date_start,
+                DATE_ADD(CURRENT_DATE(), INTERVAL 1 DAY) AS declaration_date_end,
+                'started' AS declaration_type,
+                1 AS expected_declaration_sequence_position,
+                1 AS earliest_declaration_can_be_received,
+                'ECT' AS participant_type
+            ),
+            
+            -- Retained milestones
+            STRUCT(DATE '2021-09-01', DATE_ADD(CURRENT_DATE(), INTERVAL 1 DAY), 'retained-1', 2, 2, 'ECT'),
+            STRUCT(DATE '2021-09-01', DATE_ADD(CURRENT_DATE(), INTERVAL 1 DAY), 'retained-2', 3, 3, 'ECT'),
+            STRUCT(DATE '2021-09-01', DATE_ADD(CURRENT_DATE(), INTERVAL 1 DAY), 'retained-3', 4, 4, 'ECT'),
+            STRUCT(DATE '2021-09-01', DATE_ADD(CURRENT_DATE(), INTERVAL 1 DAY), 'retained-4', 5, 5, 'ECT'),
+            
+            -- Completed
+            STRUCT(DATE '2025-08-01', DATE_ADD(CURRENT_DATE(), INTERVAL 1 DAY), 'completed', 6, 6, 'ECT'),
+            STRUCT(DATE '2021-09-01', DATE '2025-07-31', 'completed', 9, 6, 'ECT'),
+
+            -- Extended
+            STRUCT(DATE '2025-08-01', DATE_ADD(CURRENT_DATE(), INTERVAL 1 DAY), 'extended-1', 7, 7, 'ECT'),
+            STRUCT(DATE '2025-08-01', DATE_ADD(CURRENT_DATE(), INTERVAL 1 DAY), 'extended-2', 8, 8, 'ECT'),
+            STRUCT(DATE '2025-08-01', DATE_ADD(CURRENT_DATE(), INTERVAL 1 DAY), 'extended-3', 9, 9, 'ECT'),
+            STRUCT(DATE '2021-09-01', DATE '2025-07-31', 'extended-1', 6, 6, 'ECT'),
+            STRUCT(DATE '2021-09-01', DATE '2025-07-31', 'extended-2', 7, 7, 'ECT'),
+            STRUCT(DATE '2021-09-01', DATE '2025-07-31', 'extended-3', 8, 8, 'ECT'),
+
+            -- MENTOR SEQUENCE (1-YEAR PROGRAMME)
+            -- Started
+            STRUCT(DATE '2021-09-01', DATE_ADD(CURRENT_DATE(), INTERVAL 1 DAY), 'started', 1, 1, 'Mentor'),
+            
+            -- Retained -- VALIDATE!!
+            -- STRUCT(DATE '2021-09-01', DATE_ADD(CURRENT_DATE(), INTERVAL 1 DAY), 'retained-1', 2, 2, 'mentor'),
+            -- STRUCT(DATE '2021-09-01', DATE_ADD(CURRENT_DATE(), INTERVAL 1 DAY), 'retained-2', 2, 2, 'mentor'),
+            -- STRUCT(DATE '2021-09-01', DATE_ADD(CURRENT_DATE(), INTERVAL 1 DAY), 'retained-3', 3, 3, 'mentor'),
+            -- STRUCT(DATE '2021-09-01', DATE_ADD(CURRENT_DATE(), INTERVAL 1 DAY), 'retained-4', 3, 3, 'mentor'),
+            
+            -- Completed
+            STRUCT(DATE '2025-08-01', DATE_ADD(CURRENT_DATE(), INTERVAL 1 DAY), 'completed', 3, 3, 'Mentor'),
+            STRUCT(DATE '2021-09-01', DATE '2025-07-31', 'completed', 3, 3, 'Mentor')
+
+            -- TODO: replacement Mentors!!
+
+            -- Extended -- VALIDATE!!
+            -- STRUCT(DATE '2025-08-01', DATE_ADD(CURRENT_DATE(), INTERVAL 1 DAY), 'extended-1', 4, 4, 'Mentor'),
+            -- STRUCT(DATE '2025-08-01', DATE_ADD(CURRENT_DATE(), INTERVAL 1 DAY), 'extended-2', 5, 5, 'Mentor'),
+            -- STRUCT(DATE '2025-08-01', DATE_ADD(CURRENT_DATE(), INTERVAL 1 DAY), 'extended-3', 6, 6, 'Mentor'),
+            -- STRUCT(DATE '2021-09-01', DATE '2025-07-31', 'extended-1', 4, 4, 'Mentor'),
+            -- STRUCT(DATE '2021-09-01', DATE '2025-07-31', 'extended-2', 5, 5, 'Mentor'),
+            -- STRUCT(DATE '2021-09-01', DATE '2025-07-31', 'extended-3', 6, 6, 'Mentor')
+        ])
+    )`;
 }
 
 
