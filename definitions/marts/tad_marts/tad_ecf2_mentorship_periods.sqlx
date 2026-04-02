@@ -33,7 +33,7 @@ SELECT
     ect_at_school_period_id,
     mentor_at_school_period_id,
     started_on,
-    finished_on
+    finished_on,
     ect_trn,
     ect_school_urn,
     mentor_trn,
