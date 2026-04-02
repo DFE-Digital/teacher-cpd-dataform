@@ -45,7 +45,7 @@ WITH
   extended_declarations AS (
   SELECT
     declaration_id,
-    declaration_type,
+    declarations.declaration_type,
     declaration_created_at_date,
     declaration_date,
     participant_profile_id,
@@ -53,7 +53,7 @@ WITH
     cpd_lead_provider_name,
     statement_id,
     schedule_identifier,
-    participant_type,
+    declarations.participant_type,
     cohort,
     statement_cohort,
     trn,
@@ -67,15 +67,16 @@ WITH
     ${ref('ecf_declarations')} declarations
   LEFT JOIN
     ${functions.correctOrderDeclarationsTypesShouldBeReceived()} AS declaration_sequence_list
-  USING
-    (declaration_type)
+    ON declarations.declaration_type = declaration_sequence_list.declaration_type
+    AND declarations.participant_course = declaration_sequence_list.participant_type
   WHERE
     DATE(declaration_created_at_date) BETWEEN declaration_date_start
     AND declaration_date_end
     AND cohort >= 2023
     AND state IN ('eligible',
       'payable',
-      'paid'))
+      'paid')
+  )
       /* This identifies the declarations evidenced before and after a given record's declaration based on declaration_date. It checks if the permitted sequence number of the record's declaration falls out of order compared to the maximum expected order of the declarations evidenced before or compared to the minimum expected order of the declarations evidenced after*/
       /* It does not consider the declaration to fall under this bad shape if the declaration is evidenced on the same date as the prior or next declarations, this is covered under another bad shape */
       /* It does not consider the declaration to fall under this bad shape if this participant is on a 'reduced' schedule and the declaration is a 'completed' type */
@@ -95,7 +96,7 @@ QUALIFY
     AND min_declaration_date_evidenced_after_date <> DATE(declaration_date)
     AND min_declaration_sequence_evidenced_after_date IS NOT NULL)
   AND (schedule_identifier NOT LIKE '%reduced%'
-    OR declaration_type <> 'completed')
+    OR extended_declarations.declaration_type <> 'completed')
 WINDOW
   participant_declarations_evidenced_prior_to_current_record AS (
   PARTITION BY
