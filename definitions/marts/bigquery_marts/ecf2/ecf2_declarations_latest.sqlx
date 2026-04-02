@@ -65,18 +65,18 @@ config {
 
 SELECT *,
 -- TODO: handle "no_payment" state
-${functions.stateToStateHierarchy('d.declaration_state')} AS state_hierarchy,
-${functions.declarationTypeToDeclarationTypeHierarchy('d.declaration_type')} AS type_hierarchy,
+${functions.stateToStateHierarchy('declaration_state')} AS state_hierarchy,
+${functions.declarationTypeToDeclarationTypeHierarchy('declaration_type')} AS type_hierarchy,
 
-FROM ${ref('ecf2_declarations')} AS d
+FROM ${ref('ecf2_declarations')}
 
 QUALIFY
   ROW_NUMBER() OVER (
     PARTITION BY 
-        d.teacher_id,
-        d.participant_type,
-        d.declaration_type
+        teacher_id,
+        participant_type,
+        declaration_type
     ORDER BY 
-        d.state_hierarchy DESC, 
-        d.declaration_date desc
+        state_hierarchy DESC, 
+        declaration_date DESC
     ) = 1
