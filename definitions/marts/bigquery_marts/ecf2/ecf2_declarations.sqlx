@@ -14,6 +14,7 @@ config {
         declaration_id: "PK of this table",
         declaration_api_id: "The id of the declaration as it is served to Lead Providers in the API.",
         declaration_date: "The date the milestone can be evidenced as having been met, when the participant qualified to be declared against. This field is key for determining where a declaration falls in relation to other declarations because it relates to when in the participants training it was evidenced",
+        declaration_type: "The type of the declaration which indicates how far along a participant is in their training",
         training_period_id: "The id of the latest preferred training period for an ECT or Mentor. This determines what period of time the Mentor or ECT was training in, the school and school partnership they are registered with, their training programme and relevant mentorship period data. A new record is created when an ECT or Mentor has been registered for training for the first time or the ECT, resumed their training (deferred to active) or Mentor has changed school, cohort or provide",
         participant_type: "Either ECT or Mentor. Derived from ect or mentor_at_school_period_id.",
         teacher_id: "The internal id of a teacher",
@@ -55,7 +56,6 @@ config {
         payment_year: "The year of the payment taken from the statement",
         sparsity_uplift: "Indicated whether the sparisty uplift payment is applicable to this participant's declaration (started declarations only)",
         pupil_premium_uplift: "Indicated whether the pupil premium uplift payment is applicable to this participants declaration (started declarations only)",
-
         api_updated_at: "",
         created_at: "When the training_period was created in the ECF2 service",
         updated_at: "When the training_period was last updated in the ECF2 service"

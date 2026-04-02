@@ -37,6 +37,7 @@ config {
         lead_provider: "The name of the lead_provider",
         delivery_partner_id: "The ID of the delivery partner",
         delivery_partner: "The name of the delivery partner",
+        delivery_partner_external_id: "The unique identifier for delivery partners as exposed over the API.",
         trn: {
             description: "The teacher reference number.",
             bigqueryPolicyTags: ["projects/ecf-bq/locations/europe-west2/taxonomies/6302091323314055162/policyTags/301313311867345339"]
@@ -129,6 +130,7 @@ WITH base_training_periods AS (
     p.lead_provider_name AS lead_provider,
     p.delivery_partner_id,
     p.delivery_partner_name AS delivery_partner,
+    p.delivery_partner_external_id,
 
     -- appropriate body
     ect.school_reported_appropriate_body_id,
@@ -172,10 +174,10 @@ training_periods AS (
     t.trs_induction_completed_date,
     -- TODO: teachers.ect_payment_frozen_year,
     -- TODO: teachers.mentor_payments_frozen_year,
-    -- TODO: teachers.ect_first_became_eligible_for_training_at,
-    -- TODO: teachers.mentor_first_became_eligible_for_training_at,
-    -- TODO: teachers.mentor_became_ineligible_for_funding_on,
-    -- TODO: teachers.mentor_became_ineligible_for_funding_reason,
+    t.ect_first_became_eligible_for_training_at,
+    t.mentor_first_became_eligible_for_training_at,
+    t.mentor_became_ineligible_for_funding_on,
+    t.mentor_became_ineligible_for_funding_reason,
     -- TODO: sparsity/high_pupil_premium
 
     -- schools
@@ -186,7 +188,7 @@ training_periods AS (
 
   FROM base_training_periods tp
 
-  LEFT JOIN ${ref('teachers_latest_ecf2_sandbox')} AS t
+  LEFT JOIN ${ref('teachers_latest_ecf2')} AS t
     ON tp.teacher_id = t.id
 
   LEFT JOIN ${ref('ecf2_schools')} AS s

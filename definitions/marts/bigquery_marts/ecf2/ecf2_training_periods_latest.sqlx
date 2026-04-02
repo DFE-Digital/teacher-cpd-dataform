@@ -36,6 +36,7 @@ config {
         lead_provider: "The name of the lead_provider",
         delivery_partner_id: "The ID of the delivery partner",
         delivery_partner: "The name of the delivery partner",
+        delivery_partner_external_id: "The unique identifier for delivery partners as exposed over the API.",
         trn: {
             description: "The teacher reference number.",
             bigqueryPolicyTags: ["projects/ecf-bq/locations/europe-west2/taxonomies/6302091323314055162/policyTags/301313311867345339"]
