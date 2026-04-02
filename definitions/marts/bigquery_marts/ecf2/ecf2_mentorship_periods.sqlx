@@ -7,7 +7,7 @@ config {
     },
     bigquery: {
         partitionBy: "DATE(created_at)",
-        clusterBy: ["ect_at_school_period_id","mentor_at_school_period_id"]
+        clusterBy: ["ect_at_school_period_id", "mentor_at_school_period_id"]
     },
     description: "WARNING - SANDBOX DATA ONLY. A period of time at a school during which one mentor is known to be actively mentoring an ECT. A new mentorship period is created if an ECT changes school or Mentor. A mentor can have multiple ongoing mentorship periods  (whereas an ECT can only have one mentorship period at any one time)",
     columns: {
@@ -19,13 +19,15 @@ config {
         ect_teacher_id: "PK of the teachers table. Teacher ID of the ECT.",
         ect_trn: {
             description: "The ECTs TRN",
-            bigqueryPolicyTags: ["projects/ecf-bq/locations/europe-west2/taxonomies/6302091323314055162/policyTags/301313311867345339"]},
+            bigqueryPolicyTags: ["projects/ecf-bq/locations/europe-west2/taxonomies/6302091323314055162/policyTags/301313311867345339"]
+        },
         ect_school_id: "The PK of the ecf2_schools table, taken from the ect_at_school_period. This should be the same as the mentor_school_id.",
         ect_school_urn: "The urn of the school indicated on the ect_at_school_period. This should be the same as the mentor_school_urn.",
         mentor_teacher_id: "PK of the teachers table. Teacher ID of the mentor.",
         mentor_trn: {
             description: "The mentors TRN",
-            bigqueryPolicyTags: ["projects/ecf-bq/locations/europe-west2/taxonomies/6302091323314055162/policyTags/301313311867345339"]},
+            bigqueryPolicyTags: ["projects/ecf-bq/locations/europe-west2/taxonomies/6302091323314055162/policyTags/301313311867345339"]
+        },
         mentor_school_id: "The PK of the ecf2_schools table, taken from the mentor_at_school_period. This should be the same as the ect_school_id.",
         mentor_school_urn: "The urn of the school indicated on the mentor_at_school_period. This should be the same as the ect_school_urn.",
         created_at: "When the mentorship was created.",
@@ -33,35 +35,34 @@ config {
     }
 }
 
-WITH teachers AS (
+WITH
+  teachers AS (
   SELECT
     id,
     trn
-  FROM ${ref('teachers_latest_ecf2_sandbox')}
-),
-ect_periods AS (
+  FROM
+    ${ref('teachers_latest_ecf2_sandbox')} ),
+  ect_periods AS (
   SELECT
     id,
     teacher_id,
     school_id
-  FROM ${ref('ect_at_school_periods_latest_ecf2_sandbox')}
-),
-mentor_periods AS (
+  FROM
+    ${ref('ect_at_school_periods_latest_ecf2_sandbox')} ),
+  mentor_periods AS (
   SELECT
     id,
     teacher_id,
     school_id
-  FROM ${ref('mentor_at_school_periods_latest_ecf2_sandbox')}
-),
-schools as (
-  SELECT 
+  FROM
+    ${ref('mentor_at_school_periods_latest_ecf2_sandbox')} ),
+  schools AS (
+  SELECT
     school_id,
     school_urn
-  FROM ${ref('ecf2_schools')}
-)
-
-
- SELECT
+  FROM
+    ${ref('ecf2_schools')} )
+SELECT
   mentorships.id AS mentorship_period_id,
   mentorships.ect_at_school_period_id,
   mentorships.mentor_at_school_period_id,
@@ -74,19 +75,32 @@ schools as (
   mentor_periods.teacher_id AS mentor_teacher_id,
   mentor_teacher.trn AS mentor_trn,
   mentor_periods.school_id AS mentor_school_id,
-  mentor_school.school_urn as mentor_school_urn,
+  mentor_school.school_urn AS mentor_school_urn,
   mentorships.created_at,
   mentorships.updated_at
-FROM ${ref('mentorship_periods_latest_ecf2_sandbox')} AS mentorships
-LEFT JOIN ect_periods AS ect_periods
-  ON mentorships.ect_at_school_period_id = ect_periods.id
-LEFT JOIN mentor_periods AS mentor_periods
-  ON mentorships.mentor_at_school_period_id = mentor_periods.id
-LEFT JOIN teachers AS ect_teacher
-  ON ect_periods.teacher_id = ect_teacher.id
-LEFT JOIN teachers AS mentor_teacher
-  ON mentor_periods.teacher_id = mentor_teacher.id
-LEFT JOIN schools as ect_school
-  ON ect_periods.school_id = ect_school.school_id
-LEFT JOIN schools as mentor_school
-  ON mentor_periods.school_id = mentor_school.school_id
+FROM
+  ${ref('mentorship_periods_latest_ecf2_sandbox')} AS mentorships
+LEFT JOIN
+  ect_periods AS ect_periods
+ON
+  mentorships.ect_at_school_period_id = ect_periods.id
+LEFT JOIN
+  mentor_periods AS mentor_periods
+ON
+  mentorships.mentor_at_school_period_id = mentor_periods.id
+LEFT JOIN
+  teachers AS ect_teacher
+ON
+  ect_periods.teacher_id = ect_teacher.id
+LEFT JOIN
+  teachers AS mentor_teacher
+ON
+  mentor_periods.teacher_id = mentor_teacher.id
+LEFT JOIN
+  schools AS ect_school
+ON
+  ect_periods.school_id = ect_school.school_id
+LEFT JOIN
+  schools AS mentor_school
+ON
+  mentor_periods.school_id = mentor_school.school_id

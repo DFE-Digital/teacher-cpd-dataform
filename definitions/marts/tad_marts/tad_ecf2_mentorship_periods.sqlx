@@ -1,0 +1,44 @@
+config {
+    schema: "TAD",
+    database: "ecf-bq",
+    name: "tad_ecf2_mentorship_periods",
+    type: "table",
+
+    bigquery: {
+        partitionBy: "DATE(created_at)",
+        clusterBy: ["ect_at_school_period_id","mentor_at_school_period_id"]
+    },
+    description: "WARNING - SANDBOX DATA ONLY. A period of time at a school during which one mentor is known to be actively mentoring an ECT. A new mentorship period is created if an ECT changes school or Mentor. A mentor can have multiple ongoing mentorship periods  (whereas an ECT can only have one mentorship period at any one time)",
+    columns: {
+        mentorship_period_id: "UUID of the mentorship period",
+        ect_at_school_period_id: "Unique identifier of an ECT at a school. Indicates the ECT in the ECT - Mentor relationship",
+        mentor_at_school_period_id: "Unique identifier of an Mentor at a school. Indicates the Mentor in the ECT - Mentor relationship",
+        started_on: "When the mentorship period started",
+        finished_on: "When the mentorship period finished",
+        ect_trn: {
+            description: "The ECTs TRN",
+            bigqueryPolicyTags: ["projects/ecf-bq/locations/europe-west2/taxonomies/6302091323314055162/policyTags/301313311867345339"]},
+        ect_school_urn: "The urn of the school indicated on the ect_at_school_period. This should be the same as the mentor_school_urn.",
+        mentor_trn: {
+            description: "The mentors TRN",
+            bigqueryPolicyTags: ["projects/ecf-bq/locations/europe-west2/taxonomies/6302091323314055162/policyTags/301313311867345339"]},
+        mentor_school_urn: "The urn of the school indicated on the mentor_at_school_period. This should be the same as the ect_school_urn.",
+        created_at: "When the mentorship was created. This doesn't indicate the start of the mentorship period",
+        updated_at: "When the mentorship was last updated"
+    }
+}
+
+SELECT 
+    mentorship_period_id,
+    ect_at_school_period_id,
+    mentor_at_school_period_id,
+    started_on,
+    finished_on,
+    ect_trn,
+    ect_school_urn,
+    mentor_trn,
+    mentor_school_urn,
+    created_at,
+    updated_at
+FROM
+    ${ref('ecf2_mentorship_periods')}
