@@ -1,0 +1,104 @@
+config {
+    schema: "TAD",
+    database: "ecf-bq",
+    name: "tad_ecf2_training_periods",
+    type: "table",
+
+    bigquery: {
+        partitionBy: "DATE(created_at)",
+        clusterBy: ["ect_at_school_period_id","mentor_at_school_period_id","training_programme","participant_type"]
+    },
+    description: "WARNING - SANDBOX DATA ONLY. Holds all training periods for ECTs and Mentors, what period of time the Mentor or ECT was training in, the school and school partnership they are registered with, their training programme and relevant mentorship period data. A new record is created when an ECT or Mentor has been registered for training for the first time or the ECT, resumed their training (deferred to active) or Mentor has changed school, cohort or provider. ",
+    columns: {
+        training_period_id: "PK of the training_periods table",
+        trn: {
+            description: "The teacher reference number.",
+            bigqueryPolicyTags: ["projects/ecf-bq/locations/europe-west2/taxonomies/6302091323314055162/policyTags/301313311867345339"]
+        },
+        ect_at_school_period_id: "The id of an ect spending a period of time at a school. Must be null when mentor_at_school_period_id is present",
+        mentor_at_school_period_id: "The id of a mentor spending a period of time at a school. Must be null when ect_at_school_period_id is present",
+        training_programme: "The type of training the ECT or Mentor is registered for. Possible values: provider_led, school_led",
+        participant_type: "Either ECT or Mentor",
+        training_status: "Derived from the started, finished, deferred, withdrawn dates. Deferred is given priority over Withdrawn over Finished over Active",
+        schedule_identifier: "The name of the schedule the teacher is on, e.g., 'ecf-standard-september' or 'ecf-extended-september'.",
+        started_on: "Start date of the training period. A single mentor or ect at_school_period_id could indicated on multiple training_perioods, the started_on date of each training_period will be the date that training_period with specific characteristics started.",
+        finished_on: "End date of the training period with the specified characteristics. A single at_school_period may contain multiple training_periods, so this does not indicate that the overall at_school_period has ended. The date reflects when this training period stopped, either because the at_school_period ended or the participant was withdrawn or deferred. Withdrawals and deferrals are indicated by the deferred_at or withdrawn_at dates being present respectively",
+        deferred_at: "Datetime when the ECT or Mentor was reported as having deferred from training via the API. If NULL the ECT or Mentor has not deferred from training",
+        withdrawn_at: "Datetime when the ECT or Mentor was reported as having withdrawn from training via the API. If NULL the ECT or Mentor has not withdrawn from training",
+        deferral_reason: "The reason provided by the provider for the ECT deferring",
+        withdrawal_reason: "The reason provided by the provider for an ECT or Mentor withdrawing",
+        contract_period_year: "The year the contract period began in",
+        lead_provider_id: "ID of the lead provider responsible for the training period",
+        lead_provider: "Name of the elad provider responsible for the training period",
+        delivery_partner_external_id: "The unique identifier for delivery partners as exposed over the API.",
+        delivery_partner: "The name of the delivery_partner",
+        working_pattern: "Only available for ECTs. Possible values: Full-Time or Part-Time",
+        school_name: "Name of the school as stored in GIAS",
+        school_phase: "Phase of the school as stored in GIAS",
+        school_type: "Type of the school as stored in GIAS",
+        school_urn: "Unique Reference Number (URN) assigned to a school. Note that a URN is not persistent across structural changes: if a school closes and re-opens with materially different characteristics, a new URN is issued and a new record is created rather than updating the existing one.",
+        ect_first_became_eligible_for_training_at: "the date the ECT became eligible for DfE funding",
+        mentor_first_became_eligible_for_training_at: "the date the Mentor becmae eligible for DfE funding",
+        mentor_became_ineligible_for_funding_on: "The date the Mentor became ineligible for DfE funding triggered by mentor_became_ineligible_for_funding_reason",
+        mentor_became_ineligible_for_funding_reason: "The reason behind the mentor becoming ineligible for funding.",
+        sparsity_uplift: "",
+        high_pupil_premium: "",
+        trs_first_name: "The first name of the ECT or Mentor as held in TRS",
+        trs_last_name: "The last name of the ECT or Mentor as held in TRS",
+        email: "The email recorded on the ect or mentor at school period",
+        created_at: "When the training_period was created in the ECF2 service",
+        updated_at: "When the training_period was last updated in the ECF2 service"
+    }
+}
+SELECT
+  training_periods.training_period_id,
+  training_periods.trn,
+  training_periods.ect_at_school_period_id,
+  training_periods.mentor_at_school_period_id,
+  training_periods.training_programme,
+  training_periods.participant_type,
+  training_periods.training_status,
+  training_periods.schedule_identifier,
+  training_periods.started_on,
+  training_periods.finished_on,
+  training_periods.deferred_at,
+  training_periods.withdrawn_at,
+  training_periods.deferral_reason,
+  training_periods.withdrawal_reason,
+  training_periods.contract_period_year,
+  training_periods.lead_provider_id,
+  training_periods.lead_provider,
+  training_periods.delivery_partner_external_id,
+  training_periods.delivery_partner,
+  -- TODO: school_reported_appropriate_body_id,
+  -- TODO: appropriate_body_name,
+  training_periods.working_pattern,
+  training_periods.school_name,
+  training_periods.school_phase,
+  training_periods.school_type,
+  training_periods.school_urn,
+  training_periods.ect_first_became_eligible_for_training_at,
+  training_periods.mentor_first_became_eligible_for_training_at,
+  training_periods.mentor_became_ineligible_for_funding_on,
+  training_periods.mentor_became_ineligible_for_funding_reason,
+-- TODO:  training_periods.sparsity_uplift,
+-- TODO:  training_periods.high_pupil_premium,
+  teachers.trs_first_name,
+  teachers.trs_last_name,
+  COALESCE(ect_at_school_periods.email,mentor_at_school_periods.email) AS teacher_email,
+  training_periods.created_at,
+  training_periods.updated_at
+FROM
+  ${ref('ecf2_training_periods')} AS training_periods
+LEFT JOIN
+  ${ref('teachers_latest_ecf2')} AS teachers
+ON
+  training_periods.teacher_id = teachers.id
+LEFT JOIN
+  ${ref('ect_at_school_periods_latest_ecf2_sandbox')} AS ect_at_school_periods
+ON
+  training_periods.ect_at_school_period_id = ect_at_school_periods.id
+LEFT JOIN
+  ${ref('mentor_at_school_periods_latest_ecf2_sandbox')} AS mentor_at_school_periods
+ON
+  training_periods.mentor_at_school_period_id = mentor_at_school_periods.id
