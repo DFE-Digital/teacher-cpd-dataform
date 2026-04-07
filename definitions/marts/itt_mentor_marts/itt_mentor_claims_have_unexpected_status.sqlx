@@ -23,6 +23,6 @@ SELECT
       "invalid_provider", /*a set of historic claims that will not be paid unless the claimant changes them to a valid provider*/
       "payment_information_requested", /*The ESFA need more information, typically updated bank info, before they can pay a school's claim*/
       "payment_in_progress", /*The ESFA have received a claim that needs to be paid and conducting their internal processes*/
-      "payment_not_approved" /*TBC*/)
+      "payment_not_approved" /*Payment not approved is because the ESFA could not make a payment, usually due to missing details*/)
   GROUP BY
     earliest_claim_current_status
