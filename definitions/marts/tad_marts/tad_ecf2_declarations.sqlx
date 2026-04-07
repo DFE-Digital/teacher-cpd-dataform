@@ -5,7 +5,7 @@ config {
     type: "table",
     bigquery: {
         partitionBy: "declaration_date",
-        clusterBy: ["declaration_type",  "declaration_state", "payment_year"]
+        clusterBy: ["declaration_type", "declaration_state", "payment_year"]
     },
 
     description: "WARNING - SANDBOX DATA ONLY. All declarations for an ECT or Mentor, join LATEST preferred participant atributes from ecf2_training_periods",
@@ -37,15 +37,14 @@ SELECT
   declaration_api_id AS declaration_id,
   declaration_date,
   declaration_type,
-  declaration_state payment_statement_id,
+  declaration_state,
+  payment_statement_id,
   clawback_statement_id,
   payment_year,
   payment_status,
   clawback_status,
   training_period_id,
   mentorship_period_id,
-  participant_type,
-  lead_provider_id,
   participant_type,
   lead_provider_id,
   lead_provider,
