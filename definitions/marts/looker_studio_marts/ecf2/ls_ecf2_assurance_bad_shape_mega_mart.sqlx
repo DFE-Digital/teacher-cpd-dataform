@@ -1,0 +1,77 @@
+config {
+    type: "table",
+    tags: ["assurance bad shapes"],
+    assertions: {
+        uniqueKey: ["declaration_id"]
+    },
+    bigquery: {
+        labels: {
+            purpose: "assurance"
+        },
+        partitionBy: "declaration_date",
+        clusterBy: ["lead_provider", "teacher_id","contract_period_year","statement_cohort"]
+    },
+    description: "This is a combination mart, combining the individual 'bad shapes' assurance checks marts into a single 'mega' mart that flags which bad shape (or shapes) a declaration falls under. 'Bad Shapes' refer to declarations which have been issued incorrectly by LPs and do not meet the criteria LPs have been provided with. This mart enables the assurance team to pull lists of these incorrect declarations and share them with LPs for correction. It is designed so that each record is a single declaration with its corresponding participant and declaration details and boolean flags for each shape. Only declarations falling under at least one bad shape are included. Definitions of bad shapes can be found in the corresponding 'Bad Shapes' dashboard ",
+    columns: {
+        teacher_id: 'Teacher IDs are automatically generated for ECTs/Mentors when induction tutors register the ECT/Mentor details. Meaning a teacher id should be available for each ECF participant with an induction record.',
+        trn: {
+            description: "TRN associated with the ECT's profile.",
+            bigqueryPolicyTags: ["projects/ecf-bq/locations/europe-west2/taxonomies/6302091323314055162/policyTags/301313311867345339"]
+        },
+        declaration_id: 'ID associated with the declaration which qualifies as falling into a bad shape',
+        lead_provider: 'The name of the lead provider that submitted the declaration',
+        declaration_created_at_date: 'The date the declaration was submitted, this field is only relevant to determine which sequence should be applied, it is not used to compare declarations against each other',
+        declaration_date: 'The date the declaration was evidenced, when the participant qualified to be declared against. This field is key for determining where a declaration falls in relation to other declarations because it relates to when in the participants training it was evidenced',
+        contract_period_year: 'The contract year (formerly cohort) on the participants latest training record. This may not be the contract (cohort) they commenced training on. This mart only includes participants from cohorts from 2023 onwards, however declarations from prior contracts (cohorts) are used for the bad shape calculation.',
+        statement_contract_period_year: 'This is the contract year (formerly cohort) the declaration was submitted against. This might not match the participants training contract (cohort) because the participant may have been rolled onto a new contract (cohort) since this declaration was submitted. Note: taken from the payment_statement (clawback statement should have the same contract period year)',
+        declaration_type: 'The type of the declaration which indicates how far along a participant is in their training',
+        declaration_state: 'The financial state of the declaration - whether it has been paid yet or not and whether it is eligible for funding - only paid, payable and eligible declarations are relevant for bad shapes checks',
+        shape_1_flag: 'This flags whether the declaration meets the criteria of Bad Shape 1: the declaration falls out of that expected sequence based on the date it was evidenced. (More detail about this shape can be found on its corresponding mart + definitions on the dashboard)',
+        shape_2_flag: 'This flags whether the declaration meets the criteria of Bad Shape 2: the declaration was received in the same milestone period as the declaration date of another declaration for the same participant. (More detail about this shape can be found on its corresponding mart + definitions on the dashboard)',
+        shape_3_flag: 'This flags whether the declaration meets the criteria of Bad Shape 3: Start declarations from a 2025 statement cohort or later submitted without evidence.(More detail about this shape can be found on its corresponding mart + definitions on the dashboard)',
+        shape_4_flag: 'This flags whether the declaration meets the criteria of Bad Shape 4: Missing start declarations where a declaration later in the sequence has been received.(More detail about this shape can be found on its corresponding mart + definitions on the dashboard)',
+        shape_5_flag: 'This flags whether the declaration meets the criteria of Bad Shape 5: the declaration was evidenced too early based on when their start declaration was evidenced. (More detail about this shape can be found on its corresponding mart + definitions on the dashboard)'
+    }
+}
+
+SELECT
+  DISTINCT
+  decs.teacher_id,
+  decs.trn,
+  decs.declaration_id,
+  decs.lead_provider,
+  decs.declaration_created_at_date,
+  DATE(decs.declaration_date) AS declaration_date,
+  decs.contract_period_year,
+  decs.statement_contract_period_year,
+  decs.declaration_type,
+  decs.declaration_state,
+  shape_1.declaration_id IS NOT NULL AS shape_1_flag,
+  shape_2.declaration_id IS NOT NULL AS shape_2_flag,
+  shape_3.declaration_id IS NOT NULL AS shape_3_flag,
+  shape_4.declaration_id IS NOT NULL AS shape_4_flag,
+  shape_5.declaration_id IS NOT NULL AS shape_5_flag
+FROM
+  ${ref('ecf2_declarations_latest')} decs
+LEFT JOIN
+  ${ref('ls_ecf2_assurance_bad_shape_1_out_of_sequence')} shape_1
+USING
+  (declaration_id)
+LEFT JOIN
+  ${ref('ls_ecf2_assurance_bad_shape_2_multiple_milestone_decs')} shape_2
+USING
+  (declaration_id)
+LEFT JOIN
+  ${ref('ls_ecf2_assurance_bad_shape_3_start_without_evidence')} shape_3
+USING
+  (declaration_id)
+LEFT JOIN
+  ${ref('ls_ecf2_assurance_bad_shape_4_start_dec_not_received')} shape_4
+USING
+  (declaration_id)
+LEFT JOIN
+  ${ref('ls_ecf2_assurance_bad_shape_5_received_in_early_milestone')} shape_5
+USING
+  (declaration_id)
+WHERE
+  COALESCE(shape_1.declaration_id, shape_2.declaration_id, shape_3.declaration_id, shape_4.declaration_id, shape_5.declaration_id) IS NOT NULL
