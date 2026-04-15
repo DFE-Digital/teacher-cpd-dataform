@@ -125,6 +125,36 @@ ORDER BY cohort_year asc, milestone_start asc)`;
 }
 
 
+function ecf2_cohortMilestonesWithStartAndEndDateswithOrdering(ctx) {
+    /*This generates a list of milestone periods based on the standard final dates of milestone periods and calculates what their first date of the milestone period would be. It DOES NOT number the milestones in ascending order of milestone end date. */
+    return `
+    (SELECT
+    CAST(CONCAT((contract_year + cohort_offset),'-',milestone_start_date) AS date) AS milestone_start,
+    CAST(CONCAT((contract_year + cohort_offset),'-',milestone_end_date) AS date) AS milestone_end,
+    contract_periods.contract_year,
+    row_number () OVER (ORDER BY contract_year ASC, CAST(CONCAT((contract_year + cohort_offset),'-',milestone_start_date) AS date) ASC) AS milestone_order
+  FROM
+   UNNEST([
+    STRUCT('06-01' AS milestone_start_date, '12-31' AS milestone_end_date, 0 AS cohort_offset),
+    STRUCT('01-01', '03-31', 1),
+    STRUCT('04-01', '07-31', 1),
+    STRUCT('08-01', '12-31', 1),
+    STRUCT('01-01', '03-31', 2),
+    STRUCT('04-01', '07-31', 2),
+    STRUCT('08-01', '12-31', 2),
+    STRUCT('01-01', '03-31', 3),
+    STRUCT('04-01', '07-31', 3)
+]) AS milestones
+CROSS JOIN (
+    SELECT
+      DISTINCT(year) AS contract_year
+    FROM
+      ${ctx.ref("contract_periods_latest_ecf2_sandbox")}
+    WHERE year >= 2023) AS contract_periods
+ORDER BY contract_year asc, milestone_start asc)`;
+}
+
+
 
 function stateToStateHierarchy(stateField) {
     return `

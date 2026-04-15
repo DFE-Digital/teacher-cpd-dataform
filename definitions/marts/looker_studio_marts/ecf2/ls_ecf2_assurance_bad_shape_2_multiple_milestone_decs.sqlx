@@ -68,11 +68,11 @@ WITH
   FROM
     ${ref("ecf2_declarations_latest")} declarations
   CROSS JOIN
-    ${functions.cohortMilestonesWithStartAndEndDateswithordering(ctx)}
+    ${functions.ecf2_cohortMilestonesWithStartAndEndDateswithOrdering(ctx)}
   WHERE
     (DATE(declaration_date) BETWEEN milestone_start AND milestone_end)
     AND declaration_state IN ('eligible', 'payable', 'paid') 
-    AND statement_contract_period_year = contract_period_year)
+    AND statement_contract_period_year = contract_year)
 
 SELECT
   *,
