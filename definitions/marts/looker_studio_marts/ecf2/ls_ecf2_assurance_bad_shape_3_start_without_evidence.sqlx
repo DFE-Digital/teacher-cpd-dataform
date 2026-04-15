@@ -8,7 +8,7 @@ config {
         labels: {
             purpose: "assurance"
         },
-        partitionBy: "DATE(declaration_date)",
+        partitionBy: "declaration_date",
         clusterBy: ["lead_provider", "teacher_id"]
     },
     description: "This is #3 in a series of Assurance 'Bad Shapes' marts that identify declarations received that fall outside the expected declaration rules. This mart identifies start declarations from a 2025 statement cohort or later submitted without evidence.",

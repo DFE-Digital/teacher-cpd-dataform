@@ -9,7 +9,7 @@ config {
         labels: {
             purpose: "assurance"
         },
-        partitionBy: "DATE(declaration_date)",
+        partitionBy: "declaration_date",
         clusterBy: ["lead_provider", "teacher_id"]
     },
     description: "This is #5 in a series of Assurance 'Bad Shapes' marts that identify declarations received that fall outside the expected declaration rules. This mart identifies where a declaration was evidenced too early based on when their start declaration was evidenced. Declarations may not be evidenced too early, they must be evidenced in the corresponding milestone period to the declaration type or later. i.e. a retained-1 declaration cannot be dated before milestone period 2, a retained-4 declaration cannot be dated before milestone period 5. The acceptable milestone period a declaration can be evidenced corresponds with its position in the approved sequence of declarations (See 'earliest_declaration_can_be_received' field for correct sequence). Participants on a reduced training schedule are excluded from this bad shape and only participants currently in a cohort of 2023 or later are included",

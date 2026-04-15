@@ -9,7 +9,7 @@ config {
             purpose: "assurance"
         },
         partitionBy: "declaration_date",
-        clusterBy: ["lead_provider", "teacher_id","contract_period_year","statement_cohort"]
+        clusterBy: ["lead_provider", "teacher_id", "contract_period_year", "statement_contract_period_year"]
     },
     description: "This is a combination mart, combining the individual 'bad shapes' assurance checks marts into a single 'mega' mart that flags which bad shape (or shapes) a declaration falls under. 'Bad Shapes' refer to declarations which have been issued incorrectly by LPs and do not meet the criteria LPs have been provided with. This mart enables the assurance team to pull lists of these incorrect declarations and share them with LPs for correction. It is designed so that each record is a single declaration with its corresponding participant and declaration details and boolean flags for each shape. Only declarations falling under at least one bad shape are included. Definitions of bad shapes can be found in the corresponding 'Bad Shapes' dashboard ",
     columns: {

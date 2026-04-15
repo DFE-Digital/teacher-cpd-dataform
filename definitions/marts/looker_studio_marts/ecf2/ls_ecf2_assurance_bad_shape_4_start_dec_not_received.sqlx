@@ -8,7 +8,7 @@ config {
         labels: {
             purpose: "assurance"
         },
-        partitionBy: "DATE(declaration_date)",
+        partitionBy: "declaration_date",
         clusterBy: ["lead_provider", "teacher_id"]
     },
     description: "This is #4 in a series of Assurance 'Bad Shapes' marts that identify declarations received that fall outside the expected declaration rules. This mart identifies missing start declarations where a declaration later in the sequence has been received. Participants on a reduced schedule with only a completed declaration are excluded from a mart as they do not need to receive a started declaration if they only have received a completed declaration. Only participants with a current cohort of 2023 or later are included",

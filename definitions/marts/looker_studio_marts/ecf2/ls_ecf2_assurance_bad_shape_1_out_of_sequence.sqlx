@@ -9,7 +9,7 @@ config {
         labels: {
             purpose: "assurance"
         },
-        partitionBy: "DATE(declaration_date)",
+        partitionBy: "declaration_date",
         clusterBy: ["lead_provider", "teacher_id"]
     },
     description: "This is #1 in a series of Assurance 'Bad Shapes' marts that identify declarations received that fall outside the expected declaration rules. Each declaration type has an expected sequence position (see 'expected_declaration_sequence_position' field for sequence), this mart checks if the declaration falls out of that expected sequence based on the date it was evidenced. It checks the sequence of the declaration_dates (evidence date) of the declarations received and checks whether a declaration was evidenced out of sequence compared to the declarations evidenced before and after the given declaration. The logic in this mart is adjusted to accomodate a change in the approved sequence for declarations submitted after '01/08/2025' when 'completed' declarations were shifted to be evidenced before 'extended' type declarations. Prior to that date, 'completed' declarations were to be evidenced last. This mart modifies the expected sequence based on when those completed and extended declarations were received. Similarly, adjustments are included to permit ECTs on a reduced schedule to receive a 'completed' declaration at any point to accomodate their reduced period of training. The sequence of declarations evidenced on the same day are not considered here as they fall under a separate bad shapes mart. Only participants with a current cohort of 2023 or later are included",

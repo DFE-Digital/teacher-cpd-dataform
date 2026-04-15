@@ -8,7 +8,7 @@ config {
         labels: {
             purpose: "assurance"
         },
-        partitionBy: "DATE(declaration_date)",
+        partitionBy: "declaration_date",
         clusterBy: ["lead_provider", "teacher_id"]
     },
     description: "This is #2 in a series of Assurance 'Bad Shapes' marts that identify declarations received that fall outside the expected declaration rules. This mart identifies declarations that were received in the same milestone period as the declaration date of another declaration for the same participant. It distinguishes between multiple declarations received on the first or last day of milestone period, which possibly indicates an acceptable dummy date, and multiple declarations received after day 1 of milestone period and before final day of milestone period. Declarations are excluded if they are one of multiples received on a dummy date. Only participants with a current cohort of 2023 or later are included",
