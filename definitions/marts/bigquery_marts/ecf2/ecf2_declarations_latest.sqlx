@@ -64,7 +64,7 @@ config {
 }
 
 SELECT *,
--- TODO: handle "no_payment" state
+-- TODO: handle "no_payment" state (will need to check after Apr28 but should be fine as-is)
 ${functions.stateToStateHierarchy('declaration_state')} AS state_hierarchy,
 ${functions.declarationTypeToDeclarationTypeHierarchy('declaration_type')} AS type_hierarchy,
 

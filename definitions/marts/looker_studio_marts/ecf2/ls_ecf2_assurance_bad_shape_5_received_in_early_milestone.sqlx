@@ -1,0 +1,103 @@
+config {
+    type: "table",
+    tags: ["assurance bad shapes"],
+    assertions: {
+        uniqueKey: ["declaration_id"],
+        rowConditions: ['earliest_declaration_can_be_received is not null']
+    },
+    bigquery: {
+        labels: {
+            purpose: "assurance"
+        },
+        partitionBy: "declaration_date",
+        clusterBy: ["lead_provider", "teacher_id"]
+    },
+    description: "This is #5 in a series of Assurance 'Bad Shapes' marts that identify declarations received that fall outside the expected declaration rules. This mart identifies where a declaration was evidenced too early based on when their start declaration was evidenced. Declarations may not be evidenced too early, they must be evidenced in the corresponding milestone period to the declaration type or later. i.e. a retained-1 declaration cannot be dated before milestone period 2, a retained-4 declaration cannot be dated before milestone period 5. The acceptable milestone period a declaration can be evidenced corresponds with its position in the approved sequence of declarations (See 'earliest_declaration_can_be_received' field for correct sequence). Participants on a reduced training schedule are excluded from this bad shape and only participants currently in a cohort of 2023 or later are included",
+    columns: {
+        declaration_id: 'ID associated with the declaration which qualifies as falling into a bad shape',
+        declaration_type: 'The type of the declaration which indicates how far along a participant is in their training',
+        declaration_created_at_date: 'The date the declaration was submitted, this field is only relevant to determine which sequence should be applied, it is not used to compare declarations against each other',
+        declaration_date: 'The date the declaration was evidenced, when the participant qualified to be declared against. This field is key for determining where a declaration falls in relation to other declarations because it relates to when in the participants training it was evidenced',
+        teacher_id: "ID of each participant's profile.",
+        trn: {
+            description: "TRN associated with the ECT's profile.",
+            bigqueryPolicyTags: ["projects/ecf-bq/locations/europe-west2/taxonomies/6302091323314055162/policyTags/301313311867345339"]
+        },
+        declaration_state: 'The financial state of the declaration - whether it has been paid yet or not and whether it is eligible for funding - only paid, payable and eligible declarations are relevant for bad shapes checks',
+        lead_provider: 'The name of the lead provider that submitted the declaration',
+        payment_statement_id: 'The associated financial payment statement the declaration was included on',
+        clawback_statement_id: 'The associated financial clawback statement the declaration was included on',
+        schedule_identifier: 'The training schedule of the participant - this indicates when they started on the programme and whether they followed a standard pattern of training. Reduced schedules do not have to have a started declaration and their completed declaration can be submitted at any point because they do not have to complete the full length of training',
+        participant_type: 'Whether the participant is an ECT or a mentor',
+        contract_period_year: 'The contract year (formerly cohort) on the participants latest training record. This may not be the contract (cohort) they commenced training on. This mart only includes participants from cohorts from 2023 onwards, however declarations from prior contracts (cohorts) are used for the bad shape calculation.',
+        statement_contract_period_year: 'This is the contract year (formerly cohort) the declaration was submitted against. This might not match the participants training contract (cohort) because the participant may have been rolled onto a new contract (cohort) since this declaration was submitted. Note: taken from the payment_statement (clawback statement should have the same contract period year)',
+
+        earliest_declaration_can_be_received: "This is the earliest milestone period we would expect this declaration type to be evidenced in. Earliest Period: S:1, R1:2, R2:3, R3:4, R4:5, C:6, Extended declarations received after 01/08/2025 are E1:7, E2:8, E3:9, prior to that date they are E1:6, E2:7, E3:8"
+    }
+}
+
+  /*This identifies the first milestone period in which a participant received a funded start declaration. This will be used as a base milestone to compare with the other milestones in which the participant received declarations. */
+WITH
+  started_declaration_milestones AS (
+  SELECT
+    teacher_id,
+    MIN(milestone_order) AS milestone_start_received
+  FROM
+    ${ref("ecf2_declarations_latest")} declarations
+  CROSS JOIN
+    ${functions.cohortMilestonesWithStartAndEndDateswithordering(ctx)} AS milestone_dates
+  WHERE
+    (DATE(declaration_date) BETWEEN milestone_start AND milestone_end)
+    AND declaration_type = 'started'
+    AND declaration_state IN ('eligible', 'payable', 'paid')
+    AND declarations.statement_contract_period_year = milestone_dates.cohort_year  -- TODO: refactor to contract periods? 
+  GROUP BY
+    teacher_id)
+    /*This identifies declarations received for a participant and induction details from their latest induction record. It then merges in the correct sequence for declarations and the details of the participant's started declaration.*/
+    /*It identifies the milestone in which the current declaration was evidenced and normalises its position based on when the start declaration was received and compares that to the expected sequence of declarations to check if it was received early. */
+    /*Reduced participant's declarations are excluded from this shape because their training can be abridged. Only participants currently in the 2023 cohort or later are included*/
+
+SELECT
+  declaration_id,
+  declarations.declaration_type,
+  DATE(declaration_created_at_date) AS declaration_created_at_date,
+  declaration_date,
+  teacher_id,
+  trn,
+  declaration_state,
+  lead_provider,
+  payment_statement_id,
+  clawback_statement_id,  
+  schedule_identifier,
+  declarations.participant_type,
+  contract_period_year,
+  statement_contract_period_year,
+
+  earliest_declaration_can_be_received,
+  milestone_start_received,
+  milestone_order AS milestone_current_declaration_was_received,
+  (milestone_order - milestone_start_received + 1) AS milestone_delta
+FROM
+  ${ref("ecf2_declarations_latest")} declarations
+INNER JOIN
+  ${functions.correctOrderDeclarationsTypesShouldBeReceived()} AS declaration_sequence_list
+ON
+  declarations.declaration_type = declaration_sequence_list.declaration_type
+  AND declarations.participant_type = declaration_sequence_list.participant_type
+  AND DATE(declaration_created_at_date) BETWEEN declaration_date_start
+  AND declaration_date_end
+INNER JOIN
+  started_declaration_milestones
+USING
+  (teacher_id)
+CROSS JOIN
+  ${functions.cohortMilestonesWithStartAndEndDateswithordering(ctx)}
+WHERE
+  (DATE(declaration_date) BETWEEN milestone_start
+    AND milestone_end)
+  AND declaration_state IN ( 'eligible', 'payable', 'paid')
+  and statement_contract_period_year = contract_period_year
+  AND (milestone_order - milestone_start_received + 1) < earliest_declaration_can_be_received
+  AND (declarations.schedule_identifier NOT LIKE '%reduced%'
+    OR declarations.declaration_type <> 'completed')
+  AND contract_period_year >= 2025
