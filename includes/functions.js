@@ -197,6 +197,7 @@ module.exports = {
     yearStartDateToAcademicYearString,
     correctOrderDeclarationsTypesShouldBeReceived,
     cohortMilestonesWithStartAndEndDateswithordering,
+    ecf2_cohortMilestonesWithStartAndEndDateswithOrdering,
     stateToStateHierarchy,
     declarationTypeToDeclarationTypeHierarchy
 };
