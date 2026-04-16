@@ -32,7 +32,7 @@ config {
         working_pattern: "Only available for ECTs. Possible values: Full-Time or Part-Time",
         school_id: "The ID of the school",
         school_reported_appropriate_body_id: "The ID of the appropriate body responsible for this training_period as reported by the school",
-        appropriate_body_name: "The name of the appropriate body.",
+        school_reported_appropriate_body: "The name of the appropriate body.",
         lead_provider_id: "ID of the lead provider responsible for the training period.",
         lead_provider: "The name of the lead_provider",
         delivery_partner_id: "The ID of the delivery partner",
