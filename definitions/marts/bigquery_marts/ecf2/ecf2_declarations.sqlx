@@ -55,12 +55,14 @@ config {
         delivery_partner_id: "The ID of the delivery partner",
         delivery_partner: "The name of the delivery partner",
         delivery_partner_external_id: "The unique identifier for delivery partners as exposed over the API.",
+        school_reported_appropriate_body_id: "The appropriate body indicated on the ECT or Mentors training period associated with this declaration",
+        school_reported_appropriate_body: "ID of the appropriate body indicated on the ECT or Mentors training period associated with this declaration",
+        contract_period_year: "The contract period the training period is a part of",
         voided_by_user_at: "Timestamp when a declaration was voided by a DfE finance or internal user via the finance/admin console.",
         voided_by_user_id: "The user_id of the DfE that voided the declaration via the finance/admin console.",
         payment_year: "The year of the payment taken from the statement",
         sparsity_uplift: "Indicated whether the sparisty uplift payment is applicable to this participant's declaration (started declarations only)",
-        pupil_premium_uplift: "Indicated whether the pupil premium uplift payment is applicable to this participants declaration (started declarations only)",
-
+        pupil_premium_uplift: "Indicated whether the pupil premium uplift payment is applicable to this participants declaration (started declarations only)"
     }
 }
 

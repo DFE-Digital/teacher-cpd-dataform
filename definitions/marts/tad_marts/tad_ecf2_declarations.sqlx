@@ -5,18 +5,19 @@ config {
     type: "table",
     bigquery: {
         partitionBy: "declaration_date",
-        clusterBy: ["declaration_type", "declaration_state", "payment_year"]
+        clusterBy: ["declaration_type", "declaration_state", "statement_contract_period_year"]
     },
 
     description: "WARNING - SANDBOX DATA ONLY. All declarations for an ECT or Mentor, join LATEST preferred participant atributes from ecf2_training_periods",
     columns: {
-        declaration_api_id: "The id of the declaration as it is served to Lead Providers in the API.",
+        declaration_id: "The id of the declaration as it is served to Lead Providers in the API.",
         declaration_date: "The date the milestone can be evidenced as having been met, when the participant qualified to be declared against. This field is key for determining where a declaration falls in relation to other declarations because it relates to when in the participants training it was evidenced",
         declaration_type: "The type of the declaration which indicates how far along a participant is in their training",
         declaration_state: "Dervied from payment and clawback status. If a clawback is present it takes priority over payment_status.",
+        funded_declaration: "Indicating whether the declaration has been funded by the DfE. If the declaration was funded by the DfE and is in the state awaiting_clawback or clawed_back this field will be False.",
         payment_statement_id: "The id of the statement for a payment. A populated statement id does not necessarily infer a paid status. Refer to the payment_status instead.",
         clawback_statement_id: "The of the statement for a clawback. A populated statement id does not necessarily infer a clawbacked status. Refer to the clawback_status instead.",
-        payment_year: "The statement the declaration is due to be paid or clawed back on",
+        statement_contract_period_year: "A declaration will only ever have a payment/clawback statement within the same contract period/cohort (there is a service validation in place for this).",
         payment_status: "The payment state of the declaration. Possible values are: no_payment, eligible, payable, paid, voided",
         clawback_status: "The clawback status of the declaration. Possible values are: no_clawback, awaiting_clawback, clawed_back",
         training_period_id: "The id of the latest preferred training period for an ECT or Mentor. This determines what period of time the Mentor or ECT was training in, the school and school partnership they are registered with, their training programme and relevant mentorship period data. A new record is created when an ECT or Mentor has been registered for training for the first time or the ECT, resumed their training (deferred to active) or Mentor has changed school, cohort or provide",
@@ -28,19 +29,20 @@ config {
         delivery_partner: "The name of the delivery partner",
         sparsity_uplift: "Indicated whether the sparisty uplift payment is applicable to this participant's declaration (started declarations only)",
         pupil_premium_uplift: "Indicated whether the pupil premium uplift payment is applicable to this participants declaration (started declarations only)",
-        created_at: "When the training_period was created in the ECF2 service",
-        updated_at: "When the training_period was last updated in the ECF2 service"
+        declaration_created_at_date: "When the training_period was created in the ECF2 service",
+        declaration_updated_at_date: "When the training_period was last updated in the ECF2 service"
     }
 }
 
 SELECT
-  declaration_api_id AS declaration_id,
+  declaration_external_id AS declaration_id,
   declaration_date,
   declaration_type,
   declaration_state,
+  funded_declaration,
   payment_statement_id,
   clawback_statement_id,
-  payment_year,
+  statement_contract_period_year,
   payment_status,
   clawback_status,
   training_period_id,
@@ -52,7 +54,7 @@ SELECT
   delivery_partner_external_id AS delivery_partner_id,
   sparsity_uplift,
   pupil_premium_uplift,
-  created_at,
-  updated_at
+  declaration_created_at_date,
+  declaration_updated_at_date
 FROM
   ${ref('ecf2_declarations')}

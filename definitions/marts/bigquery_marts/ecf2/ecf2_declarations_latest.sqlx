@@ -44,6 +44,8 @@ config {
         lead_provider: "The name of the lead_provider",
         delivery_partner_id: "The ID of the delivery partner",
         delivery_partner: "The name of the delivery partner",
+        school_reported_appropriate_body_id: "The appropriate body indicated on the ECT or Mentors training period associated with this declaration",
+        school_reported_appropriate_body: "ID of the appropriate body indicated on the ECT or Mentors training period associated with this declaration",
         mentorship_period_id: "",
         payment_statement_id: "The id of the statement for a payment. A populated statement id does not necessarily infer a paid status. Refer to the payment_status instead.",
         clawback_statement_id: "The of the statement for a clawback. A populated statement id does not necessarily infer a clawbacked status. Refer to the clawback_status instead.",
