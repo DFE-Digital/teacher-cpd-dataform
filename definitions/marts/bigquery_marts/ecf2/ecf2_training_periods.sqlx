@@ -134,7 +134,7 @@ WITH base_training_periods AS (
 
     -- appropriate body
     ect.school_reported_appropriate_body_id,
-    ab.name AS appropriate_body_name,
+    ab.name AS school_reported_appropriate_body,
 
     ect.working_pattern,  -- note: only available for ECTs
 
