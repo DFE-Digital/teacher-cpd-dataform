@@ -94,11 +94,14 @@ SELECT
   d.updated_at AS declaration_updated_at_date,
   CASE
     WHEN d.clawback_statement_id IS NOT NULL THEN d.clawback_status
-    WHEN d.payment_statement_id IS NOT NULL THEN d.payment_status
     ELSE d.payment_status
   END AS declaration_state,
   d.payment_status,
-  IFNULL(d.declaration_state IN ('paid', 'eligible', 'payable'), FALSE) AS funded_declaration,
+  IFNULL((
+    CASE
+      WHEN d.clawback_statement_id IS NOT NULL THEN d.clawback_status
+      ELSE d.payment_status
+    END) IN ('paid', 'eligible', 'payable'), FALSE) AS funded_declaration,
   d.payment_statement_id,
   d.clawback_status,
   d.clawback_statement_id,
