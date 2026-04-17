@@ -41,6 +41,7 @@ WITH
     DATE(induction_period_created_at) >= earliest_induction_period_created_at
   QUALIFY
     ROW_NUMBER() OVER (PARTITION BY trn ORDER BY induction_period_created_at DESC ) = 1),
+  -- The earliest_inductions_for_teachers_in_ecf1 CTE ensures we only select the first training period for an ECT to prevent ECTs who ahve rolled over from a previous year appearing in the KPI. AB & Regs team will have more information on this
   earliest_inductions_for_teachers_in_ecf1 AS (
   SELECT
     user_id,
