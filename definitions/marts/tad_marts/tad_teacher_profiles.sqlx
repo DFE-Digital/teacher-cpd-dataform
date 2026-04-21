@@ -2,6 +2,7 @@ config {
     schema: "TAD",
     database: "ecf-bq",
     name: "teacher_profiles",
+    tags: ["TAD"],
     type: "table",
     assertions: {
         uniqueKey: ["teacher_profile_id"]
