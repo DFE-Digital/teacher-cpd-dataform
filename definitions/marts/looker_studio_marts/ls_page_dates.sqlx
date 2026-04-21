@@ -1,5 +1,6 @@
 config {
     type: "incremental",
+    tags: ["cross_programme"],
     assertions: {
         uniqueKey: ["application", "page_path", "date"]
     },

@@ -1,5 +1,6 @@
 config {
     type: "table",
+    tags: ["cross_programme"],
     assertions: {
         uniqueKey: ["id"]
     },
