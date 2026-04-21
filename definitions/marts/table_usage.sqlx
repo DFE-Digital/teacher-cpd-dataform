@@ -1,5 +1,6 @@
 config {
     type: "incremental",
+    tags: ['cross']
     description: "Monitors analytical table usage on each day of each table in the Teacher CPD project.",
     uniqueKey: ["project", "table_name", "dataset", "date", "query_source"],
    columns: {
