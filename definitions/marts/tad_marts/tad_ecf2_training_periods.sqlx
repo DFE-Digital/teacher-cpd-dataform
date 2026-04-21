@@ -19,7 +19,7 @@ config {
         ect_at_school_period_id: "The id of an ect spending a period of time at a school. Must be null when mentor_at_school_period_id is present",
         mentor_at_school_period_id: "The id of a mentor spending a period of time at a school. Must be null when ect_at_school_period_id is present",
         training_programme: "The type of training the ECT or Mentor is registered for. Possible values: provider_led, school_led",
-        participant_type: "Either ECT or Mentor",
+        participant_type: "Either ect or mentor",
         training_status: "Derived from the started, finished, deferred, withdrawn dates. Deferred is given priority over Withdrawn over Finished over Active",
         schedule_identifier: "The name of the schedule the teacher is on, e.g., 'ecf-standard-september' or 'ecf-extended-september'.",
         started_on: "Start date of the training period. A single mentor or ect at_school_period_id could indicated on multiple training_perioods, the started_on date of each training_period will be the date that training_period with specific characteristics started.",
