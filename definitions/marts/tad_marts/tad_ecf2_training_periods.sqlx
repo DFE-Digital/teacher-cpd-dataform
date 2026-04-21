@@ -2,6 +2,7 @@ config {
     schema: "TAD",
     database: "ecf-bq",
     name: "tad_ecf2_training_periods",
+    tags: ["TAD"],
     type: "table",
 
     bigquery: {

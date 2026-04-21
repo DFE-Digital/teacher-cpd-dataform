@@ -1,5 +1,6 @@
 config {
     type: "incremental",
+    tags: ["cross_programme"],
     assertions: {
         uniqueKey: ["application", "session_id", "pageview_number_in_session", "user_id"],
         rowConditions: ["next_step != page_path"]

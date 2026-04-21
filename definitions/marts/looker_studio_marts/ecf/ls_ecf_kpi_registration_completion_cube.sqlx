@@ -1,6 +1,6 @@
 config {
     type: "incremental",
-    tags: ["kpi"],
+    tags: ["kpi","ecf1"],
     assertions: {
       uniqueKey: ["date"]
     },

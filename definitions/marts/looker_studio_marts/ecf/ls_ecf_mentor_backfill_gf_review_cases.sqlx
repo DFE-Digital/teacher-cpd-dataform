@@ -1,5 +1,6 @@
 config {
     type: "table",    
+    tags: ["ecf1"],
     bigquery: {
       clusterBy: ["used_school_urn"]
     },

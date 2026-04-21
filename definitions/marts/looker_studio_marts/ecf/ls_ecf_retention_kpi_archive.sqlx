@@ -1,5 +1,6 @@
 config {
     type: "incremental",
+    tags: ["ecf1"],
     uniqueKey: ["lp_participant_unique_id"],
     bigquery: {
         clusterBy: ["lead_provider_name", "participant_type"]

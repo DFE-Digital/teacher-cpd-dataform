@@ -1,6 +1,7 @@
 config {
     database: "ecf-bq",
     name: "ecf2_post_2021_full_teacher_induction_periods",
+    tags: ["ecf2"],
     type: "table",
     assertions: {
         uniqueKey: ["unique_id"]

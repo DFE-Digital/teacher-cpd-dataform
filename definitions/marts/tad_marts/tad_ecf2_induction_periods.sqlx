@@ -2,6 +2,7 @@ config {
     schema: "TAD",
     database: "ecf-bq",
     name: "ecf2_induction_periods",
+    tags: ["TAD"],
     type: "table",
     assertions: {
         uniqueKey: ["unique_id"]

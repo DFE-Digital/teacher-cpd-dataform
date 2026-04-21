@@ -1,5 +1,7 @@
 config {
     type: "table",
+    tags: ["cross_programme"],
+
     uniqueKey: ["ticket_id"],
     bigquery: {
         partitionBy: "created_at",

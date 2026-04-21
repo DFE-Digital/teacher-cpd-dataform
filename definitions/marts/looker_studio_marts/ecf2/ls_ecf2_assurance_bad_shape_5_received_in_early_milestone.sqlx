@@ -1,6 +1,6 @@
 config {
     type: "table",
-    tags: ["assurance bad shapes"],
+    tags: ["ecf2","assurance bad shapes"],
     assertions: {
         uniqueKey: ["declaration_id"],
         rowConditions: ['earliest_declaration_can_be_received is not null']
