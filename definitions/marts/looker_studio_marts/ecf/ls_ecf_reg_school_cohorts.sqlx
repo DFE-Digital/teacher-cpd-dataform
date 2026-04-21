@@ -1,5 +1,6 @@
 config {
     type: "table",
+    tags: ["ecf1"],
     assertions: {},
     bigquery: {
         partitionBy: "DATE(school_cohort_created_at)",
