@@ -1,5 +1,6 @@
 config {
     type: "incremental",
+    tags: ["ecf1"],
     uniqueKey: ["induction_date_unique_id"],
     bigquery: {
         partitionBy: "version_date_stamp",
