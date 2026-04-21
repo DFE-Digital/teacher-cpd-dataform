@@ -1,5 +1,6 @@
 config {
     type: "table",
+    tags: ['ecf2'],
     assertions: {
         uniqueKey: ["trn"]
     },

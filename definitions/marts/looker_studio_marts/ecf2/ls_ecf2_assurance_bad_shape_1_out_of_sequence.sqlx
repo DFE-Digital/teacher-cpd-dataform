@@ -1,6 +1,6 @@
 config {
     type: "table",
-    tags: ["assurance bad shapes"],
+    tags: ["ecf2","assurance bad shapes"],
     assertions: {
         uniqueKey: ["declaration_id"],
         rowConditions: ['expected_declaration_sequence_position is not null']
