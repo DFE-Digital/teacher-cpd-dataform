@@ -2,6 +2,7 @@ config {
     schema: dataform.projectConfig.schemaSuffix ? "dataform" : "itt_mentor",
     database: "ecf-bq",
     name: "ecf_mentors_and_providers",
+    tags: ["itt_mentor"],
     type: "table",
     assertions: {
         uniqueKey: ["TRN", "provider_name"],

@@ -1,6 +1,7 @@
 config {
     database: "ecf-bq",
     name: "mentors_and_providers_itt_ecf_combined",
+    tags: ["itt_mentor"],
     type: "table",
     assertions: {
         uniqueKey: ["TRN", "provider_name"]
