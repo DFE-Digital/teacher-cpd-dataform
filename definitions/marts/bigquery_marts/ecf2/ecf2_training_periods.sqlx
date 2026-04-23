@@ -16,6 +16,10 @@ config {
         expression_of_interest_id: "The primary key of the active_lead_providers table. The expression of interest indicates which lead provider wish to deliver the training to a participant. Only always populated when training_programme is provider-led AND there is no partnership (identified by the presence of school_partnership_id).",
         ect_at_school_period_id: "The id of an ect spending a period of time at a school. Must be null when mentor_at_school_period_id is present",
         mentor_at_school_period_id: "The id of a mentor spending a period of time at a school. Must be null when ect_at_school_period_id is present",
+        ect_at_school_period_started_on: "The start date of the school period for an ECT. The at_school_period start date can be different from the training period start date. However, the training period dates should always be within school period dates.",
+        ect_at_school_period_finished_on: "The end date of the school period for an ECT. The at_school_period end date can be different from the training period end date. However, the training period dates should always be within school period dates.",
+        mentor_at_school_period_started_on: "The start date of the school period for a Mentor. The at_school_period start date can be different from the training period start date. However, the training period dates should always be within school period dates.",
+        mentor_at_school_period_finished_on: "The end date of the school period for an Mentor. The at_school_period end date can be different from the training period end date. However, the training period dates should always be within school period dates.",
         participant_type: "Either ect or mentor. Derived from ect or mentor_at_school_period_id.",
         training_programme: "The type of training the ECT or Mentor is registered for. Possible values: provider_led, school_led",
         teacher_id: "The internal CPD programme id for a teacher",
@@ -64,7 +68,6 @@ config {
 
 WITH base_training_periods AS (
   -- CTE to consolidate ect_/mentor_at_school_periods with training_periods
-  -- no further transformations done at this stage (easier to debug)
   SELECT 
     tp.id AS training_period_id,
     tp.school_partnership_id,  -- note: school_partnership_id is NULL if training_programme is school-led
@@ -73,6 +76,7 @@ WITH base_training_periods AS (
     tp.mentor_at_school_period_id,
      
     -- derive a sinlge participant type column
+    -- COALESCE avoided to silently pick ect over mentors
     CASE 
       WHEN tp.ect_at_school_period_id IS NOT NULL AND tp.mentor_at_school_period_id IS NULL THEN 'ect'
       WHEN tp.mentor_at_school_period_id IS NOT NULL AND tp.ect_at_school_period_id IS NULL THEN 'mentor'
@@ -109,10 +113,11 @@ WITH base_training_periods AS (
     tp.withdrawal_reason,
 
     -- at_school_periods 
-    -- ect.teacher_id AS ect_teacher_id,
-    -- mentor.teacher_id AS mentor_teacher_id,
-    -- ect.school_id AS ect_school_id,
-    -- mentor.school_id AS mentor_school_id,  
+    ect.started_on as ect_at_school_period_started_on,
+    ect.finished_on as ect_at_school_period_finished_on,
+    mentor.started_on as mentor_at_school_period_started_on,
+    mentor.finished_on as mentor_at_school_period_finished_on,
+    
     -- consolidate one school_id field  
     -- CASE over COALESCE to avoid silently picking the ect_school_id
     CASE 
