@@ -14,93 +14,113 @@ config {
         mentorship_period_id: "PK of the mentorship_periods table",
         ect_at_school_period_id: "PK of the ect_at_school_periods table. Indicates the ECT in the ECT - Mentor relationship.",
         mentor_at_school_period_id: "PK of the mentor_at_school_periods table. Indicates the Mentor in the ECT - Mentor relationship.",
+        mentorship_status: "Status of the mentorship period derived from started/finished date. Possible values active/finished.",
         started_on: "When the mentorship period started",
         finished_on: "When the mentorship period finished",
         ect_teacher_id: "PK of the teachers table. Teacher ID of the ECT.",
+        ect_teacher_external_id: "The API id of the teacher in the service.",
         ect_trn: {
             description: "The ECTs TRN",
             bigqueryPolicyTags: ["projects/ecf-bq/locations/europe-west2/taxonomies/6302091323314055162/policyTags/301313311867345339"]
         },
         ect_school_id: "The PK of the ecf2_schools table, taken from the ect_at_school_period. This should be the same as the mentor_school_id.",
-        ect_school_urn: "The urn of the school indicated on the ect_at_school_period. This should be the same as the mentor_school_urn.",
+        ect_school_urn: "The urn of the school indicated on the ect_at_school_period. Mentors / ECTs can be at different schools.",
+        ect_school: "The name of the school indicated on the ect_at_school_period",
         mentor_teacher_id: "PK of the teachers table. Teacher ID of the mentor.",
+        mentor_teacher_external_id: "The API id of the teacher in the service.",
         mentor_trn: {
             description: "The mentors TRN",
             bigqueryPolicyTags: ["projects/ecf-bq/locations/europe-west2/taxonomies/6302091323314055162/policyTags/301313311867345339"]
         },
         mentor_school_id: "The PK of the ecf2_schools table, taken from the mentor_at_school_period. This should be the same as the ect_school_id.",
         mentor_school_urn: "The urn of the school indicated on the mentor_at_school_period. This should be the same as the ect_school_urn.",
+        mentor_school: "The name of the school indicated on the mentor_at_school_period",
         created_at: "When the mentorship was created.",
         updated_at: "When the mentorship was last updated"
     }
 }
 
-WITH
-  teachers AS (
+WITH teachers AS (
   SELECT
     id,
+    api_id AS teacher_external_id,
     trn
   FROM
-    ${ref('teachers_latest_ecf2_sandbox')} ),
-  ect_periods AS (
+    ${ref('teachers_latest_ecf2_sandbox')}
+),
+
+
+ect_periods AS (
   SELECT
     id,
     teacher_id,
     school_id
   FROM
-    ${ref('ect_at_school_periods_latest_ecf2_sandbox')} ),
-  mentor_periods AS (
+    ${ref('ect_at_school_periods_latest_ecf2_sandbox')}
+),
+
+mentor_periods AS (
   SELECT
     id,
     teacher_id,
     school_id
   FROM
-    ${ref('mentor_at_school_periods_latest_ecf2_sandbox')} ),
-  schools AS (
+    ${ref('mentor_at_school_periods_latest_ecf2_sandbox')}
+),
+
+schools AS (
   SELECT
     school_id,
-    school_urn
+    school_urn,
+    school_name AS school
   FROM
-    ${ref('ecf2_schools')} )
+    ${ref('ecf2_schools')}
+)
+
 SELECT
   mentorships.id AS mentorship_period_id,
   mentorships.ect_at_school_period_id,
   mentorships.mentor_at_school_period_id,
+  -- derive a mentorship status (active/finished)
+  CASE
+    WHEN mentorships.finished_on IS NOT NULL THEN 'finished'
+    ELSE 'active'
+  END AS mentorship_status,
   mentorships.started_on,
   mentorships.finished_on,
-  ect_periods.teacher_id AS ect_teacher_id,
-  ect_teacher.trn AS ect_trn,
-  ect_periods.school_id AS ect_school_id,
-  ect_school.school_urn AS ect_school_urn,
+ -- mentor info
   mentor_periods.teacher_id AS mentor_teacher_id,
+  mentor_teacher.teacher_external_id AS mentor_teacher_external_id,
   mentor_teacher.trn AS mentor_trn,
   mentor_periods.school_id AS mentor_school_id,
   mentor_school.school_urn AS mentor_school_urn,
+  mentor_school.school AS mentor_school,
+  -- ect info
+  ect_periods.teacher_id AS ect_teacher_id,
+  ect_teacher.teacher_external_id AS ect_teacher_external_id,
+  ect_teacher.trn AS ect_trn,
+  ect_periods.school_id AS ect_school_id,
+  ect_school.school_urn AS ect_school_urn,
+  ect_school.school AS ect_school,
+  -- created/updated fields
   mentorships.created_at,
   mentorships.updated_at
 FROM
   ${ref('mentorship_periods_latest_ecf2_sandbox')} AS mentorships
-LEFT JOIN
-  ect_periods AS ect_periods
-ON
-  mentorships.ect_at_school_period_id = ect_periods.id
-LEFT JOIN
-  mentor_periods AS mentor_periods
-ON
-  mentorships.mentor_at_school_period_id = mentor_periods.id
-LEFT JOIN
-  teachers AS ect_teacher
-ON
-  ect_periods.teacher_id = ect_teacher.id
-LEFT JOIN
-  teachers AS mentor_teacher
-ON
-  mentor_periods.teacher_id = mentor_teacher.id
-LEFT JOIN
-  schools AS ect_school
-ON
-  ect_periods.school_id = ect_school.school_id
-LEFT JOIN
-  schools AS mentor_school
-ON
-  mentor_periods.school_id = mentor_school.school_id
+LEFT JOIN ect_periods AS ect_periods
+  ON mentorships.ect_at_school_period_id = ect_periods.id
+
+LEFT JOIN mentor_periods AS mentor_periods
+  ON mentorships.mentor_at_school_period_id = mentor_periods.id
+
+LEFT JOIN teachers AS ect_teacher
+  ON ect_periods.teacher_id = ect_teacher.id
+
+LEFT JOIN teachers AS mentor_teacher
+  ON mentor_periods.teacher_id = mentor_teacher.id
+
+LEFT JOIN schools AS ect_school
+  ON ect_periods.school_id = ect_school.school_id
+
+LEFT JOIN schools AS mentor_school
+  ON mentor_periods.school_id = mentor_school.school_id
