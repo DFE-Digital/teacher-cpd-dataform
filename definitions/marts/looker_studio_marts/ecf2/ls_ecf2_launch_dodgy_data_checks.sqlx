@@ -1,0 +1,606 @@
+config {
+    name: "ls_ecf2_launch_dodgy_data_checks",
+    type: "table",
+    tags: ['ecf2'],
+    bigquery: {
+        clusterBy: ["check_name"]
+    },
+    description: "",
+    columns: {
+        check_name: '',
+        bad_record_id_type: '',
+        bad_record_id: {
+            description: '',
+            bigqueryPolicyTags: ["projects/ecf-bq/locations/europe-west2/taxonomies/6302091323314055162/policyTags/301313311867345339"]
+        }
+    }
+}
+
+WITH training_periods AS (
+  SELECT
+    *
+  FROM
+   ${ref('ecf2_training_periods')} ),
+
+teachers as (
+    SELECT *
+    FROM ${ref('teachers_latest_ecf2_sandbox')}
+  ),
+
+schools as (
+    SELECT *
+    FROM ${ref('schools_latest_ecf2_sandbox')}
+  ),
+
+mentorship_periods as (
+  SELECT *
+  FROM ${ref('ecf2_mentorship_periods')}
+),
+
+earliest_training_periods_per_ect_provider_led AS (
+  SELECT
+    trn,
+    started_on,
+    finished_on,
+    schedule_identifier,
+    contract_period_year,
+    training_period_id
+  FROM
+    training_periods
+  WHERE
+    training_programme = 'provider-led'
+  QUALIFY
+    ROW_NUMBER() OVER(PARTITION BY trn ORDER BY started_on ASC ) = 1 ),
+
+
+  schools_with_open_school_periods AS (
+SELECT
+  school_id
+FROM
+  `dfe_analytics_dataform.ect_at_school_periods_latest_ecf2_sandbox`
+WHERE
+  started_on IS NOT NULL
+  AND finished_on IS NULL
+UNION DISTINCT
+SELECT
+  school_id
+FROM
+  ${ref('mentor_at_school_periods_latest_ecf2_sandbox')}
+WHERE
+  started_on IS NOT NULL
+  AND finished_on IS NULL ),
+
+
+---------------------------------------------------------------------------------------------------------------------
+----------------------------------------------  BAD RECORD CHECKS ---------------------------------------------------
+---------------------------------------------------------------------------------------------------------------------
+check1 AS (
+  -- RECT Validation Check #1
+  -- Schedule types assigned to new ECTs and mentors​
+  -- At time of launch, only ecf-standard-april, ecf-extended-april or ecf-replacement-april schedules should be used
+  -- Scope: Teachers registered for provider-led training from 27th April onwards,
+  -- who haven't been registered for training before (i.e. no previous provider-led training periods)​
+  SELECT
+    'Schedule types assigned to new ECTs and mentors​' AS check_name,
+    'training_period_id' AS bad_record_id_type,
+    CAST(training_period_id as string) AS bad_record_id
+  FROM
+    earliest_training_periods_per_ect_provider_led
+  WHERE
+    started_on >= '2026-04-27'
+    AND schedule_identifier NOT IN ('ecf-standard-april',
+      'ecf-extended-april',
+      'ecf-replacement-april') ),
+
+
+check2 AS (
+  -- RECT Validation Check #2.1
+  -- Teachers that have more than one training period (with no end date // overlaps​ covered in check #14)
+  -- Scope: All teachers including migrated data.
+  SELECT
+    'Teachers with multiple ongoing training periods' AS check_name,
+    'trn' AS bad_record_id_type,
+    CAST(trn as string) AS bad_record_id
+  FROM
+    training_periods
+  GROUP BY
+    trn,
+    participant_type
+  HAVING
+    COUNTIF(finished_on IS NULL) > 1 ),
+
+
+check3 AS (
+  -- RECT Validation Check #2.2
+  -- Teachers (ECTs) that have more than one at_school period (with no end date // overlaps​ covered in check #12)
+  -- Scope: All teachers including migrated data. Exclude mentors with multiple concurrent school periods as that is allowed. ​
+  SELECT
+    'ECTs with multiple ongoing at_school_periods' AS check_name,
+    'trn' AS bad_record_id_type,
+    CAST(trn as string) AS bad_record_id
+  FROM
+    training_periods
+  WHERE
+    participant_type = 'ect'
+  GROUP BY
+    trn
+  HAVING
+    COUNTIF(ect_at_school_period_finished_on IS NULL) > 1 ),
+
+
+check4 AS (
+  -- RECT Validation Check #2.3
+  -- Teachers (ECTs only) that have more than one mentorship period (with no end date - overlaps​ covered in check #14)
+  -- Except Exclude mentorship periods for mentors as this is allowed
+  -- Scope: All teachers including migrated data.
+  SELECT
+    'ECTs with multiple ongoing mentorship periods' AS check_name,
+    'trn' AS bad_record_id_type,
+    CAST(ect_trn as string) AS bad_record_id
+  FROM
+    mentorship_periods
+  GROUP BY
+    ect_trn
+  HAVING
+    COUNTIF(finished_on IS NULL) > 1 ),
+
+
+  check5 AS (
+  -- RECT Validation Check #3
+  -- Number of mentors where mentor_first_became_eligible_for_training_at = NULL
+  -- Scope: All mentors including migrated data.​
+  SELECT
+    'Mentors where mentor_first_became_eligible_for_training_at is null' AS check_name,
+    'trn' AS bad_record_id_type,
+    CAST(trn as string) AS bad_record_id
+  FROM
+    teachers
+  WHERE
+    mentor_first_became_eligible_for_training_at IS NULL
+  GROUP BY
+    trn ),
+
+
+check6 AS (
+  -- RECT Validation Check #4
+  -- Corrected name usage
+  -- We want to monitor the risk of schools matching one person and entering the name of someone compeltely different
+  -- Scope: All teachers registered from 27th April onwards​
+  SELECT
+    'Corrected name is not the same as trs name' AS check_name,
+    'trn' AS bad_record_id_type,
+    CAST(tp.trn as string) AS bad_record_id
+  FROM
+    training_periods AS tp
+  LEFT JOIN
+    `dfe_analytics_dataform.teachers_latest_ecf2_sandbox` AS t
+  ON
+    t.trn = tp.trn
+  WHERE
+    started_on >= '2026-04-27'
+    AND CONCAT(trs_first_name, ' ', trs_last_name) != corrected_name
+  GROUP BY
+    tp.trn ),
+
+
+check7 AS (
+    -- RECT Validation Check #5
+    -- ECTs with open school periods & an induction completion date
+    -- ECT_at_school_periods should close when induction completion date is recorded​
+    -- Scope: All ECTs including migrated data.​
+    SELECT
+      'ECTs with open school periods & an induction completion date​' as check_name,
+      'trn' as bad_record_id_type,
+      CAST(trn as string) as bad_record_id
+    FROM
+      training_periods tp
+    WHERE
+      participant_type = 'ect'
+      AND trs_induction_completed_date IS NOT NULL
+      AND ect_at_school_period_finished_on IS NULL
+    GROUP BY
+      trn ),
+
+
+  -- TODO: should we be consistent and point to ecf2_schools (see CTE above)?
+check8 AS (
+  -- RECT Validation Check #6
+  -- Schools without a SIT and open school periods​
+  -- Schools should have a SIT recorded if they have current ECTs or mentors – we might want to send comms if they don't​
+  -- Scope: All schools.​
+  SELECT
+    'Schools without a SIT and open at_school_periods' as check_name,
+    'urn' as bad_record_id_type,
+    CAST(urn as string) as bad_record_id
+  FROM
+    schools as s
+  INNER JOIN
+    schools_with_open_school_periods as active_schools
+  ON
+    s.id = active_schools.school_id
+  WHERE
+    (s.induction_tutor_email IS NULL
+      OR s.induction_tutor_name IS NULL) 
+  GROUP BY
+    urn),
+
+
+check9 AS (
+  -- RECT Validation Check #7
+  -- Contract period for new ECTs & mentors​
+  -- At time of launch, new ECTs or mentors should only be assigned a 2025 contract period​
+  -- Scope: Teachers registered for provider-led training from 27th April onwards,
+  -- who haven't been registered for training before (i.e. no previous provider-led training periods)​
+  SELECT
+    'New mentor contract period is not 2025' as check_name,
+    'training_period_id' as bad_record_id_type,   
+    CAST(training_period_id as string) as bad_record_id
+  FROM
+    earliest_training_periods_per_ect_provider_led
+  WHERE
+    started_on >= '2026-04-27'
+    AND contract_period_year != 2025 
+  GROUP BY
+    training_period_id),
+
+
+check10 AS (
+  -- RECT Validation Check #8
+  -- 2021 & 22 ECTs that have an open training period​
+  -- Triggers should move 21 & 22 ECTs to the 2024 contract period if they re-start training​
+  -- Scope: All 2021 & 22 ECTs including migrated data.​
+  SELECT
+    '2021 & 2022 ECTs with open training periods' as check_name,
+    'trn' as bad_record_id_type,
+    CAST(trn as string) as bad_record_id
+  FROM
+    training_periods
+  WHERE
+    participant_type = 'ect'
+    AND contract_period_year IN (2021,2022)
+    AND finished_on IS NULL
+  GROUP BY 
+    trn),
+
+
+check11 AS (
+  -- RECT Validation Check #9
+  -- ECTs or Mentors registered with start date before 2023-06-01
+  -- ECTs or mentors registered with start date before 1st June 2023​
+  -- Our validation should block this for teachers registered after launch​
+  -- Scope: All teachers including migrated data.​
+  SELECT
+    'Training periods with start date before 2023-06-01' as check_name,
+    'training_period_id' as bad_record_id_type,
+    CAST(training_period_id as string) as bad_record_id
+  FROM
+    training_periods
+  WHERE
+    started_on < '2023-06-01' 
+  GROUP BY
+    training_period_id),
+
+
+check12 AS (
+  -- RECT Validation Check #9
+  -- ECTs or Mentors registered with start date before 2023-06-01
+  -- Our validation should block this for teachers registered after launch​
+  -- Scope: All teachers including migrated data.​
+  SELECT
+    'ECT at school periods starting before 2023-06-01' as check_name,
+    'ect_at_school_period_id'  as bad_record_id_type,
+   CAST(ect_at_school_period_id as string) as bad_record_id
+  FROM
+    training_periods
+  WHERE
+    ect_at_school_period_started_on is not null
+    and ect_at_school_period_started_on < '2023-06-01'
+  GROUP BY 
+    ect_at_school_period_id),
+
+
+check13 AS (
+  -- RECT Validation Check #9
+  -- Mentors registered with start date before 2023-06-01
+  -- Our validation should block this for teachers registered after launch​
+  -- Scope: All teachers including migrated data.​
+  SELECT
+    'Mentor at school periods starting before 2023-06-01' as check_name,
+    'mentor_at_school_period_id' as bad_record_id_type,
+   CAST(mentor_at_school_period_id as string) as bad_record_id
+  FROM
+    training_periods
+  WHERE
+    mentor_at_school_period_started_on is not null 
+    and mentor_at_school_period_started_on < '2023-06-01' 
+  GROUP BY 
+    mentor_at_school_period_id),
+
+
+check14 AS (
+  -- RECT Validation Check #9
+  -- ECTs or Mentors registered with start date before 2023-06-01
+  -- Our validation should block this for teachers registered after launch​
+  -- Scope: All teachers including migrated data.​
+  SELECT
+    'Mentorship periods starting before 2023-06-01' as check_name,
+     'mentorship_period_id' as bad_record_id_type,
+     CAST(mentorship_period_id as string) as bad_record_id
+  FROM
+    mentorship_periods
+  WHERE
+    started_on < '2023-06-01' 
+  GROUP BY 
+    mentorship_period_id),
+
+
+check15 AS (
+  -- RECT Validation Check #10
+  -- Finished_on dates after 1st June 2026
+  -- Our validation should block this​
+  -- Scope: All teachers including migrated data.​
+  SELECT
+    'Trainign periods finishing after 2026-06-01' as check_name,
+    'training_period_id' as bad_record_id_type,
+    CAST(training_period_id as string) as bad_record_id
+  FROM
+    training_periods
+  WHERE
+    finished_on >= '2026-06-01' 
+  GROUP BY 
+    training_period_id),
+
+
+check16 AS (
+  -- RECT Validation Check #10
+  -- Finished_on dates after 1st June 2026
+  -- Our validation should block this​
+  -- Scope: All teachers including migrated data.​
+  SELECT
+    'Mentor_at_school_period finished after 2026-06-01' as check_name,
+    'mentor_at_school_period_id' as bad_record_id_type,
+    CAST(mentor_at_school_period_id as string) as bad_record_id
+  FROM
+    training_periods
+  WHERE
+    mentor_at_school_period_finished_on >= '2026-06-01'
+  GROUP BY 
+    mentor_at_school_period_id),
+
+
+check17 AS (
+  -- RECT Validation Check #10
+  -- Finished_on dates after 1st June 2026
+  -- Our validation should block this​
+  -- Scope: All teachers including migrated data.​
+  SELECT
+    'ect_at_school_period finished after 2026-06-01' as check_name,
+    'ect_at_school_period_id' as bad_record_id_type,
+    CAST(ect_at_school_period_id as string) as bad_record_id
+  FROM
+    training_periods
+  WHERE
+    ect_at_school_period_finished_on >= '2026-06-01'
+  GROUP BY 
+    ect_at_school_period_id),
+
+
+check18 AS (
+  -- RECT Validation Check #10
+  -- Finished_on dates after 1st June 2026
+  -- Our validation should block this​
+  -- Scope: All teachers including migrated data.​
+  SELECT
+    'Mentorship periods finishing after 2026-06-01' as check_name,
+    'mentorship_period_id' as bad_record_id_type,
+    CAST(mentorship_period_id as string) as bad_record_id
+  FROM
+    mentorship_periods
+  WHERE
+    finished_on >= '2026-06-01' 
+  GROUP BY 
+    mentorship_period_id),
+
+
+  check19 AS (
+  -- RECT Validation Check #11
+  -- Mentors with open training periods & mentor_became_ineligible_for_funding_on = not null​
+  -- Mentors who are no longer eligible for funding shouldn't have ongoing training periods​
+  -- Scope: All teachers including migrated data.​
+  SELECT
+    'Mentors with open training_periods & mentor_became_ineligible_for_funding_on is not null' as check_name,
+    'trn' as bad_record_id_type,
+    CAST(trn as string) as bad_record_id
+  FROM
+    training_periods
+  WHERE
+    participant_type = 'mentor'
+    AND finished_on IS NULL
+    AND mentor_became_ineligible_for_funding_on IS NOT NULL 
+  GROUP BY
+    trn),
+
+
+check20 AS (
+  -- RECT Validation Check #12
+  -- ECTs with overlapped training periods​
+  -- Scope: All teachers including migrated data.​
+  SELECT
+    'ECTs with overlapped training periods' as check_name,
+    'trn' as bad_record_id_type,
+    CAST(a.trn as string) as bad_record_id
+  FROM training_periods AS a
+  INNER JOIN  training_periods AS b
+    ON a.teacher_id = b.teacher_id
+    AND a.training_period_id < b.training_period_id
+  WHERE
+    a.participant_type = 'ect'
+    AND b.participant_type = 'ect'
+    AND a.started_on < COALESCE(b.finished_on, '9999-12-31')
+    AND COALESCE(a.finished_on, '9999-12-31') > b.started_on
+  GROUP BY
+    a.trn),
+
+
+check21 AS (
+  -- RECT Validation Check #12
+  -- ECTs with overlapped at_school_periods​
+  -- Scope: All teachers including migrated data.​
+  SELECT
+    'ECTs with overlapped at_school_periods' as check_name,
+    'trn' as bad_record_id_type,
+    CAST(a.trn as string) as bad_record_id
+  FROM training_periods AS a
+  INNER JOIN  training_periods AS b
+    ON a.teacher_id = b.teacher_id
+    AND a.training_period_id < b.training_period_id
+  WHERE
+    a.participant_type = 'ect'
+    AND b.participant_type = 'ect'
+    AND a.ect_at_school_period_started_on < COALESCE(b.ect_at_school_period_finished_on, '9999-12-31')
+    AND COALESCE(a.ect_at_school_period_finished_on, '9999-12-31') > b.ect_at_school_period_started_on
+  GROUP BY
+    a.trn),
+
+
+check22 as (
+  -- RECT Validation Check #12
+  -- ECTs with overlapped mentorship periods
+  -- Scope: All teachers including migrated data.​
+  SELECT
+    'ECT mentorship periods overlap' as check_name,
+    'trn' as bad_record_id_type,
+    CAST(a.ect_trn as string) as bad_record_id
+  FROM mentorship_periods as a
+  INNER JOIN mentorship_periods as b
+    ON a.ect_trn = b.ect_trn
+    AND a.mentorship_period_id < b.mentorship_period_id
+  WHERE 
+    a.started_on < COALESCE(b.finished_on, '9999-12-31')
+    AND COALESCE(a.finished_on, '9999-12-31') > b.started_on
+  GROUP BY
+    a.ect_trn),
+
+check23 as (
+  -- RECT validation check 12
+  -- Mentors with overlapped training periods
+  -- Scope: All teachers including migrated data
+  SELECT
+    'Mentor training period overlap' as check_name,
+    'trn' as bad_record_id_type,
+    CAST(a.trn as string) as bad_record_id
+  FROM training_periods AS a
+  INNER JOIN training_periods  AS b
+    ON a.trn = b.trn
+    AND a.training_period_id < b.training_period_id
+  WHERE
+    a.participant_type = 'mentor'
+    AND b.participant_type = 'mentor'
+    -- AND a.mentor_at_school_period_id = b.mentor_at_school_period_id
+    AND a.started_on < COALESCE(b.finished_on, '9999-12-31')
+    AND COALESCE(a.finished_on, '9999-12-31') > b.started_on
+  GROUP BY 
+    a.trn),
+
+
+check24 AS (
+  -- RECT Validation Check #13
+  -- Ongoing training period outside a school period
+  -- All training periods should be contained within school period dates
+  -- training periods shouldn't stay ongoing after the end of a school period.​
+  -- Scope: All teachers including migrated data.​
+  SELECT
+    'Ongoing ect training period outside an ect at shool period' as check_name,
+    'trn' as bad_record_id_type,   
+    CAST(trn as string) as bad_record_id
+  FROM
+    training_periods
+  WHERE
+    participant_type = 'ect'
+    AND (
+    -- training_period started before school period
+    started_on < ect_at_school_period_started_on
+      OR (
+      -- school_period finished but training period has not or is finished on a later date
+      ect_at_school_period_finished_on IS NOT NULL
+        AND ( started_on IS NULL
+          OR finished_on > ect_at_school_period_finished_on ) ) ) 
+  GROUP BY
+    trn),
+
+
+check25 AS (
+  -- RECT Validation Check #13
+  -- Ongoing training period outside a school period
+  -- All training periods should be contained within school period dates
+  -- training periods shouldn't stay ongoing after the end of a school period.​
+  -- Scope: All teachers including migrated data.​
+  SELECT
+    'Ongoing mentor training period outside a mentor at shool period' as check_name,
+    'trn' as bad_record_id_type,   
+    CAST(trn as string) as bad_record_id
+  FROM
+    training_periods
+  WHERE
+    participant_type = 'mentor'
+    AND (
+    -- training_period started before school period
+    started_on < mentor_at_school_period_started_on
+      OR (
+      -- school_period finished but training period has not or is finished on a later date
+      mentor_at_school_period_finished_on IS NOT NULL
+        AND ( finished_on IS NULL
+          OR finished_on > mentor_at_school_period_finished_on ) ) ) 
+  GROUP BY
+    trn),
+
+
+check26 AS (
+  -- RECT Validation Check #14
+  -- Teachers should not be completed both ECT and mentor training at the same time​
+  -- Scope: All teachers including migrated data.​
+  SELECT
+    'TRN has overlap of ECT and mentor training periods' as check_name,
+    'trn' as bad_record_id_type,
+    CAST(ect.trn as STRING) as bad_record_id
+  FROM
+    training_periods as ect
+  JOIN
+    training_periods as mentor
+  ON
+    ect.trn = mentor.trn
+
+  WHERE
+    ect.participant_type = 'ECT'
+    AND mentor.participant_type = 'mentor'
+    AND ect.started_on < mentor.finished_on
+    AND mentor.started_on < ect.finished_on 
+  GROUP BY
+    ect.trn)
+
+SELECT check_name, bad_record_id_type, bad_record_id FROM check1
+UNION ALL SELECT check_name, bad_record_id_type, bad_record_id  FROM check2
+UNION ALL SELECT check_name, bad_record_id_type, bad_record_id  FROM check3
+UNION ALL SELECT check_name, bad_record_id_type, bad_record_id  FROM check4
+UNION ALL SELECT check_name, bad_record_id_type, bad_record_id  FROM check5
+UNION ALL SELECT check_name, bad_record_id_type, bad_record_id  FROM check6
+UNION ALL SELECT check_name, bad_record_id_type, bad_record_id  FROM check7
+UNION ALL SELECT check_name, bad_record_id_type, bad_record_id  FROM check8
+UNION ALL SELECT check_name, bad_record_id_type, bad_record_id  FROM check9
+UNION ALL SELECT check_name, bad_record_id_type, bad_record_id  FROM check10
+UNION ALL SELECT check_name, bad_record_id_type, bad_record_id  FROM check11
+UNION ALL SELECT check_name, bad_record_id_type, bad_record_id  FROM check12
+UNION ALL SELECT check_name, bad_record_id_type, bad_record_id  FROM check13
+UNION ALL SELECT check_name, bad_record_id_type, bad_record_id  FROM check14
+UNION ALL SELECT check_name, bad_record_id_type, bad_record_id  FROM check15
+UNION ALL SELECT check_name, bad_record_id_type, bad_record_id  FROM check16
+UNION ALL SELECT check_name, bad_record_id_type, bad_record_id  FROM check17
+UNION ALL SELECT check_name, bad_record_id_type, bad_record_id  FROM check18
+UNION ALL SELECT check_name, bad_record_id_type, bad_record_id  FROM check19
+UNION ALL SELECT check_name, bad_record_id_type, bad_record_id  FROM check20
+UNION ALL SELECT check_name, bad_record_id_type, bad_record_id  FROM check21
+UNION ALL SELECT check_name, bad_record_id_type, bad_record_id  FROM check22
+UNION ALL SELECT check_name, bad_record_id_type, bad_record_id  FROM check23
+UNION ALL SELECT check_name, bad_record_id_type, bad_record_id  FROM check24
+UNION ALL SELECT check_name, bad_record_id_type, bad_record_id  FROM check25
+UNION ALL SELECT check_name, bad_record_id_type, bad_record_id  FROM check26
