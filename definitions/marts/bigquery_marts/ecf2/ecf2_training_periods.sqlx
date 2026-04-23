@@ -185,13 +185,12 @@ training_periods AS (
     -- teachers
     -- note: trs_induction_status is only null - is this due to sandbox data?
     t.trn,
-    t.api_id as teacher_external_id
+    t.api_id as teacher_external_id,
     t.trs_induction_status,  
     t.trs_induction_start_date,
     t.trs_induction_completed_date,
     t.ect_payments_frozen_year,
     t.mentor_payments_frozen_year,
-    
     t.ect_first_became_eligible_for_training_at,
     t.mentor_first_became_eligible_for_training_at,
     t.ect_became_ineligible_for_funding_on,
