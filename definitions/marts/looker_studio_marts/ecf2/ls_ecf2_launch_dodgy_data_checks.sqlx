@@ -7,10 +7,10 @@ config {
     },
     description: "",
     columns: {
-        check_name: '',
-        bad_record_id_type: '',
+        check_name: 'The name of the dodgy data check',
+        bad_record_id_type: 'Which identifier will be returned for the user to cross reference with the service',
         bad_record_id: {
-            description: '',
+            description: 'Hidden field, value of the identifier returned to identify the dodgy data. In most cases this will be trn.',
             bigqueryPolicyTags: ["projects/ecf-bq/locations/europe-west2/taxonomies/6302091323314055162/policyTags/301313311867345339"]
         }
     }
@@ -82,15 +82,17 @@ check1 AS (
   -- who haven't been registered for training before (i.e. no previous provider-led training periods)​
   SELECT
     'Schedule types assigned to new ECTs and mentors​' AS check_name,
-    'training_period_id' AS bad_record_id_type,
-    CAST(training_period_id as string) AS bad_record_id
+    'trn' AS bad_record_id_type,
+    CAST(trn as string) AS bad_record_id
   FROM
     earliest_training_periods_per_ect_provider_led
   WHERE
     started_on >= '2026-04-27'
     AND schedule_identifier NOT IN ('ecf-standard-april',
       'ecf-extended-april',
-      'ecf-replacement-april') ),
+      'ecf-replacement-april') 
+    GROUP BY
+      trn),
 
 
 check2 AS (
@@ -107,7 +109,7 @@ check2 AS (
     trn,
     participant_type
   HAVING
-    COUNTIF(finished_on IS NULL) > 1 ),
+    COUNTIF(finished_on IS NULL) > 1),
 
 
 check3 AS (
@@ -125,7 +127,7 @@ check3 AS (
   GROUP BY
     trn
   HAVING
-    COUNTIF(ect_at_school_period_finished_on IS NULL) > 1 ),
+    COUNTIF(ect_at_school_period_finished_on IS NULL) > 1),
 
 
 check4 AS (
@@ -142,7 +144,7 @@ check4 AS (
   GROUP BY
     ect_trn
   HAVING
-    COUNTIF(finished_on IS NULL) > 1 ),
+    COUNTIF(finished_on IS NULL) > 1),
 
 
   check5 AS (
@@ -233,15 +235,15 @@ check9 AS (
   -- who haven't been registered for training before (i.e. no previous provider-led training periods)​
   SELECT
     'New mentor contract period is not 2025' as check_name,
-    'training_period_id' as bad_record_id_type,   
-    CAST(training_period_id as string) as bad_record_id
+    'trn' as bad_record_id_type,   
+    CAST(trn as string) as bad_record_id
   FROM
     earliest_training_periods_per_ect_provider_led
   WHERE
     started_on >= '2026-04-27'
     AND contract_period_year != 2025 
   GROUP BY
-    training_period_id),
+    trn),
 
 
 check10 AS (
@@ -271,14 +273,15 @@ check11 AS (
   -- Scope: All teachers including migrated data.​
   SELECT
     'Training periods with start date before 2023-06-01' as check_name,
-    'training_period_id' as bad_record_id_type,
-    CAST(training_period_id as string) as bad_record_id
+    'trn' as bad_record_id_type,
+    CAST(trn as string) as bad_record_id
   FROM
     training_periods
   WHERE
+    started_on is not null and
     started_on < '2023-06-01' 
   GROUP BY
-    training_period_id),
+    trn),
 
 
 check12 AS (
@@ -288,15 +291,15 @@ check12 AS (
   -- Scope: All teachers including migrated data.​
   SELECT
     'ECT at school periods starting before 2023-06-01' as check_name,
-    'ect_at_school_period_id'  as bad_record_id_type,
-   CAST(ect_at_school_period_id as string) as bad_record_id
+    'trn'  as bad_record_id_type,
+   CAST(trn as string) as bad_record_id
   FROM
     training_periods
   WHERE
     ect_at_school_period_started_on is not null
     and ect_at_school_period_started_on < '2023-06-01'
   GROUP BY 
-    ect_at_school_period_id),
+    trn),
 
 
 check13 AS (
@@ -306,15 +309,15 @@ check13 AS (
   -- Scope: All teachers including migrated data.​
   SELECT
     'Mentor at school periods starting before 2023-06-01' as check_name,
-    'mentor_at_school_period_id' as bad_record_id_type,
-   CAST(mentor_at_school_period_id as string) as bad_record_id
+    'trn' as bad_record_id_type,
+   CAST(trn as string) as bad_record_id
   FROM
     training_periods
   WHERE
     mentor_at_school_period_started_on is not null 
     and mentor_at_school_period_started_on < '2023-06-01' 
   GROUP BY 
-    mentor_at_school_period_id),
+    trn),
 
 
 check14 AS (
@@ -324,14 +327,14 @@ check14 AS (
   -- Scope: All teachers including migrated data.​
   SELECT
     'Mentorship periods starting before 2023-06-01' as check_name,
-     'mentorship_period_id' as bad_record_id_type,
-     CAST(mentorship_period_id as string) as bad_record_id
+     'ect trn' as bad_record_id_type,
+     CAST(ect_trn as string) as bad_record_id
   FROM
     mentorship_periods
   WHERE
     started_on < '2023-06-01' 
   GROUP BY 
-    mentorship_period_id),
+    ect_trn),
 
 
 check15 AS (
@@ -340,15 +343,15 @@ check15 AS (
   -- Our validation should block this​
   -- Scope: All teachers including migrated data.​
   SELECT
-    'Trainign periods finishing after 2026-06-01' as check_name,
-    'training_period_id' as bad_record_id_type,
-    CAST(training_period_id as string) as bad_record_id
+    'Training periods finishing after 2026-06-01' as check_name,
+    'trn' as bad_record_id_type,
+    CAST(trn as string) as bad_record_id
   FROM
     training_periods
   WHERE
     finished_on >= '2026-06-01' 
   GROUP BY 
-    training_period_id),
+    trn),
 
 
 check16 AS (
@@ -358,14 +361,14 @@ check16 AS (
   -- Scope: All teachers including migrated data.​
   SELECT
     'Mentor_at_school_period finished after 2026-06-01' as check_name,
-    'mentor_at_school_period_id' as bad_record_id_type,
-    CAST(mentor_at_school_period_id as string) as bad_record_id
+    'trn' as bad_record_id_type,
+    CAST(trn as string) as bad_record_id
   FROM
     training_periods
   WHERE
     mentor_at_school_period_finished_on >= '2026-06-01'
   GROUP BY 
-    mentor_at_school_period_id),
+    trn),
 
 
 check17 AS (
@@ -375,14 +378,14 @@ check17 AS (
   -- Scope: All teachers including migrated data.​
   SELECT
     'ect_at_school_period finished after 2026-06-01' as check_name,
-    'ect_at_school_period_id' as bad_record_id_type,
-    CAST(ect_at_school_period_id as string) as bad_record_id
+    'trn' as bad_record_id_type,
+    CAST(trn as string) as bad_record_id
   FROM
     training_periods
   WHERE
     ect_at_school_period_finished_on >= '2026-06-01'
   GROUP BY 
-    ect_at_school_period_id),
+    trn),
 
 
 check18 AS (
@@ -392,14 +395,14 @@ check18 AS (
   -- Scope: All teachers including migrated data.​
   SELECT
     'Mentorship periods finishing after 2026-06-01' as check_name,
-    'mentorship_period_id' as bad_record_id_type,
-    CAST(mentorship_period_id as string) as bad_record_id
+    'ect trn' as bad_record_id_type,
+    CAST(ect_trn as string) as bad_record_id
   FROM
     mentorship_periods
   WHERE
     finished_on >= '2026-06-01' 
   GROUP BY 
-    mentorship_period_id),
+    ect_trn),
 
 
   check19 AS (
