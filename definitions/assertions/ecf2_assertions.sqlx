@@ -38,6 +38,32 @@ ecf2_training_periods_participant_type AS (
     FROM ${ref("ecf2_training_periods")}
     WHERE
         participant_type NOT IN ('ect', 'mentor')
+),
+
+ecf2_declarations_record_count AS (
+    -- validate total record count
+    -- it should match training_periods_latest
+    -- i.e., our joins do not cause data to be dropped or duplicated
+    SELECT
+        CURRENT_DATE() AS observed_date,
+        'ecf2_declarations' as entity,
+        'row_count' as validation_check,
+        'the difference in row count to the DfE source table "_declarations_latest_ecf2". Expected 0 as it should match the source table.' as validation_scope,
+        (SELECT COUNT(*) FROM ${ref("ecf2_declarations")}) -
+        (SELECT COUNT(*) FROM ${ref("declarations_latest_ecf2_sandbox")}) AS number_of_records
+),
+
+ecf2_mentorships_record_count AS (
+    -- validate total record count
+    -- it should match training_periods_latest
+    -- i.e., our joins do not cause data to be dropped or duplicated
+    SELECT
+        CURRENT_DATE() AS observed_date,
+        'ecf2_mentorship_periods' as entity,
+        'row_count' as validation_check,
+        'the difference in row count to the DfE source table "_mentorship_periods_latest_ecf2". Expected 0 as it should match the source table.' as validation_scope,
+        (SELECT COUNT(*) FROM ${ref("ecf2_mentorship_periods")}) -
+        (SELECT COUNT(*) FROM ${ref("mentorship_periods_latest_ecf2_sandbox")}) AS number_of_records
 )
 
 
@@ -47,6 +73,13 @@ SELECT * FROM (
 
     UNION ALL 
     SELECT * FROM ecf2_training_periods_participant_type
+
+    UNION ALL 
+    SELECT * FROM ecf2_declarations_record_count
+
+    UNION ALL 
+    SELECT * FROM ecf2_mentorships_record_count
+
 
     -- add more union all here
 )
