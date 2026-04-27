@@ -14,16 +14,26 @@ config {
         mentorship_period_id: "UUID of the mentorship period",
         ect_at_school_period_id: "Unique identifier of an ECT at a school. Indicates the ECT in the ECT - Mentor relationship",
         mentor_at_school_period_id: "Unique identifier of an Mentor at a school. Indicates the Mentor in the ECT - Mentor relationship",
+        mentorship_status: "Status of the mentorship period derived from started/finished date. Possible values active/finished.",
         started_on: "When the mentorship period started",
         finished_on: "When the mentorship period finished",
+        ect_teacher_external_id: "The API id of the teacher in the service.",
         ect_trn: {
             description: "The ECTs TRN",
             bigqueryPolicyTags: ["projects/ecf-bq/locations/europe-west2/taxonomies/6302091323314055162/policyTags/301313311867345339"]},
         ect_school_urn: "The urn of the school indicated on the ect_at_school_period. This should be the same as the mentor_school_urn.",
+        ect_school: "The name of the school indicated on the ect_at_school_period",
+        mentor_teacher_external_id: "The API id of the teacher in the service.",
         mentor_trn: {
             description: "The mentors TRN",
             bigqueryPolicyTags: ["projects/ecf-bq/locations/europe-west2/taxonomies/6302091323314055162/policyTags/301313311867345339"]},
         mentor_school_urn: "The urn of the school indicated on the mentor_at_school_period. This should be the same as the ect_school_urn.",
+        mentor_school: "The name of the school indicated on the mentor_at_school_period",
+        ect_at_school_period_started_on: "The start date of the school period for an ECT. The at_school_period start date can be different from the training period start date. However, the training period dates should always be within school period dates.",
+        ect_at_school_period_finished_on: "The end date of the school period for an ECT. The at_school_period end date can be different from the training period end date. However, the training period dates should always be within school period dates.",
+        mentor_at_school_period_started_on: "The start date of the school period for a Mentor. The at_school_period start date can be different from the training period start date. However, the training period dates should always be within school period dates.",
+        mentor_at_school_period_finished_on: "The end date of the school period for an Mentor. The at_school_period end date can be different from the training period end date. However, the training period dates should always be within school period dates.",
+
         created_at: "When the mentorship was created. This doesn't indicate the start of the mentorship period",
         updated_at: "When the mentorship was last updated"
     }
@@ -33,12 +43,21 @@ SELECT
     mentorship_period_id,
     ect_at_school_period_id,
     mentor_at_school_period_id,
+    mentorship_status,
     started_on,
     finished_on,
     ect_trn,
+    ect_teacher_external_id,
     ect_school_urn,
+    ect_school,
     mentor_trn,
+    mentor_teacher_external_id,
     mentor_school_urn,
+    mentor_school,
+    mentor_at_school_period_started_on,
+    mentor_at_school_period_finished_on,
+    ect_at_school_period_started_on,
+    ect_at_school_period_finished_on,
     created_at,
     updated_at
 FROM

@@ -35,6 +35,10 @@ config {
         mentor_school_id: "The PK of the ecf2_schools table, taken from the mentor_at_school_period. This should be the same as the ect_school_id.",
         mentor_school_urn: "The urn of the school indicated on the mentor_at_school_period. This should be the same as the ect_school_urn.",
         mentor_school: "The name of the school indicated on the mentor_at_school_period",
+        ect_at_school_period_started_on: "The start date of the school period for an ECT. The at_school_period start date can be different from the training period start date. However, the training period dates should always be within school period dates.",
+        ect_at_school_period_finished_on: "The end date of the school period for an ECT. The at_school_period end date can be different from the training period end date. However, the training period dates should always be within school period dates.",
+        mentor_at_school_period_started_on: "The start date of the school period for a Mentor. The at_school_period start date can be different from the training period start date. However, the training period dates should always be within school period dates.",
+        mentor_at_school_period_finished_on: "The end date of the school period for an Mentor. The at_school_period end date can be different from the training period end date. However, the training period dates should always be within school period dates.",
         created_at: "When the mentorship was created.",
         updated_at: "When the mentorship was last updated"
     }
@@ -54,7 +58,9 @@ ect_periods AS (
   SELECT
     id,
     teacher_id,
-    school_id
+    school_id,
+    started_on,
+    finished_on
   FROM
     ${ref('ect_at_school_periods_latest_ecf2_sandbox')}
 ),
@@ -63,7 +69,9 @@ mentor_periods AS (
   SELECT
     id,
     teacher_id,
-    school_id
+    school_id,
+    started_on,
+    finished_on
   FROM
     ${ref('mentor_at_school_periods_latest_ecf2_sandbox')}
 ),
@@ -95,6 +103,8 @@ SELECT
   mentor_periods.school_id AS mentor_school_id,
   mentor_school.school_urn AS mentor_school_urn,
   mentor_school.school AS mentor_school,
+  mentor_periods.started_on AS mentor_at_school_period_started_on,
+  mentor_periods.finished_on AS mentor_at_school_period_finished_on,
   -- ect info
   ect_periods.teacher_id AS ect_teacher_id,
   ect_teacher.teacher_external_id AS ect_teacher_external_id,
@@ -102,6 +112,8 @@ SELECT
   ect_periods.school_id AS ect_school_id,
   ect_school.school_urn AS ect_school_urn,
   ect_school.school AS ect_school,
+  ect_periods.started_on AS ect_at_school_period_started_on,
+  ect_periods.finished_on AS ect_at_school_period_finished_on,
   -- created/updated fields
   mentorships.created_at,
   mentorships.updated_at
