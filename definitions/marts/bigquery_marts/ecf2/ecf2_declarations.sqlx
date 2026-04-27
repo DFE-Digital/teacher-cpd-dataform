@@ -28,7 +28,7 @@ config {
         mentorship_period_id: "",
         participant_type: "Either ECT or Mentor. Derived from ect or mentor_at_school_period_id.",
         teacher_id: "The internal id of a teacher",
-        teacher_api_id: "The external id of the teacher in the ECF2 Service.",
+        teacher_external_id: "The API id of a teacher in the service",
         trn: {
             description: "The teacher reference number.",
             bigqueryPolicyTags: ["projects/ecf-bq/locations/europe-west2/taxonomies/6302091323314055162/policyTags/301313311867345339"]
@@ -107,17 +107,17 @@ SELECT
   d.payment_statement_id,
   d.clawback_status,
   d.clawback_statement_id,
-  -- combine into single field?
-  payment_stm_contracts.statement_contract_period_year AS statement_contract_period_year,
-  -- clawback_stm_contracts.statement_contract_period_year AS clawback_statement_contract_period_year,
+  CASE
+    WHEN d.clawback_statement_id IS NOT NULL THEN clawback_stm_contracts.statement_contract_period_year
+    ELSE payment_stm_contracts.statement_contract_period_year
+  END AS statement_contract_period_year,
   d.evidence_type,
   d.training_period_id,
   d.mentorship_period_id,
   tp.participant_type,
   tp.teacher_id,
---   tp.teacher_external_id,
+  tp.teacher_external_id,
   tp.trn,
-  -- combine into a single field??
   tp.ect_first_became_eligible_for_training_at,
   tp.mentor_first_became_eligible_for_training_at,
   tp.training_programme,
@@ -155,8 +155,8 @@ LEFT JOIN
   statement_contract_periods payment_stm_contracts
   ON d.payment_statement_id = payment_stm_contracts.statement_id
 
--- it is unecessary to join both payment and clawback statement contract periods
--- there is a validation in the service to ensure that payment and clawback statements have the same contract period 
--- LEFT JOIN
---   statement_contract_periods clawback_stm_contracts 
---   ON d.clawback_statement_id = clawback_stm_contracts.statement_id
+-- payment / clawback statement share the same contract period year 
+-- the service has a validation to ensure that payment and clawback statements have the same contract period 
+LEFT JOIN
+  statement_contract_periods clawback_stm_contracts 
+  ON d.clawback_statement_id = clawback_stm_contracts.statement_id
