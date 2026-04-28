@@ -24,12 +24,12 @@ WITH training_periods AS (
 
 teachers as (
     SELECT *
-    FROM ${ref('teachers_latest_ecf2_sandbox')}
+    FROM ${ref('teachers_latest_ecf2')}
   ),
 
 schools as (
     SELECT *
-    FROM ${ref('schools_latest_ecf2_sandbox')}
+    FROM ${ref('schools_latest_ecf2')}
   ),
 
 mentorship_periods as (
@@ -57,7 +57,7 @@ earliest_training_periods_per_ect_provider_led AS (
 SELECT
   school_id
 FROM
-  `dfe_analytics_dataform.ect_at_school_periods_latest_ecf2_sandbox`
+  ${ref('ect_at_school_periods_latest_ecf2')}
 WHERE
   started_on IS NOT NULL
   AND finished_on IS NULL
@@ -65,7 +65,7 @@ UNION DISTINCT
 SELECT
   school_id
 FROM
-  ${ref('mentor_at_school_periods_latest_ecf2_sandbox')}
+  ${ref('mentor_at_school_periods_latest_ecf2')}
 WHERE
   started_on IS NOT NULL
   AND finished_on IS NULL ),
@@ -175,7 +175,7 @@ check6 AS (
   FROM
     training_periods AS tp
   LEFT JOIN
-    `dfe_analytics_dataform.teachers_latest_ecf2_sandbox` AS t
+    `dfe_analytics_dataform.teachers_latest_ecf2` AS t
   ON
     t.trn = tp.trn
   WHERE
