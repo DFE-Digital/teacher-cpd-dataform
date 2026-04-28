@@ -9,7 +9,7 @@ config {
         partitionBy: "DATE(created_at)",
         clusterBy: ["ect_at_school_period_id","mentor_at_school_period_id"]
     },
-    description: "WARNING - SANDBOX DATA ONLY. Filtered for the latest mentorship period between an ECT at school and a Mentor at school. A period of time at a school during which one mentor is known to be actively mentoring an ECT. A new mentorship period is created if an ECT changes school or Mentor. A mentor can have multiple ongoing mentorship periods  (whereas an ECT can only have one mentorship period at any one time)",
+    description: "Filtered for the latest mentorship period between an ECT at school and a Mentor at school. A period of time at a school during which one mentor is known to be actively mentoring an ECT. A new mentorship period is created if an ECT changes school or Mentor. A mentor can have multiple ongoing mentorship periods  (whereas an ECT can only have one mentorship period at any one time)",
     columns: {
         mentorship_period_id: "PK of the mentorship_periods table",
         ect_at_school_period_id: "PK of the ect_at_school_periods table. Indicates the ECT in the ECT - Mentor relationship.",

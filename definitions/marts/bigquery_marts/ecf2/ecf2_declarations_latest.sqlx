@@ -9,7 +9,7 @@ config {
         clusterBy: ["declaration_type", "contract_period_year", "training_programme", "lead_provider"]
     },
     
-    description: "WARNING - SANDBOX DATA ONLY. Latest preferred declarations for an ECT or Mentor, join LATEST preferred participant atributes from ecf2_training_periods. The latest preferred declaration groups declarations from the same tpye (e.g., started, retained, etc.) and selects the latest one per participant and participant type.",
+    description: "Latest preferred declarations for an ECT or Mentor, join LATEST preferred participant atributes from ecf2_training_periods. The latest preferred declaration groups declarations from the same tpye (e.g., started, retained, etc.) and selects the latest one per participant and participant type.",
     columns: {
         declaration_id: "PK of this table",
         declaration_api_id: "The id of the declaration as it is served to Lead Providers in the API.",

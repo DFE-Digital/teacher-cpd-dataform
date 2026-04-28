@@ -9,7 +9,7 @@ config {
         clusterBy: ["declaration_type", "contract_period_year", "training_programme", "lead_provider"]
     },
 
-    description: "WARNING - SANDBOX DATA ONLY. All declarations for an ECT or Mentor, join LATEST preferred participant atributes from ecf2_training_periods",
+    description: "All declarations for an ECT or Mentor, join LATEST preferred participant atributes from ecf2_training_periods",
     columns: {
         declaration_id: "PK of this table",
         declaration_api_id: "The id of the declaration as it is served to Lead Providers in the API.",
@@ -82,13 +82,13 @@ WITH statement_contract_periods AS (
     st.contract_id,
     active_lp.contract_period_year AS statement_contract_period_year
   FROM
-    ${ref('statements_latest_ecf2_sandbox')} AS st
+    ${ref('statements_latest_ecf2')} AS st
   LEFT JOIN
-    ${ref('contracts_latest_ecf2_sandbox')} AS c
+    ${ref('contracts_latest_ecf2')} AS c
   ON
     st.contract_id = c.id
   LEFT JOIN
-    ${ref('active_lead_providers_latest_ecf2_sandbox')} AS active_lp
+    ${ref('active_lead_providers_latest_ecf2')} AS active_lp
   ON
     c.active_lead_provider_id = active_lp.id
 )
@@ -165,7 +165,7 @@ SELECT
   d.sparsity_uplift,
   d.pupil_premium_uplift
 FROM
-  ${ref('declarations_latest_ecf2_sandbox')} AS d
+  ${ref('declarations_latest_ecf2')} AS d
 LEFT JOIN
   ${ref('ecf2_training_periods')} AS tp
   ON d.training_period_id = tp.training_period_id

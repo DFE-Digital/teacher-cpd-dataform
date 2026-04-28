@@ -9,7 +9,7 @@ config {
         clusterBy: ["declaration_type", "declaration_state", "statement_contract_period_year"]
     },
 
-    description: "WARNING - SANDBOX DATA ONLY. All declarations for an ECT or Mentor, join LATEST preferred participant atributes from ecf2_training_periods",
+    description: "All declarations for an ECT or Mentor, join LATEST preferred participant atributes from ecf2_training_periods",
     columns: {
         declaration_id: "The id of the declaration as it is served to Lead Providers in the API.",
         declaration_date: "The date the milestone can be evidenced as having been met, when the participant qualified to be declared against. This field is key for determining where a declaration falls in relation to other declarations because it relates to when in the participants training it was evidenced",

@@ -7,7 +7,7 @@ config {
     bigquery: {
         partitionBy: "DATE(created_at)"
     },
-    description: "WARNING - SANDBOX DATA ONLY. A table of which school, Lead Provider and Delivery Partner combinations for an ECT or Mentor are active in a contract period.",
+    description: "A table of which school, Lead Provider and Delivery Partner combinations for an ECT or Mentor are active in a contract period.",
     columns: {
         school_partnership_id: "PK of the school_partnerships_latest table. The school partnership that determines the Lead Provider Delivery Partner combination an ECT or Mentor is training with at their school.",
         school_partnership_external_id: "The ID exposed over the API of the school, lead provider, delivery partner and contract period combination.",
@@ -46,28 +46,28 @@ SELECT
   school_partnerships.created_at,
   school_partnerships.updated_at,
 FROM
-  ${ref('school_partnerships_latest_ecf2_sandbox')} AS school_partnerships
+  ${ref('school_partnerships_latest_ecf2')} AS school_partnerships
 LEFT JOIN
-  ${ref('lead_provider_delivery_partnerships_latest_ecf2_sandbox')} AS lpdp
+  ${ref('lead_provider_delivery_partnerships_latest_ecf2')} AS lpdp
 ON
   school_partnerships.lead_provider_delivery_partnership_id = lpdp.id
 LEFT JOIN
-  ${ref('delivery_partners_latest_ecf2_sandbox')} AS delivery_partners
+  ${ref('delivery_partners_latest_ecf2')} AS delivery_partners
 ON
   lpdp.delivery_partner_id = delivery_partners.id
 LEFT JOIN
-  ${ref('active_lead_providers_latest_ecf2_sandbox')} AS active_lead_providers
+  ${ref('active_lead_providers_latest_ecf2')} AS active_lead_providers
 ON
   lpdp.active_lead_provider_id = active_lead_providers.id
 LEFT JOIN
-  ${ref('lead_providers_latest_ecf2_sandbox')} AS lead_providers
+  ${ref('lead_providers_latest_ecf2')} AS lead_providers
 ON
   active_lead_providers.lead_provider_id = lead_providers.id
 LEFT JOIN
-  ${ref('schools_latest_ecf2_sandbox')} AS schools
+  ${ref('schools_latest_ecf2')} AS schools
 ON
   school_partnerships.school_id = schools.id
 LEFT JOIN
-  ${ref('gias_schools_latest_ecf2_sandbox')} as gias_schools
+  ${ref('gias_schools_latest_ecf2')} as gias_schools
 ON 
   schools.urn = gias_schools.urn

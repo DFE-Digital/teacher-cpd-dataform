@@ -9,7 +9,7 @@ config {
         clusterBy: ["participant_type", "training_status"]
     },
     
-    description: "WARNING - SANDBOX DATA ONLY. All training_periods for an ECT or Mentor, join atributes from schools, teachers, appropriate_body, partnerhship (lead provider/delivery partner). Holds all training periods for ECTs and Mentors, what period of time the Mentor or ECT was training in, the school and school partnership they are registered with, their training programme and relevant mentorship period data. A new record is created when an ECT or Mentor has been registered for training for the first time or the ECT, resumed their training (deferred to active) or Mentor has changed school, cohort or provider",
+    description: "All training_periods for an ECT or Mentor, join atributes from schools, teachers, appropriate_body, partnerhship (lead provider/delivery partner). Holds all training periods for ECTs and Mentors, what period of time the Mentor or ECT was training in, the school and school partnership they are registered with, their training programme and relevant mentorship period data. A new record is created when an ECT or Mentor has been registered for training for the first time or the ECT, resumed their training (deferred to active) or Mentor has changed school, cohort or provider",
     columns: {
         training_period_id: "PK of the training_periods table. Training periods should not overlap. Training period dates should always be within school period dates.",
         school_partnership_id: "The school partnership that determines the Lead Provider Delivery Partner combination an ECT or Mentor is training with at their school. NULL if training_programme is 'school-led'.",
@@ -166,15 +166,14 @@ WITH base_training_periods AS (
     ON ect.school_reported_appropriate_body_id = ab.id
 ),
 
--- uncomment on day 1
--- school_funding_eligibilities AS (
---   SELECT 
---     school_urn,
---     contract_period_year,
---     pupil_premium_uplift,
---     sparsity_uplift
---   FROM ${ref('school_funding_eligibilities_latest_ecf2')}
--- ),
+school_funding_eligibilities AS (
+  SELECT 
+    school_urn,
+    contract_period_year,
+    pupil_premium_uplift,
+    sparsity_uplift
+  FROM ${ref('school_funding_eligibilities_latest_ecf2')}
+),
 
 
 training_periods AS (
@@ -198,9 +197,8 @@ training_periods AS (
     t.mentor_became_ineligible_for_funding_reason,
     
     -- funding eligibilities
-    -- TODO: Add on Day 1 when we have the data
-    -- funding.sparsity_uplift,
-    -- funding.pupil_premium_uplift,
+    funding.sparsity_uplift,
+    funding.pupil_premium_uplift,
    
     -- schools
     s.school_name,
@@ -216,9 +214,9 @@ training_periods AS (
   LEFT JOIN ${ref('ecf2_schools')} AS s
     ON tp.school_id = s.school_id
   
-  -- LEFT JOIN school_funding_eligibilities AS funding
-  --   ON funding.school_urn = s.school_urn
-  --   AND funding.contract_period_year = tp.contract_period_year
+  LEFT JOIN school_funding_eligibilities AS funding
+    ON funding.school_urn = s.school_urn
+    AND funding.contract_period_year = tp.contract_period_year
 
 )
 
