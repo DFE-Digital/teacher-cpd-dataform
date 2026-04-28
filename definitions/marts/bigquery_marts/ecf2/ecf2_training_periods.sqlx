@@ -148,15 +148,15 @@ WITH base_training_periods AS (
     tp.created_at,
     tp.updated_at
 
-  FROM ${ref('training_periods_latest_ecf2_sandbox')} AS tp
+  FROM ${ref('training_periods_latest_ecf2')} AS tp
 
-  LEFT JOIN ${ref('ect_at_school_periods_latest_ecf2_sandbox')} AS ect
+  LEFT JOIN ${ref('ect_at_school_periods_latest_ecf2')} AS ect
     ON tp.ect_at_school_period_id = ect.id
 
-  LEFT JOIN ${ref('mentor_at_school_periods_latest_ecf2_sandbox')} AS mentor
+  LEFT JOIN ${ref('mentor_at_school_periods_latest_ecf2')} AS mentor
     ON tp.mentor_at_school_period_id = mentor.id
 
-  LEFT JOIN ${ref('schedules_latest_ecf2_sandbox')} AS schedules
+  LEFT JOIN ${ref('schedules_latest_ecf2')} AS schedules
     ON tp.schedule_id = schedules.id
 
   LEFT JOIN ${ref('ecf2_partnerships')} AS p
