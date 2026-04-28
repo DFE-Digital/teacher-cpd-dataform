@@ -22,6 +22,13 @@ WITH training_periods AS (
   FROM
    ${ref('ecf2_training_periods')} ),
 
+ect_at_school_periods as (
+  SELECT 
+    *
+  FROM
+    ${ref(`ect_at_school_periods_latest_ecf2`)}
+),
+
 teachers as (
     SELECT *
     FROM ${ref('teachers_latest_ecf2')}
@@ -118,16 +125,14 @@ check3 AS (
   -- Scope: All teachers including migrated data. Exclude mentors with multiple concurrent school periods as that is allowed. ​
   SELECT
     'ECTs with multiple ongoing at_school_periods' AS check_name,
-    'trn' AS bad_record_id_type,
-    CAST(trn as string) AS bad_record_id
+    'teacher ID' AS bad_record_id_type,
+    CAST(teacher_id as string) AS bad_record_id
   FROM
-    training_periods
-  WHERE
-    participant_type = 'ect'
+    ect_at_school_periods
   GROUP BY
-    trn
+    teacher_id
   HAVING
-    COUNTIF(ect_at_school_period_finished_on IS NULL) > 1),
+    COUNTIF(finished_on IS NULL) > 1),
 
 
 check4 AS (
@@ -175,7 +180,7 @@ check6 AS (
   FROM
     training_periods AS tp
   LEFT JOIN
-    `dfe_analytics_dataform.teachers_latest_ecf2` AS t
+    teachers AS t
   ON
     t.trn = tp.trn
   WHERE
@@ -272,14 +277,15 @@ check11 AS (
   -- Our validation should block this for teachers registered after launch​
   -- Scope: All teachers including migrated data.​
   SELECT
-    'Training periods with start date before 2023-06-01' as check_name,
+    'Training periods with start date before 2023-06-01 and created after migration' as check_name,
     'trn' as bad_record_id_type,
     CAST(trn as string) as bad_record_id
   FROM
     training_periods
   WHERE
     started_on is not null and
-    started_on < '2023-06-01' 
+    started_on < '2023-06-01' AND
+    DATE(created_at) > '2026-04-28'
   GROUP BY
     trn),
 
@@ -290,14 +296,15 @@ check12 AS (
   -- Our validation should block this for teachers registered after launch​
   -- Scope: All teachers including migrated data.​
   SELECT
-    'ECT at school periods starting before 2023-06-01' as check_name,
+    'ECT at school periods starting before 2023-06-01 and created after migration' as check_name,
     'trn'  as bad_record_id_type,
    CAST(trn as string) as bad_record_id
   FROM
     training_periods
   WHERE
     ect_at_school_period_started_on is not null
-    and ect_at_school_period_started_on < '2023-06-01'
+    and ect_at_school_period_started_on < '2023-06-01' AND
+    DATE(created_at) > '2026-04-28'
   GROUP BY 
     trn),
 
@@ -308,14 +315,15 @@ check13 AS (
   -- Our validation should block this for teachers registered after launch​
   -- Scope: All teachers including migrated data.​
   SELECT
-    'Mentor at school periods starting before 2023-06-01' as check_name,
+    'Mentor at school periods starting before 2023-06-01 and created after migration' as check_name,
     'trn' as bad_record_id_type,
    CAST(trn as string) as bad_record_id
   FROM
     training_periods
   WHERE
     mentor_at_school_period_started_on is not null 
-    and mentor_at_school_period_started_on < '2023-06-01' 
+    and mentor_at_school_period_started_on < '2023-06-01' AND
+    DATE(created_at) > '2026-04-28'
   GROUP BY 
     trn),
 
@@ -326,13 +334,14 @@ check14 AS (
   -- Our validation should block this for teachers registered after launch​
   -- Scope: All teachers including migrated data.​
   SELECT
-    'Mentorship periods starting before 2023-06-01' as check_name,
+    'Mentorship periods starting before 2023-06-01 and created after migration' as check_name,
      'ect trn' as bad_record_id_type,
      CAST(ect_trn as string) as bad_record_id
   FROM
     mentorship_periods
   WHERE
-    started_on < '2023-06-01' 
+    started_on < '2023-06-01' AND
+    DATE(created_at) > '2026-04-28'
   GROUP BY 
     ect_trn),
 
@@ -449,21 +458,20 @@ check21 AS (
   -- RECT Validation Check #12
   -- ECTs with overlapped at_school_periods​
   -- Scope: All teachers including migrated data.​
-  SELECT
+   SELECT
     'ECTs with overlapped at_school_periods' as check_name,
-    'trn' as bad_record_id_type,
-    CAST(a.trn as string) as bad_record_id
-  FROM training_periods AS a
-  INNER JOIN  training_periods AS b
+    'teacher_id' as bad_record_id_type,
+    CAST(a.teacher_id as string) as bad_record_id
+  FROM ect_at_school_periods AS a
+  INNER JOIN  ect_at_school_periods AS b
     ON a.teacher_id = b.teacher_id
-    AND a.training_period_id < b.training_period_id
+    AND a.id < b.id
   WHERE
-    a.participant_type = 'ect'
-    AND b.participant_type = 'ect'
-    AND a.ect_at_school_period_started_on < COALESCE(b.ect_at_school_period_finished_on, '9999-12-31')
-    AND COALESCE(a.ect_at_school_period_finished_on, '9999-12-31') > b.ect_at_school_period_started_on
+    a.started_on < COALESCE(b.finished_on, '9999-12-31')
+    AND COALESCE(a.finished_on, '9999-12-31') > b.started_on
   GROUP BY
-    a.trn),
+    a.teacher_id
+ ),
 
 
 check22 as (
