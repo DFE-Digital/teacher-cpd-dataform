@@ -32,6 +32,8 @@ WHERE
     /* True if a DfE support process is needed that requires multiple support users to validate the claweback request is valid */
     "clawback_rejected",
     /* TO BE REVIEWED -- ADDED TO RESOLVE PIPELINE ERROR */
+    "clawback_complete",
+    /* TO BE REVIEWED -- ADDED TO RESOLVE PIPELINE ERROR */
     "draft",
     /*a claim has been drafted by support but the school hasn't yet decided whether to submit it or not */
     "invalid_provider",
