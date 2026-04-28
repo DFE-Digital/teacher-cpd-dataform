@@ -149,7 +149,7 @@ CROSS JOIN (
     SELECT
       DISTINCT(year) AS contract_year
     FROM
-      ${ctx.ref("contract_periods_latest_ecf2_sandbox")}
+      ${ctx.ref("contract_periods_latest_ecf2")}
     WHERE year >= 2023) AS contract_periods
 ORDER BY contract_year asc, milestone_start asc)`;
 }
