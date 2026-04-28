@@ -388,13 +388,7 @@ WITH
     session_start_timestamp > session_timestamp_checkpoint
   UNION ALL (
     SELECT
-        CASE
-            WHEN start_page LIKE '%/admin%' THEN "ECF2 - Admin"
-            WHEN start_page LIKE '%/school/%' or start_page = '/school' THEN  "ECF2 - Register Early Career Teachers"
-            WHEN start_page LIKE '%/appropriate-body/%' or start_page = '/appropriate-body' THEN "ECF2 - Record Inductions as an Appropriate Body"
-            ELSE "ECF2 - Admin"
-        END as application,
-
+        "ECF2 - RECT & RIAB" as application,
       *
     FROM
       ${ref("session_details_ecf2")}
