@@ -25,7 +25,7 @@ const tableNames = [
     "lead_provider_delivery_partnerships_latest",
     "schedules_latest",
     "users_latest",
-    "school_funding_eligibilities"
+    "school_funding_eligibilities_latest"
 ];
 
 tableNames.forEach(tableName => {

@@ -55,6 +55,8 @@ config {
         school_type: "",
         school_phase: "",
         school_urn: "Unique Reference Number (URN) assigned to a school. Note that a URN is not persistent across structural changes: if a school closes and re-opens with materially different characteristics, a new URN is issued and a new record is created rather than updating the existing one.",
+        sparsity_uplift: "",
+        pupil_premium_uplift: "",        
         created_at: "When the training_period was created in the ECF2 service",
         updated_at: "When the training_period was last updated in the ECF2 service"
     }

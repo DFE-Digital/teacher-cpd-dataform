@@ -7,7 +7,7 @@ config {
     bigquery: {
         partitionBy: "DATE(created_at)"
     },
-    description: "WARNING - SANDBOX DATA ONLY. All schools an ECT or Mentor is training at, join GIAS_schools on URN for school level attributes",
+    description: "All schools an ECT or Mentor is training at, join GIAS_schools on URN for school level attributes",
     columns: {
         school_id: "PK of the schools table",
         school_api_id: "The unique ID of the school exposed on the API.",
@@ -65,10 +65,10 @@ SELECT
   schools.induction_tutor_last_nominated_in,
   schools.created_at,
   schools.updated_at
-FROM ${ref('schools_latest_ecf2_sandbox')} as schools
-LEFT JOIN ${ref('gias_schools_latest_ecf2_sandbox')} as gias_schools
+FROM ${ref('schools_latest_ecf2')} as schools
+LEFT JOIN ${ref('gias_schools_latest_ecf2')} as gias_schools
   ON schools.urn = gias_schools.urn 
 LEFT JOIN ${ref('appropriate_bodies_latest_ecf2')} as appropriate_bodies
   ON schools.last_chosen_appropriate_body_id = appropriate_bodies.id
-LEFT JOIN ${ref('lead_providers_latest_ecf2_sandbox')} as lead_providers
+LEFT JOIN ${ref('lead_providers_latest_ecf2')} as lead_providers
   ON schools.last_chosen_lead_provider_id = lead_providers.id
