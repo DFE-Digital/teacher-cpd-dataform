@@ -66,3 +66,18 @@ SELECT
   'Register Early Career Teachers - Sandbox' AS api_environment
 FROM
   ${ref('persist_api_request_ecf2_sandbox')}
+  UNION ALL
+SELECT
+  DISTINCT occurred_at,
+  request_user_id,
+  request_uuid,
+  api_request_method,
+  api_request_path,
+  ${functions.contentGroupPath("api_request_path")} AS request_path_grouped,
+  status_code,
+  ${functions.extractValueFromSingleElementArrayofJSONStrings("lead_provider", "name")} AS lp_name,
+  request_body,
+  response_body,
+  'Register Early Career Teachers - Production' AS api_environment
+FROM
+  ${ref('persist_api_request_ecf2')}
