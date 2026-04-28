@@ -9,7 +9,7 @@ config {
         partitionBy: "DATE(created_at)",
         clusterBy: ["ect_at_school_period_id","mentor_at_school_period_id","training_programme","participant_type"]
     },
-    description: "WARNING - SANDBOX DATA ONLY. Holds all training periods for ECTs and Mentors, what period of time the Mentor or ECT was training in, the school and school partnership they are registered with, their training programme and relevant mentorship period data. A new record is created when an ECT or Mentor has been registered for training for the first time or the ECT, resumed their training (deferred to active) or Mentor has changed school, cohort or provider. ",
+    description: "Holds all training periods for ECTs and Mentors, what period of time the Mentor or ECT was training in, the school and school partnership they are registered with, their training programme and relevant mentorship period data. A new record is created when an ECT or Mentor has been registered for training for the first time or the ECT, resumed their training (deferred to active) or Mentor has changed school, cohort or provider. ",
     columns: {
         training_period_id: "PK of the training_periods table",
         trn: {
@@ -94,8 +94,8 @@ SELECT
   training_periods.mentor_became_ineligible_for_funding_reason,
   training_periods.ect_payments_frozen_year,
   training_periods.mentor_payments_frozen_year,
--- TODO:  training_periods.sparsity_uplift,
--- TODO:  training_periods.high_pupil_premium,
+  training_periods.sparsity_uplift,
+  training_periods.high_pupil_premium,
   teachers.trs_first_name,
   teachers.trs_last_name,
   COALESCE(ect_at_school_periods.email, mentor_at_school_periods.email) AS teacher_email,
