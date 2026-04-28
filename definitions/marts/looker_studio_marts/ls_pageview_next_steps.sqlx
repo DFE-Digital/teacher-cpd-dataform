@@ -388,7 +388,7 @@ WITH
     session_start_timestamp > session_timestamp_checkpoint
   UNION ALL (
     SELECT
-        ECF2 - RECT & RIAB as application,
+        "ECF2 - RECT & RIAB" as application,
       *
     FROM
       ${ref("session_details_ecf2")}
