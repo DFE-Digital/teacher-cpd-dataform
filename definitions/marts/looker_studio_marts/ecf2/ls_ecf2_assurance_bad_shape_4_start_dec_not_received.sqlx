@@ -60,13 +60,9 @@ LEFT JOIN
 ON
   declarations.teacher_id = started_decs.teacher_id
   AND started_decs.declaration_type = 'started'
-  AND started_decs.declaration_state IN ('eligible',
-    'payable',
-    'paid')
+  AND started_decs.declaration_state IN ('eligible', 'payable', 'paid')
 WHERE
-  declarations.declaration_state IN ('eligible',
-    'payable',
-    'paid')
+  declarations.declaration_state IN ('eligible', 'payable', 'paid')
   AND started_decs.declaration_id IS NULL
   AND declarations.contract_period_year >= 2025
   AND declarations.statement_contract_period_year >= 2025
