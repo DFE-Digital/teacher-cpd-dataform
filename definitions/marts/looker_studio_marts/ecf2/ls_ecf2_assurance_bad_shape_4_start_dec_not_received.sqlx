@@ -37,7 +37,7 @@ config {
 
   /*This looks at the declarations a participant has received and joins itself back onto its source to determine if that same participant hasn't received a started declaration. It uses a declaration count to exclude any participants on a reduced schedule that have only received a completed declaration*/
 SELECT
-  declarations.declaration_id,
+  declarations.declaration_external_id as declaration_id,
   declarations.declaration_type,
   DATE(declarations.declaration_created_at_date) AS declaration_created_at_date,
   declarations.declaration_date,
@@ -60,13 +60,9 @@ LEFT JOIN
 ON
   declarations.teacher_id = started_decs.teacher_id
   AND started_decs.declaration_type = 'started'
-  AND started_decs.declaration_state IN ('eligible',
-    'payable',
-    'paid')
+  AND started_decs.declaration_state IN ('eligible', 'payable', 'paid')
 WHERE
-  declarations.declaration_state IN ('eligible',
-    'payable',
-    'paid')
+  declarations.declaration_state IN ('eligible', 'payable', 'paid')
   AND started_decs.declaration_id IS NULL
   AND declarations.contract_period_year >= 2025
   AND declarations.statement_contract_period_year >= 2025

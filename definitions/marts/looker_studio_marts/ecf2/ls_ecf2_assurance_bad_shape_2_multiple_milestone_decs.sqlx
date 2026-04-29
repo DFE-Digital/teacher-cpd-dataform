@@ -45,7 +45,7 @@ config {
 WITH
   declarations_extended AS (
   SELECT
-    declaration_id,
+    declaration_external_id as declaration_id,
     declaration_type,
     DATE(declaration_created_at_date) AS declaration_created_at_date,
     declaration_date,
