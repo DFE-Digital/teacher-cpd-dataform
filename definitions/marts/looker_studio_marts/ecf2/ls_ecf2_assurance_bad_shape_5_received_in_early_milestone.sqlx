@@ -58,7 +58,7 @@ WITH
     /*Reduced participant's declarations are excluded from this shape because their training can be abridged. Only participants currently in the 2023 cohort or later are included*/
 
 SELECT
-  declaration_id,
+  declaration_external_id as declaration_id,
   declarations.declaration_type,
   DATE(declaration_created_at_date) AS declaration_created_at_date,
   declaration_date,
@@ -91,7 +91,7 @@ INNER JOIN
 USING
   (teacher_id)
 CROSS JOIN
-  ${functions.cohortMilestonesWithStartAndEndDateswithordering(ctx)}
+  ${functions.ecf2_cohortMilestonesWithStartAndEndDateswithOrdering(ctx)}
 WHERE
   (DATE(declaration_date) BETWEEN milestone_start
     AND milestone_end)

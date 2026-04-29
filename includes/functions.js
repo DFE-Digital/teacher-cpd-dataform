@@ -46,7 +46,7 @@ function correctOrderDeclarationsTypesShouldBeReceived() {
                 'started' AS declaration_type,
                 1 AS expected_declaration_sequence_position,
                 1 AS earliest_declaration_can_be_received,
-                'ECT' AS participant_type
+                'ect' AS participant_type
             ),
             
             -- Retained milestones
