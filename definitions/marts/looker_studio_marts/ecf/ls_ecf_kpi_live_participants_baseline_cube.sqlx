@@ -40,7 +40,7 @@ WITH
       FROM
         registration_start_date) + 1, 8, 31) AS academic_year_end_date
   FROM
-    ${ref(`cohorts_latest_ecf1`)} AS cohort
+    ${ref(`contract_periods_latest_ecf2`)} AS cohort
   WHERE
     DATE(registration_start_date) < CURRENT_DATE ),
   registration_windows_with_metrics AS (
