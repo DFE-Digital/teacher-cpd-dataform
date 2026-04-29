@@ -161,9 +161,10 @@ check4 AS (
     'trn' AS bad_record_id_type,
     CAST(trn as string) AS bad_record_id
   FROM
-    teachers
+    teachers 
   WHERE
-    mentor_first_became_eligible_for_training_at IS NULL
+    mentor_first_became_eligible_for_training_at IS NULL and 
+    trn IN (SELECT trn from training_periods where participant_type = 'mentor')
   GROUP BY
     trn ),
 
