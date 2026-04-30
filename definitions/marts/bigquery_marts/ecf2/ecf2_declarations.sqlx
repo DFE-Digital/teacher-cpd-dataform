@@ -5,7 +5,7 @@ config {
         uniqueKey: ["declaration_id"],
     },
     bigquery: {
-        partitionBy: "declaration_date",
+        partitionBy: "started_on",
         clusterBy: ["declaration_type", "contract_period_year", "training_programme", "lead_provider"]
     },
 
