@@ -92,7 +92,7 @@ FROM
   ${ref('support_ticket_classification')}
 WHERE
   classification IN ('CPD - NPQ',
-    'CPD - ECTE') and EXTRACT(YEAR FROM created_at) = 2024 ),
+    'CPD - RECT') and EXTRACT(YEAR FROM created_at) = 2024 ),
   proportionately_assigning_classification AS (
   SELECT
     *
@@ -126,8 +126,8 @@ WHERE
   UNION ALL
   SELECT
     created_at,
-    'ECTE' AS programme_type,
-    'CPD - ECTE' AS classification,
+    'RECT' AS programme_type,
+    'CPD - RECT' AS classification,
     NULL as support_ticket_theme,
     ticket_count * classification_proportions.ecte_proportion AS ticket_count,
     duplicate_tickets_count * classification_proportions.ecte_proportion AS duplicate_tickets_count,
