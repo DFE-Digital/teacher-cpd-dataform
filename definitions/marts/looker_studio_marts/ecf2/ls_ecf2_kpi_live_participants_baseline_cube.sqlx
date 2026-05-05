@@ -8,7 +8,7 @@ config {
         partitionBy: "date",
         labels: {usage: "kpi"}
     },
-    description: "WARNING - SANBOX DATA ONLY. Single-dimension cube (by date) containing the best available actual or estimated number of live ECTs (according to RIAB) to use as a baseline in the registration window that date falls within. To act as a baseline across a range of KPIs. Note that these KPIs should be defined with the baseline (denominator) applying to the whole registration window, even if the numerator applies only to a particular day, week, month etc.",
+    description: "Single-dimension cube (by date) containing the best available actual or estimated number of live ECTs (according to RIAB) to use as a baseline in the registration window that date falls within. To act as a baseline across a range of KPIs. Note that these KPIs should be defined with the baseline (denominator) applying to the whole registration window, even if the numerator applies only to a particular day, week, month etc.",
     columns: {
         date: "Date for which this baseline metric has been calculated",
         registration_window_start_date: "The first date in the registration window this date falls within",
