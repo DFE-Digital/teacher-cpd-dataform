@@ -1,6 +1,6 @@
 config {
     type: "table",
-    tags: ["kpi"],
+    tags: ["kpi", "ecf2"],
     assertions: {
         uniqueKey: ["date"]
     },

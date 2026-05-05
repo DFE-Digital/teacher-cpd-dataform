@@ -1,6 +1,6 @@
 config {
     type: "incremental",
-    tags: ["kpi","ecf1"],
+    tags: ["kpi","ecf2"],
     assertions: {
         uniqueKey: ["date", "application", "entity_table_name", "fields_updated", "correction_type"]
     },
