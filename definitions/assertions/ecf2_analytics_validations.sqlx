@@ -1,10 +1,10 @@
 config {
   type: "table",
-  schema: "data_quality",  // e.g., ecf-bq.data_quality.ecf2_assertions
+//   schema: "data_quality",  // e.g., ecf-bq.data_quality.ecf2_assertions
   tags: ["ecf2", "data_quality", "assertion"]
 }
 
--- Each custom "assertion" (these are not true assertions) / data quality check is its own CTE
+-- Each custom "data validation" is its own CTE
 -- Each data quality check should return the following:
 --   observed_date: date of run_time
 --   entity: the table name it checks against
