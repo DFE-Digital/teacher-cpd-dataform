@@ -35,7 +35,6 @@ WITH registration_windows AS (
     DATE(EXTRACT(YEAR FROM started_on) + 1, 8, 31) AS academic_year_end_date
   FROM
     ${ref(`contract_periods_latest_ecf2`)}
-    --`ecf-bq.dfe_analytics_dataform_TB_dev.contract_periods_latest_ecf2`
   WHERE
     DATE(started_on) < CURRENT_DATE     
 ),
