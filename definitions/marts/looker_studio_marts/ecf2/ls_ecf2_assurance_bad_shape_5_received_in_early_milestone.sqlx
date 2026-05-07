@@ -37,67 +37,67 @@ config {
 }
 
   /*This identifies the first milestone period in which a participant received a funded start declaration. This will be used as a base milestone to compare with the other milestones in which the participant received declarations. */
-WITH
-  started_declaration_milestones AS (
+WITH started_declaration_milestones AS (
   SELECT
     teacher_id,
+    participant_type,
     MIN(milestone_order) AS milestone_start_received
   FROM
     ${ref("ecf2_declarations_latest")} declarations
   CROSS JOIN
-    ${functions.cohortMilestonesWithStartAndEndDateswithordering(ctx)} AS milestone_dates
+    ${functions.ecf2_cohortMilestonesWithStartAndEndDatesWithOrdering(ctx)} AS milestone_dates
   WHERE
     (DATE(declaration_date) BETWEEN milestone_start AND milestone_end)
     AND declaration_type = 'started'
     AND declaration_state IN ('eligible', 'payable', 'paid')
-    AND declarations.statement_contract_period_year = milestone_dates.cohort_year  -- TODO: refactor to contract periods? 
+    AND declarations.statement_contract_period_year = milestone_dates.contract_year 
   GROUP BY
-    teacher_id)
+    teacher_id,
+    participant_type
+)
     /*This identifies declarations received for a participant and induction details from their latest induction record. It then merges in the correct sequence for declarations and the details of the participant's started declaration.*/
     /*It identifies the milestone in which the current declaration was evidenced and normalises its position based on when the start declaration was received and compares that to the expected sequence of declarations to check if it was received early. */
     /*Reduced participant's declarations are excluded from this shape because their training can be abridged. Only participants currently in the 2023 cohort or later are included*/
 
-SELECT
-  declaration_external_id as declaration_id,
-  declarations.declaration_type,
-  DATE(declaration_created_at_date) AS declaration_created_at_date,
-  declaration_date,
-  teacher_id,
-  trn,
-  declaration_state,
-  lead_provider,
-  payment_statement_id,
-  clawback_statement_id,  
-  schedule_identifier,
-  declarations.participant_type,
-  contract_period_year,
-  statement_contract_period_year,
 
-  earliest_declaration_can_be_received,
-  milestone_start_received,
-  milestone_order AS milestone_current_declaration_was_received,
-  (milestone_order - milestone_start_received + 1) AS milestone_delta
+SELECT
+  declarations.declaration_external_id as declaration_id,
+  declarations.declaration_type,
+  DATE(declarations.declaration_created_at_date) AS declaration_created_at_date,
+  declarations.declaration_date,
+  declarations.teacher_id,
+  declarations.trn,
+  declarations.participant_type,
+  declarations.declaration_state,
+  declarations.lead_provider,
+  declarations.payment_statement_id,
+  declarations.clawback_statement_id,  
+  declarations.schedule_identifier,
+  declarations.contract_period_year,
+  declarations.statement_contract_period_year,
+
+  declaration_sequence_list.earliest_declaration_can_be_received,
+  started_declaration_milestones.milestone_start_received,
+  milestone_dates.milestone_order AS milestone_current_declaration_was_received,
+  (milestone_dates.milestone_order - started_declaration_milestones.milestone_start_received + 1) AS milestone_delta
 FROM
   ${ref("ecf2_declarations_latest")} declarations
-INNER JOIN
-  ${functions.correctOrderDeclarationsTypesShouldBeReceived()} AS declaration_sequence_list
-ON
-  declarations.declaration_type = declaration_sequence_list.declaration_type
+-- join the order of which declarations should be received
+INNER JOIN ${functions.correctOrderDeclarationsTypesShouldBeReceived()} AS declaration_sequence_list
+  ON declarations.declaration_type = declaration_sequence_list.declaration_type
   AND declarations.participant_type = declaration_sequence_list.participant_type
-  AND DATE(declaration_created_at_date) BETWEEN declaration_date_start
-  AND declaration_date_end
-INNER JOIN
-  started_declaration_milestones
-USING
-  (teacher_id)
-CROSS JOIN
-  ${functions.ecf2_cohortMilestonesWithStartAndEndDateswithOrdering(ctx)}
+  AND DATE(declaration_created_at_date) BETWEEN declaration_date_start AND declaration_date_end
+-- join the earliest started declaration milestone
+INNER JOIN started_declaration_milestones
+  ON declarations.teacher_id = started_declaration_milestones.teacher_id
+  AND declarations.participant_type = started_declaration_milestones.participant_type
+-- join the milestone start/end dates to get the current milestone in which dec was received
+CROSS JOIN ${functions.ecf2_cohortMilestonesWithStartAndEndDatesWithOrdering(ctx)} AS milestone_dates
+
 WHERE
-  (DATE(declaration_date) BETWEEN milestone_start
-    AND milestone_end)
+  (DATE(declaration_date) BETWEEN milestone_start AND milestone_end)
   AND declaration_state IN ( 'eligible', 'payable', 'paid')
-  and statement_contract_period_year = contract_period_year
-  AND (milestone_order - milestone_start_received + 1) < earliest_declaration_can_be_received
-  AND (declarations.schedule_identifier NOT LIKE '%reduced%'
-    OR declarations.declaration_type <> 'completed')
+  AND declarations.statement_contract_period_year = milestone_dates.contract_year
+  AND (milestone_dates.milestone_order - milestone_start_received + 1) < earliest_declaration_can_be_received
+  AND (declarations.schedule_identifier NOT LIKE '%reduced%' OR declarations.declaration_type <> 'completed')
   AND contract_period_year >= 2025

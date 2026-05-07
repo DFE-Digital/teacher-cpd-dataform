@@ -24,26 +24,24 @@ config {
     }
 }
 
-WITH
-  registration_windows AS (
+WITH registration_windows AS (
   SELECT
     DATE(started_on) AS registration_window_start_date,
     LEAD(DATE(started_on)) OVER (ORDER BY started_on ASC) - 1 AS registration_window_end_date,
-    EXTRACT(YEAR
-    FROM
-      started_on) AS registration_window_year,
+    -- DATE(finished_on) AS registration_window_end_date,  -- will need to check if using the finished_on date is preferred over using the prior day from the next record
+    EXTRACT(YEAR FROM started_on) AS registration_window_year,
     ${functions.yearStartDateToAcademicYearString("DATE(started_on)")} AS registration_window_string,
-    DATE(EXTRACT(YEAR
-      FROM
-        started_on), 9, 1) AS academic_year_start_date,
-    DATE(EXTRACT(YEAR
-      FROM
-        started_on) + 1, 8, 31) AS academic_year_end_date
+    DATE(EXTRACT(YEAR FROM started_on), 9, 1) AS academic_year_start_date,
+    DATE(EXTRACT(YEAR FROM started_on) + 1, 8, 31) AS academic_year_end_date
   FROM
-    ${ref(`contract_periods_latest_ecf2_sandbox`)} AS contract_periods
+    ${ref(`contract_periods_latest_ecf2`)}
+    --`ecf-bq.dfe_analytics_dataform_TB_dev.contract_periods_latest_ecf2`
   WHERE
-    DATE(started_on) < CURRENT_DATE ),
-  registration_windows_with_metrics AS (
+    DATE(started_on) < CURRENT_DATE     
+),
+
+
+registration_windows_with_metrics AS (
   SELECT
     registration_window_string,
     registration_window_year,
@@ -60,7 +58,10 @@ WITH
     ${ref(`ecf2_induction_periods`)},
     registration_windows
   GROUP BY
-    ALL ),
+    ALL
+),
+
+
 dates_with_metrics AS (
   SELECT
     date,
@@ -112,6 +113,9 @@ dates_with_metrics AS (
       OR (date >= registration_window_start_date
         AND registration_window_end_date IS NULL))
 )
+
+
+-- FINAL SELECT
 SELECT
   *,
   LEAD(date_is_in_registration_window_to_date_or_past_registration_window)
