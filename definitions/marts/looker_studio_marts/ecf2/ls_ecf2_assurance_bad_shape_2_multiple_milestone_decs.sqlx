@@ -42,8 +42,7 @@ config {
 }
 
   /* This identifies declarations received for a participant and induction details from their latest induction record. It then determines where in a milestone period a declaration falls based on declaration date and whether it falls on the first or last date of a milestone period to determine whether it was received on a potential 'dummy date' */
-WITH
-  declarations_extended AS (
+WITH declarations_extended AS (
   SELECT
     declaration_external_id as declaration_id,
     declaration_type,
@@ -68,12 +67,14 @@ WITH
   FROM
     ${ref("ecf2_declarations_latest")} declarations
   CROSS JOIN
-    ${functions.ecf2_cohortMilestonesWithStartAndEndDateswithOrdering(ctx)}
+    ${functions.ecf2_cohortMilestonesWithStartAndEndDatesWithOrdering(ctx)} AS milestone_dates
   WHERE
     (DATE(declaration_date) BETWEEN milestone_start AND milestone_end)
     AND declaration_state IN ('eligible', 'payable', 'paid') 
-    AND statement_contract_period_year = contract_year)
+    AND statement_contract_period_year = milestone_dates.contract_year
+)
 
+-- FINAL SELECT
 SELECT
   *,
   COUNT(*) OVER (PARTITION BY teacher_id, milestone_start, contract_period_year) AS participant_declarations_evidenced_in_milestone
