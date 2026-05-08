@@ -41,10 +41,9 @@ config {
     }
 }
 
-  /* This identifies declarations received for a participant and training details from their latest training record. It joins in what should be the correct sequence for that declaration type based on when the declaration was received */
-  /* Only declarations eligible for funding are permitted for the calculation*/
-WITH
-  extended_declarations AS (
+/* This identifies declarations received for a participant and training details from their latest training record. It joins in what should be the correct sequence for that declaration type based on when the declaration was received */
+/* Only declarations eligible for funding are permitted for the calculation*/
+WITH extended_declarations AS (
   SELECT
     declaration_external_id as declaration_id,
     declarations.declaration_type,
@@ -65,31 +64,33 @@ WITH
     /* This date logic in the 'order by' exists to ensure that if a declaration is out of order compared to declarations received earlier on a different date but also evidenced on the same day as a declaration that should be later in the sequence, that declaration won't eclipse the prior declaration and prevent the qualify statement from working at the end of this mart*/
     /* For example, if you were to evidence a retained 3 declaration on Sep 15th and then on Sep 17th evidence a completed declaration at 9AM and then a retained 2 declaration at 10 AM,for the purposes of the queries below, you would want the retained 2 declaration ordered immediately after the retained 3 declaration and then the completed declaration ordered after the retained 2 declaration - So Ret 3, Ret 2, Completed */
     /* This prevents this misordered retained 2 declaration from being excluded by the qualify statement excluding declarations out of order simply because they were evidenced on the same date, as this ordering logic compares it to the retained 3 declaration instead of the completed declaration. */
-    ROW_NUMBER() OVER (PARTITION BY teacher_id ORDER BY DATE(declaration_date) ASC,
-      expected_declaration_sequence_position ASC) AS actual_evidenced_sequence_position,
-  FROM
-    ${ref('ecf2_declarations_latest')} declarations
-  LEFT JOIN
-    ${functions.correctOrderDeclarationsTypesShouldBeReceived()} AS declaration_sequence_list
+    ROW_NUMBER() OVER (
+        PARTITION BY teacher_id, participant_type
+        ORDER BY 
+            DATE(declaration_date) ASC,
+            expected_declaration_sequence_position ASC
+    ) AS actual_evidenced_sequence_position
+  FROM ${ref('ecf2_declarations_latest')} declarations
+  LEFT JOIN ${functions.correctOrderDeclarationsTypesShouldBeReceived()} AS declaration_sequence_list
     ON declarations.declaration_type = declaration_sequence_list.declaration_type
     AND declarations.participant_type = declaration_sequence_list.participant_type
   WHERE
-    DATE(declaration_created_at_date) BETWEEN declaration_date_start
-    AND declaration_date_end
+    DATE(declaration_created_at_date) BETWEEN declaration_date_start AND declaration_date_end
     AND contract_period_year >= 2025
     AND declaration_state IN ('eligible', 'payable', 'paid')
-  )
-      /* This identifies the declarations evidenced before and after a given record's declaration based on declaration_date. It checks if the permitted sequence number of the record's declaration falls out of order compared to the maximum expected order of the declarations evidenced before or compared to the minimum expected order of the declarations evidenced after*/
-      /* It does not consider the declaration to fall under this bad shape if the declaration is evidenced on the same date as the prior or next declarations, this is covered under another bad shape */
-      /* It does not consider the declaration to fall under this bad shape if this participant is on a 'reduced' schedule and the declaration is a 'completed' type */
+)
+
+/* This identifies the declarations evidenced before and after a given record's declaration based on declaration_date. It checks if the permitted sequence number of the record's declaration falls out of order compared to the maximum expected order of the declarations evidenced before or compared to the minimum expected order of the declarations evidenced after*/
+/* It does not consider the declaration to fall under this bad shape if the declaration is evidenced on the same date as the prior or next declarations, this is covered under another bad shape */
+/* It does not consider the declaration to fall under this bad shape if this participant is on a 'reduced' schedule and the declaration is a 'completed' type */
+
 SELECT
   *,
   MAX(expected_declaration_sequence_position) OVER participant_declarations_evidenced_prior_to_current_record AS max_declaration_sequence_evidenced_before_date,
   MAX(DATE(declaration_date)) OVER participant_declarations_evidenced_prior_to_current_record AS max_declaration_date_evidenced_before_date,
   MIN(expected_declaration_sequence_position) OVER participant_declarations_evidenced_after_current_record AS min_declaration_sequence_evidenced_after_date,
   MIN(DATE(declaration_date)) OVER participant_declarations_evidenced_after_current_record AS min_declaration_date_evidenced_after_date
-FROM
-  extended_declarations
+FROM extended_declarations
 QUALIFY
   (max_declaration_sequence_evidenced_before_date > expected_declaration_sequence_position
     AND max_declaration_date_evidenced_before_date <> DATE(declaration_date)
@@ -102,13 +103,13 @@ QUALIFY
 WINDOW
   participant_declarations_evidenced_prior_to_current_record AS (
   PARTITION BY
-    teacher_id
+    teacher_id, participant_type
   ORDER BY
-    actual_evidenced_sequence_position ROWS BETWEEN UNBOUNDED PRECEDING
-    AND 1 PRECEDING ),
-  participant_declarations_evidenced_after_current_record AS (
+    actual_evidenced_sequence_position ROWS BETWEEN UNBOUNDED PRECEDING AND 1 PRECEDING ),
+
+participant_declarations_evidenced_after_current_record AS (
   PARTITION BY
-    teacher_id
+    teacher_id, participant_type
   ORDER BY
     actual_evidenced_sequence_position ROWS BETWEEN 1 FOLLOWING
     AND UNBOUNDED FOLLOWING )
