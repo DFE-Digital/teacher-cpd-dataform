@@ -52,13 +52,11 @@ SELECT
   declarations.contract_period_year,
   declarations.statement_contract_period_year,
   
-  COUNT(DISTINCT(declarations.declaration_id)) OVER (PARTITION BY declarations.teacher_id) AS declaration_count
-FROM
-  ${ref("ecf2_declarations_latest")} declarations
-LEFT JOIN
-  ${ref("ecf2_declarations_latest")} started_decs
-ON
-  declarations.teacher_id = started_decs.teacher_id
+  COUNT(DISTINCT(declarations.declaration_id)) OVER (PARTITION BY declarations.teacher_id, declarations.participant_type) AS declaration_count
+FROM ${ref("ecf2_declarations_latest")} declarations
+LEFT JOIN ${ref("ecf2_declarations_latest")} started_decs
+  ON declarations.teacher_id = started_decs.teacher_id
+  AND declarations.participant_type = started_decs.participant_type
   AND started_decs.declaration_type = 'started'
   AND started_decs.declaration_state IN ('eligible', 'payable', 'paid')
 WHERE

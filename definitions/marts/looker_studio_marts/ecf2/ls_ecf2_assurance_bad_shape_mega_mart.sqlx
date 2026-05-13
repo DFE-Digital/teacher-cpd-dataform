@@ -38,7 +38,7 @@ SELECT
   DISTINCT
   decs.teacher_id,
   decs.trn,
-  decs.declaration_id,
+  decs.declaration_external_id as declaration_id,
   decs.lead_provider,
   decs.declaration_created_at_date,
   DATE(decs.declaration_date) AS declaration_date,
@@ -51,27 +51,18 @@ SELECT
   shape_3.declaration_id IS NOT NULL AS shape_3_flag,
   shape_4.declaration_id IS NOT NULL AS shape_4_flag,
   shape_5.declaration_id IS NOT NULL AS shape_5_flag
-FROM
-  ${ref('ecf2_declarations_latest')} decs
-LEFT JOIN
-  ${ref('ls_ecf2_assurance_bad_shape_1_out_of_sequence')} shape_1
-USING
-  (declaration_id)
-LEFT JOIN
-  ${ref('ls_ecf2_assurance_bad_shape_2_multiple_milestone_decs')} shape_2
-USING
-  (declaration_id)
-LEFT JOIN
-  ${ref('ls_ecf2_assurance_bad_shape_3_start_without_evidence')} shape_3
-USING
-  (declaration_id)
-LEFT JOIN
-  ${ref('ls_ecf2_assurance_bad_shape_4_start_dec_not_received')} shape_4
-USING
-  (declaration_id)
-LEFT JOIN
-  ${ref('ls_ecf2_assurance_bad_shape_5_received_in_early_milestone')} shape_5
-USING
-  (declaration_id)
+FROM ${ref('ecf2_declarations_latest')} decs
+
+LEFT JOIN ${ref('ls_ecf2_assurance_bad_shape_1_out_of_sequence')} shape_1
+  ON decs.declaration_external_id = shape_1.declaration_id
+LEFT JOIN ${ref('ls_ecf2_assurance_bad_shape_2_multiple_milestone_decs')} shape_2
+  ON decs.declaration_external_id = shape_2.declaration_id
+LEFT JOIN ${ref('ls_ecf2_assurance_bad_shape_3_start_without_evidence')} shape_3
+  ON decs.declaration_external_id = shape_3.declaration_id
+LEFT JOIN ${ref('ls_ecf2_assurance_bad_shape_4_start_dec_not_received')} shape_4
+  ON decs.declaration_external_id = shape_4.declaration_id
+LEFT JOIN  ${ref('ls_ecf2_assurance_bad_shape_5_received_in_early_milestone')} shape_5
+  ON decs.declaration_external_id = shape_5.declaration_id
+
 WHERE
   COALESCE(shape_1.declaration_id, shape_2.declaration_id, shape_3.declaration_id, shape_4.declaration_id, shape_5.declaration_id) IS NOT NULL

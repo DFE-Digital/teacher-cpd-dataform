@@ -58,5 +58,5 @@ WHERE
   declaration_type = 'started'
   AND declaration_state IN ( 'eligible', 'payable', 'paid')
   AND evidence_type IS NULL
-  AND statement_contract_period_year = 2025
-  AND CAST(contract_period_year AS INT) >= 2025
+  AND statement_contract_period_year >= 2025
+  AND contract_period_year >= 2025
