@@ -28,8 +28,7 @@ config {
     }
 }
 
-WITH
-  cpd_prog_data AS (
+WITH cpd_prog_data AS (
   SELECT
     ticket_id,
     DATE(created_at) AS created_at,
@@ -37,15 +36,13 @@ WITH
     status,
     LOWER(IFNULL(service_name, 'Unknown')) AS service_name,
     ARRAY(
-    SELECT
-      LOWER(elem)
-    FROM
-      UNNEST(issue_type) AS elem) AS issue_type,
+      SELECT LOWER(elem)
+      FROM UNNEST(issue_type) AS elem
+    ) AS issue_type,
     ARRAY(
-    SELECT
-      LOWER(elem)
-    FROM
-      UNNEST(tags) AS elem) AS tags,
+      SELECT LOWER(elem)
+      FROM UNNEST(tags) AS elem
+    ) AS tags,
     solved_at,
     updated_at,
     status_updated_at,
@@ -53,24 +50,24 @@ WITH
     reopened_ticket,
     first_reply_within_sla,
     (trello_card_id IS NOT NULL OR REGEXP_CONTAINS(LOWER(COALESCE(group_name, '')), '(2nd line|3rd line)')) AS escalated_to_product_team
-  FROM
-    ${ref('support_ticket_details_anonymised')} AS sta
-  LEFT JOIN
-    `ecf-bq.static_tables.support_ticket_details_migrated` AS stm
-  ON
-    sta.ticket_id = stm.destination_id
+  FROM ${ref('support_ticket_details_anonymised')} AS sta
+  LEFT JOIN `ecf-bq.static_tables.support_ticket_details_migrated` AS stm
+    ON sta.ticket_id = stm.destination_id
   WHERE
-    group_name LIKE 'CPD%'),
-  duplicate_tickets AS (
+    group_name LIKE 'CPD%'
+),
+
+-- CTE to identify duplicate tickets
+duplicate_tickets AS (
   SELECT
     ticket_id,
-    LOGICAL_OR( 'closed_by_merge' IN UNNEST(tags)
-      AND status = 'closed' ) AS is_duplicate,
-  FROM
-    cpd_prog_data
+    LOGICAL_OR( 'closed_by_merge' IN UNNEST(tags) AND status = 'closed' ) AS is_duplicate,
+  FROM cpd_prog_data
   GROUP BY
     ticket_id),
-  classification_logic AS (
+
+-- CTE to handle ticket classification
+classification_logic AS (
   SELECT
     cpd_prog_data.*,
     CASE
@@ -86,12 +83,9 @@ WITH
 
       -- Second classification layer: uses the group_name to assign classification
       WHEN cpd_prog_data.group_name IN ('CPD - ECTE', 'CPD - 2nd Line- LP and DP Queries', 'CPD - 2nd Line: Appropriate Bodies & Regs', 'CPD - 2nd line - Withdrawing or reinstating ECTs/mentors', 'CPD - 3rd Line Support (Dfe admin)', 'CPD - ECF', 'CPD - ECF - Access to DfE service', 'CPD - ECF - ECT registration issues', 'CPD - ECF - Mentor registration issues', 'CPD - ECF - Partnerships', 'CPD - 2nd line ECF review (policy)', 'CPD - 2nd line- Unable to change cohort due to declaration errors on the service') THEN 'CPD - RECT'
-      WHEN cpd_prog_data.group_name IN ('CPD - ECF - 2nd line Funding Enquiries',
-      'CPD - ECF Funding',
-      'CPD - ECTE Funding') THEN 'RECT - Funding'
+      WHEN cpd_prog_data.group_name IN ('CPD - ECF - 2nd line Funding Enquiries', 'CPD - ECF Funding', 'CPD - ECTE Funding') THEN 'RECT - Funding'
       WHEN cpd_prog_data.group_name = 'CPD - Get a TRN' THEN 'NPQ - Get a TRN'
-      WHEN cpd_prog_data.group_name IN ('CPD - Induction and AB',
-      'CPD - Legacy Induction') THEN 'RECT - Induction and AB'
+      WHEN cpd_prog_data.group_name IN ('CPD - Induction and AB', 'CPD - Legacy Induction') THEN 'RECT - Induction and AB'
       WHEN cpd_prog_data.group_name IN ('CPD - 2nd Line - NPQ Digital', 'CPD - 2nd Line NPQ Policy Provider Engagement', 'CPD - 2nd line - NQTplus1 overpayments', 'CPD - 3rd Line - NPQ Digital - Developer to action', 'CPD - NPQ', 'CPD - NPQ - General Enquiries', 'CPD - 2nd Line-NPQ TSF') THEN 'CPD - NPQ'
       WHEN cpd_prog_data.group_name = 'CPD - 2nd line - NPQ Funding' THEN 'NPQ - Funding'
       WHEN cpd_prog_data.group_name = 'CPD - Triage' THEN 'CPD - Triage'
@@ -120,30 +114,27 @@ WITH
       '%early career%',
       '%mentor%') THEN 'CPD - RECT'
       ELSE 'Unclassifiable - bad data'
-  END
-    AS classification,
-  IFNULL(themes.support_ticket_theme,'no_mapped_theme') as support_ticket_theme
-  FROM
-    cpd_prog_data
+    END AS classification,
+    IFNULL(themes.support_ticket_theme,'no_mapped_theme') as support_ticket_theme
+  FROM cpd_prog_data
   LEFT JOIN ${ref('support_ticket_issue_type_to_theme_mapping')} as themes
-  ON cpd_prog_data.issue_type[SAFE_OFFSET(0)] = themes.issue_type )
+    ON cpd_prog_data.issue_type[SAFE_OFFSET(0)] = themes.issue_type
+)
+
+-- Final select
 SELECT
   classified_tickets.* EXCEPT(classification),
   CASE
     WHEN classified_tickets.classification IN ('CPD - RECT', 'RECT - Induction and AB', 'RECT - Funding') THEN 'RECT'
-    WHEN classified_tickets.classification IN ('CPD - NPQ',
-    'NPQ - Funding',
-    'NPQ - Get a TRN') THEN 'NPQ'
+    WHEN classified_tickets.classification IN ('CPD - NPQ', 'NPQ - Funding', 'NPQ - Get a TRN') THEN 'NPQ'
     WHEN classified_tickets.classification IN ('CPD - Triage') THEN 'Triage'
     ELSE NULL
-END
-  AS programme_type,
-  CASE WHEN LOWER(classified_tickets.support_ticket_theme) = 'get_a_trn' and classified_tickets.classification IN ('CPD - NPQ', 'NPQ - Funding') then 'NPQ - Get a TRN'
-  ELSE classified_tickets.classification END as classification,
+  END AS programme_type,
+  CASE 
+    WHEN LOWER(classified_tickets.support_ticket_theme) = 'get_a_trn' AND classified_tickets.classification IN ('CPD - NPQ', 'NPQ - Funding') THEN 'NPQ - Get a TRN'
+    ELSE classified_tickets.classification
+  END AS classification,
   duplicate_tickets.is_duplicate
-FROM
-  classification_logic AS classified_tickets
-LEFT JOIN
-  duplicate_tickets AS duplicate_tickets
-ON
-  classified_tickets.ticket_id = duplicate_tickets.ticket_id
+FROM classification_logic AS classified_tickets
+LEFT JOIN duplicate_tickets AS duplicate_tickets
+  ON classified_tickets.ticket_id = duplicate_tickets.ticket_id
