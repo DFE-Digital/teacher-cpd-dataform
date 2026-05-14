@@ -38,6 +38,7 @@ SELECT
   DISTINCT
   decs.teacher_id,
   decs.trn,
+  decs.participant_type,
   decs.declaration_external_id as declaration_id,
   decs.lead_provider,
   decs.declaration_created_at_date,
