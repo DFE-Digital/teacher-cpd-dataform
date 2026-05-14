@@ -65,7 +65,7 @@ WITH extended_declarations AS (
     /* For example, if you were to evidence a retained 3 declaration on Sep 15th and then on Sep 17th evidence a completed declaration at 9AM and then a retained 2 declaration at 10 AM,for the purposes of the queries below, you would want the retained 2 declaration ordered immediately after the retained 3 declaration and then the completed declaration ordered after the retained 2 declaration - So Ret 3, Ret 2, Completed */
     /* This prevents this misordered retained 2 declaration from being excluded by the qualify statement excluding declarations out of order simply because they were evidenced on the same date, as this ordering logic compares it to the retained 3 declaration instead of the completed declaration. */
     ROW_NUMBER() OVER (
-        PARTITION BY teacher_id, participant_type
+        PARTITION BY teacher_id, declarations.participant_type
         ORDER BY 
             DATE(declaration_date) ASC,
             expected_declaration_sequence_position ASC
