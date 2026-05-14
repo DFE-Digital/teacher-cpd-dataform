@@ -45,7 +45,7 @@ SELECT
 FROM
   ${ref("ls_pageview_next_steps")}
 WHERE
-  DATE(page_entry_time) <= CURRENT_DATE
+  DATE(page_entry_time) < CURRENT_DATE
   AND DATE(page_entry_time) > date_checkpoint
 GROUP BY
   application,

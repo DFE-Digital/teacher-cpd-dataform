@@ -31,7 +31,7 @@ WITH
     ${ref("events_ecf1")}
   WHERE
     DATE(occurred_at) > event_date_checkpoint
-    AND DATE(occurred_at) <= CURRENT_DATE
+    AND DATE(occurred_at) < CURRENT_DATE
   UNION ALL (
     SELECT
       "Register Early Career Teachers" AS application,
@@ -44,7 +44,7 @@ WITH
       ${ref("events_ecf2")}
     WHERE
       DATE(occurred_at) > event_date_checkpoint
-    AND DATE(occurred_at) <= CURRENT_DATE )
+    AND DATE(occurred_at) < CURRENT_DATE )
   UNION ALL (
     SELECT
       "Apply for a National Professional Qualification" AS application,
@@ -57,7 +57,7 @@ WITH
       ${ref("events_npq")}
     WHERE
       DATE(occurred_at) > event_date_checkpoint
-    AND DATE(occurred_at) <= CURRENT_DATE ) )
+    AND DATE(occurred_at) < CURRENT_DATE ) )
 SELECT
   DATE(occurred_at) AS date,
   application,
