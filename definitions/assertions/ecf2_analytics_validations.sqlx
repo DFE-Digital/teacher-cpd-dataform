@@ -96,6 +96,9 @@ SELECT * FROM (
     UNION ALL 
     SELECT * FROM ecf2_mentorships_record_count
 
+    UNION ALL 
+    SELECT * FROM ecf2_declarations_contract_year_mismatch
+
 
     -- add more union all here
 )
