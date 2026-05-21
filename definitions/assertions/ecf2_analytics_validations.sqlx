@@ -64,6 +64,22 @@ ecf2_mentorships_record_count AS (
         'the difference in row count to the DfE source table "_mentorship_periods_latest_ecf2". Expected 0 as it should match the source table. Values < 0 indicate dropped records. Values > 0 may indicate duplicative rows possibly due to joins.' as validation_scope,
         (SELECT COUNT(*) FROM ${ref("ecf2_mentorship_periods")}) -
         (SELECT COUNT(*) FROM ${ref("mentorship_periods_latest_ecf2")}) AS number_of_records
+),
+
+
+ecf2_declarations_contract_year_mismatch AS (
+    -- validate that the statement contract year always matches the contract year of the training period
+    -- it should match training_periods_latest
+    -- i.e., our joins do not cause data to be dropped or duplicated
+    SELECT DISTINCT
+        CURRENT_TIMESTAMP() AS observed_date,
+        'ecf2_declarations' as entity,
+        'contract_year_mismatch' as validation_check,
+        'statement contract year should = training period contract year' as validation_scope,
+        count(*) as number_of_records
+    FROM ${ref("ecf2_declarations")}
+    WHERE
+        statement_contract_period_year != contract_period_year
 )
 
 
