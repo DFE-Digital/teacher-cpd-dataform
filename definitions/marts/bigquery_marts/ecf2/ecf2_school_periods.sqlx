@@ -1,0 +1,192 @@
+config {
+    type: "table",
+    tags: ["ecf2"],
+    assertions: {
+        uniqueKey: ["at_school_period_id"],
+    },
+    bigquery: {
+        partitionBy: "started_on"
+    },
+    
+    description: "All at school periods for ECTs and Mentors, join atributes from schools, teachers, and latest training periods. Holds all at school periods for ECTs and Mentors. The period of time a teacher spent at a school as an ECT or Mentor. A period only ends if the ECT moves to another school or ceases to be an ECT. An ECT at school period may end because of a school reporting the ECT has left, a new school reporting the ECT is joining them would end the school period at their previous school, when an induction completion date is recorded for the ECT, some edge case scenarios e.g. the participant has passed away or the teacher was added in error where an admin / dev might close the periods. It does not end for changes in mentorship, change of program type, deferrals or withdrawals.",
+    columns: {
+        school_period_id: "The id of an ect spending a period of time at a school.",
+        school_id: "The ID of the school",
+        school_name: "The name of the school as stored in GIAS",
+        school_urn: "Unique Reference Number (URN) assigned to a school. Note that a URN is not persistent across structural changes: if a school closes and re-opens with materially different characteristics, a new URN is issued and a new record is created rather than updating the existing one.",
+        school_phase: "",
+        school_type: "",
+        teacher_id: "The internal CPD programme id for a teacher",
+        trn: {
+            description: "The teacher reference number.",
+            bigqueryPolicyTags: ["projects/ecf-bq/locations/europe-west2/taxonomies/6302091323314055162/policyTags/301313311867345339"]
+        },
+        teacher_api_id: "The external id of the teacher in the ECF2 Service.",
+        participant_type: "Must be either ECT or Mentor.",
+        started_on: "The start date of the school period for an ECT or Mentor.",
+        finished_on: "The end date of the school period for an ECT or Mentor.",
+        reported_leaving_by_school_id: "",
+        school_reported_appropriate_body_id: "The ID of the appropriate body responsible for this training_period as reported by the school. NULL for mentors.",
+        working_pattern: "Only available for ECTs. Possible values: Full-Time or Part-Time",
+        first_became_eligible_for_training_at: "The date at which an ECT or Mentor first became eligible for funding. For mentors it should always be 'true'/populated as soon as they are registered. Once it's 'true', it stays true and doesn't turn back to null/false. It should never be false for mentors because they should have been blocked from being registered if they are not eligible for a few niche reasons",
+        became_ineligible_for_funding_on: "The date at which an ECT or Mentor became ineligible for funding. The ECTMentor was at some point eligible, but from that date onwards they no longer are. Declarations can't be submitted after that date unless they are backdated to a date before the mentor stopped being eligible. This field being populated with a date should also close the mentor's training period because they shouldn't be continuing training, so there shouldn't be any open training periods when that date is present.",
+        payment_frozen_year: "",
+        earliest_started_on_training_period: "the min date of started_on of all training_periods for the at_school_period",
+        earliest_created_training_period: "the min date of created_at of all training_periods for the at_school_period",
+        latest_training_period_id: "the lastest training_period id for the at_school_period",
+        latest_training_status: "the lastest training status for the at_school_period. Training status is derived from the started, finished, deferred, withdrawn dates. Deferred is given priority over Withdrawn over Finished over Active.",
+        num_training_periods: "count of training periods for the at_school_period",
+        created_at: "When the at_school_period was created in the ECF2 service",
+        updated_at: "When the at_school_period was last updated in the ECF2 service",
+
+    }
+}
+WITH ect_training_periods AS (
+  SELECT
+    ect_at_school_period_id AS school_period_id,
+    MIN(DATE(started_on)) AS earliest_started_on_training_period,
+    MIN(DATE(created_at)) AS earliest_created_training_period,
+    COUNT(DISTINCT id) AS num_training_periods
+  FROM ${ref('training_periods_latest_ecf2')}
+  GROUP BY
+    ect_at_school_period_id
+),
+
+mentor_training_periods AS (
+  SELECT
+    mentor_at_school_period_id AS school_period_id,
+    MIN(DATE(started_on)) AS earliest_started_on_training_period,
+    MIN(DATE(created_at)) AS earliest_created_training_period,
+    COUNT(DISTINCT id) AS num_training_periods
+  FROM ${ref('training_periods_latest_ecf2')}
+  GROUP BY
+    mentor_at_school_period_id
+),
+
+
+latest_ect_training_status AS (
+  SELECT
+    ect_at_school_period_id AS school_period_id,
+    training_period_id AS latest_training_period_id,
+    training_status AS latest_training_status
+  FROM ${ref('ecf2_training_periods')}
+  QUALIFY ROW_NUMBER() OVER (
+    PARTITION BY ect_at_school_period_id
+    ORDER BY 
+        IF(finished_on IS NULL, 1, 0) DESC,  
+        finished_on DESC,                    
+        started_on DESC,
+        created_at DESC       
+  ) = 1
+),
+
+latest_mentor_training_status AS (
+  SELECT
+    mentor_at_school_period_id AS school_period_id, 
+    training_period_id AS latest_training_period_id,
+    training_status AS latest_training_status
+  FROM ${ref('ecf2_training_periods')} 
+  QUALIFY ROW_NUMBER() OVER (
+    PARTITION BY mentor_at_school_period_id
+    ORDER BY 
+        IF(finished_on IS NULL, 1, 0) DESC,  
+        finished_on DESC,                    
+        started_on DESC,
+        created_at DESC       
+  ) = 1
+),
+
+-- CREATE A SINGLE UNIFIED DATASET OF ALL SCHOOL PERIOD
+at_school_periods AS (
+  SELECT 
+    ect.id AS school_period_id,
+    ect.school_id,
+    ect.teacher_id,
+    'ect' AS participant_type,
+    ect.started_on,
+    ect.finished_on,
+    ect.reported_leaving_by_school_id,
+    ect.school_reported_appropriate_body_id,
+    ect.working_pattern,
+    tp.earliest_started_on_training_period,
+    tp.earliest_created_training_period,
+    tp.num_training_periods,
+    tp_latest.latest_training_period_id,
+    tp_latest.latest_training_status,
+    ect.created_at,
+    ect.updated_at
+  FROM ${ref('ect_at_school_periods_latest_ecf2')} ect
+  LEFT JOIN ect_training_periods tp
+    ON ect.id = tp.school_period_id
+  LEFT JOIN latest_ect_training_status tp_latest
+    ON ect.id = tp_latest.school_period_id
+  -- UNION MENTORS
+  UNION ALL (
+    SELECT 
+      mentor.id AS school_period_id,
+      mentor.school_id,
+      mentor.teacher_id,
+      'mentor' AS participant_type,
+      mentor.started_on,
+      mentor.finished_on,
+      mentor.reported_leaving_by_school_id,
+      NULL AS school_reported_appropriate_body_id,
+      NULL AS working_pattern,
+      tp.earliest_started_on_training_period,
+      tp.earliest_created_training_period,
+      tp.num_training_periods,
+      tp_latest.latest_training_period_id,
+      tp_latest.latest_training_status,
+      mentor.created_at,
+      mentor.updated_at
+    FROM ${ref('mentor_at_school_periods_latest_ecf2')} mentor
+    LEFT JOIN mentor_training_periods tp
+      ON mentor.id = tp.school_period_id
+    LEFT JOIN latest_mentor_training_status tp_latest
+      ON mentor.id = tp_latest.school_period_id
+  )
+)
+
+
+-- FINAL SELECT
+-- ADD TEACHER AND SCHOOL INFO
+SELECT 
+  sp.school_period_id,
+  sp.school_id,
+  s.school_urn,
+  s.school_name,
+  s.school_phase,
+  s.school_type,
+  sp.teacher_id,
+  t.trn,
+  t.api_id AS teacher_api_id,
+  sp.participant_type,
+  sp.started_on,
+  sp.finished_on,
+  sp.reported_leaving_by_school_id,
+  sp.school_reported_appropriate_body_id,
+  sp.working_pattern,
+  CASE 
+    WHEN sp.participant_type = 'ect' THEN t.ect_first_became_eligible_for_training_at
+    WHEN sp.participant_type = 'mentor' THEN t.mentor_first_became_eligible_for_training_at
+  END AS first_became_eligible_for_training_at,
+  CASE 
+    WHEN sp.participant_type = 'ect' THEN t.ect_became_ineligible_for_funding_on
+    WHEN sp.participant_type = 'mentor' THEN t.mentor_became_ineligible_for_funding_on
+  END AS became_ineligible_for_funding_on,
+  CASE 
+    WHEN sp.participant_type = 'ect' THEN t.ect_payments_frozen_year
+    WHEN sp.participant_type = 'mentor' THEN t.mentor_payments_frozen_year
+  END AS payments_frozen_year,
+  sp.latest_training_period_id,
+  sp.latest_training_status,
+  sp.num_training_periods,
+  sp.earliest_started_on_training_period,
+  sp.earliest_created_training_period,
+  DATE(sp.created_at) AS created_at,
+  DATE(sp.updated_at) AS updated_at
+FROM at_school_periods sp
+LEFT JOIN ${ref('ecf2_schools')} s
+  ON s.school_id = sp.school_id
+LEFT JOIN ${ref('teachers_latest_ecf2')} t
+  ON t.id = sp.teacher_id
