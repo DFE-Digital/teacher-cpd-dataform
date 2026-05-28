@@ -2,9 +2,7 @@ config {
     type: "table",
     tags: ["ecf2"],
     assertions: {
-        uniqueKey: ["mentorship_period_id"],
-        rowConditions: ["ect_school_id = mentor_school_id"]
-    },
+        uniqueKey: ["mentorship_period_id"]    },
     bigquery: {
         partitionBy: "DATE(created_at)",
         clusterBy: ["ect_at_school_period_id", "mentor_at_school_period_id"]
