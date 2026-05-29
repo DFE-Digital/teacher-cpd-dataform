@@ -1,0 +1,341 @@
+config {
+    type: "table",
+    tags: ["ecf2"],
+    bigquery: {
+        partitionBy: "calendar_date",
+        clusterBy: ["teacher_id", "participant_type"]
+    },
+    
+    columns: {
+        calendar_date: "Snapshot date.",
+        teacher_id: "Unique teacher identifier as assigned to the teacher in the ECf2 service.",
+        participant_type: "Participant role type: Must be ECT or Mentor.",
+
+        first_school_period_started_on: "Start date of the participant's first school period.",
+        last_school_period_finished_on: "End date of the participant's latest school period, or current date if still active.",
+        registration_window_year: "Registration cohort year derived from the first school period. Using 1 June as the cutoff",
+        registration_date: "Date the participant first registered in the programme. Derived from the created_at date of the first school_period.",
+
+        is_active: "Whether the teacher currently has any open school period. Global field not tied to a snapshot date.",
+        active_school_period: "Whether the participant had an active school period on the snapshot date.",
+        active_training_period: "Whether the participant had an active training period on the snapshot date.",
+        active_mentorship_period: "Whether there was any active mentorship period on the snapshot date.",
+
+        ect_school_period_id: "ECT school period identifier active on the snapshot date.",
+        ect_school_id: "School associated with the active ECT school period.",
+        num_active_school_periods: "Number of active school periods for the participant on the snapshot date.",
+        training_school_id: "School associated with the active training period.",
+        training_period_id: "Training period identifier active on the snapshot date.",
+        training_period_sequence: "Chronological sequence number of the participant's training periods.",
+        training_programme: "Training programme associated with the training period.",
+        training_status: "Status of the training period.",
+        deferral_reason: "Reason the participant deferred training, if applicable.",
+        withdrawal_reason: "Reason the participant withdrew from training, if applicable.",
+        schedule_identifier: "Training schedule identifier.",
+        training_contract_year: "Contract period year associated with the training period.",
+
+        school_reported_appropriate_body_id: "Appropriate body reported by the school.",
+        has_partnership: "Whether the participant had an associated school partnership on the snapshot date.",
+        has_eoi: "Whether the participant had an expression of interest on the snapshot date.",
+
+        lead_provider_id: "Lead provider associated with the training period.",
+        delivery_partner_id: "Delivery partner associated with the training period.",
+
+        num_active_mentorship_periods: "The number of active mentorship periods on the snapshot date. Only populated for Mentors",
+        num_active_ects_mentored: "The number of ECTs being mentored on the snapshot date. Only populated for Mentors",
+        has_mentorship: "Whether the participant had an active mentorship relationship on the snapshot date.",
+        has_mentor: "Whether the participant had a mentor assigned on the snapshot date.",
+
+        
+        active_ects_mentored: "Number of ECTs mentored by the teacher on the snapshot date."
+
+        }
+}
+
+
+WITH base_dates AS (
+  SELECT 
+    calendar_date,
+    EXTRACT(YEAR FROM calendar_date) AS calendar_year,
+    EXTRACT(MONTH FROM calendar_date) AS calendar_month,
+    FORMAT_DATE('%Y-%m', calendar_date) AS year_month,
+    EXTRACT(ISOWEEK FROM calendar_date) AS iso_week,
+    DATE_TRUNC(calendar_date, WEEK(MONDAY)) AS week_start,
+    DATE_TRUNC(calendar_date, MONTH) AS month_start
+    -- TODO: add school_holiday boolean flag?
+  FROM UNNEST(GENERATE_DATE_ARRAY(DATE('2020-06-01'), CURRENT_DATE)) AS calendar_date
+  ORDER BY calendar_date DESC
+),
+
+-- participant_base AS (
+--   -- Get the first school_period for ALL teachers and participant_types 
+--   -- OLD: replaced as I think it's more efficient to stop generating dates for the last finished_on date for an ECT/Mentor
+--   SELECT
+--     teacher_id,
+--     participant_type,
+--     DATE(created_at) AS registration_date,  -- Might have to adjust this if before 1 June
+--     CASE
+--       WHEN EXTRACT(MONTH FROM started_on) >= 6 THEN EXTRACT(YEAR FROM started_on)
+--       ELSE EXTRACT(YEAR FROM started_on) - 1
+--     END AS registration_window_year,
+--     DATE(started_on) AS first_school_period_started_on
+--   FROM `ecf-bq.dataform.ecf2_school_periods`
+--   -- Take the first school_period for each teacher AND participant_type (this act as the point of registration)
+--   QUALIFY ROW_NUMBER() OVER (
+--     PARTITION BY teacher_id, participant_type
+--     ORDER BY started_on ASC
+--   ) = 1
+-- ),
+
+participant_base AS (
+  -- Get the first and last school_period for ALL teachers and participant_types
+  SELECT
+    teacher_id,
+    participant_type,
+    DATE(MIN(created_at)) AS registration_date,  -- Might have to adjust this if before 1 June
+    CASE
+      WHEN EXTRACT(MONTH FROM MIN(started_on)) >= 6 THEN EXTRACT(YEAR FROM MIN(started_on))
+      ELSE EXTRACT(YEAR FROM MIN(started_on)) - 1
+    END AS registration_window_year,
+    DATE(MIN(started_on)) AS first_school_period_started_on,
+    DATE(MAX(COALESCE(finished_on, CURRENT_DATE))) AS last_school_period_finished_on
+  FROM ${ref("ecf2_school_periods")}
+  GROUP BY
+    teacher_id,
+    participant_type
+),
+
+
+participant_daily_snapshot AS (
+  -- Generate a record per teacher (and participant type) for each day between 
+  -- their first school period start and the last finished_on date of the last school_period (or today)
+  SELECT
+    calendar_date,
+    p.teacher_id,
+    p.participant_type,
+    p.first_school_period_started_on,
+    p.last_school_period_finished_on,
+    p.registration_window_year,
+    p.registration_date
+  FROM
+    participant_base p
+
+  CROSS JOIN
+  -- more efficient to generate date array based on started_on date
+  -- join base_dates later if needed
+    UNNEST(
+      GENERATE_DATE_ARRAY(
+        p.first_school_period_started_on,
+        p.last_school_period_finished_on,
+        -- CURRENT_DATE - 1,
+        INTERVAL 1 DAY
+      )
+    ) AS calendar_date
+),
+
+active_teachers AS (
+  -- get a record of "active" teachers (ECT or Mentor)
+  -- active = open school period
+  SELECT DISTINCT 
+    teacher_id
+  FROM ${ref("ecf2_school_periods")}
+  WHERE finished_on IS NULL
+),
+
+ranked_training_periods AS (
+  -- get a rank number for each training_period (e.g., is it the first/second etc.)
+  SELECT
+    *,
+    ROW_NUMBER() OVER (
+      PARTITION BY teacher_id
+      ORDER BY started_on
+    ) AS training_period_sequence
+  FROM ${ref("ecf2_training_periods")}
+),
+
+training_periods_daily_snapshot AS (
+  -- explode training periods into a daily snapshot with the values on that day
+  SELECT
+    calendar_date,
+    teacher_id,
+    participant_type,
+    training_period_id,
+    training_programme,
+    training_status,
+    deferral_reason,
+    withdrawal_reason,
+    contract_period_year,
+    schedule_identifier,
+    school_id AS training_school_id,
+    school_partnership_id,
+    expression_of_interest_id,
+    lead_provider_id,
+    delivery_partner_id,
+    school_reported_appropriate_body_id,
+    training_period_sequence
+  FROM ranked_training_periods
+  CROSS JOIN
+    UNNEST(
+      GENERATE_DATE_ARRAY(
+        started_on,
+        COALESCE(finished_on, CURRENT_DATE),
+        INTERVAL 1 DAY
+      )
+    ) AS calendar_date
+),
+
+school_periods_daily_snapshot AS (
+  -- Explode school periods into a daily snapshot with values on that day
+  -- This will need to be aggregated to calendar_date because
+  -- mentors can have multiple ongoing school_periods
+  SELECT
+    calendar_date,
+    teacher_id,
+    participant_type,
+    school_period_id,
+    school_id
+  FROM ${ref("ecf2_school_periods")}
+
+  CROSS JOIN
+    UNNEST(
+      GENERATE_DATE_ARRAY(
+        started_on,
+        COALESCE(finished_on, CURRENT_DATE),
+        INTERVAL 1 DAY
+      )
+    ) AS calendar_date
+),
+
+
+school_periods_daily_activity AS (
+  -- aggregate school_period_snapshots since mentors can have multiple school_periods
+  SELECT
+    calendar_date,
+    teacher_id,
+    participant_type,
+    COUNT(DISTINCT school_period_id) AS num_active_school_periods,
+    COUNT(DISTINCT school_id) AS num_active_schools,
+    TRUE AS active_school_period
+  FROM school_periods_daily_snapshot
+  GROUP BY
+    calendar_date,
+    teacher_id,
+    participant_type
+),
+
+
+mentorship_daily_snapshot AS (
+  -- Explode mentorships into a daily snapshot
+  SELECT
+    calendar_date,
+    mentorship_period_id,
+    mentor_teacher_id,
+    ect_teacher_id
+  FROM ${ref("ecf2_mentorship_periods")}
+
+  CROSS JOIN
+    UNNEST(
+      GENERATE_DATE_ARRAY(
+        started_on,
+        COALESCE(finished_on, CURRENT_DATE),
+        INTERVAL 1 DAY
+      )
+    ) AS calendar_date
+),
+
+mentors_daily_activity_snapshot AS (
+  -- Aggregate to calendar date since similar to school_periods, 
+  -- Mentors can have multiple active mentorship periods
+  SELECT
+    calendar_date,
+    mentor_teacher_id,
+    COUNT(DISTINCT mentorship_period_id) AS num_active_mentorship_periods,
+    COUNT(DISTINCT ect_teacher_id) AS num_active_ects_mentored
+  FROM mentorship_daily_snapshot
+  GROUP BY
+    calendar_date,
+    mentor_teacher_id
+),
+
+
+-- FINAL CTE TO BRING EVERYTHING TOGETHER INTO ONE DAILY SNAPSHOT
+-- ONE RECORD PER DAY PER TEACHER PER PARTICIPANT TYPE
+daily_snapshot AS (
+  SELECT 
+    p.*,
+    CASE WHEN active_teachers.teacher_id IS NULL THEN FALSE ELSE TRUE END AS is_active, -- global field - not at date-level
+    sp_activity.active_school_period,
+    CASE WHEN tp.training_period_id IS NULL THEN FALSE ELSE TRUE END AS active_training_period,
+    CASE WHEN mentors.num_active_mentorship_periods > 0 OR mp.mentor_teacher_id IS NOT NULL THEN TRUE ELSE FALSE END AS active_mentorship_period,
+    tp.training_period_id,
+    sp.school_period_id AS ect_school_period_id,
+    sp.school_id AS ect_school_id,
+    tp.training_school_id,
+    sp_activity.num_active_school_periods,
+    -- sp_activity.num_active_schools,  -- same as active_school_periods
+    
+    tp.training_period_sequence,
+    tp.training_programme,
+    tp.training_status,
+    tp.deferral_reason,
+    tp.withdrawal_reason,
+    tp.schedule_identifier,
+    tp.contract_period_year AS training_contract_year,
+    tp.school_reported_appropriate_body_id,
+    CASE WHEN tp.school_partnership_id IS NULL THEN FALSE ELSE TRUE END AS has_partnership,
+    CASE WHEN tp.expression_of_interest_id IS NULL THEN FALSE ELSE TRUE END AS has_eoi,
+    tp.lead_provider_id,
+    tp.delivery_partner_id,
+    CASE WHEN mp.mentorship_period_id IS NULL THEN FALSE ELSE TRUE END AS has_mentorship,
+    CASE WHEN mp.mentor_teacher_id IS NULL THEN FALSE ELSE TRUE END AS has_mentor, -- should the same as has_mentorship
+    mentors.num_active_mentorship_periods,
+    mentors.num_active_ects_mentored
+  
+  FROM participant_daily_snapshot p
+  
+  -- join active teachers (flag if teacher is currently active => open school period as of today)
+  LEFT JOIN active_teachers
+    ON p.teacher_id = active_teachers.teacher_id
+  
+  -- join school periods to get the school period ID
+  -- mentors can have multiple active school_periods so we can only join on ect otherwise we get dups
+  LEFT JOIN `ecf-bq.dataform.ecf2_school_periods` sp
+    ON p.teacher_id = sp.teacher_id
+    AND sp.participant_type = 'ect'
+    AND p.calendar_date >= sp.started_on
+    AND p.calendar_date <= COALESCE(sp.finished_on, CURRENT_DATE())
+  
+  -- join aggregated school_period_activity to flag if teacher had ANY active school_periods on that day
+  LEFT JOIN school_periods_daily_activity sp_activity
+    ON p.teacher_id = sp_activity.teacher_id
+    AND p.participant_type = sp_activity.participant_type
+    AND p.calendar_date = sp_activity.calendar_date
+  
+  -- join training_periods on that day
+  LEFT JOIN training_periods_daily_snapshot tp
+    ON p.teacher_id = tp.teacher_id
+    AND p.participant_type = tp.participant_type
+    AND p.calendar_date = tp.calendar_date
+ 
+  -- join mentorship periods from the ECT perspective (not Mentors)
+  -- this brings in "if an ECT had a mentor on that day"
+  LEFT JOIN ${ref("ecf2_mentorship_periods")} mp
+    ON p.teacher_id = mp.ect_teacher_id
+    AND p.calendar_date >= mp.started_on
+    AND p.calendar_date <= COALESCE(mp.finished_on, CURRENT_DATE())
+  
+  -- join mentor daily activity (this time for Mentor perspective)
+  -- e.g., how many ECTs was that mentor mentoring on that day (if any)
+  LEFT JOIN mentors_daily_activity_snapshot mentors
+    ON p.teacher_id = mentors.mentor_teacher_id
+    AND p.calendar_date = mentors.calendar_date
+)
+
+
+SELECT * FROM daily_snapshot
+WHERE 
+  -- this filter exlcudes any dates where there was no activity for that teacher)
+  -- three fields that determine "activity" on a day: School Period, Training Period or Mentorship Periods (i.e., this is key to keep Mentors)
+  (active_school_period IS TRUE 
+  OR active_training_period IS TRUE 
+  OR active_mentorship_period IS TRUE)
