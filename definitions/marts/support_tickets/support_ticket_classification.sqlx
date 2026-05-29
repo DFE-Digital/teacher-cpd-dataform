@@ -115,7 +115,8 @@ classification_logic AS (
       '%mentor%') THEN 'CPD - RECT'
       ELSE 'Unclassifiable - bad data'
     END AS classification,
-    IFNULL(themes.support_ticket_theme,'no_mapped_theme') as support_ticket_theme
+    CASE WHEN IFNULL(ARRAY_LENGTH(cpd_prog_data.issue_type),0) = 0 THEN 'unable to calculate ticket theme'
+    ELSE IFNULL(themes.support_ticket_theme,'no_mapped_theme') END as support_ticket_theme
   FROM cpd_prog_data
   LEFT JOIN ${ref('support_ticket_issue_type_to_theme_mapping')} as themes
     ON cpd_prog_data.issue_type[SAFE_OFFSET(0)] = themes.issue_type
