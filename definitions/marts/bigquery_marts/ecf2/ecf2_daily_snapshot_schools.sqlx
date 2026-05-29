@@ -14,14 +14,14 @@ config {
         active_ects: "Number of distinct ECTs with an active school period on the snapshot date.",
         active_mentors: "Number of distinct mentors with an active school period on the snapshot date.",
 
-        first_programme_registrations: "Count of participants whose first ever programme registration occurred at this school on the snapshot date. Uses the started_on date NOT created date.",
-        first_school_registrations: "Count of participants whose first registration at this school occurred on the snapshot date. Uses the started_on date NOT created date.",
+        first_programme_registrations: "Count of participants whose first ever programme registration occurred at this school on the snapshot date. Uses an adjusted created date.",
+        first_school_registrations: "Count of participants whose first registration at this school occurred on the snapshot date.Uses an adjusted created date.",
 
-        first_school_ect_registrations: "Count of ECTs whose first registration at this school occurred on the snapshot date. Uses the started_on date NOT created date.",
-        first_school_mentor_registrations: "Count of mentors whose first registration at this school occurred on the snapshot date. Uses the started_on date NOT created date.",
+        first_school_ect_registrations: "Count of ECTs whose first registration at this school occurred on the snapshot date. Uses an adjusted created date.",
+        first_school_mentor_registrations: "Count of mentors whose first registration at this school occurred on the snapshot date. Uses an adjusted created date.",
 
-        first_programme_ect_registrations: "Count of ECTs whose first ever programme registration occurred at this school on the snapshot date. Uses the started_on date NOT created date.",
-        first_programme_mentor_registrations: "Count of mentors whose first ever programme registration occurred at this school on the snapshot date. Uses the started_on date NOT created date."
+        first_programme_ect_registrations: "Count of ECTs whose first ever programme registration occurred at this school on the snapshot date. Uses an adjusted created date.",
+        first_programme_mentor_registrations: "Count of mentors whose first ever programme registration occurred at this school on the snapshot date.Uses an adjusted created date."
 
         }
 }
