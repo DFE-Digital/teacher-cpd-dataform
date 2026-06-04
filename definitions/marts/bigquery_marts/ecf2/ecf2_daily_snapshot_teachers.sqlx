@@ -3,9 +3,9 @@ config {
     tags: ["ecf2"],
     bigquery: {
         partitionBy: "calendar_date",
-        clusterBy: ["teacher_id", "participant_type"]
+        clusterBy: ["teacher_id", "participant_type", "registration_window_year"]
     },
-    
+    description: "A record per day for every participant (ECT or Mentor) in school_periods_latest_ecf2 with flags whether the participant was actively training or at a school on that date. Additional mentorship fields to identify if a mentor was an assiged to an ECT or in the case of Mentors if they were actively mentoring.",
     columns: {
         calendar_date: "Snapshot date.",
         teacher_id: "Unique teacher identifier as assigned to the teacher in the ECf2 service.",
