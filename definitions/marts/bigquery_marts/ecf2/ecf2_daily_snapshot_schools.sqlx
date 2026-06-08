@@ -71,7 +71,7 @@ base_dates AS (
 school_start_dates AS (
   SELECT
     school_id,
-    MIN(started_on) AS first_school_date
+    MIN(created_at) AS first_school_date
   FROM ${ref("ecf2_school_periods")}
   GROUP BY school_id
 ),
@@ -317,5 +317,12 @@ school_daily_snapshot AS (
 --     base.calendar_date
 )
 
-SELECT *
+-- SELECT *
+-- FROM school_daily_snapshot
+SELECT
+registration_window_year,
+  SUM(first_programme_registrations)
 FROM school_daily_snapshot
+GROUP BY
+registration_window_year
+ORDER BY registration_window_year
