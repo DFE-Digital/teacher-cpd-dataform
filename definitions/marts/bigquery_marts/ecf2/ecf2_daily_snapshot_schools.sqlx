@@ -68,15 +68,22 @@ base_dates AS (
     ORDER BY calendar_date DESC
 ),
 
+school_start_dates AS (
+  SELECT
+    school_id,
+    MIN(created_at) AS first_creation_date
+  FROM ${ref("ecf2_school_periods")}
+  GROUP BY school_id
+),
+
 school_base AS (
-  -- Unique schools on the service
-  SELECT DISTINCT
+  SELECT
     d.calendar_date,
     d.registration_window_year,
-    s.id AS school_id
-    -- DATE(created_at) AS created_at
-  FROM base_dates d
-  CROSS JOIN ${ref("schools_latest_ecf2")} s
+    s.school_id
+  FROM school_start_dates s
+  CROSS JOIN base_dates d
+  WHERE d.calendar_date >= s.first_creation_date
 ),
 
 
@@ -163,79 +170,65 @@ school_daily_activity AS (
 
 
     -- ECT cohorts
-    COUNT(DISTINCT CASE
-      WHEN participant_type = 'ect'
-       AND registration_window_year = 2021
-      THEN teacher_id
-    END) AS active_2021_ects,
+    COUNTIF(
+      participant_type = 'ect'
+      AND registration_window_year = 2021
+    ) AS active_2021_ects,
 
-    COUNT(DISTINCT CASE
-      WHEN participant_type = 'ect'
-       AND registration_window_year = 2022
-      THEN teacher_id
-    END) AS active_2022_ects,
+    COUNTIF(
+      participant_type = 'ect'
+      AND registration_window_year = 2022
+    ) AS active_2022_ects,
 
-    COUNT(DISTINCT CASE
-      WHEN participant_type = 'ect'
-       AND registration_window_year = 2023
-      THEN teacher_id
-    END) AS active_2023_ects,
+    COUNTIF(
+      participant_type = 'ect'
+      AND registration_window_year = 2023
+    ) AS active_2023_ects,
 
-    COUNT(DISTINCT CASE
-      WHEN participant_type = 'ect'
-       AND registration_window_year = 2024
-      THEN teacher_id
-    END) AS active_2024_ects,
+    COUNTIF(
+      participant_type = 'ect'
+      AND registration_window_year = 2024
+    ) AS active_2024_ects,
 
-    COUNT(DISTINCT CASE
-      WHEN participant_type = 'ect'
-       AND registration_window_year = 2025
-      THEN teacher_id
-    END) AS active_2025_ects,
+    COUNTIF(
+      participant_type = 'ect'
+      AND registration_window_year = 2025
+    ) AS active_2025_ects,
 
-    COUNT(DISTINCT CASE
-      WHEN participant_type = 'ect'
-       AND registration_window_year = 2026
-      THEN teacher_id
-    END) AS active_2026_ects,
+    COUNTIF(
+      participant_type = 'ect'
+      AND registration_window_year = 2026
+    ) AS active_2026_ects,
 
-    -- Mentor cohorts
+    COUNTIF(
+      participant_type = 'mentor'
+      AND registration_window_year = 2021
+    ) AS active_2021_mentors,
 
-    COUNT(DISTINCT CASE
-      WHEN participant_type = 'mentor'
-       AND registration_window_year = 2021
-      THEN teacher_id
-    END) AS active_2021_mentors,
+    COUNTIF(
+      participant_type = 'mentor'
+      AND registration_window_year = 2022
+    ) AS active_2022_mentors,
 
-    COUNT(DISTINCT CASE
-      WHEN participant_type = 'mentor'
-       AND registration_window_year = 2022
-      THEN teacher_id
-    END) AS active_2022_mentors,
+    COUNTIF(
+      participant_type = 'mentor'
+      AND registration_window_year = 2023
+    ) AS active_2023_mentors,
 
-    COUNT(DISTINCT CASE
-      WHEN participant_type = 'mentor'
-       AND registration_window_year = 2023
-      THEN teacher_id
-    END) AS active_2023_mentors,
+    COUNTIF(
+      participant_type = 'mentor'
+      AND registration_window_year = 2024
+    ) AS active_2024_mentors,
 
-    COUNT(DISTINCT CASE
-      WHEN participant_type = 'mentor'
-       AND registration_window_year = 2024
-      THEN teacher_id
-    END) AS active_2024_mentors,
+    COUNTIF(
+      participant_type = 'mentor'
+      AND registration_window_year = 2025
+    ) AS active_2025_mentors,
 
-    COUNT(DISTINCT CASE
-      WHEN participant_type = 'mentor'
-       AND registration_window_year = 2025
-      THEN teacher_id
-    END) AS active_2025_mentors,
-
-    COUNT(DISTINCT CASE
-      WHEN participant_type = 'mentor'
-       AND registration_window_year = 2026
-      THEN teacher_id
-    END) AS active_2026_mentors
+    COUNTIF(
+      participant_type = 'mentor'
+      AND registration_window_year = 2026
+    ) AS active_2026_mentors
   
   FROM school_periods_daily_with_cohort
   GROUP BY
@@ -419,5 +412,6 @@ school_daily_snapshot AS (
 --     base.calendar_date
 )
 
-SELECT *
-FROM school_daily_snapshot
+-- SELECT *
+-- FROM school_daily_snapshot
+SELECT COUNT(*) FROM school_base
