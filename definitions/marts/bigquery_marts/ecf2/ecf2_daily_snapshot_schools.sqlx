@@ -421,4 +421,3 @@ school_daily_snapshot AS (
 
 SELECT *
 FROM school_daily_snapshot
-WHERE calendar_date > '2026-06-01'
