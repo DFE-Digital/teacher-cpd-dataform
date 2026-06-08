@@ -100,19 +100,6 @@ school_periods_daily AS (
   ) AS calendar_date
 ),
 
-school_daily_activity AS (
-  -- for each day in a school_period, count how many ECTs and Mentors had an active school_period on that day
-  SELECT
-    calendar_date,
-    school_id,
-    COUNT(DISTINCT school_period_id) AS active_school_periods,
-    COUNT(DISTINCT CASE WHEN participant_type = 'ect' THEN teacher_id ELSE NULL END) AS active_ects,
-    COUNT(DISTINCT CASE WHEN participant_type = 'mentor' THEN teacher_id ELSE NULL END) AS active_mentors
-  FROM school_periods_daily
-  GROUP BY
-    calendar_date,
-    school_id
-),
 
 participant_registration_windows AS (
   -- derive registration windows from earliest started_on date
@@ -147,6 +134,114 @@ participant_registration_windows AS (
     participant_type
 ),
 
+
+school_periods_daily_with_cohort AS (
+  -- for each calendar date/school get the registration year for the participant type
+  SELECT
+    spd.calendar_date,
+    spd.school_id,
+    spd.teacher_id,
+    spd.participant_type,
+    spd.school_period_id,
+    prw.registration_window_year
+
+  FROM school_periods_daily spd
+
+  LEFT JOIN participant_registration_windows prw
+    ON spd.teacher_id = prw.teacher_id
+    AND spd.participant_type = prw.participant_type
+),
+
+school_daily_activity AS (
+  -- for each day in a school_period, count how many ECTs and Mentors had an active school_period on that day
+  SELECT
+    calendar_date,
+    school_id,
+    COUNT(DISTINCT school_period_id) AS active_school_periods,
+    COUNT(DISTINCT CASE WHEN participant_type = 'ect' THEN teacher_id ELSE NULL END) AS active_ects,
+    COUNT(DISTINCT CASE WHEN participant_type = 'mentor' THEN teacher_id ELSE NULL END) AS active_mentors,
+
+
+    -- ECT cohorts
+    COUNT(DISTINCT CASE
+      WHEN participant_type = 'ect'
+       AND registration_window_year = 2021
+      THEN teacher_id
+    END) AS active_2021_ects,
+
+    COUNT(DISTINCT CASE
+      WHEN participant_type = 'ect'
+       AND registration_window_year = 2022
+      THEN teacher_id
+    END) AS active_2022_ects,
+
+    COUNT(DISTINCT CASE
+      WHEN participant_type = 'ect'
+       AND registration_window_year = 2023
+      THEN teacher_id
+    END) AS active_2023_ects,
+
+    COUNT(DISTINCT CASE
+      WHEN participant_type = 'ect'
+       AND registration_window_year = 2024
+      THEN teacher_id
+    END) AS active_2024_ects,
+
+    COUNT(DISTINCT CASE
+      WHEN participant_type = 'ect'
+       AND registration_window_year = 2025
+      THEN teacher_id
+    END) AS active_2025_ects,
+
+    COUNT(DISTINCT CASE
+      WHEN participant_type = 'ect'
+       AND registration_window_year = 2026
+      THEN teacher_id
+    END) AS active_2026_ects,
+
+    -- Mentor cohorts
+
+    COUNT(DISTINCT CASE
+      WHEN participant_type = 'mentor'
+       AND registration_window_year = 2021
+      THEN teacher_id
+    END) AS active_2021_mentors,
+
+    COUNT(DISTINCT CASE
+      WHEN participant_type = 'mentor'
+       AND registration_window_year = 2022
+      THEN teacher_id
+    END) AS active_2022_mentors,
+
+    COUNT(DISTINCT CASE
+      WHEN participant_type = 'mentor'
+       AND registration_window_year = 2023
+      THEN teacher_id
+    END) AS active_2023_mentors,
+
+    COUNT(DISTINCT CASE
+      WHEN participant_type = 'mentor'
+       AND registration_window_year = 2024
+      THEN teacher_id
+    END) AS active_2024_mentors,
+
+    COUNT(DISTINCT CASE
+      WHEN participant_type = 'mentor'
+       AND registration_window_year = 2025
+      THEN teacher_id
+    END) AS active_2025_mentors,
+
+    COUNT(DISTINCT CASE
+      WHEN participant_type = 'mentor'
+       AND registration_window_year = 2026
+      THEN teacher_id
+    END) AS active_2026_mentors
+  
+  FROM school_periods_daily_with_cohort
+  GROUP BY
+    calendar_date,
+    school_id
+),
 
 participant_school_registrations AS (
   -- for each teacher and participant type:
@@ -269,6 +364,7 @@ school_registration_daily AS (
       ELSE NULL
     END) AS first_programme_mentor_registrations
 
+
   FROM participant_school_registration_flags
 
   GROUP BY
@@ -295,7 +391,20 @@ school_daily_snapshot AS (
     COALESCE(reg.first_school_ect_registrations, 0) AS first_school_ect_registrations,
     COALESCE(reg.first_school_mentor_registrations, 0) AS first_school_mentor_registrations,
     COALESCE(reg.first_programme_ect_registrations, 0) AS first_programme_ect_registrations,
-    COALESCE(reg.first_programme_mentor_registrations, 0) AS first_programme_mentor_registrations
+    COALESCE(reg.first_programme_mentor_registrations, 0) AS first_programme_mentor_registrations,
+    COALESCE(sd.active_2021_ects, 0) AS active_2021_ects,
+    COALESCE(sd.active_2022_ects, 0) AS active_2022_ects,
+    COALESCE(sd.active_2023_ects, 0) AS active_2023_ects,
+    COALESCE(sd.active_2024_ects, 0) AS active_2024_ects,
+    COALESCE(sd.active_2025_ects, 0) AS active_2025_ects,
+    COALESCE(sd.active_2026_ects, 0) AS active_2026_ects,
+    COALESCE(sd.active_2021_mentors, 0) AS active_2021_mentors,
+    COALESCE(sd.active_2022_mentors, 0) AS active_2022_mentors,
+    COALESCE(sd.active_2023_mentors, 0) AS active_2023_mentors,
+    COALESCE(sd.active_2024_mentors, 0) AS active_2024_mentors,
+    COALESCE(sd.active_2025_mentors, 0) AS active_2025_mentors,
+    COALESCE(sd.active_2026_mentors, 0) AS active_2026_mentors
+
 
   FROM school_base base
   LEFT JOIN school_daily_activity sd
@@ -312,4 +421,3 @@ school_daily_snapshot AS (
 
 SELECT *
 FROM school_daily_snapshot
-
