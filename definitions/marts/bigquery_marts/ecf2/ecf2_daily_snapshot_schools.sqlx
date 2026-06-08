@@ -412,6 +412,5 @@ school_daily_snapshot AS (
 --     base.calendar_date
 )
 
--- SELECT *
--- FROM school_daily_snapshot
-SELECT COUNT(*) FROM school_base
+SELECT *
+FROM school_daily_snapshot
