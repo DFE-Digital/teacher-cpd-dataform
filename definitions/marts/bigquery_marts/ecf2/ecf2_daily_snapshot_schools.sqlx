@@ -317,12 +317,6 @@ school_daily_snapshot AS (
 --     base.calendar_date
 )
 
--- SELECT *
--- FROM school_daily_snapshot
-SELECT
-registration_window_year,
-  SUM(first_programme_registrations)
+SELECT *
 FROM school_daily_snapshot
-GROUP BY
-registration_window_year
-ORDER BY registration_window_year
+
