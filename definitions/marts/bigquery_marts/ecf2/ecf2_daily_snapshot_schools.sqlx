@@ -1,0 +1,273 @@
+config {
+    type: "table",
+    tags: ["ecf2"],
+    bigquery: {
+        partitionBy: "calendar_date",
+        clusterBy: ["school_id", "registration_window_year"]
+    },
+    description: "A record per day for every school in schools_latest_ecf2 with the number of registrations (adjusted created date) and active participants at that school on that date (by participant type).",
+    columns: {
+        calendar_date: "Snapshot date.",
+        school_id: "Unique school identifier as assigned in the ECF2 service.",
+
+        active_school_periods: "Number of active school periods (i.e., ALL participants) at the school on the snapshot date.",
+        active_ects: "Number of distinct ECTs with an active school period on the snapshot date.",
+        active_mentors: "Number of distinct mentors with an active school period on the snapshot date.",
+
+        first_programme_registrations: "Count of participants whose first ever programme registration occurred at this school on the snapshot date. Uses an adjusted created date.",
+        first_school_registrations: "Count of participants whose first registration at this school occurred on the snapshot date.Uses an adjusted created date.",
+
+        first_school_ect_registrations: "Count of ECTs whose first registration at this school occurred on the snapshot date. Uses an adjusted created date.",
+        first_school_mentor_registrations: "Count of mentors whose first registration at this school occurred on the snapshot date. Uses an adjusted created date.",
+
+        first_programme_ect_registrations: "Count of ECTs whose first ever programme registration occurred at this school on the snapshot date. Uses an adjusted created date.",
+        first_programme_mentor_registrations: "Count of mentors whose first ever programme registration occurred at this school on the snapshot date.Uses an adjusted created date."
+
+        }
+}
+
+-- Tried to use date bounrds to extend to future periods but I think this overcomplicates
+-- things with active school periods where there is a null finished_on date and how to fill this?
+-- e.g., filling with current date is not quite right (it looks like it stops today if we have future dates)
+WITH date_bounds AS (
+  -- There can be future start dates for school periods, get the MAX date that is currently in the system
+  SELECT
+    DATE('2020-06-01') AS min_date,
+    GREATEST(CURRENT_DATE(), (
+        SELECT MAX(
+          GREATEST(
+            started_on,
+            COALESCE(finished_on, started_on)
+          )
+        )
+        FROM ${ref("ecf2_school_periods")}
+    )) AS max_date
+),
+
+
+base_dates AS (
+  -- BASE CALENDAR
+  -- one row per date since June 1 2020 and today
+  SELECT 
+    calendar_date,
+    EXTRACT(YEAR FROM calendar_date) AS calendar_year,
+    EXTRACT(MONTH FROM calendar_date) AS calendar_month,
+    FORMAT_DATE('%Y-%m', calendar_date) AS year_month,
+    EXTRACT(ISOWEEK FROM calendar_date) AS iso_week,
+    DATE_TRUNC(calendar_date, WEEK(MONDAY)) AS week_start,
+    DATE_TRUNC(calendar_date, MONTH) AS month_start,
+    CASE
+      WHEN EXTRACT(MONTH FROM calendar_date) >= 6
+      THEN EXTRACT(YEAR FROM calendar_date)
+      ELSE EXTRACT(YEAR FROM calendar_date) - 1
+    END AS registration_window_year,
+    -- TODO: add school_holiday boolean flag?
+    -- This line creates future periods as well
+    -- FROM date_bounds, UNNEST(GENERATE_DATE_ARRAY(min_date, max_date)) AS calendar_date
+    FROM UNNEST(GENERATE_DATE_ARRAY(DATE('2020-06-01'), CURRENT_DATE)) AS calendar_date
+    ORDER BY calendar_date DESC
+),
+
+school_start_dates AS (
+  SELECT
+    school_id,
+    MIN(created_at) AS first_school_date
+  FROM ${ref("ecf2_school_periods")}
+  GROUP BY school_id
+),
+
+school_base AS (
+  SELECT
+    d.calendar_date,
+    d.registration_window_year,
+    s.school_id
+  FROM school_start_dates s
+  CROSS JOIN base_dates d
+  WHERE d.calendar_date >= s.first_school_date
+),
+
+
+school_periods_daily AS (
+  -- Explode school periods (ECTs and Mentors) into a daily snapshot
+  -- a row per day between each started/finished_on date of a school_period
+  SELECT
+    calendar_date,
+    school_id,
+    teacher_id,
+    participant_type,
+    school_period_id
+  FROM ${ref("ecf2_school_periods")}
+
+  CROSS JOIN UNNEST(
+    GENERATE_DATE_ARRAY(
+      started_on,
+      COALESCE(finished_on, CURRENT_DATE()),
+      INTERVAL 1 DAY
+    )
+  ) AS calendar_date
+),
+
+school_daily_activity AS (
+  -- for each day in a school_period, count how many ECTs and Mentors had an active school_period on that day
+  SELECT
+    calendar_date,
+    school_id,
+    COUNT(DISTINCT school_period_id) AS active_school_periods,
+    COUNT(DISTINCT CASE WHEN participant_type = 'ect' THEN teacher_id ELSE NULL END) AS active_ects,
+    COUNT(DISTINCT CASE WHEN participant_type = 'mentor' THEN teacher_id ELSE NULL END) AS active_mentors
+  FROM school_periods_daily
+  GROUP BY
+    calendar_date,
+    school_id
+),
+
+
+first_programme_registrations AS (
+  -- for each teacher and participant type:
+  -- get first overall registration
+  SELECT
+    teacher_id,
+    participant_type,
+    school_id,
+
+    CASE
+      WHEN EXTRACT(MONTH FROM started_on) >= 6
+      THEN EXTRACT(YEAR FROM started_on)
+      ELSE EXTRACT(YEAR FROM started_on) - 1
+    END AS registration_window_year,
+
+    CASE
+      WHEN EXTRACT(MONTH FROM started_on) >= 6
+       AND EXTRACT(MONTH FROM created_at) < 6
+      THEN DATE(EXTRACT(YEAR FROM created_at), 6, 1)
+      ELSE DATE(created_at)
+    END AS adjusted_registration_date
+
+  FROM ${ref("ecf2_school_periods")}
+  -- get the earliest row
+  QUALIFY ROW_NUMBER() OVER (
+    PARTITION BY teacher_id, participant_type
+    ORDER BY
+      started_on,
+      created_at,
+      school_period_id
+  ) = 1
+
+),
+
+
+participant_school_registrations AS (
+  -- for each teacher and participant type:
+  -- get first registration at school
+  SELECT
+    teacher_id,
+    participant_type,
+    school_id,
+
+    MIN(DATE(created_at)) AS actual_registration_date
+
+  FROM ${ref("ecf2_school_periods")}
+
+  GROUP BY
+    teacher_id,
+    participant_type,
+    school_id
+
+),
+
+first_school_registration_daily AS (
+
+  SELECT
+    actual_registration_date AS calendar_date,
+    school_id,
+
+    COUNT(DISTINCT teacher_id) AS first_school_registrations,
+
+    COUNT(DISTINCT CASE
+      WHEN participant_type = 'ect'
+      THEN teacher_id
+    END) AS first_school_ect_registrations,
+
+    COUNT(DISTINCT CASE
+      WHEN participant_type = 'mentor'
+      THEN teacher_id
+    END) AS first_school_mentor_registrations
+
+  FROM participant_school_registrations
+
+  GROUP BY
+    calendar_date,
+    school_id
+
+),
+
+first_programme_registration_daily AS (
+
+  SELECT
+    adjusted_registration_date AS calendar_date,
+    school_id,
+    registration_window_year,
+
+    COUNT(DISTINCT teacher_id) AS first_programme_registrations,
+
+    COUNT(DISTINCT CASE
+      WHEN participant_type = 'ect'
+      THEN teacher_id
+    END) AS first_programme_ect_registrations,
+
+    COUNT(DISTINCT CASE
+      WHEN participant_type = 'mentor'
+      THEN teacher_id
+    END) AS first_programme_mentor_registrations
+
+  FROM first_programme_registrations
+
+  GROUP BY
+    calendar_date,
+    school_id,
+    registration_window_year
+
+),
+
+
+
+-- final school daily snapshot
+school_daily_snapshot AS (
+
+  SELECT
+    base.calendar_date,
+    base.registration_window_year,
+    base.school_id,
+
+    COALESCE(sd.active_school_periods, 0) AS active_school_periods,
+    COALESCE(sd.active_ects, 0) AS active_ects,
+    COALESCE(sd.active_mentors, 0) AS active_mentors,
+    COALESCE(prog_reg.first_programme_registrations, 0) AS first_programme_registrations,
+    COALESCE(prog_reg.first_programme_ect_registrations, 0) AS first_programme_ect_registrations,
+    COALESCE(prog_reg.first_programme_mentor_registrations, 0) AS first_programme_mentor_registrations,
+
+    COALESCE(school_reg.first_school_registrations, 0) AS first_school_registrations,
+    COALESCE(school_reg.first_school_ect_registrations, 0) AS first_school_ect_registrations,
+    COALESCE(school_reg.first_school_mentor_registrations, 0) AS first_school_mentor_registrations
+
+
+  FROM school_base base
+  LEFT JOIN school_daily_activity sd
+    ON base.calendar_date = sd.calendar_date
+    AND base.school_id = sd.school_id
+  -- join the daily registrations to each school
+  LEFT JOIN first_school_registration_daily school_reg
+    ON base.calendar_date = school_reg.calendar_date
+    AND base.school_id = school_reg.school_id
+
+  LEFT JOIN first_programme_registration_daily prog_reg
+    ON base.calendar_date = prog_reg.calendar_date
+    AND base.school_id = prog_reg.school_id
+    AND base.registration_window_year = prog_reg.registration_window_year
+--   ORDER BY
+--     base.calendar_date
+)
+
+SELECT *
+FROM school_daily_snapshot
+
