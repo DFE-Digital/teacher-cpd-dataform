@@ -121,167 +121,112 @@ school_daily_activity AS (
     school_id
 ),
 
-participant_registration_windows AS (
-  -- derive registration windows from earliest started_on date
-  -- registration windows begin on 1 June each year
 
+first_programme_registrations AS (
+  -- for each teacher and participant type:
+  -- get first overall registration
   SELECT
     teacher_id,
     participant_type,
-
-    MIN(started_on) AS first_started_on,
+    school_id,
 
     CASE
-      WHEN EXTRACT(MONTH FROM MIN(started_on)) >= 6
-      THEN EXTRACT(YEAR FROM MIN(started_on))
-      ELSE EXTRACT(YEAR FROM MIN(started_on)) - 1
+      WHEN EXTRACT(MONTH FROM started_on) >= 6
+      THEN EXTRACT(YEAR FROM started_on)
+      ELSE EXTRACT(YEAR FROM started_on) - 1
     END AS registration_window_year,
 
-    DATE(
-      CASE
-        WHEN EXTRACT(MONTH FROM MIN(started_on)) >= 6
-        THEN EXTRACT(YEAR FROM MIN(started_on))
-        ELSE EXTRACT(YEAR FROM MIN(started_on)) - 1
-      END,
-      6,
-      1
-    ) AS registration_window_start_date
+    CASE
+      WHEN EXTRACT(MONTH FROM started_on) >= 6
+       AND EXTRACT(MONTH FROM created_at) < 6
+      THEN DATE(EXTRACT(YEAR FROM created_at), 6, 1)
+      ELSE DATE(created_at)
+    END AS adjusted_registration_date
 
   FROM ${ref("ecf2_school_periods")}
+  -- get the earliest row
+  QUALIFY ROW_NUMBER() OVER (
+    PARTITION BY teacher_id, participant_type
+    ORDER BY
+      started_on,
+      created_at,
+      school_period_id
+  ) = 1
 
-  GROUP BY
-    teacher_id,
-    participant_type
 ),
 
 
 participant_school_registrations AS (
   -- for each teacher and participant type:
   -- get first registration at school
-  -- get first registration overall
-  -- adjust pre-registrations into the cohort window
-  SELECT
-    sp.teacher_id,
-    sp.participant_type,
-    sp.school_id,
-
-    reg_window.first_started_on,
-    reg_window.registration_window_year,
-    reg_window.registration_window_start_date,
-
-    -- actual first registration date at school
-    MIN(DATE(sp.created_at))
-      AS actual_registration_date,
-
-    -- if participant registered before the cohort window opened
-    -- but their first started_on date belongs to that future cohort,
-    -- BRING registration date forward to cohort opening date
-    CASE
-      WHEN MIN(DATE(sp.created_at)) < reg_window.registration_window_start_date
-       AND reg_window.first_started_on >= reg_window.registration_window_start_date
-       THEN reg_window.registration_window_start_date
-      ELSE MIN(DATE(sp.created_at))
-    END AS adjusted_registration_date,
-
-    -- first ever registration date overall
-    MIN(MIN(DATE(sp.created_at))) OVER (
-      PARTITION BY sp.teacher_id, sp.participant_type
-    ) AS first_programme_registration_date
-
-  FROM ${ref("ecf2_school_periods")} sp
-
-  LEFT JOIN participant_registration_windows reg_window
-    ON sp.teacher_id = reg_window.teacher_id
-    AND sp.participant_type = reg_window.participant_type
-
-  GROUP BY
-    sp.teacher_id,
-    sp.participant_type,
-    sp.school_id,
-    reg_window.first_started_on,
-    reg_window.registration_window_year,
-    reg_window.registration_window_start_date
-),
-
-
-
-
-participant_school_registration_flags AS (
-  -- helper CTE for registration flags
   SELECT
     teacher_id,
     participant_type,
     school_id,
 
-    first_started_on,
-    registration_window_year,
-    registration_window_start_date,
+    MIN(DATE(created_at)) AS actual_registration_date
 
-    actual_registration_date,
-    adjusted_registration_date,
-    first_programme_registration_date,
-    TRUE AS is_first_school_registration,  -- always true
-    CASE 
-      WHEN actual_registration_date = first_programme_registration_date THEN TRUE
-      ELSE FALSE
-    END AS is_first_programme_registration
+  FROM ${ref("ecf2_school_periods")}
 
-  FROM participant_school_registrations
+  GROUP BY
+    teacher_id,
+    participant_type,
+    school_id
+
 ),
 
+first_school_registration_daily AS (
 
+  SELECT
+    actual_registration_date AS calendar_date,
+    school_id,
 
-school_registration_daily AS (
-  -- aggregate registrations to school/day level
+    COUNT(DISTINCT teacher_id) AS first_school_registrations,
+
+    COUNT(DISTINCT CASE
+      WHEN participant_type = 'ect'
+      THEN teacher_id
+    END) AS first_school_ect_registrations,
+
+    COUNT(DISTINCT CASE
+      WHEN participant_type = 'mentor'
+      THEN teacher_id
+    END) AS first_school_mentor_registrations
+
+  FROM participant_school_registrations
+
+  GROUP BY
+    calendar_date,
+    school_id
+
+),
+
+first_programme_registration_daily AS (
 
   SELECT
     adjusted_registration_date AS calendar_date,
-
     school_id,
     registration_window_year,
 
-    -- count all teachers if it's first school_period at this school
-    COUNT(DISTINCT teacher_id)
-      AS first_school_registrations,
-    -- count all teachers if it's first school_period overall
-    COUNT(DISTINCT CASE
-      WHEN is_first_programme_registration IS TRUE
-      THEN teacher_id
-      ELSE NULL
-    END) AS first_programme_registrations,
-    -- count only ECTs if it's first school_period at this school
+    COUNT(DISTINCT teacher_id) AS first_programme_registrations,
+
     COUNT(DISTINCT CASE
       WHEN participant_type = 'ect'
       THEN teacher_id
-      ELSE NULL
-    END) AS first_school_ect_registrations,
-    -- count only Mentors if it's first school_period at this school
-    COUNT(DISTINCT CASE
-      WHEN participant_type = 'mentor'
-      THEN teacher_id
-      ELSE NULL
-    END) AS first_school_mentor_registrations,
-    -- count only ECTs if it's first school_period overall
-    COUNT(DISTINCT CASE
-      WHEN participant_type = 'ect'
-       AND is_first_programme_registration IS TRUE
-      THEN teacher_id
-      ELSE NULL
     END) AS first_programme_ect_registrations,
-    -- count only Mentors if it's first school_period overall
+
     COUNT(DISTINCT CASE
       WHEN participant_type = 'mentor'
-       AND is_first_programme_registration IS TRUE
       THEN teacher_id
-      ELSE NULL
     END) AS first_programme_mentor_registrations
 
-  FROM participant_school_registration_flags
+  FROM first_programme_registrations
 
   GROUP BY
     calendar_date,
     school_id,
     registration_window_year
+
 ),
 
 
@@ -297,22 +242,28 @@ school_daily_snapshot AS (
     COALESCE(sd.active_school_periods, 0) AS active_school_periods,
     COALESCE(sd.active_ects, 0) AS active_ects,
     COALESCE(sd.active_mentors, 0) AS active_mentors,
-    COALESCE(reg.first_programme_registrations, 0) AS first_programme_registrations,
-    COALESCE(reg.first_school_registrations, 0) AS first_school_registrations,
-    COALESCE(reg.first_school_ect_registrations, 0) AS first_school_ect_registrations,
-    COALESCE(reg.first_school_mentor_registrations, 0) AS first_school_mentor_registrations,
-    COALESCE(reg.first_programme_ect_registrations, 0) AS first_programme_ect_registrations,
-    COALESCE(reg.first_programme_mentor_registrations, 0) AS first_programme_mentor_registrations
+    COALESCE(prog_reg.first_programme_registrations, 0) AS first_programme_registrations,
+    COALESCE(prog_reg.first_programme_ect_registrations, 0) AS first_programme_ect_registrations,
+    COALESCE(prog_reg.first_programme_mentor_registrations, 0) AS first_programme_mentor_registrations,
+
+    COALESCE(school_reg.first_school_registrations, 0) AS first_school_registrations,
+    COALESCE(school_reg.first_school_ect_registrations, 0) AS first_school_ect_registrations,
+    COALESCE(school_reg.first_school_mentor_registrations, 0) AS first_school_mentor_registrations
+
 
   FROM school_base base
   LEFT JOIN school_daily_activity sd
     ON base.calendar_date = sd.calendar_date
     AND base.school_id = sd.school_id
   -- join the daily registrations to each school
-  LEFT JOIN school_registration_daily reg
-    ON base.calendar_date = reg.calendar_date
-    AND base.registration_window_year = reg.registration_window_year
-    AND base.school_id = reg.school_id
+  LEFT JOIN first_school_registration_daily school_reg
+    ON base.calendar_date = school_reg.calendar_date
+    AND base.school_id = school_reg.school_id
+
+  LEFT JOIN first_programme_registration_daily prog_reg
+    ON base.calendar_date = prog_reg.calendar_date
+    AND base.school_id = prog_reg.school_id
+    AND base.registration_window_year = prog_reg.registration_window_year
 --   ORDER BY
 --     base.calendar_date
 )

@@ -67,42 +67,75 @@ WITH base_dates AS (
   ORDER BY calendar_date DESC
 ),
 
+-- Old logic to get registration dates
 -- participant_base AS (
---   -- Get the first school_period for ALL teachers and participant_types 
---   -- OLD: replaced as I think it's more efficient to stop generating dates for the last finished_on date for an ECT/Mentor
+--   -- Get the first and last school_period for ALL teachers and participant_types
 --   SELECT
 --     teacher_id,
 --     participant_type,
---     DATE(created_at) AS registration_date,  -- Might have to adjust this if before 1 June
+--     -- DATE(MIN(created_at)) AS registration_date,  -- Might have to adjust this if before 1 June
 --     CASE
---       WHEN EXTRACT(MONTH FROM started_on) >= 6 THEN EXTRACT(YEAR FROM started_on)
---       ELSE EXTRACT(YEAR FROM started_on) - 1
+--       WHEN DATE(MIN(created_at)) < DATE(EXTRACT(YEAR FROM MIN(created_at)), 6, 1)
+--         THEN DATE(EXTRACT(YEAR FROM MIN(created_at)), 6, 1)
+--       ELSE DATE(MIN(created_at))
+--     END AS registration_date,  -- adjusted registration_date (if the created date is before 1 June, set it to June 1)
+
+--     CASE
+--       WHEN EXTRACT(MONTH FROM MIN(started_on)) >= 6 THEN EXTRACT(YEAR FROM MIN(started_on))
+--       ELSE EXTRACT(YEAR FROM MIN(started_on)) - 1
 --     END AS registration_window_year,
---     DATE(started_on) AS first_school_period_started_on
---   FROM `ecf-bq.dataform.ecf2_school_periods`
---   -- Take the first school_period for each teacher AND participant_type (this act as the point of registration)
---   QUALIFY ROW_NUMBER() OVER (
---     PARTITION BY teacher_id, participant_type
---     ORDER BY started_on ASC
---   ) = 1
+--     DATE(MIN(started_on)) AS first_school_period_started_on,
+--     DATE(MAX(COALESCE(finished_on, CURRENT_DATE))) AS last_school_period_finished_on
+--   FROM ${ref("ecf2_school_periods")}
+--   GROUP BY
+--     teacher_id,
+--     participant_type
 -- ),
 
-participant_base AS (
-  -- Get the first and last school_period for ALL teachers and participant_types
+latest_school_periods AS (
+  -- get the lastest finished on date for all teachers/participanets types
+  -- if active => today
   SELECT
     teacher_id,
     participant_type,
-    DATE(MIN(created_at)) AS registration_date,  -- Might have to adjust this if before 1 June
-    CASE
-      WHEN EXTRACT(MONTH FROM MIN(started_on)) >= 6 THEN EXTRACT(YEAR FROM MIN(started_on))
-      ELSE EXTRACT(YEAR FROM MIN(started_on)) - 1
-    END AS registration_window_year,
-    DATE(MIN(started_on)) AS first_school_period_started_on,
     DATE(MAX(COALESCE(finished_on, CURRENT_DATE))) AS last_school_period_finished_on
   FROM ${ref("ecf2_school_periods")}
   GROUP BY
     teacher_id,
     participant_type
+),
+
+
+participant_base AS (
+  -- Get the first and last school_period for ALL teachers and participant_types
+  SELECT
+    base.teacher_id,
+    base.participant_type,
+    -- DATE(MIN(created_at)) AS registration_date,  -- Might have to adjust this if before 1 June
+    CASE
+      WHEN DATE(base.created_at) < DATE(EXTRACT(YEAR FROM base.created_at), 6, 1)
+        THEN DATE(EXTRACT(YEAR FROM base.created_at), 6, 1)
+      ELSE DATE(base.created_at)
+    END AS registration_date,  -- adjusted registration_date (if the created date is before 1 June, set it to June 1)
+
+    CASE
+      WHEN EXTRACT(MONTH FROM base.started_on) >= 6 THEN EXTRACT(YEAR FROM base.started_on)
+      ELSE EXTRACT(YEAR FROM base.started_on) - 1
+    END AS registration_window_year,
+    DATE(base.started_on) AS first_school_period_started_on,
+    lsp.last_school_period_finished_on
+  FROM ${ref("ecf2_school_periods")} base
+  LEFT JOIN latest_school_periods lsp
+    ON lsp.teacher_id = base.teacher_id
+    AND lsp.participant_type = base.participant_type
+  -- Take the first school_period for each teacher AND participant_type (this act as the point of registration)
+  QUALIFY ROW_NUMBER() OVER (
+    PARTITION BY teacher_id, participant_type
+    ORDER BY
+      started_on,
+      created_at,
+      school_period_id
+  ) = 1
 ),
 
 
