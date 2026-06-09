@@ -1,0 +1,219 @@
+config {
+    type: "table",
+    tags: ["npq"],
+    assertions: {
+        uniqueKey: ["application_ecf_id"]
+    },
+    bigquery: {
+        partitionBy: "DATE(application_created_at)",
+        clusterBy: ["trn","application_status","short_course_name", "provider_name"]
+    },
+    description: "This table is a simplified table of npq_enrolments. It is designed around NPQ Applications with each application constituting a single record. Participant details have been joined into the application record. Since user profiles are only generated when an application is accepted by a lead provider, gaps in key fields (like schedule) can be the result of a pending application. We also join in declarations to create a 'golden thread' of NPQ participation for each application, splitting out declarations across the different declaration types. In the rare cases that multiple declarations exist for the same type of declaration, we've determined a preferred state_hierarchy:paid>payable>eligible>submitted>clawed_back>awaiting_clawback>voided. For the latest declaration we've also incorporated a type hierarchy, prioritising declarations from further along in the golden thread.",
+    
+    columns: {
+        application_id: "Field a description",
+        trn: {
+            description: "field b description. This is a hidden field",
+            bigqueryPolicyTags: ["projects/ecf-bq/locations/europe-west2/taxonomies/6302091323314055162/policyTags/301313311867345339"]}, 
+        user_id: "The user ID of the participant as exposed in the service and over the API",
+        application_status: "Indicates whether the lead provider has accepted the application",
+        application_created_at: "When the application was created",
+        application_updated_at: "When the application was last updated",
+        cohort: "The cohort which the participant started their course in",
+        cohort_number: "A policy-oriented cohort identifier.",
+        short_course_name: "",
+        schedule_identifier: "This indicates which tranche the participant commenced training within an annual cohort also distinguishes between the leadership and specialist NPQ types.",
+        course_usual_length_months: "The length of the NPQ course, in months",
+        expected_declaration_count: "The number of declarations expected for the NPQ course indicated on the application",
+        provider_name: "The lead responsible for the participants training",
+        lead_provider_id: "",
+        last_nominated_delivery_partner_name: "Most recently assigned delivery partner, taken from declarations. Responsible for delivering participant training.",
+        last_nominated_delivery_partner_id: "Most recently assigned delivery partner, taken from declarations. Responsible for delivering participant training.",
+        school_urn: "The URN of the school the participant is training at",
+        school_name: "The NAME of the school the participant is training at",
+        private_childcare_provider_urn: "The URN of the establishment as stored in OFSTED",
+        la_name: "Name of the local authority the school resides within",
+        work_setting: "The setting the participant works in as recorded on the application",
+        establishment_phase: "The phase of the participants establishment as stored in GIAS or Ofsted",
+        training_status: "Defaults to participant's training_status, except returns completed when a completed declaration is present and in any of the states submitted, eligible, payable, or paid.",
+        dfe_expected_funding_flag: "TRUE if the participant is eligible to receive DfE scholarship funding",
+        dfe_has_funded_flag: "TRUE if the participant has at least one declaration in the state eligible, payable or paid. Indicating the DfE will fund this participant",
+        non_dfe_funding_method: "If a participant is not eligible for funding, this indicates the source of the funding for their NPQ.",
+        in_england: "True if participant's school in England, False if overseas.",
+        assumed_no_longer_live_date: "Date after which we can assume this participant's NPQ finished/will finish. This does not take into account whether or not a participant is or has deferred",
+        inactivity_flag: "True if participant lost track - defined as no outcome received, an active training status, and either no declaration received in over a year or the participant has passed their expected completion date.",
+        once_deferred_has_resumed_training: "TRUE if the participant has deferred and later resumed their training.",
+        applicant_changed_lp: "TRUE if the participant has changed lead providers after submitting their application",
+        previous_lp_name: "The name of the previous lead provider",
+        funded_start_declaration: "TRUE if the declaration was funded",
+        started_declaration_date: "The date the declaration was received",
+        started_declaration_state: "The state the declaration",
+        funded_retained1_declaration: "TRUE if the declaration was funded",
+        retained1_declaration_date: "The date the declaration was received",
+        retained1_declaration_state: "The state the declaration",
+        funded_retained2_declaration: "TRUE if the declaration was funded",
+        retained2_declaration_date: "The date the declaration was received",
+        retained2_declaration_state: "The state the declaration",
+        funded_completed_declaration: "TRUE if the declaration was funded",
+        completed_declaration_date: "The date the declaration was received",
+        completed_declaration_state: "The state the declaration",
+        latest_outcome_state: "The most recent outcome state for the participant. Indicates if they have passed or failed their NPQ",
+        latest_outcome_date: "The date the most recent outocme was received",
+        establishment_group_type: "Establishment Group type from GIAS and OFSTED",
+        establishment_type: "Establishment type from GIAS and OFSTED",
+    }
+}
+
+
+WITH
+  state_changes AS (
+    SELECT
+      apps.application_id,
+      apps.state,
+      apps.created_at,
+      lps.name as lp_name,
+      LAG(apps.state)
+        OVER (PARTITION BY application_id ORDER BY apps.created_at) AS prev_status,
+      LAG(lps.name)
+        OVER (PARTITION BY application_id ORDER BY apps.created_at) AS prev_lp_name
+ 
+    FROM ${ref('application_states_latest_npq')} as apps
+    LEFT JOIN ${ref('lead_providers_latest_npq')} as lps
+    ON apps.lead_provider_id = lps.id
+  ),
+  resumed_applications AS (
+    SELECT
+      application_id,
+      true as once_deferred_and_resumed
+    FROM state_changes
+    WHERE
+      prev_status = 'deferred'
+      AND state = 'active'
+    GROUP BY ALL),
+ 
+  changed_lp_applications AS (
+    SELECT
+      application_id,
+      true as changed_lp,
+      prev_lp_name as previous_lp_name
+    FROM state_changes
+    WHERE lp_name != prev_lp_name
+    GROUP BY ALL)
+ 
+SELECT
+  -- Applicant details
+  application_ecf_id as application_id,
+  trn_verified as trn,
+  ecf_user_id as user_id,
+  application_status,
+  application_created_at,
+  updated_at as application_updated_at,
+ 
+  employment_role,
+
+
+  -- Course details
+  cohort,
+  cohort_number,
+  short_course_name,
+  schedule_identifier,
+ 
+  -- course_name,
+  course_usual_length_months,
+  
+  -- Expected declaration count
+  expected_declaration_count,
+ 
+  -- Provider info
+  provider_name,
+  lead_provider_id,
+  -- Delivery partner info
+  COALESCE(latest_declaration_delivery_partner_name,completed_declaration_delivery_partner_name,retained2_declaration_delivery_partner_name,retained1_declaration_delivery_partner_name, started_declaration_delivery_partner_name) as  last_nominated_delivery_partner_name,
+  COALESCE(latest_declaration_delivery_partner_id,completed_declaration_delivery_partner_id,retained2_declaration_delivery_partner_id,retained1_declaration_delivery_partner_id, started_declaration_delivery_partner_id) as  last_nominated_delivery_partner_id,
+ 
+  -- School / establishment info
+  school_urn,
+  school_name,
+  private_childcare_provider_urn,
+  COALESCE(gias.la_name,ofsted.la_name,'unknown') as la_name,
+ 
+  work_setting,
+ 
+  -- establishment type 
+  coalesce(gias.EstablishmentTypeGroup_name,'other') as establishment_group_type,
+  coalesce(ofsted.establishment_type,gias.TypeOfEstablishment_name,'other') as establishment_type,
+
+  
+  -- establishment phase
+  coalesce(ofsted.phase_of_education,gias.PhaseOfEducation_name, employment_type,'other') as establishment_phase,
+ 
+  -- training_status (active, withdrawn, deferred, completed)
+  CASE
+    WHEN training_status = 'active' AND completed_declaration_state in ('submitted','eligible','payabale', 'paid') and latest_outcome_state is not null THEN 'completed'
+    ELSE training_status
+    END as training_status,
+ 
+  -- dfe funded
+  IF(funding_eligiblity_status_code = 'funded' OR eligible_for_funding, true, false) as dfe_expected_funding_flag,
+  IF(funded_start_declaration OR funded_retained1_declaration OR funded_retained2_declaration OR funded_completed_declaration, true, false) AS dfe_has_funded_flag,
+ 
+ 
+  -- Funding method
+  funding_choice as non_dfe_funding_method,
+ 
+  -- in_england boolean
+   IF(teacher_catchment = 'england' OR teacher_catchment_iso_country_code = 'GBR', true, false) as in_england,
+ 
+  -- assumped no longer live date
+  assumed_no_longer_live_date,
+ 
+  -- inactivity flag - this application has been lost track of no outcome recieved, active training status and (no declartion received in over a year or surpassed expected completion date)
+  IF(application_status = 'accepted' AND training_status = 'active' AND (funded_start_declaration OR funded_retained1_declaration OR funded_retained2_declaration )
+    AND latest_outcome_state IS NULL AND completed_declaration_date IS NULL AND (DATE(latest_declaration_date)< DATE_SUB(CURRENT_DATE(), INTERVAL 1 YEAR)  OR assumed_no_longer_live_date < CURRENT_DATE()),true,false) as inactivity_flag,
+ 
+  -- has resumed training (moved from deferred to active)
+  COALESCE(once_deferred_and_resumed, false) as once_deferred_has_resumed_training,
+ 
+  -- applicant has changed LPs flag
+  IF(changed_lp_applications.previous_lp_name IS NOT NULL, true, false) as applicant_changed_lp,
+  -- previous LP name
+  changed_lp_applications.previous_lp_name,
+
+    -- Started declaration
+  funded_start_declaration,
+  started_declaration_date,
+  started_declaration_state,
+ 
+  -- Retained 1
+ 
+  funded_retained1_declaration,
+  retained1_declaration_date,
+  retained1_declaration_state,
+  
+  -- Retained 2 (if applicable)
+  funded_retained2_declaration,
+  retained2_declaration_date,
+  retained2_declaration_state,
+ 
+  -- Completed
+  funded_completed_declaration,
+  completed_declaration_date,
+  completed_declaration_state,
+ 
+  -- outcome
+  latest_outcome_state,
+  latest_outcome_date,
+
+ 
+FROM ${ref('npq_enrolments')} as enrolments
+LEFT JOIN resumed_applications USING(application_id)
+LEFT JOIN changed_lp_applications USING(application_id)
+LEFT JOIN ${ref('establishments')} as gias
+  ON enrolments.school_urn = gias.URN
+LEFT JOIN
+   ${ref('npq_ofsted_establishments')}  AS ofsted
+  ON
+    enrolments.private_childcare_provider_urn = ofsted.establishment_urn
+ 
+ 
+ 
