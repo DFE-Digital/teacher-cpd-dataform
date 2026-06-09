@@ -111,31 +111,14 @@ participant_base AS (
   SELECT
     base.teacher_id,
     base.participant_type,
-    -- DATE(MIN(created_at)) AS registration_date,  -- Might have to adjust this if before 1 June
-    CASE
-      WHEN DATE(base.created_at) < DATE(EXTRACT(YEAR FROM base.created_at), 6, 1)
-        THEN DATE(EXTRACT(YEAR FROM base.created_at), 6, 1)
-      ELSE DATE(base.created_at)
-    END AS registration_date,  -- adjusted registration_date (if the created date is before 1 June, set it to June 1)
-
-    CASE
-      WHEN EXTRACT(MONTH FROM base.started_on) >= 6 THEN EXTRACT(YEAR FROM base.started_on)
-      ELSE EXTRACT(YEAR FROM base.started_on) - 1
-    END AS registration_window_year,
-    DATE(base.started_on) AS first_school_period_started_on,
+    base.adjusted_registration_date AS registration_date,
+    base.registration_window_year,
+    base.school_period_started_on AS first_school_period_started_on,
     lsp.last_school_period_finished_on
-  FROM ${ref("ecf2_school_periods")} base
+  FROM ${ref("ecf2_participant_registrations")} base
   LEFT JOIN latest_school_periods lsp
     ON lsp.teacher_id = base.teacher_id
     AND lsp.participant_type = base.participant_type
-  -- Take the first school_period for each teacher AND participant_type (this act as the point of registration)
-  QUALIFY ROW_NUMBER() OVER (
-    PARTITION BY teacher_id, participant_type
-    ORDER BY
-      started_on,
-      created_at,
-      school_period_id
-  ) = 1
 ),
 
 

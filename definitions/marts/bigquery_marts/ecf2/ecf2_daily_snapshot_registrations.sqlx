@@ -1,0 +1,55 @@
+config {
+    type: "table",
+    tags: ["ecf2"],
+    bigquery: {
+        partitionBy: "calendar_date",
+        clusterBy: ["school_id", "registration_window_year"]
+    },
+    description: "The total number of programme registrations, ect registrations and mentor registrations on a given date and registration window.",
+    columns: {
+        calendar_date: "Snapshot date. Based on the adjusted registration_date",
+        school_id: "The id of the school as in the ECF2 service",
+        registration_window_year: "Registration cohort year derived from the first school period. Using 1 June as the cutoff",
+        registrations: "Total number of registrations on that day per registration window.",
+        ect_registrations: "Total number of ECT registrations on that day per registration window.",
+        mentor_registrations: "Total number of Mentor registrations on that day per registration window."
+        }
+}
+
+
+
+WITH participant_registrations AS (
+  SELECT
+    adjusted_registration_date AS calendar_date,
+    school_id,
+    registration_window_year,
+    COUNT(DISTINCT teacher_id) AS registrations,
+    COUNT(DISTINCT CASE WHEN participant_type = 'ect' THEN teacher_id ELSE NULL END) AS ect_registrations,
+    COUNT(DISTINCT CASE WHEN participant_type = 'mentor' THEN teacher_id ELSE NULL END) AS mentor_registrations
+  FROM ${ref("ecf2_participant_registrations")}
+  GROUP BY 
+    adjusted_registration_date,
+    school_id,
+    registration_window_year
+)
+
+
+-- participants_registrations_pivot AS (
+--   SELECT *
+--   FROM participant_registrations
+--   PIVOT (
+--     SUM(registrations) AS total,
+--     SUM(ect_registrations) AS ect,
+--     SUM(mentor_registrations) AS mentor
+--     FOR registration_window_year IN (
+--       2021 AS reg_2021,
+--       2022 AS reg_2022, 
+--       2023 AS reg_2023, 
+--       2024 AS reg_2024, 
+--       2025 AS reg_2025, 
+--       2026 AS reg_2026
+--     )
+--   )
+-- )
+
+SELECT * FROM participant_registrations

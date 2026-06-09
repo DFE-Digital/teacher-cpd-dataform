@@ -1,0 +1,58 @@
+config {
+    type: "table",
+    tags: ["ecf2"],
+    bigquery: {
+        partitionBy: "adjusted_registration_date",
+        clusterBy: ["teacher_id", "participant_type", "registration_window_year"]
+    },
+    description: "A record per teacher / partiticpant type for the first school_period which serves as the point of registration. First school period identified by getting the earliest started_on date.",
+    columns: {
+        teacher_id: "Unique teacher identifier as assigned to the teacher in the ECf2 service.",
+        participant_type: "Participant role type: Must be ECT or Mentor.",
+        registration_window_year: "Registration cohort year derived from the first school period. Using 1 June as the cutoff",
+        registration_date: "Date the participant first registered in the programme. Derived from the created_at date of the first school_period.",
+        adjusted_registration_date: "The registration date adjusted to 1 June if the registration took place before the registration window formally opened. Used primarly for charting purposes.",
+        school_id: "The id of the first school",
+        first_school_period_started_on: "Start date of the participant's first school period."
+        }
+}
+
+
+
+WITH participant_registrations AS (
+  -- get the first ever school period for participants
+  -- use this as the first registration
+  SELECT
+    teacher_id,
+    participant_type,
+
+    -- get the registration year
+    CASE
+      WHEN EXTRACT(MONTH FROM started_on) >= 6 THEN EXTRACT(YEAR FROM started_on)
+      ELSE EXTRACT(YEAR FROM started_on) - 1
+    END AS registration_window_year,
+
+    -- get the registration date (from created at date)
+    DATE(created_at) AS registration_date,
+    CASE
+      WHEN DATE(created_at) < DATE(EXTRACT(YEAR FROM created_at), 6, 1)
+        THEN DATE(EXTRACT(YEAR FROM created_at), 6, 1)
+      ELSE DATE(created_at)
+    END AS adjusted_registration_date,  -- adjusted registration_date (if the created date is before 1 June, set it to June 1)
+    
+    school_id,
+    school_period_id AS school_period_id,
+    DATE(started_on) AS school_period_started_on
+    
+  FROM ${ref("ecf2_school_periods")}
+  QUALIFY ROW_NUMBER() OVER (
+    PARTITION BY teacher_id, participant_type
+    ORDER BY
+      started_on,
+      created_at,
+      school_period_id
+  ) = 1
+)
+
+
+SELECT * FROM participant_registrations
