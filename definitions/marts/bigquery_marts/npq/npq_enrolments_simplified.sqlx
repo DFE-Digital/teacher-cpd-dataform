@@ -8,13 +8,13 @@ config {
         partitionBy: "DATE(application_created_at)",
         clusterBy: ["trn","application_status","short_course_name", "provider_name"]
     },
-    description: "This table is a simplified table of npq_enrolments. It is designed around NPQ Applications with each application constituting a single record. Participant details have been joined into the application record. Since user profiles are only generated when an application is accepted by a lead provider, gaps in key fields (like schedule) can be the result of a pending application. We also join in declarations to create a 'golden thread' of NPQ participation for each application, splitting out declarations across the different declaration types. In the rare cases that multiple declarations exist for the same type of declaration, we've determined a preferred state_hierarchy:paid>payable>eligible>submitted>clawed_back>awaiting_clawback>voided. For the latest declaration we've also incorporated a type hierarchy, prioritising declarations from further along in the golden thread."
+    description: "This table is a simplified table of npq_enrolments. It is designed around NPQ Applications with each application constituting a single record. Participant details have been joined into the application record. Since user profiles are only generated when an application is accepted by a lead provider, gaps in key fields (like schedule) can be the result of a pending application. We also join in declarations to create a 'golden thread' of NPQ participation for each application, splitting out declarations across the different declaration types. In the rare cases that multiple declarations exist for the same type of declaration, we've determined a preferred state_hierarchy:paid>payable>eligible>submitted>clawed_back>awaiting_clawback>voided. For the latest declaration we've also incorporated a type hierarchy, prioritising declarations from further along in the golden thread.",
     
     columns: {
-        application_ecf_id: "Field a description",
+        application_id: "Field a description",
         trn: {
             description: "field b description. This is a hidden field",
-            bigqueryPolicyTags: ["projects/ecf-bq/locations/europe-west2/taxonomies/6302091323314055162/policyTags/301313311867345339"]} 
+            bigqueryPolicyTags: ["projects/ecf-bq/locations/europe-west2/taxonomies/6302091323314055162/policyTags/301313311867345339"]}, 
         user_id: "The user ID of the participant as exposed in the service and over the API",
         application_status: "Indicates whether the lead provider has accepted the application",
         application_created_at: "When the application was created",
