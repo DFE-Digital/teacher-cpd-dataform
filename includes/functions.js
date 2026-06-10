@@ -78,8 +78,8 @@ function correctOrderDeclarationsTypesShouldBeReceived() {
             -- STRUCT(DATE '2021-09-01', DATE_ADD(CURRENT_DATE(), INTERVAL 1 DAY), 'retained-4', 3, 3, 'mentor'),
             
             -- Completed
-            -- STRUCT(DATE '2025-08-01', DATE_ADD(CURRENT_DATE(), INTERVAL 1 DAY), 'completed', 3, 3, 'mentor'),
-            STRUCT(DATE '2025-08-01', DATE_ADD(CURRENT_DATE(), INTERVAL 1 DAY), 'completed', 2, 2, 'mentor'),  -- changed 10 June 2026 following call with CMs
+            -- STRUCT(DATE '2025-08-01', DATE_ADD(CURRENT_DATE(), INTERVAL 1 DAY), 'completed', 3, 3, 'mentor'),  -- changed to 2,2 on 10 June 2026 following call with CMs
+            STRUCT(DATE '2025-08-01', DATE_ADD(CURRENT_DATE(), INTERVAL 1 DAY), 'completed', 2, 2, 'mentor'),  
             STRUCT(DATE '2021-09-01', DATE '2025-07-31', 'completed', 3, 3, 'mentor')
 
             -- TODO: replacement Mentors!!
