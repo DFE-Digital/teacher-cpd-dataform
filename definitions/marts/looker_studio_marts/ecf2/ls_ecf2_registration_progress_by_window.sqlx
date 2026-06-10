@@ -1,0 +1,120 @@
+config {
+    type: "table",
+    tags: ["ecf2","registrations"],
+    bigquery: {
+        partitionBy: "calendar_date",
+        clusterBy: ["registration_window_year"]
+    },
+    description: "This table is built for Looker Studio to allow date by date comparison of registrations by window. Caution: Dates included are 1 June to 31 May each year so registrations made in future years are not counted here.",
+    columns: {
+      "calendar_date": "Snapshot date. Only dates between 1 June and 31 March included each year.",
+      "registration_window_year": "Registration Year",
+      "metric": "The name of the metric",
+      "value": "The value of the metric on that day",
+      "breakdown_dimension": "Concatenated string of metric and registration year. Used in looker as a dimension.",
+
+    }
+}
+
+
+WITH base_dates AS (
+  -- calendar-like table from all dates in the reg snapshot table
+  SELECT DISTINCT
+    calendar_date,
+    registration_window_year
+  FROM ${ref("ecf2_daily_snapshot_registrations")}
+),
+
+
+daily_registrations AS (
+  -- aggregate registrations by school to daily-level
+  SELECT
+    calendar_date,
+    registration_window_year,
+    SUM(registrations) AS registrations,
+    SUM(ect_registrations) AS ect_registrations,
+    SUM(mentor_registrations) AS mentor_registrations
+  FROM ${ref("ecf2_daily_snapshot_registrations")}
+  GROUP BY
+    registration_window_year,
+    calendar_date
+),
+
+first_school_registration AS (
+  -- get the first registration for each school
+  SELECT
+    registration_window_year,
+    school_id,
+    MIN(calendar_date) AS first_registration_date
+  FROM ${ref("ecf2_daily_snapshot_registrations")}
+  WHERE registrations > 0
+  GROUP BY
+    registration_window_year,
+    school_id
+),
+
+
+schools_registered AS (
+  -- count how many schools had at least one registration on or before a given date
+  SELECT
+    d.calendar_date,
+    d.registration_window_year,
+    COUNT(DISTINCT f.school_id) AS schools_reported
+  FROM base_dates d
+  LEFT JOIN first_school_registration f
+    ON d.registration_window_year = f.registration_window_year
+   AND f.first_registration_date <= d.calendar_date
+  GROUP BY
+    d.calendar_date,
+    d.registration_window_year
+),
+
+registration_comparisons AS (
+  -- union metrics into a long format table by calendar_date, reg_window, metric and value
+  SELECT
+    calendar_date,
+    registration_window_year,
+    'registrations' AS metric,
+    registrations AS value
+  FROM daily_registrations
+
+  UNION ALL
+
+  SELECT
+    calendar_date,
+    registration_window_year,
+    'ect_registrations' AS metric,
+    ect_registrations AS value
+  FROM daily_registrations
+
+  UNION ALL
+
+  SELECT
+    calendar_date,
+    registration_window_year,
+    'mentor_registrations' AS metric,
+    mentor_registrations AS value
+  FROM daily_registrations
+
+  UNION ALL
+
+  SELECT
+    calendar_date,
+    registration_window_year,
+    'schools_reported' AS metric,
+    schools_reported AS value
+  FROM schools_registered
+
+)
+
+SELECT 
+  *,
+  CONCAT(CAST(registration_window_year AS STRING), "-" , metric) AS breakdown_dimension
+FROM registration_comparisons
+WHERE
+  calendar_date >= DATE(CONCAT(CAST(registration_window_year AS STRING), '-06-01'))
+  AND calendar_date <= DATE(CONCAT(CAST(registration_window_year + 1 AS STRING), '-05-31'))
+-- ORDER BY
+--   registration_window_year,
+--   calendar_date,
+--   metric
