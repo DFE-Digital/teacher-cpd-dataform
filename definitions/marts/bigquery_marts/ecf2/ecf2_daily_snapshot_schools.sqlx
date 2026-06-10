@@ -14,14 +14,14 @@ config {
         active_ects: "Number of distinct ECTs with an active school period on the snapshot date.",
         active_mentors: "Number of distinct mentors with an active school period on the snapshot date.",
 
-        first_programme_registrations: "Count of participants whose first ever programme registration occurred at this school on the snapshot date. Uses an adjusted created date.",
-        first_school_registrations: "Count of participants whose first registration at this school occurred on the snapshot date.Uses an adjusted created date.",
+        first_programme_starts: "Count of participants whose first ever programme started_on occurred at this school on the snapshot date.",
+        first_school_starts: "Count of participants whose first started_on at this school occurred on the snapshot date.",
 
-        first_school_ect_registrations: "Count of ECTs whose first registration at this school occurred on the snapshot date. Uses an adjusted created date.",
-        first_school_mentor_registrations: "Count of mentors whose first registration at this school occurred on the snapshot date. Uses an adjusted created date.",
+        first_school_ect_starts: "Count of ECTs whose first started_on at this school occurred on the snapshot date.",
+        first_school_mentor_starts: "Count of mentors whose first started_on at this school occurred on the snapshot date.",
 
-        first_programme_ect_registrations: "Count of ECTs whose first ever programme registration occurred at this school on the snapshot date. Uses an adjusted created date.",
-        first_programme_mentor_registrations: "Count of mentors whose first ever programme registration occurred at this school on the snapshot date.Uses an adjusted created date."
+        first_programme_ect_starts: "Count of ECTs whose first ever programme started_on occurred at this school on the snapshot date.",
+        first_programme_mentor_starts: "Count of mentors whose first ever programme started_on occurred at this school on the snapshot date."
 
         }
 }
@@ -122,26 +122,32 @@ school_daily_activity AS (
 ),
 
 
-first_programme_registrations AS (
+first_programme_starts AS (
   -- for each teacher and participant type:
-  -- get first overall registration
+  -- get first overall started_on
   SELECT
     teacher_id,
     participant_type,
     school_id,
 
-    CASE
-      WHEN EXTRACT(MONTH FROM started_on) >= 6
-      THEN EXTRACT(YEAR FROM started_on)
-      ELSE EXTRACT(YEAR FROM started_on) - 1
-    END AS registration_window_year,
+    -- CASE
+    --   WHEN EXTRACT(MONTH FROM started_on) >= 6
+    --   THEN EXTRACT(YEAR FROM started_on)
+    --   ELSE EXTRACT(YEAR FROM started_on) - 1
+    -- END AS registration_window_year,
 
-    CASE
-      WHEN EXTRACT(MONTH FROM started_on) >= 6
-       AND EXTRACT(MONTH FROM created_at) < 6
-      THEN DATE(EXTRACT(YEAR FROM created_at), 6, 1)
-      ELSE DATE(created_at)
-    END AS adjusted_registration_date
+    started_on AS first_programme_start
+
+    -- We can't use the "registration" logic in schools since
+    -- registrations can be done retrospectively (e.g., created in current reg window but started on in prior window)
+    -- which would break the logic of one record per day per school per registration 
+    -- (if the registration window is 1 June - 31 May)
+    -- CASE
+    --   WHEN EXTRACT(MONTH FROM started_on) >= 6
+    --    AND EXTRACT(MONTH FROM created_at) < 6
+    --   THEN DATE(EXTRACT(YEAR FROM created_at), 6, 1)
+    --   ELSE DATE(created_at)
+    -- END AS adjusted_registration_date
 
   FROM ${ref("ecf2_school_periods")}
   -- get the earliest row
@@ -155,16 +161,44 @@ first_programme_registrations AS (
 
 ),
 
+first_programme_starts_daily AS (
 
-participant_school_registrations AS (
+  SELECT
+    first_programme_start AS calendar_date,
+    school_id,
+    -- registration_window_year,
+
+    COUNT(DISTINCT teacher_id) AS first_programme_starts,
+
+    COUNT(DISTINCT CASE
+      WHEN participant_type = 'ect'
+      THEN teacher_id
+    END) AS first_programme_ect_starts,
+
+    COUNT(DISTINCT CASE
+      WHEN participant_type = 'mentor'
+      THEN teacher_id
+    END) AS first_programme_mentor_starts
+
+  FROM first_programme_starts
+
+  GROUP BY
+    calendar_date,
+    school_id
+    -- registration_window_year
+),
+
+
+
+participant_school_starts AS (
   -- for each teacher and participant type:
-  -- get first registration at school
+  -- get first started_on at school
   SELECT
     teacher_id,
     participant_type,
     school_id,
 
-    MIN(DATE(created_at)) AS actual_registration_date
+    MIN(DATE(started_on)) AS first_school_start
 
   FROM ${ref("ecf2_school_periods")}
 
@@ -175,25 +209,25 @@ participant_school_registrations AS (
 
 ),
 
-first_school_registration_daily AS (
-
+first_school_starts_daily AS (
+  -- get a count of ECTs, Mentors that started on a specific calendar date
   SELECT
-    actual_registration_date AS calendar_date,
+    first_school_start AS calendar_date,
     school_id,
 
-    COUNT(DISTINCT teacher_id) AS first_school_registrations,
+    COUNT(DISTINCT teacher_id) AS first_school_starts,
 
     COUNT(DISTINCT CASE
       WHEN participant_type = 'ect'
       THEN teacher_id
-    END) AS first_school_ect_registrations,
+    END) AS first_school_ect_starts,
 
     COUNT(DISTINCT CASE
       WHEN participant_type = 'mentor'
       THEN teacher_id
-    END) AS first_school_mentor_registrations
+    END) AS first_school_mentor_starts
 
-  FROM participant_school_registrations
+  FROM participant_school_starts
 
   GROUP BY
     calendar_date,
@@ -201,32 +235,26 @@ first_school_registration_daily AS (
 
 ),
 
-first_programme_registration_daily AS (
 
-  SELECT
-    adjusted_registration_date AS calendar_date,
-    school_id,
-    registration_window_year,
-
-    COUNT(DISTINCT teacher_id) AS first_programme_registrations,
-
-    COUNT(DISTINCT CASE
-      WHEN participant_type = 'ect'
-      THEN teacher_id
-    END) AS first_programme_ect_registrations,
-
-    COUNT(DISTINCT CASE
-      WHEN participant_type = 'mentor'
-      THEN teacher_id
-    END) AS first_programme_mentor_registrations
-
-  FROM first_programme_registrations
-
-  GROUP BY
-    calendar_date,
-    school_id,
-    registration_window_year
-
+participants_registrations_pivot AS (
+  SELECT *
+    -- for some reason has to be select * rather than selecting cols by name
+    -- calendar_date,
+    -- school_id
+  FROM ${ref("ecf2_daily_snapshot_registrations")}
+  PIVOT (
+    SUM(registrations) AS total,
+    SUM(ect_registrations) AS ect,
+    SUM(mentor_registrations) AS mentor
+    FOR registration_window_year IN (
+      2021 AS reg_2021,
+      2022 AS reg_2022, 
+      2023 AS reg_2023, 
+      2024 AS reg_2024, 
+      2025 AS reg_2025, 
+      2026 AS reg_2026
+    )
+  )
 ),
 
 
@@ -242,13 +270,32 @@ school_daily_snapshot AS (
     COALESCE(sd.active_school_periods, 0) AS active_school_periods,
     COALESCE(sd.active_ects, 0) AS active_ects,
     COALESCE(sd.active_mentors, 0) AS active_mentors,
-    COALESCE(prog_reg.first_programme_registrations, 0) AS first_programme_registrations,
-    COALESCE(prog_reg.first_programme_ect_registrations, 0) AS first_programme_ect_registrations,
-    COALESCE(prog_reg.first_programme_mentor_registrations, 0) AS first_programme_mentor_registrations,
+    COALESCE(prog_starts.first_programme_starts, 0) AS first_programme_starts,
+    COALESCE(prog_starts.first_programme_ect_starts, 0) AS first_programme_ect_starts,
+    COALESCE(prog_starts.first_programme_mentor_starts, 0) AS first_programme_mentor_starts,
 
-    COALESCE(school_reg.first_school_registrations, 0) AS first_school_registrations,
-    COALESCE(school_reg.first_school_ect_registrations, 0) AS first_school_ect_registrations,
-    COALESCE(school_reg.first_school_mentor_registrations, 0) AS first_school_mentor_registrations
+    COALESCE(school_starts.first_school_starts, 0) AS first_school_starts,
+    COALESCE(school_starts.first_school_ect_starts, 0) AS first_school_ect_starts,
+    COALESCE(school_starts.first_school_mentor_starts, 0) AS first_school_mentor_starts,
+
+    reg.total_reg_2021,
+    reg.total_reg_2022,
+    reg.total_reg_2023,
+    reg.total_reg_2024,
+    reg.total_reg_2025,
+    reg.total_reg_2026,
+    reg.ect_reg_2021,
+    reg.ect_reg_2022,
+    reg.ect_reg_2023,
+    reg.ect_reg_2024,
+    reg.ect_reg_2025,
+    reg.ect_reg_2026,
+    reg.mentor_reg_2021,
+    reg.mentor_reg_2022,
+    reg.mentor_reg_2023,
+    reg.mentor_reg_2024,
+    reg.mentor_reg_2025,
+    reg.mentor_reg_2026
 
 
   FROM school_base base
@@ -256,14 +303,17 @@ school_daily_snapshot AS (
     ON base.calendar_date = sd.calendar_date
     AND base.school_id = sd.school_id
   -- join the daily registrations to each school
-  LEFT JOIN first_school_registration_daily school_reg
-    ON base.calendar_date = school_reg.calendar_date
-    AND base.school_id = school_reg.school_id
+  LEFT JOIN first_school_starts_daily school_starts
+    ON base.calendar_date = school_starts.calendar_date
+    AND base.school_id = school_starts.school_id
 
-  LEFT JOIN first_programme_registration_daily prog_reg
-    ON base.calendar_date = prog_reg.calendar_date
-    AND base.school_id = prog_reg.school_id
-    AND base.registration_window_year = prog_reg.registration_window_year
+  LEFT JOIN first_programme_starts_daily prog_starts
+    ON base.calendar_date = prog_starts.calendar_date
+    AND base.school_id = prog_starts.school_id
+
+  LEFT JOIN participants_registrations_pivot reg
+    ON base.calendar_date = reg.calendar_date
+    AND base.school_id = reg.school_id
 --   ORDER BY
 --     base.calendar_date
 )
