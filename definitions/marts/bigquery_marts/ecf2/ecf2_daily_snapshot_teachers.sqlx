@@ -13,6 +13,7 @@ config {
 
         first_school_period_started_on: "Start date of the participant's first school period.",
         last_school_period_finished_on: "End date of the participant's latest school period, or current date if still active.",
+        first_training_period_started_on: "Start date of the participant's first training period.",
         registration_window_year: "Registration cohort year derived from the first school period. Using 1 June as the cutoff",
         registration_date: "Date the participant first registered in the programme. Derived from the created_at date of the first school_period.",
 
@@ -106,6 +107,19 @@ latest_school_periods AS (
 ),
 
 
+first_training_periods AS (
+  -- get the first training_period for all teachers/participanets types
+  SELECT
+    teacher_id,
+    participant_type,
+    DATE(MIN(finished_on)) AS first_training_period_started_on
+  FROM ${ref("ecf2_training_periods")}
+  GROUP BY
+    teacher_id,
+    participant_type
+),
+
+
 participant_base AS (
   -- Get the first and last school_period for ALL teachers and participant_types
   SELECT
@@ -114,11 +128,15 @@ participant_base AS (
     base.adjusted_registration_date AS registration_date,
     base.registration_window_year,
     base.school_period_started_on AS first_school_period_started_on,
+    ftp.first_training_period_started_on,
     lsp.last_school_period_finished_on
   FROM ${ref("ecf2_participant_registrations")} base
   LEFT JOIN latest_school_periods lsp
     ON lsp.teacher_id = base.teacher_id
     AND lsp.participant_type = base.participant_type
+  LEFT JOIN first_training_periods ftp
+    ON ftp.teacher_id = base.teacher_id
+    AND ftp.participant_type = base.participant_type
 ),
 
 
@@ -131,6 +149,7 @@ participant_daily_snapshot AS (
     p.participant_type,
     p.first_school_period_started_on,
     p.last_school_period_finished_on,
+    p.first_training_period_started_on,
     p.registration_window_year,
     p.registration_date
   FROM
