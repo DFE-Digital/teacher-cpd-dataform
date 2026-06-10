@@ -111,13 +111,10 @@ SELECT
   calendar_date,
   FORMAT_DATE('%d %b', calendar_date) AS registration_day,
 
-  DATE_DIFF(
-    calendar_date,
-    DATE(CONCAT(CAST(registration_window_year AS STRING), '-06-01')),
-    DAY
-  ) + 1 AS day_num,
-
+  DATE_DIFF(calendar_date, DATE(CONCAT(CAST(registration_window_year AS STRING), '-06-01')), DAY) + 1 AS day_num,
   registration_window_year,
+  DENSE_RANK() OVER (ORDER BY registration_window_year) AS registration_window_order,
+  MAX(registration_window_year) OVER () - registration_window_year AS reg_window_seq,
   metric,
   CONCAT(CAST(registration_window_year AS STRING), "-" , metric) AS breakdown_dimension,
   value
