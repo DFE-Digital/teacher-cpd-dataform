@@ -11,6 +11,7 @@ config {
         school_id: "The id of the school as in the ECF2 service",
         registration_window_year: "Registration cohort year derived from the first school period. Using 1 June as the cutoff",
         registrations: "Total number of registrations on that day per registration window.",
+        unique_registrations: "Unique registrations per teacher (a teacher can be registered once as a Mentor and ECT)",
         ect_registrations: "Total number of ECT registrations on that day per registration window.",
         mentor_registrations: "Total number of Mentor registrations on that day per registration window."
         }
@@ -23,7 +24,8 @@ WITH participant_registrations AS (
     adjusted_registration_date AS calendar_date,
     school_id,
     registration_window_year,
-    COUNT(DISTINCT teacher_id) AS registrations,
+    COUNT(*) AS registrations,
+    COUNT(DISTINCT teacher_id) AS unique_registrations,
     COUNT(DISTINCT CASE WHEN participant_type = 'ect' THEN teacher_id ELSE NULL END) AS ect_registrations,
     COUNT(DISTINCT CASE WHEN participant_type = 'mentor' THEN teacher_id ELSE NULL END) AS mentor_registrations
   FROM ${ref("ecf2_participant_registrations")}

@@ -35,8 +35,8 @@ WITH participant_registrations AS (
     -- get the registration date (from created at date)
     DATE(created_at) AS registration_date,
     CASE
-      WHEN DATE(created_at) < DATE(EXTRACT(YEAR FROM created_at), 6, 1)
-        THEN DATE(EXTRACT(YEAR FROM created_at), 6, 1)
+      WHEN EXTRACT(MONTH FROM started_on) >= 6 AND EXTRACT(MONTH FROM created_at) < 6
+      THEN DATE(EXTRACT(YEAR FROM created_at), 6, 1)
       ELSE DATE(created_at)
     END AS adjusted_registration_date,  -- adjusted registration_date (if the created date is before 1 June, set it to June 1)
     
