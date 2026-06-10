@@ -33,12 +33,24 @@ WITH participant_registrations AS (
     END AS registration_window_year,
 
     -- get the registration date (from created at date)
+    -- and adjusted registration_date (if the created date is before 1 June, set it to June 1 of the registration year)
     DATE(created_at) AS registration_date,
-    CASE
-      WHEN EXTRACT(MONTH FROM started_on) >= 6 AND EXTRACT(MONTH FROM created_at) < 6
-      THEN DATE(EXTRACT(YEAR FROM created_at), 6, 1)
+    CASE WHEN DATE(created_at) <
+          DATE(
+            CASE WHEN EXTRACT(MONTH FROM started_on) >= 6
+              THEN EXTRACT(YEAR FROM started_on)
+              ELSE EXTRACT(YEAR FROM started_on) - 1
+            END, 6, 1
+          )
+      THEN DATE(
+            CASE
+              WHEN EXTRACT(MONTH FROM started_on) >= 6
+                THEN EXTRACT(YEAR FROM started_on)
+              ELSE EXTRACT(YEAR FROM started_on) - 1
+            END, 6, 1
+          )
       ELSE DATE(created_at)
-    END AS adjusted_registration_date,  -- adjusted registration_date (if the created date is before 1 June, set it to June 1)
+    END AS adjusted_registration_date,  
     
     school_id,
     school_period_id AS school_period_id,
