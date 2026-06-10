@@ -108,8 +108,20 @@ registration_comparisons AS (
 )
 
 SELECT 
-  *,
-  CONCAT(CAST(registration_window_year AS STRING), "-" , metric) AS breakdown_dimension
+  calendar_date,
+  FORMAT_DATE('%d %b', calendar_date) AS registration_day,
+
+  DATE_DIFF(
+    calendar_date,
+    DATE(CONCAT(CAST(registration_window_year AS STRING), '-06-01')),
+    DAY
+  ) + 1 AS day_num,
+
+  registration_window_year,
+  metric,
+  CONCAT(CAST(registration_window_year AS STRING), "-" , metric) AS breakdown_dimension,
+  value
+  
 FROM registration_comparisons
 WHERE
   calendar_date >= DATE(CONCAT(CAST(registration_window_year AS STRING), '-06-01'))
