@@ -2,9 +2,6 @@ config {
     type: "table",
     tags: ["ecf2","registrations"],
     bigquery: {
-        labels: {
-            purpose: "assurance"
-        },
         partitionBy: "calendar_date",
         clusterBy: ["registration_window_year"]
     },
