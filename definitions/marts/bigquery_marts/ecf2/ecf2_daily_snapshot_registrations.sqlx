@@ -33,6 +33,30 @@ WITH participant_registrations AS (
     adjusted_registration_date,
     school_id,
     registration_window_year
+),
+
+school_first_registration_dates AS (
+  -- get the first registration per school per window
+  SELECT
+    school_id,
+    registration_window_year,
+    MIN(adjusted_registration_date) AS first_registration_date
+  FROM ${ref("ecf2_participant_registrations")}
+  GROUP BY
+    school_id,
+    registration_window_year
+),
+
+daily_registrations AS (
+  SELECT
+    reg.*,
+    CASE WHEN reg.calendar_date = school.first_registration_date THEN 1 ELSE 0 END AS school_first_registered
+  
+  FROM participant_registrations reg
+
+  LEFT JOIN school_first_registration_dates school
+    ON reg.school_id = school.school_id
+    AND reg.registration_window_year = school.registration_window_year
 )
 
 
@@ -54,4 +78,4 @@ WITH participant_registrations AS (
 --   )
 -- )
 
-SELECT * FROM participant_registrations
+SELECT * FROM daily_registrations
