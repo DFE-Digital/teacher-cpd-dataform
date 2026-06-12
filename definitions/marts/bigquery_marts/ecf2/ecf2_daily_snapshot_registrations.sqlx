@@ -13,7 +13,8 @@ config {
         registrations: "Total number of registrations on that day per registration window.",
         unique_registrations: "Unique registrations per teacher (a teacher can be registered once as a Mentor and ECT)",
         ect_registrations: "Total number of ECT registrations on that day per registration window.",
-        mentor_registrations: "Total number of Mentor registrations on that day per registration window."
+        mentor_registrations: "Total number of Mentor registrations on that day per registration window.",
+        eligible_school: "True/False/Null if a school is eligible. Null for prior 2026 registrations as there is no data for that time if a school was eligible or not."
         }
 }
 
@@ -47,16 +48,28 @@ school_first_registration_dates AS (
     registration_window_year
 ),
 
+school_eligibilities AS (
+    SELECT DISTINCT
+      school_id,
+      eligible
+      -- TODO: explode from version table into eligiblity at that time
+    FROM ${ref("ecf2_schools")}
+),
+
+
 daily_registrations AS (
   SELECT
     reg.*,
-    CASE WHEN reg.calendar_date = school.first_registration_date THEN 1 ELSE 0 END AS school_first_registered
+    CASE WHEN reg.calendar_date = school_reg.first_registration_date THEN 1 ELSE 0 END AS school_first_registered,
+    CASE WHEN reg.registration_window_year >= 2026 THEN schools.eligible ELSE NULL END AS eligible_school
   
   FROM participant_registrations reg
 
-  LEFT JOIN school_first_registration_dates school
-    ON reg.school_id = school.school_id
-    AND reg.registration_window_year = school.registration_window_year
+  LEFT JOIN school_first_registration_dates school_reg
+    ON reg.school_id = school_reg.school_id
+    AND reg.registration_window_year = school_reg.registration_window_year
+  LEFT JOIN school_eligibilities schools
+    ON schools.school_id = reg.school_id
 )
 
 
