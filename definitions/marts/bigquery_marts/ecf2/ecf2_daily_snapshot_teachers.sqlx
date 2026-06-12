@@ -178,7 +178,8 @@ active_teachers AS (
   SELECT DISTINCT 
     teacher_id
   FROM ${ref("ecf2_school_periods")}
-  WHERE finished_on IS NULL
+  WHERE 
+  (finished_on > CURRENT_DATE OR finished_on IS NULL)
 ),
 
 ranked_training_periods AS (
