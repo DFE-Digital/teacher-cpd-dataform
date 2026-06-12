@@ -21,7 +21,8 @@ WITH base_dates AS (
   -- calendar-like table from all dates in the reg snapshot table
   SELECT DISTINCT
     calendar_date,
-    registration_window_year
+    registration_window_year,
+    eligible_school
   FROM ${ref("ecf2_daily_snapshot_registrations")}
 ),
 
@@ -31,25 +32,29 @@ daily_registrations AS (
   SELECT
     calendar_date,
     registration_window_year,
+    eligible_school,
     SUM(registrations) AS registrations,
     SUM(ect_registrations) AS ect_registrations,
     SUM(mentor_registrations) AS mentor_registrations
   FROM ${ref("ecf2_daily_snapshot_registrations")}
   GROUP BY
     registration_window_year,
-    calendar_date
+    calendar_date,
+    eligible_school
 ),
 
 first_school_registration AS (
   SELECT
     registration_window_year,
     school_id,
+    eligible_school,
     MIN(DATE(calendar_date)) AS first_registration_date
   FROM ${ref("ecf2_daily_snapshot_registrations")}
   WHERE registrations > 0
   GROUP BY
     registration_window_year,
-    school_id
+    school_id,
+    eligible_school
 ),
 
 school_reporting_counts AS (
@@ -57,6 +62,7 @@ school_reporting_counts AS (
   SELECT
     d.calendar_date,
     d.registration_window_year,
+    d.eligible_school,
     COUNT(f.school_id) AS schools_reported
   FROM base_dates d
   LEFT JOIN first_school_registration f
@@ -64,7 +70,8 @@ school_reporting_counts AS (
    AND d.registration_window_year = f.registration_window_year
   GROUP BY
     d.calendar_date,
-    d.registration_window_year
+    d.registration_window_year,
+    eligible_school
 
 ),
 
@@ -73,6 +80,7 @@ registration_comparisons AS (
   SELECT
     calendar_date,
     registration_window_year,
+    eligible_school,
     'registrations' AS metric,
     registrations AS value
   FROM daily_registrations
@@ -82,6 +90,7 @@ registration_comparisons AS (
   SELECT
     calendar_date,
     registration_window_year,
+    eligible_school,
     'ect_registrations' AS metric,
     ect_registrations AS value
   FROM daily_registrations
@@ -91,6 +100,7 @@ registration_comparisons AS (
   SELECT
     calendar_date,
     registration_window_year,
+    eligible_school,
     'mentor_registrations' AS metric,
     mentor_registrations AS value
   FROM daily_registrations
@@ -100,6 +110,7 @@ registration_comparisons AS (
   SELECT
     calendar_date,
     registration_window_year,
+    eligible_school,
     'schools_reported' AS metric,
     schools_reported AS value
   FROM school_reporting_counts
@@ -111,6 +122,7 @@ SELECT
   -- FORMAT_DATE('%d %b', calendar_date) AS registration_day,
   DATE_DIFF(calendar_date, DATE(CONCAT(CAST(registration_window_year AS STRING), '-06-01')), DAY) + 1 AS day_num,
   registration_window_year,
+  eligible_school,
   DENSE_RANK() OVER (ORDER BY registration_window_year) AS registration_window_order,
   MAX(registration_window_year) OVER () - registration_window_year AS reg_window_seq,
   metric,
