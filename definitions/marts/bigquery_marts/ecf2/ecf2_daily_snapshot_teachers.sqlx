@@ -7,7 +7,7 @@ config {
     },
     description: "A record per day for every participant (ECT or Mentor) in school_periods_latest_ecf2 with flags whether the participant was actively training or at a school on that date. Additional mentorship fields to identify if a mentor was an assiged to an ECT or in the case of Mentors if they were actively mentoring.",
     columns: {
-        calendar_date: "Snapshot date.",
+        calendar_date: "Snapshot date. Note ECTs will only ever have one snapshot date. Mentors can have multiple, one for each school_period where they are mentors.",
         teacher_id: "Unique teacher identifier as assigned to the teacher in the ECf2 service.",
         participant_type: "Participant role type: Must be ECT or Mentor.",
 
@@ -23,9 +23,9 @@ config {
         active_training_period: "Whether the participant had an active training period on the snapshot date.",
         active_mentorship_period: "Whether there was any active mentorship period on the snapshot date.",
 
-        ect_school_period_id: "ECT school period identifier active on the snapshot date.",
-        ect_school_id: "School associated with the active ECT school period.",
-        num_active_school_periods: "Number of active school periods for the participant on the snapshot date.",
+        school_period_id: "ECT/mentor school period identifier active on the snapshot date.",
+        school_id: "School associated with the active ECT/Mentor school period.",
+        num_active_school_periods: "OLD: Number of active school periods for the participant on the snapshot date.",
         training_school_id: "School associated with the active training period.",
         training_period_id: "Training period identifier active on the snapshot date.",
         training_period_sequence: "Chronological sequence number of the participant's training periods.",
@@ -49,7 +49,8 @@ config {
         has_mentor: "Whether the participant had a mentor assigned on the snapshot date.",
 
         
-        active_ects_mentored: "Number of ECTs mentored by the teacher on the snapshot date."
+        active_ects_mentored: "Number of ECTs mentored by the teacher on the snapshot date (in total).",
+        active_ects_mentored_at_school: "Number of ECTs mentored by the teacher on the snapshot date at that school."
 
         }
 }
@@ -173,7 +174,7 @@ participant_daily_snapshot AS (
 
 active_teachers AS (
   -- get a record of "active" teachers (ECT or Mentor)
-  -- active = open school period
+  -- active = open school period (global field)
   SELECT DISTINCT 
     teacher_id
   FROM ${ref("ecf2_school_periods")}
@@ -224,8 +225,7 @@ training_periods_daily_snapshot AS (
 
 school_periods_daily_snapshot AS (
   -- Explode school periods into a daily snapshot with values on that day
-  -- This will need to be aggregated to calendar_date because
-  -- mentors can have multiple ongoing school_periods
+  -- Note: mentors can have multiple open school_periods
   SELECT
     calendar_date,
     teacher_id,
@@ -245,21 +245,21 @@ school_periods_daily_snapshot AS (
 ),
 
 
-school_periods_daily_activity AS (
-  -- aggregate school_period_snapshots since mentors can have multiple school_periods
-  SELECT
-    calendar_date,
-    teacher_id,
-    participant_type,
-    COUNT(DISTINCT school_period_id) AS num_active_school_periods,
-    COUNT(DISTINCT school_id) AS num_active_schools,
-    TRUE AS active_school_period
-  FROM school_periods_daily_snapshot
-  GROUP BY
-    calendar_date,
-    teacher_id,
-    participant_type
-),
+-- school_periods_daily_activity AS (
+--   -- aggregate school_period_snapshots since mentors can have multiple school_periods
+--   SELECT
+--     calendar_date,
+--     teacher_id,
+--     participant_type,
+--     COUNT(DISTINCT school_period_id) AS num_active_school_periods,
+--     COUNT(DISTINCT school_id) AS num_active_schools,
+--     TRUE AS active_school_period
+--   FROM school_periods_daily_snapshot
+--   GROUP BY
+--     calendar_date,
+--     teacher_id,
+--     participant_type
+-- ),
 
 
 mentorship_daily_snapshot AS (
@@ -295,6 +295,30 @@ mentors_daily_activity_snapshot AS (
     mentor_teacher_id
 ),
 
+mentors_daily_activity_at_school_snapshot AS (
+  -- Get the mentorship periods at a school
+  SELECT
+    calendar_date,
+    mentor_teacher_id,
+    mentor_school_id AS school_id,   -- ect/mentor school id in mentorship periods should always be the same
+    COUNT(DISTINCT mentorship_period_id) AS num_active_mentorship_periods_at_school,
+    COUNT(DISTINCT ect_teacher_id) AS num_active_ects_mentored_at_school
+  FROM ${ref("ecf2_mentorship_periods")}
+  CROSS JOIN
+    UNNEST(
+      GENERATE_DATE_ARRAY(
+        started_on,
+        COALESCE(finished_on, CURRENT_DATE),
+        INTERVAL 1 DAY
+      )
+    ) AS calendar_date
+
+  GROUP BY
+    calendar_date,
+    mentor_teacher_id,
+    mentor_school_id
+),
+
 
 -- FINAL CTE TO BRING EVERYTHING TOGETHER INTO ONE DAILY SNAPSHOT
 -- ONE RECORD PER DAY PER TEACHER PER PARTICIPANT TYPE
@@ -302,14 +326,15 @@ daily_snapshot AS (
   SELECT 
     p.*,
     CASE WHEN active_teachers.teacher_id IS NULL THEN FALSE ELSE TRUE END AS is_active, -- global field - not at date-level
-    sp_activity.active_school_period,
+    -- sp_activity.active_school_period,
+    CASE WHEN sp.school_id IS NULL THEN FALSE ELSE TRUE END AS active_school_period,
     CASE WHEN tp.training_period_id IS NULL THEN FALSE ELSE TRUE END AS active_training_period,
     CASE WHEN mentors.num_active_mentorship_periods > 0 OR mp.mentor_teacher_id IS NOT NULL THEN TRUE ELSE FALSE END AS active_mentorship_period,
     tp.training_period_id,
-    sp.school_period_id AS ect_school_period_id,
-    sp.school_id AS ect_school_id,
+    sp.school_period_id AS school_period_id,
+    sp.school_id AS school_id,
     tp.training_school_id,
-    sp_activity.num_active_school_periods,
+    -- sp_activity.num_active_school_periods,
     -- sp_activity.num_active_schools,  -- same as active_school_periods
     
     tp.training_period_sequence,
@@ -327,7 +352,10 @@ daily_snapshot AS (
     CASE WHEN mp.mentorship_period_id IS NULL THEN FALSE ELSE TRUE END AS has_mentorship,
     CASE WHEN mp.mentor_teacher_id IS NULL THEN FALSE ELSE TRUE END AS has_mentor, -- should the same as has_mentorship
     mentors.num_active_mentorship_periods,
-    mentors.num_active_ects_mentored
+    mentors.num_active_ects_mentored,
+    num_active_mentorship_periods_at_school,
+    num_active_ects_mentored_at_school,
+
   
   FROM participant_daily_snapshot p
   
@@ -339,15 +367,15 @@ daily_snapshot AS (
   -- mentors can have multiple active school_periods so we can only join on ect otherwise we get dups
   LEFT JOIN `ecf-bq.dataform.ecf2_school_periods` sp
     ON p.teacher_id = sp.teacher_id
-    AND sp.participant_type = 'ect'
+    -- AND sp.participant_type = 'ect'
     AND p.calendar_date >= sp.started_on
     AND p.calendar_date <= COALESCE(sp.finished_on, CURRENT_DATE())
   
   -- join aggregated school_period_activity to flag if teacher had ANY active school_periods on that day
-  LEFT JOIN school_periods_daily_activity sp_activity
-    ON p.teacher_id = sp_activity.teacher_id
-    AND p.participant_type = sp_activity.participant_type
-    AND p.calendar_date = sp_activity.calendar_date
+  -- LEFT JOIN school_periods_daily_activity sp_activity
+  --   ON p.teacher_id = sp_activity.teacher_id
+  --   AND p.participant_type = sp_activity.participant_type
+  --   AND p.calendar_date = sp_activity.calendar_date
   
   -- join training_periods on that day
   LEFT JOIN training_periods_daily_snapshot tp
@@ -367,6 +395,10 @@ daily_snapshot AS (
   LEFT JOIN mentors_daily_activity_snapshot mentors
     ON p.teacher_id = mentors.mentor_teacher_id
     AND p.calendar_date = mentors.calendar_date
+  LEFT JOIN mentors_daily_activity_at_school_snapshot mentor_school_id
+    ON p.teacher_id = mentor_school_id.mentor_teacher_id
+    AND p.calendar_date = mentor_school_id.calendar_date
+    AND sp.school_id = mentor_school_id.school_id
 )
 
 
@@ -377,3 +409,4 @@ WHERE
   (active_school_period IS TRUE 
   OR active_training_period IS TRUE 
   OR active_mentorship_period IS TRUE)
+  -- AND teacher_id = '95974' AND calendar_date = '2026-06-12'
