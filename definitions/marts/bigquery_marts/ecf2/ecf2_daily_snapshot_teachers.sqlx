@@ -11,6 +11,7 @@ config {
         teacher_id: "Unique teacher identifier as assigned to the teacher in the ECf2 service.",
         participant_type: "Participant role type: Must be ECT or Mentor.",
 
+        registration_school_id: "school id of the first school_period",
         first_school_period_started_on: "Start date of the participant's first school period.",
         last_school_period_finished_on: "End date of the participant's latest school period, or current date if still active.",
         first_training_period_started_on: "Start date of the participant's first training period.",
@@ -127,6 +128,7 @@ participant_base AS (
     base.participant_type,
     base.adjusted_registration_date AS registration_date,
     base.registration_window_year,
+    base.school_id AS registration_school_id,
     base.school_period_started_on AS first_school_period_started_on,
     ftp.first_training_period_started_on,
     lsp.last_school_period_finished_on
@@ -147,6 +149,7 @@ participant_daily_snapshot AS (
     calendar_date,
     p.teacher_id,
     p.participant_type,
+    p.registration_school_id,
     p.first_school_period_started_on,
     p.last_school_period_finished_on,
     p.first_training_period_started_on,
