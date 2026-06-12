@@ -258,6 +258,16 @@ participants_registrations_pivot AS (
 ),
 
 
+school_eligibilities AS (
+    SELECT DISTINCT
+      school_id,
+      eligible
+      -- TODO: explode from version table into eligiblity at that time
+      -- No data before 2026 window
+    FROM ${ref("ecf2_schools")}
+),
+
+
 
 -- final school daily snapshot
 school_daily_snapshot AS (
@@ -266,6 +276,7 @@ school_daily_snapshot AS (
     base.calendar_date,
     base.registration_window_year,
     base.school_id,
+    CASE WHEN base.registration_window_year >= 2026 THEN schools.eligible ELSE NULL END AS eligible_school,
 
     COALESCE(sd.active_school_periods, 0) AS active_school_periods,
     COALESCE(sd.active_ects, 0) AS active_ects,
@@ -302,18 +313,21 @@ school_daily_snapshot AS (
   LEFT JOIN school_daily_activity sd
     ON base.calendar_date = sd.calendar_date
     AND base.school_id = sd.school_id
-  -- join the daily registrations to each school
+  -- join the daily school starts (not registrations - first started_on date of starting at this school)
   LEFT JOIN first_school_starts_daily school_starts
     ON base.calendar_date = school_starts.calendar_date
     AND base.school_id = school_starts.school_id
-
+  -- join first ever started on per school
   LEFT JOIN first_programme_starts_daily prog_starts
     ON base.calendar_date = prog_starts.calendar_date
     AND base.school_id = prog_starts.school_id
-
+  -- registrations
   LEFT JOIN participants_registrations_pivot reg
     ON base.calendar_date = reg.calendar_date
     AND base.school_id = reg.school_id
+  -- school eligibilities
+  LEFT JOIN school_eligibilities schools
+    ON schools.school_id = base.school_id
 --   ORDER BY
 --     base.calendar_date
 )
