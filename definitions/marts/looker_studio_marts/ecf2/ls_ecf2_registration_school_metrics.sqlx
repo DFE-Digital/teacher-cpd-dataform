@@ -25,7 +25,13 @@ WITH training_periods AS (
     tp.contract_period_year,
     tp.contract_period_year = p.contract_period_year AS partnership_same_contract_year,  -- this should always be TRUE
     tp.training_programme,
-    CASE WHEN tp.expression_of_interest_id IS NULL THEN FALSE ELSE TRUE END AS has_eoi, 
+    CASE 
+    -- new EOI logic (from Pete): EOI stays even when confirmed partnership is in place
+    -- so EOI is only true when partnership is NULL
+      WHEN tp.expression_of_interest_id IS NOT NULL AND tp.school_partnership_id IS NULL 
+       THEN TRUE 
+       ELSE FALSE 
+    END AS has_eoi, 
     CASE WHEN tp.school_partnership_id IS NULL THEN FALSE ELSE TRUE END AS has_partnership, 
 
   FROM ${ref("ecf2_training_periods_latest")} tp
