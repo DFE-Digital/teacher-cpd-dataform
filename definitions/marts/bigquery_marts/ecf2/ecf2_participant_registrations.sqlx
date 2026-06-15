@@ -13,7 +13,9 @@ config {
         registration_date: "Date the participant first registered in the programme. Derived from the created_at date of the first school_period.",
         adjusted_registration_date: "The registration date adjusted to 1 June if the registration took place before the registration window formally opened. Used primarly for charting purposes.",
         school_id: "The id of the first school",
-        first_school_period_started_on: "Start date of the participant's first school period."
+        first_school_period_started_on: "Start date of the participant's first school period.",
+        is_retrospective_registration: "True/False whether the created_at date was after the school_period started_on, e.g., the registration was added retrospectively.",
+        is_same_day_registration: "True/False whether the created_at date is the same as the school_period started_on date"
         }
 }
 
@@ -54,7 +56,9 @@ WITH participant_registrations AS (
     
     school_id,
     school_period_id AS school_period_id,
-    DATE(started_on) AS school_period_started_on
+    DATE(started_on) AS school_period_started_on,
+    DATE(created_at) > DATE(started_on) AS is_retrospective_registration,
+    DATE(created_at) = DATE(started_on) AS is_same_day_registration
     
   FROM ${ref("ecf2_school_periods")}
   QUALIFY ROW_NUMBER() OVER (
