@@ -2,7 +2,7 @@ config {
     type: "table",
     tags: ["ecf2"],
     assertions: {
-        uniqueKey: ["school_period_id"]
+        uniqueKey: ["school_period_id", "participant_type"]
     },
     bigquery: {
         partitionBy: "created_at",
