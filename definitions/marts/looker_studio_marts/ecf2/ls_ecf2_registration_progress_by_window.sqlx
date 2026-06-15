@@ -35,7 +35,10 @@ daily_registrations AS (
     eligible_school,
     SUM(registrations) AS registrations,
     SUM(ect_registrations) AS ect_registrations,
-    SUM(mentor_registrations) AS mentor_registrations
+    SUM(mentor_registrations) AS mentor_registrations,
+    -- SUM(school_first_registered) AS schools_with_any_registrations,
+    SUM(school_first_ect_registered) AS schools_with_any_ect_registrations,
+    SUM(school_first_mentor_registered) AS schools_with_any_mentor_registrations
   FROM ${ref("ecf2_daily_snapshot_registrations")}
   GROUP BY
     registration_window_year,
@@ -114,6 +117,26 @@ registration_comparisons AS (
     'schools_reported' AS metric,
     schools_reported AS value
   FROM school_reporting_counts
+
+  UNION ALL
+
+  SELECT
+    calendar_date,
+    registration_window_year,
+    eligible_school,
+    'schools_with_any_ects_reported' AS metric,
+    schools_with_any_ect_registrations AS value
+  FROM daily_registrations
+
+  UNION ALL
+
+  SELECT
+    calendar_date,
+    registration_window_year,
+    eligible_school,
+    'schools_with_any_mentors_reported' AS metric,
+    schools_with_any_mentor_registrations AS value
+  FROM daily_registrations
 
 )
 
