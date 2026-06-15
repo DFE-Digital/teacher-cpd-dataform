@@ -74,7 +74,7 @@ SELECT
 *
 FROM ${ref("ecf2_training_periods")}
 
-WHERE started_on <= CURRENT_DATE() 
+-- WHERE started_on <= CURRENT_DATE() 
 
 QUALIFY ROW_NUMBER() OVER (
     PARTITION BY participant_type, teacher_id
