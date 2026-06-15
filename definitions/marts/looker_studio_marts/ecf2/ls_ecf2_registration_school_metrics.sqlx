@@ -1,0 +1,175 @@
+config {
+    type: "table",
+    tags: ["ecf2","registrations"],
+    assertions: {
+        uniqueKey: ["contract_period_year"]
+    },
+    description: "This table is built for Looker Studio that bring together various school registration metrics",
+    columns: {
+      "contract_period_year": "Contract Year",
+      "num_schools_training_periods_no_partnership": "Number of schools where there is at least 1 provider-led 2026 ECT/mentor and no confirmed partnership",
+      "num_schools_partnership_no_training_periods": "Number of schools that have a 2026 partnership with no 2026 ECTs or mentors registered​",
+      "num_schools_partnership_with_training_periods": "Number of schools that have a 2026 partnership with 2026 ECTs or mentors registered​.",
+
+    }
+}
+
+
+-- Number of schools where there is at least 1 provider-led 2026 ECT/mentor and no confirmed partnership
+-- All schools that have at least one ECT or mentor with a training period in the 2026 contract, and no 2026 confirmed partnership​
+
+WITH training_periods AS (
+  SELECT 
+    tp.school_id,
+    tp.participant_type,
+    tp.contract_period_year,
+    tp.contract_period_year = p.contract_period_year AS partnership_same_contract_year,  -- this should always be TRUE
+    tp.training_programme,
+    CASE 
+    -- new EOI logic (from Pete): EOI stays even when confirmed partnership is in place
+    -- so EOI is only true when partnership is NULL
+      WHEN tp.expression_of_interest_id IS NOT NULL AND tp.school_partnership_id IS NULL 
+       THEN TRUE 
+       ELSE FALSE 
+    END AS has_eoi, 
+    CASE WHEN tp.school_partnership_id IS NULL THEN FALSE ELSE TRUE END AS has_partnership, 
+
+  FROM ${ref("ecf2_training_periods_latest")} tp
+  LEFT JOIN ${ref("ecf2_partnerships")} p
+    ON tp.school_partnership_id = p.school_partnership_id
+),
+
+participants_provider_led_no_partnership AS (
+  SELECT
+    tp.school_id,
+    tp.contract_period_year,
+    COUNT(*) AS num_participants_provider_led_no_partnership
+
+  FROM training_periods tp
+  WHERE
+    tp.training_programme = 'provider_led' 
+    AND tp.has_partnership IS FALSE
+  GROUP BY
+    tp.school_id,
+    tp.contract_period_year
+),
+
+
+-- participants_provider_led_and_partnership AS (
+--   SELECT
+--     tp.school_id,
+--     tp.contract_period_year,
+--     COUNT(*) AS num_participants_provider_led_with_partnerships
+
+--   FROM training_periods tp
+--   WHERE
+--     tp.training_programme = 'provider_led' 
+--     AND tp.has_partnership IS TRUE
+--   GROUP BY
+--     tp.school_id,
+--     tp.contract_period_year
+-- ),
+
+
+schools_provider_led_no_partnership AS (
+  SELECT
+    contract_period_year,
+    COUNT(DISTINCT school_id) AS num_schools_training_periods_no_partnership,
+
+  FROM participants_provider_led_no_partnership
+  GROUP BY
+    contract_period_year
+),
+
+-- schools_provider_led_and_partnership AS (
+--   SELECT
+--     contract_period_year,
+--     COUNT(DISTINCT school_id) AS num_schools_training_periods_with_partnerships,
+
+--   FROM participants_provider_led_and_partnership
+--   GROUP BY
+--     contract_period_year
+-- ),
+
+
+-- Number of schools that have a 2026 partnership with no 2026 ECTs or mentors registered​
+-- All schools that have a confirmed 2026 partnership and there are no ECTs or mentors with a training period in the 2026 contract​
+schools_with_partnerships AS (
+  SELECT 
+    contract_period_year,
+    school_id,
+    COUNT(*) AS num_partnerships,
+  FROM ${ref("ecf2_partnerships")}
+  GROUP BY
+    contract_period_year,
+    school_id
+),
+
+training_periods_by_school AS (
+  SELECT 
+    school_id,
+    contract_period_year,
+    COUNT(*) AS num_participants
+  FROM training_periods
+  WHERE training_programme = 'provider_led'
+  GROUP BY
+    school_id,
+    contract_period_year
+),
+
+schools_registrations_and_partnerships AS (
+  -- per school, join number of training_periods per contract period 
+  -- if none found, fill with 0 (these are no registrations but have partnerships)
+  SELECT 
+    p.*,
+    COALESCE(tp.num_participants, 0) AS num_participants,
+  FROM schools_with_partnerships p
+  LEFT JOIN training_periods_by_school tp
+    ON tp.school_id = p.school_id
+    AND tp.contract_period_year = p.contract_period_year
+),
+
+schools_with_partnerships_no_registrations AS (
+  SELECT 
+    contract_period_year,
+    COUNT(DISTINCT school_id) AS num_schools_partnership_no_training_periods
+  FROM schools_registrations_and_partnerships
+  WHERE num_participants = 0
+  GROUP BY
+    contract_period_year
+),
+
+schools_with_partnerships_and_registrations AS (
+  SELECT 
+    contract_period_year,
+    COUNT(DISTINCT school_id) AS num_schools_partnership_with_training_periods
+  FROM schools_registrations_and_partnerships
+  WHERE num_participants > 0
+  GROUP BY
+    contract_period_year
+),
+
+
+--- FINAL CTE to bring together metrics
+school_reg_metrics AS (
+  SELECT 
+    base.year AS contract_period_year,
+    a.num_schools_training_periods_no_partnership,
+    b.num_schools_partnership_no_training_periods,
+    c.num_schools_partnership_with_training_periods
+
+  FROM `ecf-bq.dfe_analytics_dataform.contract_periods_latest_ecf2` base
+  -- join school reg metrics
+  LEFT JOIN schools_provider_led_no_partnership a
+    ON base.year = a.contract_period_year
+  LEFT JOIN schools_with_partnerships_no_registrations b
+    ON base.year = b.contract_period_year
+  LEFT JOIN schools_with_partnerships_and_registrations c
+    ON base.year = c.contract_period_year
+  
+  WHERE base.year > 2020
+  ORDER BY base.year ASC
+)
+
+SELECT * FROM school_reg_metrics
+
