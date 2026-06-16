@@ -1,5 +1,6 @@
 config {
     type: "table",
+    tags: ["npq"],
     bigquery: {
         partitionBy: "",
         clusterBy: ["provider_name", "short_course_name"]
