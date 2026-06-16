@@ -2,7 +2,7 @@ config {
     type: "table",
     tags: ["npq"],
     assertions: {
-        uniqueKey: ["application_ecf_id"]
+        uniqueKey: ["application_id"]
     },
     bigquery: {
         partitionBy: "DATE(application_created_at)",

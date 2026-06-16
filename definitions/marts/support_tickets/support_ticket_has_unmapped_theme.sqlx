@@ -1,0 +1,20 @@
+config {
+    type: "assertion",
+    tags: ["cross_programme"],
+    description: "Detects unmapped issue_types in recent support tickets to catch new classification gaps early. Scans tickets created in the last 12 months. If this fails, add the new issue_type to ecf-bq.static_tables.support_ticket_issue_type_to_theme_mapping with a corresponding support_ticket_theme."
+}
+
+SELECT
+  unmapped_issue_type,
+  COUNT(DISTINCT ticket_id) AS ticket_count
+FROM
+  ${ref("support_ticket_classification")},
+  UNNEST(issue_type) AS unmapped_issue_type
+WHERE
+  support_ticket_theme = 'no_mapped_theme'
+  AND unmapped_issue_type IS NOT NULL
+  AND created_at >= DATE_SUB(CURRENT_DATE(), INTERVAL 1 YEAR)
+GROUP BY
+  unmapped_issue_type
+ORDER BY
+  ticket_count DESC
