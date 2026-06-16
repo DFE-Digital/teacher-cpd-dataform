@@ -1,6 +1,6 @@
 config {
     type: "table",
-    tags: ["kpi"],
+    tags: ["kpi","npq"],
     assertions: {
         uniqueKey: ["date"]
     },
