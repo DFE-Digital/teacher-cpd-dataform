@@ -179,7 +179,7 @@ school_reg_metrics AS (
     c.num_schools_partnership_with_training_periods,
     d.num_schools_with_partnerships
 
-  FROM `ecf-bq.dfe_analytics_dataform.contract_periods_latest_ecf2` base
+  FROM ${ref("contract_periods_latest_ecf2")} base
   -- join school reg metrics
   LEFT JOIN schools_provider_led_no_partnership a
     ON base.year = a.contract_period_year

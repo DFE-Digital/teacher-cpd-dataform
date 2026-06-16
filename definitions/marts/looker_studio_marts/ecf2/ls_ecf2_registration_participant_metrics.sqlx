@@ -1,0 +1,227 @@
+config {
+    type: "table",
+    tags: ["ecf2","registrations"],
+    assertions: {
+        uniqueKey: ["contract_period_year"]
+    },
+    description: "This table is built for Looker Studio that bring together various school registration metrics",
+    columns: {
+      "contract_period_year": "Contract Year",
+      "ects_provider_led_training": "Number of 2026 ECTs doing provider-led training​. All ECTs with a training period with the 2026 contract period​",
+      "ects_school_led_training": "Number of 2026 ECTs doing school-led training​. All ECTs with a school_led training period starting after 1st June 2026 and no previous training periods​",
+      "ects_without_confirmed_partnerships": "Number of ECTs without confirmed partnership. All ECTs with a training period with the 2026 contract period where the partnership is not confirmed​",
+      "mentors_without_confirmed_partnerships": "Number of mentors without confirmed partnership. All mentors with a training period with the 2026 contract period where the partnership is not confirmed​",
+      "mentors_with_active_mentorship_periods": "Number of mentors with active mentorship periods. Global field (not calculated per contract year).",
+      "total_active_mentorship_periods": "Total active mentorship periods. Global field (not calculated per contract year).",
+      "avg_active_mentorship_periods_per_mentor": "Avg number of active mentorship periods per mentor (i.e., avg number ECTs assigned). Global field (not calculated per contract year).",
+      "mentors_with_more_than_one_ect": "Mentors with one or more ECT assigned​. All mentors that have an active/future mentorship_period with one of more ECTs​. Global field (not calculated per contract year).",
+      "mentors_with_exactly_one_ect": "Mentors with exactly one ECT assigned (one active mentorship period). Global field (not calculated per contract year)."
+    }
+}
+
+
+
+WITH first_training_period AS (
+  SELECT * 
+  FROM ${ref('ecf2_training_periods')}
+  QUALIFY ROW_NUMBER() OVER (
+    PARTITION BY participant_type, teacher_id
+    ORDER BY 
+        started_on ASC,
+        created_at ASC 
+  ) = 1
+),
+
+ects_school_led_with_registration AS (
+  SELECT 
+    s.teacher_id,
+    s.training_status,
+    s.training_programme,
+    reg.started_on AS first_training_period_started_on,
+    CASE
+      WHEN EXTRACT(MONTH FROM reg.started_on) >= 6 THEN EXTRACT(YEAR FROM reg.started_on)
+      ELSE EXTRACT(YEAR FROM reg.started_on) - 1
+    END AS contract_period_year
+   
+  FROM ${ref('ecf2_training_periods_latest')} s
+  LEFT JOIN first_training_period reg
+    ON s.teacher_id = reg.teacher_id
+    AND reg.participant_type = 'ect'
+  WHERE 
+    s.training_programme = 'school_led'
+    AND s.participant_type = 'ect'
+),
+
+ects_provider_led AS (
+  SELECT
+    contract_period_year,
+    teacher_id,
+    training_status,
+    training_programme
+  FROM ${ref('ecf2_training_periods_latest')}
+  WHERE 
+    training_programme = 'provider_led'
+    AND participant_type = 'ect'
+),
+
+ects_without_confirmed_partnership AS (
+  SELECT
+    contract_period_year,
+    teacher_id,
+    training_status,
+    training_programme,
+    school_partnership_id,
+    expression_of_interest_id
+  FROM ${ref('ecf2_training_periods_latest')}
+  WHERE 
+    training_programme = 'provider_led'
+    AND participant_type = 'ect'
+    AND school_partnership_id IS NULL
+),
+
+mentors_without_confirmed_partnership AS (
+  SELECT
+    contract_period_year,
+    teacher_id,
+    training_status,
+    training_programme,
+    school_partnership_id,
+    expression_of_interest_id
+  FROM ${ref('ecf2_training_periods_latest')}
+  WHERE 
+    training_programme = 'provider_led'
+    AND participant_type = 'mentor'
+    AND school_partnership_id IS NULL
+),
+
+-- Number of 2026 ECTs doing provider-led training​
+-- All ECTs with a training period with the 2026 contract period​
+count_ects_provider_led_training AS (
+  SELECT
+    contract_period_year,
+    COUNT(*) AS ects_provider_led_training
+  FROM ects_provider_led
+  GROUP BY
+    contract_period_year
+),
+
+
+-- Number of 2026 ECTs doing school-led training​
+-- All ECTs with a school_led training period starting after 1st June 2026 and no previous training periods​
+count_ects_school_led_training AS (
+  SELECT
+    contract_period_year,
+    COUNT(*) AS ects_school_led_training
+  FROM ects_school_led_with_registration
+  GROUP BY
+    contract_period_year
+),
+
+
+-- Number of ECTs without confirmed partnership ​
+-- All ECTs with a training period with the 2026 contract period where the partnership is not confirmed​
+count_ects_without_confirmed_partnerships AS (
+  SELECT
+    contract_period_year,
+    COUNT(*) AS ects_without_confirmed_partnerships
+  FROM ects_without_confirmed_partnership
+  GROUP BY
+    contract_period_year
+),
+
+-- Number of mentors without confirmed partnership ​
+-- All mentors with a training period with the 2026 contract period where the partnership is not confirmed​
+count_mentors_without_confirmed_partnerships AS (
+  SELECT
+    contract_period_year,
+    COUNT(*) AS mentors_without_confirmed_partnerships
+  FROM mentors_without_confirmed_partnership
+  GROUP BY
+    contract_period_year
+),
+
+
+mentors_with_active_mentorship_periods AS (
+  SELECT
+    mentor_teacher_id,
+    COUNT(*) AS active_mentorship_periods
+  FROM ${ref('ecf2_mentorship_periods')}
+  WHERE 
+    -- mentorship_status = 'active' -- need to update the active logic, then we can use a single field instead
+    (finished_on > CURRENT_DATE OR finished_on IS NULL)
+    AND mentor_teacher_id IS NOT NULL  -- there was 1 record with NULL mentor teacher id
+  GROUP BY
+    mentor_teacher_id
+),
+
+-- Mentors with one or more ECT assigned​
+-- All mentors that have an active/future mentorship_period with one of more ECTs​ (plus additional metrics)
+mentor_metrics AS (
+  SELECT
+    COUNT(DISTINCT mentor_teacher_id) AS mentors_with_active_mentorship_periods,
+    SUM(active_mentorship_periods) AS total_active_mentorship_periods,
+    AVG(active_mentorship_periods) AS avg_active_mentorship_periods_per_mentor,
+    SUM(CASE WHEN active_mentorship_periods > 1 THEN 1 ELSE 0 END) AS mentors_with_more_than_one_ect,
+    SUM(CASE WHEN active_mentorship_periods = 1 THEN 1 ELSE 0 END) AS mentors_with_exactly_one_ect
+  FROM mentors_with_active_mentorship_periods
+),
+
+
+participant_reg_metrics AS (
+  SELECT 
+    base.year AS contract_period_year,
+    a.ects_provider_led_training,
+    b.ects_school_led_training,
+    c.ects_without_confirmed_partnerships,
+    d.mentors_without_confirmed_partnerships,
+    e.mentors_with_active_mentorship_periods,
+    e.total_active_mentorship_periods,
+    e.avg_active_mentorship_periods_per_mentor,
+    e.mentors_with_more_than_one_ect,
+    e.mentors_with_exactly_one_ect
+
+  FROM ${ref('contract_periods_latest_ecf2')} base
+    
+  LEFT JOIN count_ects_provider_led_training a
+    ON base.year = a.contract_period_year
+
+  LEFT JOIN count_ects_school_led_training b
+    ON base.year = b.contract_period_year
+
+  LEFT JOIN count_ects_without_confirmed_partnerships c
+    ON base.year = c.contract_period_year
+  
+  LEFT JOIN count_mentors_without_confirmed_partnerships d
+    ON base.year = d.contract_period_year
+  
+  -- join globally across all contract years? In Looker, ensure to take MAX (never sum)
+  LEFT JOIN mentor_metrics e
+    ON 1=1
+
+  WHERE base.year > 2020
+  ORDER BY base.year
+)
+
+
+SELECT * FROM participant_reg_metrics
+
+
+
+
+
+
+
+-- TODO:
+-- Number of 2026 ECTs with a mentor assigned​
+-- Number of 2026 ECTs that have an ongoing mentorship_period (or one that will start when their at_school_period starts)​
+-- tricky as school_led doesnt have contract_period year
+
+
+-- Number of ECT school transfers​
+-- All ECTs where there is one or more ECT_at_school period that dates before 1st June 2026​
+
+-- Number of mentor school transfers​
+-- All mentors where there is one or more ECT_at_school period that dates before 1st June 2026​
+
+-- Mentors from same/different contract periods
+-- Where a 2026 ECT’s mentor is from the same contract period, previous contract period or not eligible for funding ​
