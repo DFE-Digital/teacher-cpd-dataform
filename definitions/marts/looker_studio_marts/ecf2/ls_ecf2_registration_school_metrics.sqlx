@@ -40,47 +40,56 @@ WITH training_periods AS (
     ON tp.school_partnership_id = p.school_partnership_id
 ),
 
-participants_provider_led_no_partnership AS (
-  SELECT
-    tp.school_id,
-    tp.contract_period_year,
-    COUNT(*) AS num_participants_provider_led_no_partnership
-
-  FROM training_periods tp
-  WHERE
-    tp.training_programme = 'provider_led' 
-    AND tp.has_partnership IS FALSE
-  GROUP BY
-    tp.school_id,
-    tp.contract_period_year
+schools_with_provider_led_no_partnership AS (
+  SELECT DISTINCT 
+    a.contract_period_year,
+    a.school_id, 
+    b.school_partnership_id
+  FROM `ecf-bq.dataform.ecf2_training_periods_latest` a
+  LEFT JOIN `ecf-bq.dataform.ecf2_partnerships` b
+    ON a.school_id = b.school_id
+    AND a.contract_period_year = b.contract_period_year
+  WHERE 
+    a.training_programme = 'provider_led'
+    AND a.school_partnership_id IS NULL 
+    AND b.school_partnership_id IS NULL
 ),
 
+schools_provider_led_no_partnership AS (
+  SELECT 
+    contract_period_year,
+    COUNT(DISTINCT school_id) AS num_schools_training_periods_no_partnership
+  FROM schools_with_provider_led_no_partnership
+  GROUP BY
+    contract_period_year
 
--- participants_provider_led_and_partnership AS (
+),
+
+-- participants_provider_led_no_partnership AS (
 --   SELECT
 --     tp.school_id,
 --     tp.contract_period_year,
---     COUNT(*) AS num_participants_provider_led_with_partnerships
+--     COUNT(*) AS num_participants_provider_led_no_partnership
 
 --   FROM training_periods tp
 --   WHERE
 --     tp.training_programme = 'provider_led' 
---     AND tp.has_partnership IS TRUE
+--     AND tp.has_partnership IS FALSE
 --   GROUP BY
 --     tp.school_id,
 --     tp.contract_period_year
 -- ),
 
 
-schools_provider_led_no_partnership AS (
-  SELECT
-    contract_period_year,
-    COUNT(DISTINCT school_id) AS num_schools_training_periods_no_partnership,
+-- schools_provider_led_no_partnership AS (
+--   SELECT
+--     contract_period_year,
+--     COUNT(DISTINCT school_id) AS num_schools_training_periods_no_partnership,
 
-  FROM participants_provider_led_no_partnership
-  GROUP BY
-    contract_period_year
-),
+--   FROM participants_provider_led_no_partnership
+--   GROUP BY
+--     contract_period_year
+-- ),
 
 -- schools_provider_led_and_partnership AS (
 --   SELECT
