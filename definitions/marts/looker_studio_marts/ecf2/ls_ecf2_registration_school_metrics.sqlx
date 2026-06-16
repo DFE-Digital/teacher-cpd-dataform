@@ -10,6 +10,7 @@ config {
       "num_schools_training_periods_no_partnership": "Number of schools where there is at least 1 provider-led 2026 ECT/mentor and no confirmed partnership",
       "num_schools_partnership_no_training_periods": "Number of schools that have a 2026 partnership with no 2026 ECTs or mentors registered​",
       "num_schools_partnership_with_training_periods": "Number of schools that have a 2026 partnership with 2026 ECTs or mentors registered​.",
+      "num_schools_with_partnerships": "Number of schools that have a partnership per contract year."
 
     }
 }
@@ -105,6 +106,16 @@ schools_with_partnerships AS (
     school_id
 ),
 
+count_of_schools_with_partnerships AS (
+  SELECT 
+    contract_period_year,
+    COUNT(DISTINCT school_id) AS num_schools_with_partnerships
+  FROM schools_with_partnerships
+  GROUP BY
+    contract_period_year
+
+),
+
 training_periods_by_school AS (
   SELECT 
     school_id,
@@ -156,7 +167,8 @@ school_reg_metrics AS (
     base.year AS contract_period_year,
     a.num_schools_training_periods_no_partnership,
     b.num_schools_partnership_no_training_periods,
-    c.num_schools_partnership_with_training_periods
+    c.num_schools_partnership_with_training_periods,
+    d.num_schools_with_partnerships
 
   FROM `ecf-bq.dfe_analytics_dataform.contract_periods_latest_ecf2` base
   -- join school reg metrics
@@ -166,6 +178,8 @@ school_reg_metrics AS (
     ON base.year = b.contract_period_year
   LEFT JOIN schools_with_partnerships_and_registrations c
     ON base.year = c.contract_period_year
+  LEFT JOIN count_of_schools_with_partnerships d
+    ON base.year = d.contract_period_year
   
   WHERE base.year > 2020
   ORDER BY base.year ASC
