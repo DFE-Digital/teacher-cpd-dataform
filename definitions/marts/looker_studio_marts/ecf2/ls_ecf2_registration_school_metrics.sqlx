@@ -45,8 +45,8 @@ schools_with_provider_led_no_partnership AS (
     a.contract_period_year,
     a.school_id, 
     b.school_partnership_id
-  FROM `ecf-bq.dataform.ecf2_training_periods_latest` a
-  LEFT JOIN `ecf-bq.dataform.ecf2_partnerships` b
+  FROM ${ref("ecf2_training_periods_latest")} a
+  LEFT JOIN ${ref("ecf2_partnerships")} b
     ON a.school_id = b.school_id
     AND a.contract_period_year = b.contract_period_year
   WHERE 

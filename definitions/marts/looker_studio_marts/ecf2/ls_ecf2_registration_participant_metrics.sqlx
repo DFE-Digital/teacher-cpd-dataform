@@ -9,11 +9,13 @@ config {
       "contract_period_year": "Contract Year",
       "ects_provider_led_training": "Number of 2026 ECTs doing provider-led training​. All ECTs with a training period with the 2026 contract period​",
       "ects_school_led_training": "Number of 2026 ECTs doing school-led training​. All ECTs with a school_led training period starting after 1st June 2026 and no previous training periods​",
+      "ects_with_confirmed_partnerships": "Number of ECTs in confirmed partnership​. All ECTs with a training period with the 2026 contract period where the partnership is confirmed​.",
+      "mentors_with_confirmed_partnerships": "Number of mentors in confirmed partnership​. All mentors with a training period with the 2026 contract period where the partnership is confirmed​",
       "ects_without_confirmed_partnerships": "Number of ECTs without confirmed partnership. All ECTs with a training period with the 2026 contract period where the partnership is not confirmed​",
       "mentors_without_confirmed_partnerships": "Number of mentors without confirmed partnership. All mentors with a training period with the 2026 contract period where the partnership is not confirmed​",
       "mentors_with_active_mentorship_periods": "Number of mentors with active mentorship periods. Global field (not calculated per contract year).",
-      "total_active_mentorship_periods": "Total active mentorship periods. Global field (not calculated per contract year).",
-      "avg_active_mentorship_periods_per_mentor": "Avg number of active mentorship periods per mentor (i.e., avg number ECTs assigned). Global field (not calculated per contract year).",
+      "mentors_total_active_mentorship_periods": "Total active mentorship periods. Global field (not calculated per contract year).",
+      "mentors_avg_active_mentorship_periods_per_mentor": "Avg number of active mentorship periods per mentor (i.e., avg number ECTs assigned). Global field (not calculated per contract year).",
       "mentors_with_more_than_one_ect": "Mentors with one or more ECT assigned​. All mentors that have an active/future mentorship_period with one of more ECTs​. Global field (not calculated per contract year).",
       "mentors_with_exactly_one_ect": "Mentors with exactly one ECT assigned (one active mentorship period). Global field (not calculated per contract year)."
     }
@@ -62,6 +64,36 @@ ects_provider_led AS (
   WHERE 
     training_programme = 'provider_led'
     AND participant_type = 'ect'
+),
+
+ects_with_confirmed_partnership AS (
+  SELECT
+    contract_period_year,
+    teacher_id,
+    training_status,
+    training_programme,
+    school_partnership_id,
+    expression_of_interest_id
+  FROM ${ref('ecf2_training_periods_latest')}
+  WHERE 
+    training_programme = 'provider_led'
+    AND participant_type = 'ect'
+    AND school_partnership_id IS NOT NULL
+),
+
+mentors_with_confirmed_partnership AS (
+  SELECT
+    contract_period_year,
+    teacher_id,
+    training_status,
+    training_programme,
+    school_partnership_id,
+    expression_of_interest_id
+  FROM ${ref('ecf2_training_periods_latest')}
+  WHERE 
+    training_programme = 'provider_led'
+    AND participant_type = 'mentor'
+    AND school_partnership_id IS NOT NULL
 ),
 
 ects_without_confirmed_partnership AS (
@@ -117,6 +149,28 @@ count_ects_school_led_training AS (
     contract_period_year
 ),
 
+-- Number of ECTs in confirmed partnership​
+-- All ECTs with a training period with the 2026 contract period where the partnership is confirmed​
+count_ects_with_confirmed_partnerships AS (
+  SELECT
+    contract_period_year,
+    COUNT(*) AS ects_with_confirmed_partnerships
+  FROM ects_with_confirmed_partnership
+  GROUP BY
+    contract_period_year
+),
+
+-- Number of mentors in confirmed partnership​
+-- All mentors with a training period with the 2026 contract period where the partnership is confirmed​
+count_mentors_with_confirmed_partnerships AS (
+  SELECT
+    contract_period_year,
+    COUNT(*) AS mentors_with_confirmed_partnerships
+  FROM mentors_with_confirmed_partnership
+  GROUP BY
+    contract_period_year
+),
+
 
 -- Number of ECTs without confirmed partnership ​
 -- All ECTs with a training period with the 2026 contract period where the partnership is not confirmed​
@@ -159,8 +213,8 @@ mentors_with_active_mentorship_periods AS (
 mentor_metrics AS (
   SELECT
     COUNT(DISTINCT mentor_teacher_id) AS mentors_with_active_mentorship_periods,
-    SUM(active_mentorship_periods) AS total_active_mentorship_periods,
-    AVG(active_mentorship_periods) AS avg_active_mentorship_periods_per_mentor,
+    SUM(active_mentorship_periods) AS mentors_total_active_mentorship_periods,
+    AVG(active_mentorship_periods) AS mentors_avg_active_mentorship_periods_per_mentor,
     SUM(CASE WHEN active_mentorship_periods > 1 THEN 1 ELSE 0 END) AS mentors_with_more_than_one_ect,
     SUM(CASE WHEN active_mentorship_periods = 1 THEN 1 ELSE 0 END) AS mentors_with_exactly_one_ect
   FROM mentors_with_active_mentorship_periods
@@ -174,11 +228,13 @@ participant_reg_metrics AS (
     b.ects_school_led_training,
     c.ects_without_confirmed_partnerships,
     d.mentors_without_confirmed_partnerships,
-    e.mentors_with_active_mentorship_periods,
-    e.total_active_mentorship_periods,
-    e.avg_active_mentorship_periods_per_mentor,
-    e.mentors_with_more_than_one_ect,
-    e.mentors_with_exactly_one_ect
+    e.ects_with_confirmed_partnerships,
+    f.mentors_with_confirmed_partnerships,
+    g.mentors_with_active_mentorship_periods,
+    g.mentors_total_active_mentorship_periods,
+    g.mentors_avg_active_mentorship_periods_per_mentor,
+    g.mentors_with_more_than_one_ect,
+    g.mentors_with_exactly_one_ect
 
   FROM ${ref('contract_periods_latest_ecf2')} base
     
@@ -193,9 +249,15 @@ participant_reg_metrics AS (
   
   LEFT JOIN count_mentors_without_confirmed_partnerships d
     ON base.year = d.contract_period_year
+
+  LEFT JOIN count_ects_with_confirmed_partnerships e
+    ON base.year = e.contract_period_year
+
+  LEFT JOIN count_mentors_with_confirmed_partnerships f
+    ON base.year = f.contract_period_year
   
   -- join globally across all contract years? In Looker, ensure to take MAX (never sum)
-  LEFT JOIN mentor_metrics e
+  LEFT JOIN mentor_metrics g
     ON 1=1
 
   WHERE base.year > 2020
