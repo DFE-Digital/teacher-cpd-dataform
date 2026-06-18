@@ -89,8 +89,8 @@ SELECT
   mentorships.mentor_at_school_period_id,
   -- derive a mentorship status (active/finished)
   CASE
-    WHEN mentorships.finished_on IS NOT NULL THEN 'finished'
-    ELSE 'active'
+    WHEN mentorships.finished_on IS NULL OR mentorships.finished_on > CURRENT_DATE THEN 'active'
+    ELSE 'finished'
   END AS mentorship_status,
   mentorships.started_on,
   mentorships.finished_on,
