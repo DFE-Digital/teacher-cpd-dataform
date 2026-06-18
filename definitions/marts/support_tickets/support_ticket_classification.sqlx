@@ -73,6 +73,7 @@ classification_logic AS (
     CASE
       -- First classification layer: uses the group_name to assign classification
       WHEN group_name = 'CPD - RECT' then 'CPD - RECT'
+      WHEN cpd_prog_data.group_name = 'CPD - NPD' THEN 'CPD - NPD'
       WHEN cpd_prog_data.group_name IN ('CPD - ECTE', 'CPD - 2nd Line- LP and DP Queries', 'CPD - 2nd Line: Appropriate Bodies & Regs', 'CPD - 2nd line - Withdrawing or reinstating ECTs/mentors', 'CPD - 3rd Line Support (Dfe admin)', 'CPD - ECF', 'CPD - ECF - Access to DfE service', 'CPD - ECF - ECT registration issues', 'CPD - ECF - Mentor registration issues', 'CPD - ECF - Partnerships', 'CPD - 2nd line ECF review (policy)', 'CPD - 2nd line- Unable to change cohort due to declaration errors on the service','CPD - 2nd line - Partnership Amendments','CPD - 2nd line: Schools and Teachers Team') THEN 'CPD - RECT'
       WHEN cpd_prog_data.group_name IN ('CPD - ECF - 2nd line Funding Enquiries', 'CPD - ECF Funding', 'CPD - ECTE Funding') THEN 'RECT - Funding'
       WHEN cpd_prog_data.group_name = 'CPD - Get a TRN' THEN 'NPQ - Get a TRN'
@@ -82,7 +83,6 @@ classification_logic AS (
       WHEN cpd_prog_data.group_name = 'CPD - Triage' THEN 'CPD - Triage'
       WHEN LOWER(service_name) = 'ecf' OR LOWER(service_name) = 'ecte' THEN 'CPD - RECT'
       WHEN LOWER(service_name) = 'npq' THEN 'CPD - NPQ'
-      WHEN cpd_prog_data.group_name = 'CPD - NPD' THEN 'CPD - NPD'
 
       -- Second classification layer: classifies support tickets based on issue_types associated to each ticket. This should surfice for tickets created after mid-2024 (data quality improves)
       WHEN (SELECT LOGICAL_OR(val LIKE '%induction_and_ab%') FROM UNNEST(cpd_prog_data.issue_type ) AS val) THEN 'RECT - Induction and AB'
@@ -129,6 +129,7 @@ SELECT
     WHEN classified_tickets.classification IN ('CPD - RECT', 'RECT - Induction and AB', 'RECT - Funding') THEN 'RECT'
     WHEN classified_tickets.classification IN ('CPD - NPQ', 'NPQ - Funding', 'NPQ - Get a TRN') THEN 'NPQ'
     WHEN classified_tickets.classification IN ('CPD - Triage') THEN 'Triage'
+    WHEN classified_tickets.classification IN ('CPD - NPD') THEN 'TTE'
     ELSE NULL
   END AS programme_type,
   CASE 
