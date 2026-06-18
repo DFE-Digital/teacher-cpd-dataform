@@ -1,0 +1,98 @@
+config {
+    type: "table",
+    tags: ["npq"],
+    bigquery: {
+        partitionBy: "",
+        clusterBy: ["provider_name", "short_course_name"]
+    },
+    description: "This mart is made to assist NPQ Contract Managers with Lead Provider conversations related to the 2026 Contract. \n \
+    It creates a table that outlines the number of DfE-funded applications, acceptance rates, starts, and predicted allocation % for each Lead Provider and their courses. \n \
+    ",
+    
+    columns: {
+        short_course_name: "Shortened name of the course.",
+        provider_name: "Name of the provider.",
+        funded_application_count: "Number of DfE-funded applications for that provider-course combo.",
+        funded_accepted_count: "Number of accepted DfE-funded applications for that provider-course combo.",
+        funded_pending_count: "Number of pending DfE-funded applications for that provider-course combo.",
+        funded_rejected_count: "Number of rejected DfE-funded applications for that provider-course combo.",
+        funded_start_count: "Number of DfE-funded applications which have a started declaration",
+        total_provider_allocation: "Total funding envelope for a provider within the registration window",
+        price_per_participant: "Price per participant per provider per course",
+        funded_start_percentage: "The percentage of participants to move from an accepted state to starting their npq",
+        funded_completed_percentage: "The percentage of participants who have started their NPQ and then completing it",
+        total_funding_envelope_by_applications: "The total allocation for those accepted or pending, calculated using price per participant",
+        total_funding_envelope_by_acceptances: "The total allocation for those who have accepted, calculated using price per participant",
+        total_funding_envelope_by_starts: "The total allocation for those who have started, calculated using price per participant",
+        estimated_amount_of_funding_allocation_used_by_acceptances: "The sum allocation estimated to be used by those who have accepted",
+        estimated_amount_of_funding_allocation_used_by_starts: "The sum allocation estimated to be used by those who have started"
+
+    }
+}
+
+
+
+WITH base_data as (
+SELECT enrolments.provider_name, enrolments.short_course_name, enrolments.application_id, enrolments.application_status, enrolments.dfe_expected_funding_flag, enrolments.dfe_has_funded_flag, lp_npq_details.price_per_participant, lp_npq_details.total_provider_allocation, lp_npq_details.funded_start_percentage, lp_npq_details.funded_completed_percentage
+FROM ${ref('npq_enrolments_simplified')} as enrolments
+LEFT JOIN ${ref('npq_2026_funded_conversion_rates')} as lp_npq_details
+ON enrolments.provider_name = lp_npq_details.provider_long_name AND enrolments.short_course_name=lp_npq_details.short_course_name
+WHERE enrolments.cohort= '2025b'
+),
+ 
+courses as (SELECT DISTINCT short_course_name
+FROM base_data),
+ 
+providers as (SELECT DISTINCT provider_name
+FROM base_data),
+ 
+metrics as (
+  SELECT
+    provider_name,
+    short_course_name,
+    COUNTIF(dfe_expected_funding_flag) as funded_application_count,
+    COUNTIF(dfe_expected_funding_flag and application_status = 'accepted') as funded_accepted_count,
+    COUNTIF(dfe_expected_funding_flag and application_status = 'pending') as funded_pending_count,
+    COUNTIF(dfe_expected_funding_flag and application_status = 'rejected') as funded_rejected_count,
+    COUNTIF(dfe_has_funded_flag) as funded_start_count,
+    MAX(total_provider_allocation) as total_provider_allocation,
+    price_per_participant,
+    funded_start_percentage,
+    funded_completed_percentage
+  FROM base_data
+  GROUP BY ALL
+)
+ 
+ 
+ -- Total percentage of funding allocation used = (number of pending applications + accepted applications) * price per participant
+-- repeat for acceptances and starts,
+-- then looks at the rates (starts or acceptances x conversion accepted to start, or starts to completed)
+
+
+SELECT
+  courses.short_course_name,
+  providers.provider_name,
+  IFNULL(metrics.funded_application_count, 0) as funded_application_count,
+  IFNULL(metrics.funded_accepted_count, 0) as funded_accepted_count,
+  IFNULL(metrics.funded_start_count, 0) as funded_start_count,
+  IFNULL(metrics.funded_pending_count, 0) as funded_pending_count,
+  IFNULL(metrics.funded_rejected_count, 0) as funded_rejected_count,
+  IFNULL(metrics.total_provider_allocation, 0) as total_provider_allocation,
+  IFNULL(metrics.price_per_participant, 0) as price_per_participant,
+  IFNULL(metrics.funded_start_percentage, 0) as funded_start_percentage,
+  IFNULL(metrics.funded_completed_percentage, 0) as funded_completed_percentage,
+
+-- applications
+price_per_participant * (funded_accepted_count + funded_pending_count) as total_funding_envelope_by_applications,
+price_per_participant * (funded_accepted_count) as total_funding_envelope_by_acceptances,
+price_per_participant * (funded_start_count) as total_funding_envelope_by_starts,
+
+price_per_participant * (funded_accepted_count * funded_start_percentage) as estimated_amount_of_funding_allocation_used_by_acceptances,
+price_per_participant * (funded_accepted_count * funded_completed_percentage) as estimated_amount_of_funding_allocation_used_by_starts
+
+
+
+FROM courses, providers
+LEFT JOIN metrics
+USING(provider_name, short_course_name)
+ 
