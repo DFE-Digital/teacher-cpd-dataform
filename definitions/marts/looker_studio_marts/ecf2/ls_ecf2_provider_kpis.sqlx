@@ -161,7 +161,6 @@ recruiments AS (
     dec.declaration_id,
     dec.declaration_type,
     dec.lead_provider,
-    dec.lead_provider,
     tp.current_lead_provider,
     CASE WHEN tp.current_lead_provider_id = dec.lead_provider_id THEN TRUE ELSE FALSE END AS same_lead_provider,
     dec.delivery_partner_id,
