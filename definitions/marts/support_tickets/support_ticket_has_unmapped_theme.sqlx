@@ -14,6 +14,10 @@ WHERE
   support_ticket_theme = 'no_mapped_theme'
   AND unmapped_issue_type IS NOT NULL
   AND created_at >= DATE_SUB(CURRENT_DATE(), INTERVAL 1 YEAR)
+  AND unmapped_issue_type NOT IN (
+    SELECT issue_type
+    FROM ${ref("support_ticket_issue_type_to_theme_mapping")}
+  )
 GROUP BY
   unmapped_issue_type
 ORDER BY
