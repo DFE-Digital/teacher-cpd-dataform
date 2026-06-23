@@ -108,8 +108,8 @@ WITH one_term_inductions AS (
     participant_type
   FROM ${ref('ecf2_declarations_latest')}
   WHERE
-    schedule_identifier LIKE "%reduced%"
-    AND declaration_state IN ('eligible', 'payable', 'paid')
+    -- schedule_identifier LIKE "%reduced%"
+    declaration_state IN ('eligible', 'payable', 'paid')
   GROUP BY
     teacher_id,
     participant_type
@@ -160,6 +160,7 @@ recruiments AS (
     dec.participant_type,
     dec.declaration_id,
     dec.declaration_type,
+    dec.declaration_state,
     dec.lead_provider,
     tp.current_lead_provider,
     CASE WHEN tp.current_lead_provider_id = dec.lead_provider_id THEN TRUE ELSE FALSE END AS same_lead_provider,
@@ -196,6 +197,8 @@ recruiments AS (
     AND dec.declaration_state IN ('eligible', 'payable', 'paid'))
     or
     (dec.declaration_type = 'completed'
+    AND schedule_identifier LIKE "%reduced%"
+    AND dec.declaration_state IN ('eligible', 'payable', 'paid')
     AND dec.teacher_id IN (
       SELECT teacher_id FROM one_term_inductions
     ))
