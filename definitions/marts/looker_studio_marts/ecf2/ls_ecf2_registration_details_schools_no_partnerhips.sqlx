@@ -1,0 +1,61 @@
+config {
+    type: "table",
+    tags: ["ecf2","registrations"],
+    bigquery: {
+        clusterBy: ["school_id"]
+    },
+    description: "This table is built for Looker Studio that gets all training periods that do not have a confirmed partnership.",
+    columns: {
+      "contract_period_year": "Contract Year",
+      "school_id": "Number of schools where there is at least 1 provider-led 2026 ECT/mentor and no confirmed partnership",
+      "school_urn": "Number of schools that have a 2026 partnership with no 2026 ECTs or mentors registered​",
+      "school": "Number of schools that have a 2026 partnership with 2026 ECTs or mentors registered​.",
+      "school_partnership_id": "Number of schools that have a partnership per contract year.",
+      "expression_of_interest_id": "Id of the expression of interest as used in the ecf2 service",
+      "eoi_lead_provider": "The name of the lead provider attached to the expression of interest",
+      "teacher_id": "Id of the teacher as assigned in the ecf2 service",
+      "participant_type": "ECT or Mentor",
+      "schedule_identifier": "Schedule name of the latest training period",
+      "training_programme": "School-led or provider led as of the latest training period",
+      "training_period_id": "Id of the latest training period",
+      "training_status": "Training status of the latest training period - derived from deferred, withdrawal and started/finished on dates",
+      "training_period_started_on": "The date the training period started on",
+      "training_period_finished_on": "The date the training period finished on - null if still active"
+    }
+}
+
+
+WITH schools_with_provider_led_no_partnership AS (
+  SELECT
+    tp.contract_period_year,
+    tp.school_id,
+    tp.school_urn,
+    tp.school_name AS school,
+    tp.school_partnership_id,
+    tp.expression_of_interest_id,
+    lps.name AS eoi_lead_provider,
+    tp.teacher_id,
+    tp.participant_type,
+    tp.schedule_identifier,
+    tp.training_programme,
+    tp.training_period_id,
+    tp.training_status,
+    tp.started_on AS training_period_started_on,
+    tp.finished_on AS training_period_finished_on,
+  FROM ${ref('ecf2_training_periods_latest')} tp
+  LEFT JOIN ecf-bq.dataform.ecf2_partnerships p
+    ON tp.school_id = p.school_id
+    AND tp.contract_period_year = p.contract_period_year
+  LEFT JOIN ${ref('active_lead_providers_latest_ecf2')} active_lps
+    ON active_lps.id = tp.expression_of_interest_id
+  LEFT JOIN ${ref('lead_providers_latest_ecf2')} lps
+    ON active_lps.lead_provider_id = lps.id
+  WHERE 
+    tp.training_programme = 'provider_led'
+    AND tp.school_partnership_id IS NULL 
+    AND p.school_partnership_id IS NULL
+)
+
+
+SELECT * FROM schools_with_provider_led_no_partnership
+ 
