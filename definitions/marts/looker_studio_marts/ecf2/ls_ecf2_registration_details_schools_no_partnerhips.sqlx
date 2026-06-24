@@ -2,7 +2,6 @@ config {
     type: "table",
     tags: ["ecf2","registrations"],
     bigquery: {
-        partitionBy: "contract_period_year",
         clusterBy: ["school_id"]
     },
     description: "This table is built for Looker Studio that gets all training periods that do not have a confirmed partnership.",
@@ -43,13 +42,13 @@ WITH schools_with_provider_led_no_partnership AS (
     tp.training_status,
     tp.started_on AS training_period_started_on,
     tp.finished_on AS training_period_finished_on,
-  FROM ecf-bq.dataform.ecf2_training_periods_latest tp
+  FROM ${ref('ecf2_training_periods_latest')} tp
   LEFT JOIN ecf-bq.dataform.ecf2_partnerships p
     ON tp.school_id = p.school_id
     AND tp.contract_period_year = p.contract_period_year
-  LEFT JOIN `ecf-bq.dfe_analytics_dataform.active_lead_providers_latest_ecf2` active_lps
+  LEFT JOIN ${ref('active_lead_providers_latest_ecf2')} active_lps
     ON active_lps.id = tp.expression_of_interest_id
-  LEFT JOIN `ecf-bq.dfe_analytics_dataform.lead_providers_latest_ecf2` lps
+  LEFT JOIN ${ref('lead_providers_latest_ecf2')} lps
     ON active_lps.lead_provider_id = lps.id
   WHERE 
     tp.training_programme = 'provider_led'
