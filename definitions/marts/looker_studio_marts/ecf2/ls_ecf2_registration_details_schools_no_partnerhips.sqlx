@@ -14,6 +14,11 @@ config {
       "expression_of_interest_id": "Id of the expression of interest as used in the ecf2 service",
       "eoi_lead_provider": "The name of the lead provider attached to the expression of interest",
       "teacher_id": "Id of the teacher as assigned in the ecf2 service",
+      trn: {
+            description: "The teacher reference number.",
+            bigqueryPolicyTags: ["projects/ecf-bq/locations/europe-west2/taxonomies/6302091323314055162/policyTags/301313311867345339"]
+        },
+      teacher_api_id: "The external api id of the teacher in the ECF2 Service.",
       "participant_type": "ECT or Mentor",
       "schedule_identifier": "Schedule name of the latest training period",
       "training_programme": "School-led or provider led as of the latest training period",
@@ -35,6 +40,8 @@ WITH schools_with_provider_led_no_partnership AS (
     tp.expression_of_interest_id,
     lps.name AS eoi_lead_provider,
     tp.teacher_id,
+    tp.teacher_external_id,
+    tp.trn,
     tp.participant_type,
     tp.schedule_identifier,
     tp.training_programme,
