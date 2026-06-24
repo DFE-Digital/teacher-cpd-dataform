@@ -53,7 +53,7 @@ WITH schools_with_provider_led_no_partnership AS (
   WHERE 
     tp.training_programme = 'provider_led'
     AND tp.school_partnership_id IS NULL 
-    AND p.school_partnership_id IS NULL
+    -- AND p.school_partnership_id IS NULL
 )
 
 
