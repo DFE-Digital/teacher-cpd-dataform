@@ -40,26 +40,26 @@ WITH training_periods AS (
     ON tp.school_partnership_id = p.school_partnership_id
 ),
 
-schools_with_provider_led_no_partnership AS (
-  SELECT DISTINCT 
-    a.contract_period_year,
-    a.school_id, 
-    b.school_partnership_id
-  FROM ${ref("ecf2_training_periods_latest")} a
-  LEFT JOIN ${ref("ecf2_partnerships")} b
-    ON a.school_id = b.school_id
-    AND a.contract_period_year = b.contract_period_year
-  WHERE 
-    a.training_programme = 'provider_led'
-    AND a.school_partnership_id IS NULL 
-    AND b.school_partnership_id IS NULL
-),
+-- schools_with_provider_led_no_partnership AS (
+--   SELECT DISTINCT 
+--     a.contract_period_year,
+--     a.school_id, 
+--     b.school_partnership_id
+--   FROM ${ref("ecf2_training_periods_latest")} a
+--   LEFT JOIN ${ref("ecf2_partnerships")} b
+--     ON a.school_id = b.school_id
+--     AND a.contract_period_year = b.contract_period_year
+--   WHERE 
+--     a.training_programme = 'provider_led'
+--     AND a.school_partnership_id IS NULL 
+--     AND b.school_partnership_id IS NULL
+-- ),
 
 schools_provider_led_no_partnership AS (
   SELECT 
     contract_period_year,
     COUNT(DISTINCT school_id) AS num_schools_training_periods_no_partnership
-  FROM schools_with_provider_led_no_partnership
+  FROM ${ref("ls_ecf2_registration_details_schools_no_partnerhips")}
   GROUP BY
     contract_period_year
 
