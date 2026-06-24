@@ -1,0 +1,264 @@
+config {
+    type: "table",
+    tags: ["ecf2"],
+    assertions: {
+        uniqueKey: ["teacher_id", "participant_type"],
+    },
+
+    description: "This table summarises the Provider KPIs for the Contract Management team. It contains every participant meeting the criteria for the recruitment, retention and engagement KPIs, including the attributes associated with the participant and their started declaration.",
+    columns: {
+        teacher_id: "The internal id of a teacher",
+        participant_type: "Either ECT or Mentor",
+        declaration_id: "The id of the declaration as it is used in the ECF2 service.",
+        declaration_type: "The type of the declaration which indicates how far along a participant is in their training",
+        declaration_state: "Dervied from payment and clawback status. If a clawback is present it takes priority over payment_status.",
+        lead_provider_id: "ID of the lead provider responsible for the training period.",
+        lead_provider: "The name of the lead_provider",
+        current_lead_provider: "The name of the lead_provider as of the latest available training record",
+        same_lead_provider: "Boolean match on lead_provider_id and current_lead_provider_id",
+        delivery_partner_id: "The ID of the delivery partner",
+        delivery_partner: "The name of the delivery partner",
+        current_delivery_partner: "The name of the delivery_partner as of the latest available training record",
+        same_delivery_partner: "Boolean match on delivery_partner_id and current_delivery_partner_id",
+        school: "The name of the school the started declaration was raised for",
+        current_school: "The name of the school based on the particiants latest training record",
+        same_school: "Boolean match if the current school_id matches the school_id",
+        contract_period_year: "The contract period the training period the declaration belongs to",
+        current_contract_period_year: "The contract period the latest training period",
+        schedule_identifier: "The name of the schedule the teacher is on, e.g., 'ecf-standard-september' or 'ecf-extended-september'.",
+        current_schedule_identifier: "The name of the schedule from the latest training record",
+        training_status: "The status of the given training_periods. Dervied in order of (1) Deferrals, (2) Withdrawals, and (3) Finished dates. If not finished, status is Active.",
+        current_training_status: "The training status of the latest training record" ,
+        withdrawal_reason: "The withdrawal reason of the latest training record",
+        sparsity_uplift: "Indicated whether the sparisty uplift payment is applicable to this participant's declaration (started declarations only)",
+        pupil_premium_uplift: "Indicated whether the pupil premium uplift payment is applicable to this participants declaration (started declarations only)",
+        in_scope_recruitment: "True/False whether the participants meets the recruitment scope logic.",
+        counted_recruitment: "True/False whether is counted in the recruitment KPI.",
+        in_scope_retention: "True/False whether the participants meets the retention scope logic.",
+        counted_retention:  "True/False whether the participants is counted in the recruitment KPI."
+   }
+}
+
+
+-- Recruitment KPI
+-- Definition: Number of ECTs or mentors in that contract/cohort with a payable or paid started declaration at the point of measurement*. Measured throughout Year 1.
+-- *A declaration can only be submitted if the ECT or mentor is registered by their school and the lead provider submits a partnership with that school in order to receive the participant details over the API and onboard them for training.
+
+-- Rules for counting in recruitment:
+-- Started declaration(s) from ECTP contract output statements only (participants originally in a 2021 or 2022 contract who are later transferred/rolled into the 2025 cohort would not count towards that later cohort’s KPIs if their started declaration was on an earlier cohort’s statement)
+-- Standard participants included
+-- Reduced schedule participants, e.g. one-term induction, if a participant is on a reduced schedule and has only an eligible/payable/paid completed declaration (i.e. a one-term induction), we will add them to list of recruited participants. (They will also be in scope for the retention KPI both years and in scope for the engagement KPI)
+
+-- Additional functionality:
+-- The dashboard will have the ability to include declarations in the eligible state so that ahead of a milestone point the CM can preview the recruitment figure and see how many participants are due to have payable/paid declarations by the point of the KPI being measured. NOTE: For the actual KPI measurement CMs will need to remove that declaration state from the filter and only include payable/paid.
+-- For mentors who withdraw and are subsequently replaced, the dashboard will be agnostic of whichever mentor(s) were later assigned to the ECT. [The mapping is not possible to accurately, robustly or consistently bring to bear on the measurement]. The filter by schedule on the dashboard will allow CMs to include/exclude schedules as needed.
+-- Transfers: Everything is defined from the position of the provider who submitted the started declaration. Transfers in are completely out of scope and no participant will be attributed to a provider that did not submit the started declaration against that participant.
+
+
+-- Retention KPI
+
+-- Definition: Number of those ECTs or mentors recruited by the provider who have not been withdrawn by the provider at the point of measurement (with some exceptions)*. Measured at the end of Year 1 and Year 2.
+-- *Exceptions: Retention is measured primarily through the training status, which defaults to active when a participant is first registered and is subsequently updated by the lead provider if the participant defers or withdraws. A participant can also end up being partnered with a different lead provider e.g. if they move school or if their delivery partner switches to a new lead provider partway through training.
+
+-- Rules to be in scope for retention:
+-- Only participants in the count for recruitment can be in the count for retained
+-- Reduced schedules will be in scope for retention for both years, e.g., if a participant has only an eligible/payable/paid completed declaration (i.e. a one-term induction). They are added to the list of recruited participants and will be in scope for the retention KPI both years
+-- The retention KPI will be evaluated on the participant’s current training period i.e. if they haven’t yet moved to the new school and provider they will be kept in scope and counted as retained.
+-- If the school associated with the started declaration does not match the current school but they remain with the original school’s provider, the participant will be kept in scope and counted as retained
+-- For all withdrawal reasons other than Moved School, the participant will be counted as in scope for retention, but not counted as retained.
+-- If the school associated with the started declaration remains the same but the participant is now associated with a new provider, the participant will be in scope for the retention KPI but not counted as retained
+-- Where a participant pauses training but the participant is only deferred (i.e. not withdrawn) and still associated with the starting provider, they will count as In scope for retention and counted as retained
+-- Where a participant does not pause training and simply does not engage i.e. the participant is neither deferred nor withdrawn, and still associated with the starting provider, they will count as In scope for retention and counted as retained
+
+-- Rules to be out-of-scope for retention:
+-- If the school associated with the started declaration does not match the current school, the participant will be taken out of scope for the retention KPI if they are now linked to a new provider.
+-- If the school associated with the started declaration does match the current school and the participant is marked as withdrawn for the reason “Moved school”, the participant will be taken out of scope for the retention KPI.
+
+-- Special cases:
+-- If CMs decide a provider should not be penalised for a delivery partner taking all of their participants to a new provider, the CM will need to filter for that delivery partner in the table extract and overwrite the retention metrics
+
+-- Additional functionalities:
+-- For mentors who withdraw and are subsequently replaced, the dashboard will be agnostic of whichever mentor(s) were later assigned to the ECT. [The mapping is not possible to accurately, robustly or consistently bring to bear on the measurement]. The filter by schedule on the dashboard will allow CMs to include/exclude schedules as needed.
+-- Transfers: Everything is defined from the position of the provider who submitted the started declaration. Transfers in are completely out of scope and no participant will be attributed to a provider that did not submit the started declaration against that participant.
+
+
+-- FINAL OUTPUT:
+-- The Looker dashboard will be a table showing every participant meeting the criteria for the recruitment KPI, including the following attributes associated with the participant and their started declaration:
+
+-- participant id
+-- declaration id
+-- provider
+-- delivery partner
+-- school (at time at recruitment)
+-- current training status for the recruiting provider
+-- withdrawal reason for the recruiting provider (if applicable)
+-- current school
+-- if current school matches original school (Yes/No)
+-- current lead provider
+-- if current lead provider matches the recruiting lead provider (Yes/No)
+-- current delivery partner
+-- if current delivery partner matches the recruiting delivery partner (Yes/No)
+-- is in scope for the retention KPI (Yes/No)
+-- meets the retention KPI (Yes/No)
+
+
+WITH one_term_inductions AS (
+  SELECT
+    teacher_id,
+    participant_type
+  FROM ${ref('ecf2_declarations_latest')}
+  WHERE
+    -- schedule_identifier LIKE "%reduced%"
+    declaration_state IN ('eligible', 'payable', 'paid')
+  GROUP BY
+    teacher_id,
+    participant_type
+  HAVING
+    COUNT(DISTINCT declaration_type) = 1
+    AND SUM(CASE WHEN declaration_type = 'completed' THEN 1 ELSE 0 END) = 1
+),
+
+
+latest_training_periods AS (
+  SELECT
+    teacher_id,
+    participant_type,
+    training_status AS current_training_status,
+    school_id AS current_school_id,
+    school_name AS current_school,
+    lead_provider_id AS current_lead_provider_id,
+    lead_provider AS current_lead_provider,
+    delivery_partner_id AS current_delivery_partner_id,
+    delivery_partner AS current_delivery_partner,
+    contract_period_year AS current_contract_period_year,
+    schedule_identifier AS current_schedule_identifier
+  FROM ${ref('ecf2_training_periods_latest')} 
+),
+
+latest_training_status_per_provider AS (
+    SELECT
+      teacher_id,
+      participant_type,
+      lead_provider_id,
+      training_status,
+      withdrawal_reason
+  FROM ${ref('ecf2_training_periods')}
+  QUALIFY ROW_NUMBER() OVER (
+    PARTITION BY participant_type, teacher_id, lead_provider_id
+    ORDER BY 
+        IF(finished_on IS NULL, 1, 0) DESC,  
+        finished_on DESC,                    
+        started_on DESC,
+        created_at DESC                      
+  ) = 1
+),
+
+
+recruiments AS (
+  SELECT
+    dec.teacher_id,
+    dec.participant_type,
+    dec.declaration_id,
+    dec.declaration_type,
+    dec.declaration_state,
+    dec.lead_provider,
+    tp.current_lead_provider,
+    CASE WHEN tp.current_lead_provider_id = dec.lead_provider_id THEN TRUE ELSE FALSE END AS same_lead_provider,
+    dec.delivery_partner_id,
+    dec.delivery_partner,
+    tp.current_delivery_partner,
+    CASE WHEN tp.current_delivery_partner_id = dec.delivery_partner_id THEN TRUE ELSE FALSE END AS same_delivery_partner,
+    dec.school_name AS school,
+    tp.current_school,
+    CASE WHEN tp.current_school_id = dec.school_id THEN TRUE ELSE FALSE END  AS same_school,
+    dec.contract_period_year,
+    tp.current_contract_period_year,
+    dec.schedule_identifier,
+    tp.current_schedule_identifier,
+    -- dec.training_status,
+    tp1.training_status,
+    tp1.withdrawal_reason,
+    tp.current_training_status,
+    dec.sparsity_uplift,
+    dec.pupil_premium_uplift,
+    TRUE AS in_scope_recruitment,
+    TRUE AS counted_recruitment
+
+  FROM `ecf-bq.dataform.ecf2_declarations_latest` dec
+  LEFT JOIN latest_training_periods tp
+    ON dec.teacher_id = tp.teacher_id
+    AND dec.participant_type = tp.participant_type
+  LEFT JOIN latest_training_status_per_provider tp1
+    ON dec.teacher_id = tp1.teacher_id
+    AND dec.participant_type = tp1.participant_type
+    AND dec.lead_provider_id = tp1.lead_provider_id
+  WHERE 
+    (dec.declaration_type = 'started'
+    AND dec.declaration_state IN ('eligible', 'payable', 'paid'))
+    or
+    (dec.declaration_type = 'completed'
+    AND schedule_identifier LIKE "%reduced%"
+    AND dec.declaration_state IN ('eligible', 'payable', 'paid')
+    AND dec.teacher_id IN (
+      SELECT teacher_id FROM one_term_inductions
+    ))
+),
+
+
+
+provider_kpis AS (
+  SELECT *,
+    -- in scope for retention calculation
+    CASE
+      -- 0. If not counted in recruitment then it cannot be in scope for retention
+      WHEN NOT counted_recruitment THEN FALSE 
+      -- 1. reduced schedule is automatically true
+      WHEN schedule_identifier LIKE "%reduced%" THEN TRUE 
+      -- 2. If withdrew to school-move = out of scope, all other withdrawal's = in-scope
+      WHEN withdrawal_reason = 'moved_school' THEN FALSE
+      -- 3. Deferred but with same provider = in-scope
+      WHEN current_training_status = 'deferred' AND same_lead_provider THEN TRUE
+      -- 4. same provider (not deferred or withdrawn) = in-scope
+      WHEN same_lead_provider AND current_training_status NOT IN ('deferred', 'withdrawn') THEN TRUE
+      -- 5. Same school and same provider = in-scope
+      WHEN same_school AND same_lead_provider THEN TRUE
+      -- 6. Different school but same provider = in-scope
+      WHEN NOT same_school AND same_lead_provider THEN TRUE
+      -- 7. Same school but different provider = in-scope
+      WHEN same_school AND NOT same_lead_provider THEN TRUE
+      
+      ELSE FALSE
+    END AS in_scope_retention,
+    
+    
+    -- counted for retention calculation
+    CASE 
+      -- 1. If not counted in recruitment then it cannot be counted for retention
+      WHEN NOT counted_recruitment THEN FALSE
+      -- 2. reducud schedule always counted
+      WHEN schedule_identifier LIKE "%reduced%" THEN TRUE
+      -- 3. If withdrawn, not counted
+      WHEN withdrawal_reason IS NOT NULL THEN FALSE
+      -- 4. Deferred but with same provider = counted
+      WHEN current_training_status = 'deferred' AND same_lead_provider THEN TRUE
+      -- 5. same provider (not deferred or withdrawn) = counted
+      WHEN same_lead_provider AND current_training_status NOT IN ('deferred', 'withdrawn') THEN TRUE
+      -- 6. Same school and same provider = counted
+      WHEN same_school AND same_lead_provider THEN TRUE
+      -- 7. Different school but same provider = counted
+      WHEN NOT same_school AND same_lead_provider THEN TRUE
+      -- 8. Same school but new provider = not counted
+      WHEN same_school AND NOT same_lead_provider THEN FALSE
+    
+
+      ELSE FALSE
+    END AS counted_retention
+
+  FROM recruiments
+  WHERE 
+    contract_period_year = 2025
+    -- declaration_type = 'completed'
+)
+
+
+SELECT * FROM provider_kpis
