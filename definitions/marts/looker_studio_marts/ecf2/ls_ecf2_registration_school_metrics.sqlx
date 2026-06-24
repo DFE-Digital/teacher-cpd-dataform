@@ -51,42 +51,6 @@ schools_provider_led_no_partnership AS (
 
 ),
 
--- participants_provider_led_no_partnership AS (
---   SELECT
---     tp.school_id,
---     tp.contract_period_year,
---     COUNT(*) AS num_participants_provider_led_no_partnership
-
---   FROM training_periods tp
---   WHERE
---     tp.training_programme = 'provider_led' 
---     AND tp.has_partnership IS FALSE
---   GROUP BY
---     tp.school_id,
---     tp.contract_period_year
--- ),
-
-
--- schools_provider_led_no_partnership AS (
---   SELECT
---     contract_period_year,
---     COUNT(DISTINCT school_id) AS num_schools_training_periods_no_partnership,
-
---   FROM participants_provider_led_no_partnership
---   GROUP BY
---     contract_period_year
--- ),
-
--- schools_provider_led_and_partnership AS (
---   SELECT
---     contract_period_year,
---     COUNT(DISTINCT school_id) AS num_schools_training_periods_with_partnerships,
-
---   FROM participants_provider_led_and_partnership
---   GROUP BY
---     contract_period_year
--- ),
-
 
 -- Number of schools that have a 2026 partnership with no 2026 ECTs or mentors registered​
 -- All schools that have a confirmed 2026 partnership and there are no ECTs or mentors with a training period in the 2026 contract​
