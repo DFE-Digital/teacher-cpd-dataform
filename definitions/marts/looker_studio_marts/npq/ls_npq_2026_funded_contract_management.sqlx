@@ -37,7 +37,7 @@ SELECT enrolments.provider_name, enrolments.short_course_name, enrolments.applic
 FROM ${ref('npq_enrolments_simplified')} as enrolments
 LEFT JOIN ${ref('npq_2026_funded_conversion_rates')} as lp_npq_details
 ON enrolments.provider_name = lp_npq_details.provider_long_name AND enrolments.short_course_name=lp_npq_details.short_course_name
-WHERE enrolments.cohort= '2025b'
+WHERE enrolments.cohort IN ('2026b')
 ),
  
 courses as (SELECT DISTINCT short_course_name
