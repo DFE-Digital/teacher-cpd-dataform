@@ -19,6 +19,7 @@ config {
             bigqueryPolicyTags: ["projects/ecf-bq/locations/europe-west2/taxonomies/6302091323314055162/policyTags/301313311867345339"]
         },
         declaration_id: 'ID associated with the declaration which qualifies as falling into a bad shape',
+        participant_type: 'Either ECT or Mentor',
         lead_provider: 'The name of the lead provider that submitted the declaration',
         declaration_created_at_date: 'The date the declaration was submitted, this field is only relevant to determine which sequence should be applied, it is not used to compare declarations against each other',
         declaration_date: 'The date the declaration was evidenced, when the participant qualified to be declared against. This field is key for determining where a declaration falls in relation to other declarations because it relates to when in the participants training it was evidenced',
@@ -26,6 +27,7 @@ config {
         statement_contract_period_year: 'This is the contract year (formerly cohort) the declaration was submitted against. This might not match the participants training contract (cohort) because the participant may have been rolled onto a new contract (cohort) since this declaration was submitted. Note: taken from the payment_statement (clawback statement should have the same contract period year)',
         declaration_type: 'The type of the declaration which indicates how far along a participant is in their training',
         declaration_state: 'The financial state of the declaration - whether it has been paid yet or not and whether it is eligible for funding - only paid, payable and eligible declarations are relevant for bad shapes checks',
+        schedule_identifier: 'The name of the schedule attached to the training_period the declaration is for.',
         shape_1_flag: 'This flags whether the declaration meets the criteria of Bad Shape 1: the declaration falls out of that expected sequence based on the date it was evidenced. (More detail about this shape can be found on its corresponding mart + definitions on the dashboard)',
         shape_2_flag: 'This flags whether the declaration meets the criteria of Bad Shape 2: the declaration was received in the same milestone period as the declaration date of another declaration for the same participant. (More detail about this shape can be found on its corresponding mart + definitions on the dashboard)',
         shape_3_flag: 'This flags whether the declaration meets the criteria of Bad Shape 3: Start declarations from a 2025 statement cohort or later submitted without evidence.(More detail about this shape can be found on its corresponding mart + definitions on the dashboard)',
@@ -47,6 +49,7 @@ SELECT
   decs.statement_contract_period_year,
   decs.declaration_type,
   decs.declaration_state,
+  decs.schedule_identifier,
   shape_1.declaration_id IS NOT NULL AS shape_1_flag,
   shape_2.declaration_id IS NOT NULL AS shape_2_flag,
   shape_3.declaration_id IS NOT NULL AS shape_3_flag,
