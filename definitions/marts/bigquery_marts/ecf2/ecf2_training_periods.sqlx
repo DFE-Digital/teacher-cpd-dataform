@@ -96,12 +96,17 @@ WITH base_training_periods AS (
     END AS teacher_id,
 
     -- Derive a training status field
-    -- Deferred takes priority over withdrawn over finished;
     -- finished_on will always be populated if deferred or withdrawn are also populated
     CASE
-      WHEN tp.deferred_at IS NOT NULL THEN 'deferred'  
-      WHEN tp.withdrawn_at IS NOT NULL THEN 'withdrawn'
-      WHEN tp.finished_on IS NOT NULL THEN 'finished'
+      WHEN tp.deferred_at IS NOT NULL AND (tp.withdrawn_at IS NULL OR tp.deferred_at > tp.withdrawn_at)
+        THEN 'deferred'
+
+      WHEN tp.withdrawn_at IS NOT NULL
+        THEN 'withdrawn'
+
+      WHEN tp.finished_on IS NOT NULL
+        THEN 'finished'
+
       ELSE 'active'
     END AS training_status,
 
