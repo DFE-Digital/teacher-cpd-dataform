@@ -101,6 +101,7 @@ config {
 -- is in scope for the retention KPI (Yes/No)
 -- meets the retention KPI (Yes/No)
 
+
 WITH one_term_inductions AS (
   SELECT
     teacher_id,
@@ -123,6 +124,7 @@ latest_training_periods AS (
     teacher_id,
     participant_type,
     training_status AS current_training_status,
+    training_programme AS current_training_programme,
     school_id AS current_school_id,
     school_name AS current_school,
     lead_provider_id AS current_lead_provider_id,
@@ -139,14 +141,21 @@ latest_training_status_per_provider AS (
     SELECT
       teacher_id,
       participant_type,
-      lead_provider_id,
       training_status,
+      school_id,
+      school_name,
+      lead_provider_id,
+      lead_provider,
+      delivery_partner_id,
+      delivery_partner,
+      contract_period_year,
+      schedule_identifier,
       withdrawal_reason
   FROM ${ref("ecf2_training_periods")}
   QUALIFY ROW_NUMBER() OVER (
     PARTITION BY participant_type, teacher_id, lead_provider_id
     ORDER BY 
-        IF(finished_on IS NULL, 1, 0) DESC,  
+        IF(finished_on IS NULL, 1, 0) DESC,  -- any open training_periods first
         finished_on DESC,                    
         started_on DESC,
         created_at DESC                      
@@ -162,7 +171,7 @@ engagement_declarations AS (
     declaration_id,
     declaration_type,
     declaration_state
-  FROM ${ref("ecf2_declarations_latest")} 
+  FROM ${ref("ecf2_declarations_latest")}
   WHERE
     declaration_type IN ('retained-2', 'completed')
     AND declaration_state IN ('eligible', 'payable', 'paid')
@@ -174,19 +183,21 @@ participant_declarations AS (
     dec.teacher_id,
     dec.participant_type,
     CASE WHEN dec.declaration_type = 'completed' THEN TRUE ELSE FALSE END AS is_one_term_induction,
-    CASE WHEN dec.declaration_id IS NOT NULL THEN TRUE ELSE FALSE END AS has_started_declaration,
+    CASE WHEN dec.declaration_id IS NOT NULL AND dec.declaration_type = 'started' THEN TRUE ELSE FALSE END AS has_started_declaration,
     CASE WHEN r2_dec.declaration_id IS NOT NULL THEN TRUE ELSE FALSE END AS has_retained2_declaration,
     CASE WHEN completed_dec.declaration_id IS NOT NULL THEN TRUE ELSE FALSE END AS has_completed_declaration,
-    -- started decs (or completed for one-term inductions)
-    dec.declaration_id AS started_declaration_id,
-    dec.declaration_type AS started_declaration_type,
-    dec.declaration_state AS started_declaration_state,
+    -- get relevant declarations
+    CASE WHEN dec.declaration_type = 'started' THEN dec.declaration_id END AS started_declaration_id,
+    CASE WHEN dec.declaration_type = 'started' THEN dec.declaration_state END AS started_declaration_state,
     -- retained-2 decs (year 1 engagement)
     r2_dec.declaration_id AS retained2_declaration_id,
     r2_dec.declaration_state AS retained2_declaration_state,
     -- completed decs (year 2 engagement)
     completed_dec.declaration_id AS completed_declaration_id,
     completed_dec.declaration_state AS completed_declaration_state,
+    
+    -- standardize declarations to KPIs
+    dec.declaration_id AS recruitment_declaration_id,
 
     dec.lead_provider,
     tp.current_lead_provider,
@@ -197,17 +208,16 @@ participant_declarations AS (
     CASE WHEN tp.current_delivery_partner_id = dec.delivery_partner_id THEN TRUE ELSE FALSE END AS same_delivery_partner,
     dec.school_name AS school,
     tp.current_school,
-    CASE WHEN tp.current_school_id = dec.school_id THEN TRUE ELSE FALSE END  AS same_school,
+    CASE WHEN tp.current_school_id = dec.school_id THEN TRUE ELSE FALSE END AS same_school,
     dec.contract_period_year AS contract,
     tp.current_contract,
     dec.schedule_identifier AS schedule,
     tp.current_schedule,
-    dec.training_status,
-    tp.current_training_status,
-    tp1.training_status AS training_status_latest_provider,
-    dec.withdrawal_reason,
-    tp.current_withdrawal_reason,
-    tp1.withdrawal_reason AS withdrawal_reason_latest_provider,
+    CASE WHEN  dec.schedule_identifier = tp.current_schedule THEN TRUE ELSE FALSE END AS same_schedule,
+    dec.training_programme,
+    tp.current_training_programme,
+    tp_provider.training_status,  -- take the latest training status for the recruiting provider
+    tp_provider.withdrawal_reason,  -- take the latest withdrawal reason for the recruiting provider
 
     dec.sparsity_uplift,
     dec.pupil_premium_uplift
@@ -219,11 +229,10 @@ participant_declarations AS (
     AND dec.participant_type = tp.participant_type
   
   -- join the latest training status for the original lead provider
-  -- need to test if we need the latest overall or for the provider
-  LEFT JOIN latest_training_status_per_provider tp1
-    ON dec.teacher_id = tp1.teacher_id
-    AND dec.participant_type = tp1.participant_type
-    AND dec.lead_provider_id = tp1.lead_provider_id
+  LEFT JOIN latest_training_status_per_provider tp_provider
+    ON dec.teacher_id = tp_provider.teacher_id
+    AND dec.participant_type = tp_provider.participant_type
+    AND dec.lead_provider_id = tp_provider.lead_provider_id
 
   -- join retained-2 declarations
   LEFT JOIN engagement_declarations r2_dec
@@ -255,7 +264,7 @@ participant_declarations AS (
 
 recruitment_kpi AS (
   SELECT *,
-    CASE WHEN started_declaration_id IS NOT NULL THEN TRUE ELSE FALSE END AS counted_recruitment
+    CASE WHEN recruitment_declaration_id IS NOT NULL THEN TRUE ELSE FALSE END AS counted_recruitment
   FROM participant_declarations
 ),
 
@@ -266,19 +275,21 @@ retention_kpi AS (
     CASE
       -- 0. If not counted in recruitment then it cannot be in scope for retention
       WHEN NOT counted_recruitment THEN FALSE 
-      -- 1. reduced schedule is automatically true
-      WHEN schedule LIKE "%reduced%" THEN TRUE 
-      -- 2. If withdrew to school-move = out of scope, all other withdrawal's = in-scope
+      -- 1. one-term inductions is automatically true
+      WHEN is_one_term_induction THEN TRUE 
+      -- 2. Different lead provider, different school = out of scope
+      WHEN same_lead_provider IS FALSE AND same_school IS FALSE THEN FALSE
+      -- 3. If withdrew due to school-move = out of scope, all other withdrawal's = in-scope
       WHEN withdrawal_reason = 'moved_school' THEN FALSE
-      -- 3. Deferred but with same provider = in-scope
-      WHEN current_training_status = 'deferred' AND same_lead_provider THEN TRUE
-      -- 4. same provider (not deferred or withdrawn) = in-scope
-      WHEN same_lead_provider AND current_training_status NOT IN ('deferred', 'withdrawn') THEN TRUE
-      -- 5. Same school and same provider = in-scope
-      WHEN same_school AND same_lead_provider THEN TRUE
-      -- 6. Different school but same provider = in-scope
+      -- 4. Deferred but with same provider = in-scope
+      WHEN training_status = 'deferred' AND same_lead_provider THEN TRUE
+      -- 5. same provider (not deferred or withdrawn) = in-scope
+      WHEN same_lead_provider IS TRUE AND training_status NOT IN ('deferred', 'withdrawn') THEN TRUE
+      -- 6. Same school and same provider = in-scope
+      WHEN same_school IS TRUE AND same_lead_provider IS TRUE THEN TRUE
+      -- 7. Different school but same provider = in-scope
       WHEN NOT same_school AND same_lead_provider THEN TRUE
-      -- 7. Same school but different provider = in-scope
+      -- 8. Same school but different provider = in-scope
       WHEN same_school AND NOT same_lead_provider THEN TRUE
       
       ELSE FALSE
@@ -290,21 +301,21 @@ retention_kpi AS (
       -- 1. If not counted in recruitment then it cannot be counted for retention
       WHEN NOT counted_recruitment THEN FALSE
       -- 2. reducud schedule always counted
-      WHEN schedule LIKE "%reduced%" THEN TRUE
+      WHEN is_one_term_induction IS TRUE THEN TRUE
       -- 3. If withdrawn, not counted
       WHEN withdrawal_reason IS NOT NULL THEN FALSE
       -- 4. Deferred but with same provider = counted
-      WHEN current_training_status = 'deferred' AND same_lead_provider THEN TRUE
+      WHEN training_status = 'deferred' AND same_lead_provider THEN TRUE
       -- 5. same provider (not deferred or withdrawn) = counted
-      WHEN same_lead_provider AND current_training_status NOT IN ('deferred', 'withdrawn') THEN TRUE
+      WHEN same_lead_provider AND training_status NOT IN ('deferred', 'withdrawn') THEN TRUE
       -- 6. Same school and same provider = counted
       WHEN same_school AND same_lead_provider THEN TRUE
       -- 7. Different school but same provider = counted
       WHEN NOT same_school AND same_lead_provider THEN TRUE
       -- 8. Same school but new provider = not counted
-      WHEN same_school AND NOT same_lead_provider THEN FALSE
+      WHEN same_school AND same_lead_provider IS FALSE THEN FALSE
     
-      ELSE NULL
+      ELSE FALSE -- different LP and different School
     END AS counted_retention
   FROM recruitment_kpi
 ),
@@ -322,18 +333,26 @@ engagement_kpi AS (
     END AS in_scope_engagement,
 
     -- counted for engagement calculation
+    -- has to be split by y1/y2 since a retained-2 would always show engagement as true even if no completed dec is present
     CASE
       -- 1. One-term inductions are in scope and counted
-      WHEN is_one_term_induction IS TRUE THEN TRUE 
-      -- counted if there is the relevant declaration (y1/y2)
-      WHEN has_retained2_declaration IS TRUE OR has_completed_declaration IS TRUE THEN TRUE
+      WHEN is_one_term_induction IS TRUE AND counted_retention IS TRUE THEN TRUE 
+      -- 2. Include mentors who only get completed decs (not r2)
+      WHEN participant_type = 'mentor' AND has_completed_declaration IS TRUE THEN TRUE
+      WHEN has_retained2_declaration IS TRUE AND counted_retention IS TRUE THEN TRUE
       ELSE FALSE
-    
-    END AS counted_engagement
+    END AS counted_engagement_y1,
+
+    CASE
+      -- 1. One-term inductions are in scope and counted
+      WHEN is_one_term_induction IS TRUE AND counted_retention IS TRUE THEN TRUE
+      WHEN has_completed_declaration IS TRUE AND counted_retention IS TRUE THEN TRUE
+      ELSE FALSE
+    END AS counted_engagement_y2
 
   FROM retention_kpi
 )
 
 
 SELECT * FROM engagement_kpi
-WHERE contract = 2025
+WHERE contract > 2023
