@@ -354,5 +354,8 @@ engagement_kpi AS (
 )
 
 
-SELECT * FROM engagement_kpi
+SELECT 
+  *,
+  CURRENT_DATE AS updated_at
+FROM engagement_kpi
 WHERE contract > 2023
