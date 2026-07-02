@@ -346,7 +346,7 @@ engagement_kpi AS (
     CASE
       -- 1. One-term inductions are in scope and counted
       WHEN is_one_term_induction IS TRUE AND counted_retention IS TRUE THEN TRUE
-      WHEN has_completed_declaration IS TRUE AND counted_retention IS TRUE THEN TRUE
+      WHEN participant_type = 'ect' AND has_completed_declaration IS TRUE AND counted_retention IS TRUE THEN TRUE
       ELSE FALSE
     END AS counted_engagement_y2
 
