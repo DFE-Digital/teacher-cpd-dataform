@@ -110,8 +110,7 @@ SELECT
   COALESCE(ect_at_school_periods.email, mentor_at_school_periods.email) AS teacher_email,
   training_periods.created_at,
   training_periods.updated_at
-FROM
-  ${ref('ecf2_training_periods')} AS training_periods
+FROM ${ref('ecf2_training_periods')} AS training_periods
 
 LEFT JOIN ${ref('teachers_latest_ecf2')} AS teachers
   ON training_periods.teacher_id = teachers.id
