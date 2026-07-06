@@ -1,0 +1,24 @@
+config {
+    type: "table",
+    tags: ["tte"],
+    bigquery: {
+        clusterBy: ["lead_provider_name", "course_name"]
+    }
+}
+
+SELECT
+    lead_provider_name,
+    course_name,
+    COUNT(DISTINCT application_id) AS total_applications,
+    COUNT(DISTINCT CASE WHEN application_status = 'accepted' THEN application_id END) AS applications_accepted,
+    COUNT(DISTINCT CASE WHEN application_status = 'withdrawn' THEN application_id END) AS applications_withdrawn,
+    COUNT(DISTINCT CASE WHEN application_status = 'started' THEN application_id END) AS applications_started,
+    COUNT(DISTINCT CASE WHEN application_status = 'rejected' THEN application_id END) AS applications_rejected,
+    COUNT(DISTINCT CASE WHEN application_status = 'completed' THEN application_id END) AS applications_completed,
+    COUNT(DISTINCT CASE WHEN application_status = 'deferred' THEN application_id END) AS applications_deferred,
+    COUNT(CASE WHEN declaration_type = 'started' THEN declaration_id END) AS declarations_type_started,
+    COUNT(CASE WHEN declaration_type = 'completed' THEN declaration_id END) AS declarations_type_completed
+
+FROM ${ref('tte_enrolments')}
+GROUP BY lead_provider_name, course_name
+ORDER BY lead_provider_name, course_name
