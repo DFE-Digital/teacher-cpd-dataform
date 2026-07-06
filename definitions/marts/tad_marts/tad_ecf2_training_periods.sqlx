@@ -50,9 +50,18 @@ config {
         mentor_became_ineligible_for_funding_reason: "The reason behind the mentor becoming ineligible for funding.",
         sparsity_uplift: "",
         pupil_premium_uplift: "",
-        trs_first_name: "The first name of the ECT or Mentor as held in TRS",
-        trs_last_name: "The last name of the ECT or Mentor as held in TRS",
-        email: "The email recorded on the ect or mentor at school period",
+        trs_first_name: {
+            description: "The first name of the ECT or Mentor as held in TRS",
+            bigqueryPolicyTags: ["projects/ecf-bq/locations/europe-west2/taxonomies/6302091323314055162/policyTags/301313311867345339"]
+        },
+        trs_last_name: {
+            description: "The last name of the ECT or Mentor as held in TRS",
+            bigqueryPolicyTags: ["projects/ecf-bq/locations/europe-west2/taxonomies/6302091323314055162/policyTags/301313311867345339"]
+        },
+        teacher_email: {
+            description: "The email recorded on the ect or mentor at school period",
+            bigqueryPolicyTags: ["projects/ecf-bq/locations/europe-west2/taxonomies/6302091323314055162/policyTags/301313311867345339"]
+        },
         created_at: "When the training_period was created in the ECF2 service",
         updated_at: "When the training_period was last updated in the ECF2 service"
     }
@@ -101,17 +110,14 @@ SELECT
   COALESCE(ect_at_school_periods.email, mentor_at_school_periods.email) AS teacher_email,
   training_periods.created_at,
   training_periods.updated_at
-FROM
-  ${ref('ecf2_training_periods')} AS training_periods
+FROM ${ref('ecf2_training_periods')} AS training_periods
+
+LEFT JOIN ${ref('teachers_latest_ecf2')} AS teachers
+  ON training_periods.teacher_id = teachers.id
+
+LEFT JOIN ${ref('ect_at_school_periods_latest_ecf2')} AS ect_at_school_periods
+  ON training_periods.ect_at_school_period_id = ect_at_school_periods.id
+
 LEFT JOIN
-  ${ref('teachers_latest_ecf2')} AS teachers
-ON
-  training_periods.teacher_id = teachers.id
-LEFT JOIN
-  ${ref('ect_at_school_periods_latest_ecf2_sandbox')} AS ect_at_school_periods
-ON
-  training_periods.ect_at_school_period_id = ect_at_school_periods.id
-LEFT JOIN
-  ${ref('mentor_at_school_periods_latest_ecf2_sandbox')} AS mentor_at_school_periods
-ON
-  training_periods.mentor_at_school_period_id = mentor_at_school_periods.id
+  ${ref('mentor_at_school_periods_latest_ecf2')} AS mentor_at_school_periods
+  ON training_periods.mentor_at_school_period_id = mentor_at_school_periods.id
