@@ -1,0 +1,108 @@
+config {
+    type: "table",
+    tags: ["tte"],
+    bigquery: {
+        partitionBy: "DATE(application_created_at)",
+        clusterBy: ["application_status", "funding_choice", "teacher_catchment_country"]
+    }
+}
+
+SELECT
+    -- Application
+    app.id AS application_id,
+    app.ecf_id AS application_ecf_id,
+    app.status AS application_status,
+    app.created_at AS application_created_at,
+    app.updated_at AS application_updated_at,
+    app.eligible_for_funding,
+    app.funded_place,
+    app.funding_choice,
+    app.funding_eligiblity_status_code,
+    app.review_status,
+    app.participant_outcome_state,
+    app.primary_establishment,
+    app.targeted_support_funding_eligibility,
+    app.teacher_catchment,
+    app.teacher_catchment_country,
+    app.teacher_catchment_iso_country_code,
+    app.work_setting,
+    app.works_in_childcare,
+    app.works_in_nursery,
+    app.works_in_school,
+    app.kind_of_nursery,
+    app.number_of_pupils,
+    app.ukprn AS application_ukprn,
+    app.user_id,
+    app.course_cohort_id,
+
+    -- Lead Provider
+    lp.id AS lead_provider_id,
+    lp.name AS lead_provider_name,
+    lp.ecf_id AS lead_provider_ecf_id,
+
+    -- Course
+    c.id AS course_id,
+    c.name AS course_name,
+    c.identifier AS course_identifier,
+    c.short_code AS course_short_code,
+    c.course_group,
+
+    -- Course Cohort
+    cc.id AS course_cohort_id_key,
+    cc.cohort_id,
+    cc.schedule_id,
+
+    -- Institution
+    inst.name AS institution_name,
+    inst.address_1,
+    inst.address_2,
+    inst.address_3,
+    inst.town,
+    inst.county,
+    inst.postcode,
+    inst.region,
+    inst.institution_reference_number,
+    inst.institutionable_type,
+
+    -- School
+    sch.la_code,
+    sch.la_name,
+    sch.phase_name,
+    sch.phase_type,
+    sch.establishment_status_code,
+    sch.establishment_status_name,
+    sch.establishment_type_code,
+    sch.establishment_type_name,
+    sch.high_pupil_premium,
+    sch.eyl_funding_eligible,
+
+    -- Declaration
+    dec.id AS declaration_id,
+    dec.ecf_id AS declaration_ecf_id,
+    dec.declaration_type,
+    dec.declaration_date,
+    dec.state AS declaration_state,
+    dec.state_reason AS declaration_state_reason,
+    dec.lead_provider_id AS declaration_lead_provider_id,
+    dec.delivery_partner_id,
+    dec.cohort_id AS declaration_cohort_id,
+
+    -- Application events
+    ae.type AS application_event_type,
+    ae.event AS application_event,
+    ae.metadata AS application_event_metadata,
+
+    -- Participant outcomes
+    po.ecf_id AS participant_outcome_ecf_id,
+    po.state AS participant_outcome_state_result,
+    po.completion_date AS participant_outcome_completion_date
+
+FROM ${ref('applications_latest_tte')} app
+LEFT JOIN ${ref('declarations_latest_tte')} dec ON CAST(dec.application_id AS STRING) = CAST(app.id AS STRING)
+LEFT JOIN ${ref('lead_providers_latest_tte')} lp ON CAST(lp.id AS STRING) = CAST(dec.lead_provider_id AS STRING)
+LEFT JOIN ${ref('course_cohorts_latest_tte')} cc ON CAST(cc.id AS STRING) = CAST(app.course_cohort_id AS STRING)
+LEFT JOIN ${ref('courses_latest_tte')} c ON CAST(c.id AS STRING) = CAST(cc.course_id AS STRING)
+LEFT JOIN ${ref('institutions_latest_tte')} inst ON CAST(inst.id AS STRING) = CAST(app.institution_id AS STRING)
+LEFT JOIN ${ref('schools_latest_tte')} sch ON sch.ukprn = app.ukprn
+LEFT JOIN ${ref('application_events_latest_tte')} ae ON CAST(ae.application_id AS STRING) = CAST(app.id AS STRING)
+LEFT JOIN ${ref('participant_outcomes_latest_tte')} po ON CAST(po.declaration_id AS STRING) = CAST(dec.id AS STRING)
