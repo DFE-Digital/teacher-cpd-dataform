@@ -21,4 +21,3 @@ SELECT
 
 FROM ${ref('tte_enrolments')}
 GROUP BY lead_provider_name, course_name
-ORDER BY lead_provider_name, course_name
