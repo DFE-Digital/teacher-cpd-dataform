@@ -7,6 +7,26 @@ config {
     }
 }
 
+WITH latest_application_event AS (
+    SELECT
+        application_id,
+        ARRAY_AGG(type ORDER BY created_at DESC LIMIT 1)[OFFSET(0)] AS application_event_type,
+        ARRAY_AGG(event ORDER BY created_at DESC LIMIT 1)[OFFSET(0)] AS application_event,
+        ARRAY_AGG(metadata ORDER BY created_at DESC LIMIT 1)[OFFSET(0)] AS application_event_metadata
+    FROM ${ref('application_events_latest_tte')}
+    GROUP BY application_id
+),
+
+latest_participant_outcome AS (
+    SELECT
+        declaration_id,
+        ARRAY_AGG(ecf_id ORDER BY completion_date DESC LIMIT 1)[OFFSET(0)] AS participant_outcome_ecf_id,
+        ARRAY_AGG(state ORDER BY completion_date DESC LIMIT 1)[OFFSET(0)] AS participant_outcome_state_result,
+        ARRAY_AGG(completion_date ORDER BY completion_date DESC LIMIT 1)[OFFSET(0)] AS participant_outcome_completion_date
+    FROM ${ref('participant_outcomes_latest_tte')}
+    GROUP BY declaration_id
+)
+
 SELECT
     -- Application
     app.id AS application_id,
@@ -88,14 +108,14 @@ SELECT
     dec.cohort_id AS declaration_cohort_id,
 
     -- Application events
-    ae.type AS application_event_type,
-    ae.event AS application_event,
-    ae.metadata AS application_event_metadata,
+    ae.application_event_type,
+    ae.application_event,
+    ae.application_event_metadata,
 
     -- Participant outcomes
-    po.ecf_id AS participant_outcome_ecf_id,
-    po.state AS participant_outcome_state_result,
-    po.completion_date AS participant_outcome_completion_date
+    po.participant_outcome_ecf_id,
+    po.participant_outcome_state_result,
+    po.participant_outcome_completion_date
 
 FROM ${ref('applications_latest_tte')} app
 LEFT JOIN ${ref('declarations_latest_tte')} dec ON CAST(dec.application_id AS STRING) = CAST(app.id AS STRING)
@@ -104,5 +124,5 @@ LEFT JOIN ${ref('course_cohorts_latest_tte')} cc ON CAST(cc.id AS STRING) = CAST
 LEFT JOIN ${ref('courses_latest_tte')} c ON CAST(c.id AS STRING) = CAST(cc.course_id AS STRING)
 LEFT JOIN ${ref('institutions_latest_tte')} inst ON CAST(inst.id AS STRING) = CAST(app.institution_id AS STRING)
 LEFT JOIN ${ref('schools_latest_tte')} sch ON sch.ukprn = app.ukprn
-LEFT JOIN ${ref('application_events_latest_tte')} ae ON CAST(ae.application_id AS STRING) = CAST(app.id AS STRING)
-LEFT JOIN ${ref('participant_outcomes_latest_tte')} po ON CAST(po.declaration_id AS STRING) = CAST(dec.id AS STRING)
+LEFT JOIN latest_application_event ae ON CAST(ae.application_id AS STRING) = CAST(app.id AS STRING)
+LEFT JOIN latest_participant_outcome po ON CAST(po.declaration_id AS STRING) = CAST(dec.id AS STRING)
