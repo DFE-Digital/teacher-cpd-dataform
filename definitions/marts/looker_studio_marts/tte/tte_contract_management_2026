@@ -16,8 +16,8 @@ SELECT
     COUNT(DISTINCT CASE WHEN application_status = 'rejected' THEN application_id END) AS applications_rejected,
     COUNT(DISTINCT CASE WHEN application_status = 'completed' THEN application_id END) AS applications_completed,
     COUNT(DISTINCT CASE WHEN application_status = 'deferred' THEN application_id END) AS applications_deferred,
-    COUNT(CASE WHEN declaration_type = 'started' THEN declaration_id END) AS declarations_type_started,
-    COUNT(CASE WHEN declaration_type = 'completed' THEN declaration_id END) AS declarations_type_completed
+    COUNT(CASE WHEN declaration_type = 'started' AND declaration_state IN ('submitted', 'eligible', 'payable', 'paid') THEN declaration_id END) AS declarations_type_started,
+    COUNT(CASE WHEN declaration_type = 'completed' AND declaration_state IN ('submitted', 'eligible', 'payable', 'paid') THEN declaration_id END) AS declarations_type_completed
 
 FROM ${ref('tte_enrolments')}
 GROUP BY lead_provider_name, course_name
