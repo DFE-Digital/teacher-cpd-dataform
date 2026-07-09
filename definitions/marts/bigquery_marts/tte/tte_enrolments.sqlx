@@ -25,6 +25,15 @@ latest_participant_outcome AS (
         ARRAY_AGG(completion_date ORDER BY completion_date DESC LIMIT 1)[OFFSET(0)] AS participant_outcome_completion_date
     FROM ${ref('participant_outcomes_latest_tte')}
     GROUP BY declaration_id
+),
+
+current_application_lead_provider AS (
+    SELECT
+        application_id,
+        lead_provider_id AS current_lead_provider_id,
+        assigned_at
+    FROM ${ref('application_lead_providers_latest_tte')}
+    WHERE `current` = true
 )
 
 SELECT
@@ -55,7 +64,11 @@ SELECT
     app.user_id,
     app.course_cohort_id,
 
-    -- Lead Provider
+   -- Application lead provider (current)
+    alp.current_lead_provider_id,
+    alp.assigned_at AS lead_provider_assigned_at,
+
+    -- Lead Provider (via declaration)
     lp.id AS lead_provider_id,
     lp.name AS lead_provider_name,
     lp.ecf_id AS lead_provider_ecf_id,
@@ -71,6 +84,17 @@ SELECT
     cc.id AS course_cohort_id_key,
     cc.cohort_id,
     cc.schedule_id,
+
+   -- Cohort
+    coh.start_year AS cohort_start_year,
+    coh.identifier AS cohort_identifier,
+    coh.registration_starts_at AS cohort_registration_starts_at,
+    coh.registration_ends_at AS cohort_registration_ends_at,
+
+    -- Schedule
+    sch_t.name AS schedule_name,
+    sch_t.training_starts_at AS schedule_training_starts_at,
+    sch_t.training_ends_at AS schedule_training_ends_at,
 
     -- Institution
     inst.name AS institution_name,
@@ -122,7 +146,10 @@ LEFT JOIN ${ref('declarations_latest_tte')} dec ON CAST(dec.application_id AS ST
 LEFT JOIN ${ref('lead_providers_latest_tte')} lp ON CAST(lp.id AS STRING) = CAST(dec.lead_provider_id AS STRING)
 LEFT JOIN ${ref('course_cohorts_latest_tte')} cc ON CAST(cc.id AS STRING) = CAST(app.course_cohort_id AS STRING)
 LEFT JOIN ${ref('courses_latest_tte')} c ON CAST(c.id AS STRING) = CAST(cc.course_id AS STRING)
+LEFT JOIN ${ref('cohorts_latest_tte')} coh ON CAST(coh.id AS STRING) = CAST(cc.cohort_id AS STRING)
+LEFT JOIN ${ref('schedules_latest_tte')} sch_t ON CAST(sch_t.id AS STRING) = CAST(cc.schedule_id AS STRING)
 LEFT JOIN ${ref('institutions_latest_tte')} inst ON CAST(inst.id AS STRING) = CAST(app.institution_id AS STRING)
 LEFT JOIN ${ref('schools_latest_tte')} sch ON sch.ukprn = app.ukprn
+LEFT JOIN current_application_lead_provider alp ON CAST(alp.application_id AS STRING) = CAST(app.id AS STRING)
 LEFT JOIN latest_application_event ae ON CAST(ae.application_id AS STRING) = CAST(app.id AS STRING)
 LEFT JOIN latest_participant_outcome po ON CAST(po.declaration_id AS STRING) = CAST(dec.id AS STRING)
