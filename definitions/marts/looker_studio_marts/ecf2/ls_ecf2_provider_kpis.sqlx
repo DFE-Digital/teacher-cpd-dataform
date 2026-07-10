@@ -5,7 +5,7 @@ config {
         uniqueKey: ["teacher_id", "participant_type"],
     },
 
-    description: "This table summarises the Provider KPIs for the Contract Management team. It contains every participant meeting the criteria for the recruitment, retention and engagement KPIs, including the attributes associated with the participant and their started declaration.",
+    description: "This table summarises the Provider KPIs for the Contract Management team. It contains every participant meeting the criteria for the recruitment, retention and engagement KPIs, including the attributes associated with the participant and their started declaration. Please note this uses the 2025 ECTE rules applied to ALL years, which means cohorts before 2025 will need manual overrides from contract managers to accurately reflect who is in-scope and counted for the KPIs.",
     columns: {
         teacher_id: "The internal id of a teacher",
         participant_type: "Either ECT or Mentor",
@@ -183,6 +183,7 @@ participant_declarations AS (
     dec.teacher_id,
     dec.participant_type,
     CASE WHEN dec.declaration_type = 'completed' THEN TRUE ELSE FALSE END AS is_one_term_induction,
+    -- boolean flags to check if participant has certain declarations
     CASE WHEN dec.declaration_id IS NOT NULL AND dec.declaration_type = 'started' THEN TRUE ELSE FALSE END AS has_started_declaration,
     CASE WHEN r2_dec.declaration_id IS NOT NULL THEN TRUE ELSE FALSE END AS has_retained2_declaration,
     CASE WHEN completed_dec.declaration_id IS NOT NULL THEN TRUE ELSE FALSE END AS has_completed_declaration,
@@ -198,6 +199,25 @@ participant_declarations AS (
     
     -- standardize declarations to KPIs
     dec.declaration_id AS recruitment_declaration_id,
+    dec.declaration_state AS recruitment_declaration_state,
+    CASE 
+      WHEN dec.participant_type = 'mentor' THEN completed_dec.declaration_id
+      WHEN dec.participant_type = 'ect' AND dec.schedule_identifier LIKE "%reduced%" THEN completed_dec.declaration_id
+      WHEN dec.declaration_type = 'completed' THEN completed_dec.declaration_id
+      ELSE r2_dec.declaration_id
+    END AS engagement_y1_declaration_id,
+    CASE 
+      WHEN dec.participant_type = 'mentor' THEN completed_dec.declaration_state
+      WHEN dec.participant_type = 'ect' AND dec.schedule_identifier LIKE "%reduced%" THEN completed_dec.declaration_state
+      WHEN dec.declaration_type = 'completed' THEN completed_dec.declaration_state
+      ELSE r2_dec.declaration_state
+    END AS engagement_y1_declaration_state,
+    CASE 
+      WHEN dec.participant_type = 'ect' THEN completed_dec.declaration_id
+    END AS engagement_y2_declaration_id,
+    CASE 
+      WHEN dec.participant_type = 'ect' THEN completed_dec.declaration_state
+    END AS engagement_y2_declaration_state,
 
     dec.lead_provider,
     tp.current_lead_provider,
@@ -338,7 +358,9 @@ engagement_kpi AS (
       -- 1. One-term inductions are in scope and counted
       WHEN is_one_term_induction IS TRUE AND counted_retention IS TRUE THEN TRUE 
       -- 2. Include mentors who only get completed decs (not r2)
-      WHEN participant_type = 'mentor' AND has_completed_declaration IS TRUE THEN TRUE
+      WHEN participant_type = 'mentor' AND has_completed_declaration AND counted_retention IS TRUE THEN TRUE
+      -- 3. Reduced schedule ECTs who have met all the conditions should also be counted in Y1 if they have the completed dec (absence of R2 due to being reduced)
+      WHEN schedule LIKE "%reduced%" AND participant_type = 'ect' AND has_completed_declaration IS TRUE AND counted_retention IS TRUE THEN TRUE
       WHEN has_retained2_declaration IS TRUE AND counted_retention IS TRUE THEN TRUE
       ELSE FALSE
     END AS counted_engagement_y1,
@@ -346,7 +368,7 @@ engagement_kpi AS (
     CASE
       -- 1. One-term inductions are in scope and counted
       WHEN is_one_term_induction IS TRUE AND counted_retention IS TRUE THEN TRUE
-      WHEN participant_type = 'ect' AND has_completed_declaration IS TRUE AND counted_retention IS TRUE THEN TRUE
+      WHEN has_completed_declaration IS TRUE AND counted_retention IS TRUE THEN TRUE
       ELSE FALSE
     END AS counted_engagement_y2
 
@@ -356,6 +378,7 @@ engagement_kpi AS (
 
 SELECT 
   *,
+  
   CURRENT_DATE AS updated_at
 FROM engagement_kpi
 WHERE contract > 2023
