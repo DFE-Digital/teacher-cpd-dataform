@@ -202,7 +202,8 @@ participant_declarations AS (
     dec.declaration_state AS recruitment_declaration_state,
     CASE 
       WHEN dec.participant_type = 'mentor' THEN completed_dec.declaration_id
-      WHEN dec.participant_type = 'ect' AND dec.schedule_identifier LIKE "%reduced%" THEN completed_dec.declaration_id
+      WHEN dec.participant_type = 'ect' AND dec.schedule_identifier LIKE "%reduced%" AND r2_dec.declaration_id IS NULL THEN completed_dec.declaration_id
+      WHEN dec.participant_type = 'ect' AND dec.schedule_identifier LIKE "%reduced%" AND r2_dec.declaration_id IS NOT NULL THEN r2_dec.declaration_id
       WHEN dec.declaration_type = 'completed' THEN completed_dec.declaration_id
       ELSE r2_dec.declaration_id
     END AS engagement_y1_declaration_id,
@@ -366,6 +367,8 @@ engagement_kpi AS (
     END AS counted_engagement_y1,
 
     CASE
+      -- Mentors are only Year 1 Engagement
+      WHEN participant_type = 'mentor' THEN FALSE
       -- 1. One-term inductions are in scope and counted
       WHEN is_one_term_induction IS TRUE AND counted_retention IS TRUE THEN TRUE
       WHEN has_completed_declaration IS TRUE AND counted_retention IS TRUE THEN TRUE
