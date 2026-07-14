@@ -345,13 +345,23 @@ retention_kpi AS (
 engagement_kpi AS (
 
   SELECT *,
-    -- in scope for engagement calculation
+    -- in scope for engagement calculation (Y1)
     CASE
       -- 0. If not counted in retention then it cannot be in scope for engagement
       WHEN counted_retention IS NOT TRUE THEN FALSE 
       WHEN counted_retention IS TRUE THEN TRUE
       ELSE NULL
-    END AS in_scope_engagement,
+    END AS in_scope_engagement_y1,
+
+    SELECT *,
+    -- in scope for engagement calculation (Y2)
+    CASE
+      -- 1. If not counted in retention then it cannot be in scope for engagement
+      WHEN counted_retention IS NOT TRUE THEN FALSE 
+      WHEN counted_retention IS TRUE AND participant_type = 'ect' THEN TRUE
+      WHEN participant_type = 'mentor' THEN FALSE
+      ELSE NULL
+    END AS in_scope_engagement_y2,
 
     -- counted for engagement calculation
     -- has to be split by y1/y2 since a retained-2 would always show engagement as true even if no completed dec is present
@@ -381,7 +391,18 @@ engagement_kpi AS (
 
 SELECT 
   *,
-  
+  -- CASE WHEN recruitment_declaration_state = "payable" OR recruitment_declaration_state = "paid" 
+  --   THEN "payable / paid" 
+  --   ELSE recruitment_declaration_state
+  -- END AS recruitment_declaration_state_grouped,
+  -- CASE WHEN engagement_y1_declaration_state = "payable" OR engagement_y1_declaration_state = "paid" 
+  --   THEN "payable / paid" 
+  --   ELSE engagement_y1_declaration_state
+  -- END AS engagement_y1_declaration_state_grouped,
+  -- CASE WHEN engagement_y2_declaration_state = "payable" OR engagement_y2_declaration_state = "paid" 
+  --   THEN "payable / paid" 
+  --   ELSE engagement_y2_declaration_state
+  -- END AS engagement_y2_declaration_state_grouped,
   CURRENT_DATE AS updated_at
 FROM engagement_kpi
 WHERE contract > 2023
