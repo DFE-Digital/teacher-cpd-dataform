@@ -353,7 +353,6 @@ engagement_kpi AS (
       ELSE NULL
     END AS in_scope_engagement_y1,
 
-    SELECT *,
     -- in scope for engagement calculation (Y2)
     CASE
       -- 1. If not counted in retention then it cannot be in scope for engagement
