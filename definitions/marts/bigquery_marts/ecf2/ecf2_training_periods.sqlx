@@ -229,4 +229,3 @@ training_periods AS (
 )
 
 SELECT * FROM training_periods
-WHERE finished_on > CURRENT_DATE()
