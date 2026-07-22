@@ -104,7 +104,10 @@ WITH base_training_periods AS (
       WHEN tp.withdrawn_at IS NOT NULL
         THEN 'withdrawn'
 
-      WHEN tp.finished_on IS NOT NULL
+      WHEN tp.finished_on IS NOT NULL AND tp.finished_on > CURRENT_DATE()
+        THEN 'active'
+    
+    WHEN tp.finished_on IS NOT NULL AND tp.finished_on < CURRENT_DATE()
         THEN 'finished'
 
       ELSE 'active'
@@ -226,3 +229,4 @@ training_periods AS (
 )
 
 SELECT * FROM training_periods
+WHERE finished_on > CURRENT_DATE()
