@@ -1,0 +1,202 @@
+config {
+    type: "table",
+    tags: ["ecf2"],
+    bigquery: {
+        partitionBy: "declaration_date",
+        clusterBy: ["contract_year", "lead_provider"]
+    },
+
+    description: "A consolidated table of the static mentor backfill tables. Contains a row per declaration that was previously paid",
+    columns: {
+        declaration_id: "The ID of a declartion in the ecf2 service (sourced from BigQuery)",
+        declaration_external_id: "The id of the declaration as it is served to Lead Providers in the API - also known as the declaration api id. Sourced from the raw excel files",
+        declaration_date: "The date the milestone can be evidenced as having been met, when the participant qualified to be declared against. This field is key for determining where a declaration falls in relation to other declarations because it relates to when in the participants training it was evidenced (sourced from BigQuery)",
+        declaration_type: "The type of the declaration which indicates how far along a participant is in their training (sourced from BigQuery)",
+        declaration_state: "Dervied from payment and clawback status. If a clawback is present it takes priority over payment_status. Sourced from BigQuery.",
+        participant_type: "Should only be mentors. Joined the declaration_external_id with data in the service which might return ECT or Mentor.",
+        teacher_id: "The internal id of a teacher attached to the declaration in the service.",
+        teacher_external_id: "The API id of a teacher in the service attached to the declaration in the service.",
+        trn: {
+            description: "The teacher reference number.",
+            bigqueryPolicyTags: ["projects/ecf-bq/locations/europe-west2/taxonomies/6302091323314055162/policyTags/301313311867345339"]
+        },
+        school_urn: "Unique Reference Number (URN) assigned to a school. Note that a URN is not persistent across structural changes: if a school closes and re-opens with materially different characteristics, a new URN is issued and a new record is created rather than updating the existing one.",
+        lead_provider_id: "ID of the lead provider responsible for the training period.",
+        lead_provider: "The name of the lead_provider",
+        delivery_partner_id: "The ID of the delivery partner",
+        delivery_partner: "The name of the delivery partner",
+        payment_period: "String identifier for which raw Excel file the data was sourced from",
+        contract_year: "The contract / cohort inferred from the payment period / Excel file name",
+        funded_hours: "Integer value of the number of hourses funded as per the conditions of grant for that contract year.",
+        clawedback: "True/False if a payment was clawedback. Only applies to the 2023 payments where a separate Excel was provided to identify clawbacks."
+    }
+}
+
+
+WITH declarations AS (
+  SELECT
+    declaration_id,
+    declaration_external_id,
+    participant_type,
+    teacher_id,
+    teacher_external_id,
+    trn,
+    declaration_date,
+    declaration_type,
+    declaration_state,
+    lead_provider_id,
+    lead_provider,
+    delivery_partner_id,
+    delivery_partner,
+    school_urn
+  FROM ${ref('ecf2_declarations')}
+),
+
+
+clawbacks AS (
+  SELECT
+    id as declaration_external_id,
+    -- declaration_date,
+    -- declaration_type,
+    -- state AS declaration_state,
+    -- school_urn,
+    'Clawback - 2023' as payment_period,
+    2023 AS contract_year,
+    NULL as funded_hours
+    -- withdrawn_since_june,
+    -- NULL AS reason_for_zero_hours
+  FROM ${ref('raw_mentor_backfill_funding_2023_clawbacks')}
+),
+
+mentor2022instalment1 AS (
+  SELECT
+    declaration_id AS declaration_external_id,
+    -- declaration_date,
+    -- declaration_type,
+    -- state AS declaration_state,
+    -- urn as school_urn,
+    'Instalment 1 - 2022' as payment_period,
+    2022 AS contract_year,
+    18 as funded_hours
+    -- NULL AS withdrawn_since_june,
+    -- NULL AS reason_for_zero_hours
+  FROM ${ref('raw_mentor_backfill_funding_paid_2022_instalment1')}
+),
+
+mentor2023instalment1 AS (
+  SELECT
+    id AS declaration_external_id,
+    -- declaration_date,
+    -- declaration_type,
+    -- state AS declaration_state,
+    -- school_urn,
+    'Instalment 1 - 2023' AS payment_period,
+    2023 AS contract_year,
+    18 AS funded_hours
+    -- CASE 
+    --   WHEN CAST(withdrawn_since_june as string) IN ('n/a', '#N/A', 'null') THEN NULL 
+    --   ELSE TRUE 
+    -- END AS withdrawn_since_june,
+    -- NULL AS reason_for_zero_hours
+  FROM ${ref('raw_mentor_backfill_funding_paid_2023_instalment1')}
+),
+
+mentor2023instalment2 AS (
+  SELECT
+    id AS declaration_external_id,
+    -- declaration_date,
+    -- declaration_type,
+    -- state AS declaration_state,
+    -- school_urn,
+    'Instalment 2 - 2023' as payment_period,
+    2023 AS contract_year,
+    18 as funded_hours
+    -- CASE 
+    --   WHEN CAST(withdrawn_since_june as string) IN ('n/a', '#N/A', 'null') THEN NULL 
+    --   ELSE TRUE 
+    -- END AS withdrawn_since_june,
+    -- NULL AS reason_for_zero_hours
+  FROM ${ref('raw_mentor_backfill_funding_paid_2023_instalment2')} 
+),
+
+mentor2024 AS (
+  SELECT
+    declaration_id AS declaration_external_id,
+    -- declaration_date,
+    -- declaration_type,
+    -- state AS declaration_state,
+    -- mentors_current_school_urn AS current_school_urn,
+    -- school_urn_at_time_of_declaration_evidence AS school_urn_dec,
+    -- which_urn_calculator_uses as school_urn,
+    '2024' as payment_period,
+    2024 as contract_year,
+    funded_hours
+    -- previously_paid,
+    -- NULL AS withdrawn_since_june,
+    -- NULL AS reason_for_zero_hours
+  FROM ${ref('raw_mentor_backfill_funding_paid_2024')}
+),
+
+mentor2025 AS (
+  SELECT
+    declaration_id AS declaration_external_id,
+    -- declaration_date,
+    -- declaration_type,
+    -- state AS declaration_state,
+    -- mentors_current_school_urn AS current_school_urn,
+    -- school_urn_at_time_of_declaration_evidence AS school_urn_dec,
+    -- which_urn_calculator_uses as school_urn,
+    '2025' as payment_period,
+    2025 as contract_year,
+    funded_hours
+    -- prev_paid_in_22_23 AS previously_paid_in_22_23,
+    -- previously_paid_in_2024,
+    -- NULL AS withdrawn_since_june,
+    -- reason_for_zero_hours
+  FROM ${ref('raw_mentor_backfill_funding_paid_2025')}
+),
+
+
+all_mentors AS (
+  SELECT
+  *
+  FROM mentor2022instalment1
+  UNION ALL 
+    SELECT * FROM mentor2023instalment1
+  UNION ALL
+    SELECT * FROM mentor2023instalment2
+  UNION ALL
+    SELECT * FROM mentor2024
+  UNION ALL
+    SELECT * FROM mentor2025
+)
+
+-- FINAL SELECT
+SELECT 
+  dec.declaration_id,
+  a.declaration_external_id,
+  dec.participant_type,
+  dec.teacher_id,
+  dec.teacher_external_id,
+  dec.trn,
+  dec.declaration_date,
+  dec.declaration_type,
+  dec.declaration_state,
+  dec.lead_provider_id,
+  dec.lead_provider,
+  dec.delivery_partner_id,
+  dec.delivery_partner,
+  dec.school_urn,
+  a.payment_period,
+  a.contract_year,
+  a.funded_hours,
+  CASE WHEN c.declaration_external_id IS NOT NULL THEN TRUE ELSE FALSE END AS clawedback
+FROM all_mentors a
+LEFT JOIN clawbacks c
+  ON a.declaration_external_id = c.declaration_external_id
+  AND (a.payment_period = 'Instalment 1 - 2023' OR a.payment_period = 'Instalment 2 - 2023')
+LEFT JOIN declarations dec
+  ON a.declaration_external_id = dec.declaration_external_id
+
+-- WHERE a.funded_hours > 0
+
