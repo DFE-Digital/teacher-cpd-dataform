@@ -37,7 +37,6 @@ config {
         phase_name: "School phase.",
         establishment_type_name: "Type of school establishment.",
         high_pupil_premium: "Whether the school has high pupil premium.",
-        -- NOTE Declarations are expected Octover 2026
         declaration_type: "Type of declaration e.g. started, completed.",
         declaration_state: "State of the declaration e.g. submitted, eligible, payable, paid.",
         declaration_date: "Date of the declaration.",
@@ -51,60 +50,49 @@ config {
 
 
 SELECT
-    -- Application
     application_id,
     application_ecf_id,
     application_status,
     application_created_at,
     application_updated_at,
 
-    -- Funding
     eligible_for_funding,
     funded_place,
     funding_choice,
     funding_eligiblity_status_code,
     targeted_support_funding_eligibility,
 
-    -- Provider
     lead_provider_name,
     lead_provider_ecf_id,
 
-    -- Course
     course_name,
     course_identifier,
     course_short_code,
     course_group,
 
-    -- Cohort
     cohort_identifier,
     cohort_start_year,
 
-    -- Schedule
     schedule_name,
     schedule_training_starts_at,
     schedule_training_ends_at,
 
-    -- Institution
     institution_name,
     institutionable_type,
     region,
 
-    -- School
     la_name,
     phase_name,
     establishment_type_name,
     high_pupil_premium,
 
-    -- Declaration
     declaration_type,
     declaration_state,
     declaration_date,
 
-    -- Participant outcome
     participant_outcome_state_result,
     participant_outcome_completion_date,
 
-    -- Flags
     eligible_for_funding = TRUE
     AND application_status IN ('pending', 'accepted') AS flag_eligible_pending_or_accepted,
 
