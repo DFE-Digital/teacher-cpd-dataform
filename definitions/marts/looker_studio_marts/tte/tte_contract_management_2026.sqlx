@@ -1,23 +1,70 @@
+-- This is the aggregated file that will be used to generate the NPD Contract manager dashboard
+-- It takes the flat data generated in tte_contract_management_2026_flat.sqlx
+-- NOTE That declarations are expected in October 2026
+
 config {
     type: "table",
     tags: ["tte"],
     bigquery: {
         clusterBy: ["lead_provider_name", "course_name"]
+    },
+    description: "This is the aggregated file that will be used to generate the NPD Contract manager dashboard. \n \
+    It takes the flat data generated in tte_contract_management_2026_flat.sqlx. \n \
+    It creates a table that outlines the number of applications, acceptance rates, and starts for each Lead Provider and their courses, filtered to the 2026-July cohort. \n",
+    columns: {
+        lead_provider_name: "Name of the lead provider.",
+        course_name: "Name of the course.",
+        total_applications: "Total number of applications.",
+        applications_eligible_for_funding: "Number of applications eligible for DfE funding.",
+        applications_not_eligible_for_funding: "Number of applications not eligible for DfE funding.",
+        total_unfunded_applications: "Number of applications not on a funded place.",
+        applications_pending: "Number of applications with a pending status.",
+        applications_accepted: "Number of applications with an accepted status.",
+        applications_rejected: "Number of applications with a rejected status.",
+        pct_pending: "Proportion of applications that are pending.",
+        pct_accepted: "Proportion of applications that are accepted.",
+        pct_rejected: "Proportion of applications that are rejected.",
+        applications_eligible_pending_or_accepted: "Number of applications eligible for DfE funding that are pending or accepted.",
+        applications_accepted_funded: "Number of applications accepted onto a funded place.",
+        applications_started_declaration_paid: "Number of applications with a started declaration that has been submitted, is eligible, payable, or paid on a funded place."
     }
 }
 
 SELECT
     lead_provider_name,
     course_name,
-    COUNT(DISTINCT application_id) AS total_applications,
-    COUNT(DISTINCT CASE WHEN application_status = 'accepted' THEN application_id END) AS applications_accepted,
-    COUNT(DISTINCT CASE WHEN application_status = 'withdrawn' THEN application_id END) AS applications_withdrawn,
-    COUNT(DISTINCT CASE WHEN application_status = 'started' THEN application_id END) AS applications_started,
-    COUNT(DISTINCT CASE WHEN application_status = 'rejected' THEN application_id END) AS applications_rejected,
-    COUNT(DISTINCT CASE WHEN application_status = 'completed' THEN application_id END) AS applications_completed,
-    COUNT(DISTINCT CASE WHEN application_status = 'deferred' THEN application_id END) AS applications_deferred,
-    COUNT(CASE WHEN declaration_type = 'started' AND declaration_state IN ('submitted', 'eligible', 'payable', 'paid') THEN declaration_id END) AS declarations_type_started,
-    COUNT(CASE WHEN declaration_type = 'completed' AND declaration_state IN ('submitted', 'eligible', 'payable', 'paid') THEN declaration_id END) AS declarations_type_completed
 
-FROM ${ref('tte_enrolments')}
+    -- Headline figures
+    COUNT(DISTINCT application_id)                                                                          AS total_applications,
+    COUNT(DISTINCT CASE WHEN eligible_for_funding = TRUE THEN application_id END)                          AS applications_eligible_for_funding,
+    COUNT(DISTINCT CASE WHEN eligible_for_funding = FALSE THEN application_id END)                         AS applications_not_eligible_for_funding,
+    COUNT(DISTINCT CASE WHEN funded_place = FALSE OR funded_place IS NULL THEN application_id END)         AS total_unfunded_applications,
+
+    -- Applications by status
+    COUNT(DISTINCT CASE WHEN application_status = 'pending' THEN application_id END)                      AS applications_pending,
+    COUNT(DISTINCT CASE WHEN application_status = 'accepted' THEN application_id END)                     AS applications_accepted,
+    COUNT(DISTINCT CASE WHEN application_status = 'rejected' THEN application_id END)                     AS applications_rejected,
+
+    -- Percentages
+    ROUND(SAFE_DIVIDE(
+        COUNT(DISTINCT CASE WHEN application_status = 'pending' THEN application_id END),
+        COUNT(DISTINCT application_id)) * 100, 2)                                                         AS pct_pending,
+    ROUND(SAFE_DIVIDE(
+        COUNT(DISTINCT CASE WHEN application_status = 'accepted' THEN application_id END),
+        COUNT(DISTINCT application_id)) * 100, 2)                                                         AS pct_accepted,
+    ROUND(SAFE_DIVIDE(
+        COUNT(DISTINCT CASE WHEN application_status = 'rejected' THEN application_id END),
+        COUNT(DISTINCT application_id)) * 100, 2)                                                         AS pct_rejected,
+
+    -- Pivot table 1 — eligible, pending or accepted
+    COUNT(DISTINCT CASE WHEN flag_eligible_pending_or_accepted = TRUE THEN application_id END)            AS applications_eligible_pending_or_accepted,
+
+    -- Pivot table 2 — accepted onto funded place
+    COUNT(DISTINCT CASE WHEN flag_accepted_funded = TRUE THEN application_id END)                         AS applications_accepted_funded,
+
+    -- Pivot table 3 — started declaration paid
+    COUNT(DISTINCT CASE WHEN flag_started_declaration_paid = TRUE THEN application_id END)                AS applications_started_declaration_paid
+
+FROM ${ref('tte_contract_management_2026_flat')}
 GROUP BY lead_provider_name, course_name
+ORDER BY lead_provider_name, course_name
