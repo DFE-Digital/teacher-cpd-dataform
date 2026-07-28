@@ -6,8 +6,51 @@ config {
     bigquery: {
         partitionBy: "DATE(application_created_at)",
         clusterBy: ["lead_provider_name", "course_name", "application_status"]
+    },
+    description: "This mart is made to assist TTE Contract Managers with Lead Provider conversations related to the 2026 cohort beginning in July 2026. \n \
+    It creates a flat table of applications filtered to the 2026-July cohort, including funding, provider, course, institution, declaration, and participant outcome dimensions. \n \
+    This table does not contain aggregated counts or financial allocation data — use tte_contract_management_2026 for pre-aggregated figures. \n",
+    columns: {
+        application_id: "Unique ID for the application.",
+        application_ecf_id: "ECF ID for the application.",
+        application_status: "Status of the application. Can be pending, accepted, or rejected.",
+        application_created_at: "When the application was created.",
+        application_updated_at: "When the application was last updated.",
+        eligible_for_funding: "Whether the application is eligible for DfE funding.",
+        funded_place: "Whether the application has been accepted onto a funded place.",
+        funding_choice: "How the participant intends to fund their training. Can be school, trust, or self.",
+        funding_eligiblity_status_code: "Funding eligibility status code.",
+        targeted_support_funding_eligibility: "Whether the application is eligible for targeted support funding.",
+        lead_provider_name: "Name of the lead provider.",
+        lead_provider_ecf_id: "ECF ID for the lead provider.",
+        course_name: "Name of the course.",
+        course_identifier: "Course identifier.",
+        course_short_code: "Shortened course code.",
+        course_group: "Course group.",
+        cohort_identifier: "Cohort identifier e.g. 2026-July.",
+        cohort_start_year: "Year the cohort starts.",
+        schedule_name: "Name of the schedule.",
+        schedule_training_starts_at: "When training starts.",
+        schedule_training_ends_at: "When training ends.",
+        institution_name: "Name of the institution.",
+        institutionable_type: "Type of institution.",
+        region: "Region of the institution.",
+        la_name: "Local authority name.",
+        phase_name: "School phase.",
+        establishment_type_name: "Type of school establishment.",
+        high_pupil_premium: "Whether the school has high pupil premium.",
+        -- NOTE Declarations are expected Octover 2026
+        declaration_type: "Type of declaration e.g. started, completed.",
+        declaration_state: "State of the declaration e.g. submitted, eligible, payable, paid.",
+        declaration_date: "Date of the declaration.",
+        participant_outcome_state_result: "Outcome state for the participant.",
+        participant_outcome_completion_date: "Date the participant outcome was completed.",
+        flag_eligible_pending_or_accepted: "True where the application is eligible for DfE funding and is pending or accepted.",
+        flag_accepted_funded: "True where the application has been accepted onto a funded place.",
+        flag_started_declaration_paid: "True where a started declaration has been submitted, is eligible, payable, or paid on a funded place."
     }
 }
+
 
 SELECT
     -- Application

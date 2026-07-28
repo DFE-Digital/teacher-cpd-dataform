@@ -1,11 +1,32 @@
 -- This is the aggregated file that will be used to generate the NPD Contract manager dashboard
 -- It takes the flat data generated in tte_contract_management_2026_flat.sqlx
+-- NOTE That declarations are expected in October 2026
 
 config {
     type: "table",
     tags: ["tte"],
     bigquery: {
         clusterBy: ["lead_provider_name", "course_name"]
+    },
+    description: "This is the aggregated file that will be used to generate the NPD Contract manager dashboard. \n \
+    It takes the flat data generated in tte_contract_management_2026_flat.sqlx. \n \
+    It creates a table that outlines the number of applications, acceptance rates, and starts for each Lead Provider and their courses, filtered to the 2026-July cohort. \n",
+    columns: {
+        lead_provider_name: "Name of the lead provider.",
+        course_name: "Name of the course.",
+        total_applications: "Total number of applications.",
+        applications_eligible_for_funding: "Number of applications eligible for DfE funding.",
+        applications_not_eligible_for_funding: "Number of applications not eligible for DfE funding.",
+        total_unfunded_applications: "Number of applications not on a funded place.",
+        applications_pending: "Number of applications with a pending status.",
+        applications_accepted: "Number of applications with an accepted status.",
+        applications_rejected: "Number of applications with a rejected status.",
+        pct_pending: "Proportion of applications that are pending.",
+        pct_accepted: "Proportion of applications that are accepted.",
+        pct_rejected: "Proportion of applications that are rejected.",
+        applications_eligible_pending_or_accepted: "Number of applications eligible for DfE funding that are pending or accepted.",
+        applications_accepted_funded: "Number of applications accepted onto a funded place.",
+        applications_started_declaration_paid: "Number of applications with a started declaration that has been submitted, is eligible, payable, or paid on a funded place."
     }
 }
 
