@@ -4,11 +4,11 @@ config {
     bigquery: {
         clusterBy: ["lead_provider_name", "course_name"]
     },
-    description: "This is the aggregated file that will be used to generate the TTE Contract manager dashboard. \n \
+    description: "This is the aggregated file that will be used to generate the NPD Contract manager dashboard. \n \
     It takes the flat data generated in tte_contract_management_2026_flat.sqlx. \n \
     It creates a table that outlines the number of applications, acceptance rates, and starts for each Lead Provider and their courses, filtered to the 2026-July cohort. \n \
     Note that declarations are expected in October 2026. \n",
-    
+
     columns: {
         lead_provider_name: "Name of the lead provider.",
         course_name: "Name of the course.",
