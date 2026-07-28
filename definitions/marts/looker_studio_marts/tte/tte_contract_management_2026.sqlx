@@ -6,9 +6,9 @@ config {
     },
     description: "This is the aggregated file that will be used to generate the NPD Contract manager dashboard. \n \
     It takes the flat data generated in tte_contract_management_2026_flat.sqlx. \n \
-    It creates a table that outlines the number of applications, acceptance rates, and starts for each Lead Provider and their courses, filtered to the 2026-July cohort. 
-    NOTE That declarations are expected in October 2026 \n"
-    ,
+    It creates a table that outlines the number of applications, acceptance rates, and starts for each Lead Provider and their courses, filtered to the 2026-July cohort. \n \
+    Note that declarations are expected in October 2026. \n",
+
     columns: {
         lead_provider_name: "Name of the lead provider.",
         course_name: "Name of the course.",
@@ -32,36 +32,28 @@ SELECT
     lead_provider_name,
     course_name,
 
-    -- Headline figures
-    COUNT(DISTINCT application_id)                                                                          AS total_applications,
-    COUNT(DISTINCT CASE WHEN eligible_for_funding = TRUE THEN application_id END)                          AS applications_eligible_for_funding,
-    COUNT(DISTINCT CASE WHEN eligible_for_funding = FALSE THEN application_id END)                         AS applications_not_eligible_for_funding,
-    COUNT(DISTINCT CASE WHEN funded_place = FALSE OR funded_place IS NULL THEN application_id END)         AS total_unfunded_applications,
+    COUNT(DISTINCT application_id) AS total_applications,
+    COUNT(DISTINCT CASE WHEN eligible_for_funding = TRUE THEN application_id END) AS applications_eligible_for_funding,
+    COUNT(DISTINCT CASE WHEN eligible_for_funding = FALSE THEN application_id END) AS applications_not_eligible_for_funding,
+    COUNT(DISTINCT CASE WHEN funded_place = FALSE OR funded_place IS NULL THEN application_id END) AS total_unfunded_applications,
 
-    -- Applications by status
-    COUNT(DISTINCT CASE WHEN application_status = 'pending' THEN application_id END)                      AS applications_pending,
-    COUNT(DISTINCT CASE WHEN application_status = 'accepted' THEN application_id END)                     AS applications_accepted,
-    COUNT(DISTINCT CASE WHEN application_status = 'rejected' THEN application_id END)                     AS applications_rejected,
+    COUNT(DISTINCT CASE WHEN application_status = 'pending' THEN application_id END) AS applications_pending,
+    COUNT(DISTINCT CASE WHEN application_status = 'accepted' THEN application_id END) AS applications_accepted,
+    COUNT(DISTINCT CASE WHEN application_status = 'rejected' THEN application_id END) AS applications_rejected,
 
-    -- Percentages
     ROUND(SAFE_DIVIDE(
-        COUNT(DISTINCT CASE WHEN application_status = 'pending' THEN application_id END),
-        COUNT(DISTINCT application_id)) * 100, 2)                                                         AS pct_pending,
+        COUNT(DISTINCT CASE WHEN application_status = 'pending' THEN application_id END), 
+        COUNT(DISTINCT application_id)), 2) AS pct_pending,
     ROUND(SAFE_DIVIDE(
         COUNT(DISTINCT CASE WHEN application_status = 'accepted' THEN application_id END),
-        COUNT(DISTINCT application_id)) * 100, 2)                                                         AS pct_accepted,
+        COUNT(DISTINCT application_id)), 2) AS pct_accepted,
     ROUND(SAFE_DIVIDE(
         COUNT(DISTINCT CASE WHEN application_status = 'rejected' THEN application_id END),
-        COUNT(DISTINCT application_id)) * 100, 2)                                                         AS pct_rejected,
+        COUNT(DISTINCT application_id)), 2) AS pct_rejected,
 
-    -- Pivot table 1 — eligible, pending or accepted
-    COUNT(DISTINCT CASE WHEN flag_eligible_pending_or_accepted = TRUE THEN application_id END)            AS applications_eligible_pending_or_accepted,
-
-    -- Pivot table 2 — accepted onto funded place
-    COUNT(DISTINCT CASE WHEN flag_accepted_funded = TRUE THEN application_id END)                         AS applications_accepted_funded,
-
-    -- Pivot table 3 — started declaration paid
-    COUNT(DISTINCT CASE WHEN flag_started_declaration_paid = TRUE THEN application_id END)                AS applications_started_declaration_paid
+    COUNT(DISTINCT CASE WHEN flag_eligible_pending_or_accepted = TRUE THEN application_id END) AS applications_eligible_pending_or_accepted,
+    COUNT(DISTINCT CASE WHEN flag_accepted_funded = TRUE THEN application_id END) AS applications_accepted_funded,
+    COUNT(DISTINCT CASE WHEN flag_started_declaration_paid = TRUE THEN application_id END) AS applications_started_declaration_paid
 
 FROM ${ref('tte_contract_management_2026_flat')}
 GROUP BY lead_provider_name, course_name
