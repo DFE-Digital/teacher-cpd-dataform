@@ -73,6 +73,7 @@ WITH base_training_periods AS (
   SELECT 
     tp.id AS training_period_id,
     tp.school_partnership_id,
+    p.school_partnership_external_id,
     tp.expression_of_interest_id,
     tp.ect_at_school_period_id,
     tp.mentor_at_school_period_id,
