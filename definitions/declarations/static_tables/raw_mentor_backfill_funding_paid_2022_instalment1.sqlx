@@ -1,0 +1,5 @@
+config {
+    type: "declaration",
+    schema: "static_tables",
+    name: "raw_mentor_backfill_funding_paid_2022_instalment1"
+}
