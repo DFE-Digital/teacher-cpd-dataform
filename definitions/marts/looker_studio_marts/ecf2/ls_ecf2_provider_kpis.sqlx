@@ -169,6 +169,7 @@ engagement_declarations AS (
     teacher_id,
     participant_type,
     declaration_id,
+    declaration_external_id,
     declaration_type,
     declaration_state
   FROM ${ref("ecf2_declarations_latest")}
@@ -181,31 +182,32 @@ engagement_declarations AS (
 participant_declarations AS (
   SELECT
     dec.teacher_id,
+    dec.teacher_external_id AS teacher_api_id,
     dec.participant_type,
     CASE WHEN dec.declaration_type = 'completed' THEN TRUE ELSE FALSE END AS is_one_term_induction,
     -- boolean flags to check if participant has certain declarations
-    CASE WHEN dec.declaration_id IS NOT NULL AND dec.declaration_type = 'started' THEN TRUE ELSE FALSE END AS has_started_declaration,
-    CASE WHEN r2_dec.declaration_id IS NOT NULL THEN TRUE ELSE FALSE END AS has_retained2_declaration,
-    CASE WHEN completed_dec.declaration_id IS NOT NULL THEN TRUE ELSE FALSE END AS has_completed_declaration,
+    CASE WHEN dec.declaration_external_id IS NOT NULL AND dec.declaration_type = 'started' THEN TRUE ELSE FALSE END AS has_started_declaration,
+    CASE WHEN r2_dec.declaration_external_id IS NOT NULL THEN TRUE ELSE FALSE END AS has_retained2_declaration,
+    CASE WHEN completed_dec.declaration_external_id IS NOT NULL THEN TRUE ELSE FALSE END AS has_completed_declaration,
     -- get relevant declarations
-    CASE WHEN dec.declaration_type = 'started' THEN dec.declaration_id END AS started_declaration_id,
+    CASE WHEN dec.declaration_type = 'started' THEN dec.declaration_external_id END AS started_declaration_id,
     CASE WHEN dec.declaration_type = 'started' THEN dec.declaration_state END AS started_declaration_state,
     -- retained-2 decs (year 1 engagement)
-    r2_dec.declaration_id AS retained2_declaration_id,
+    r2_dec.declaration_external_id AS retained2_declaration_id,
     r2_dec.declaration_state AS retained2_declaration_state,
     -- completed decs (year 2 engagement)
-    completed_dec.declaration_id AS completed_declaration_id,
+    completed_dec.declaration_external_id AS completed_declaration_id,
     completed_dec.declaration_state AS completed_declaration_state,
     
     -- standardize declarations to KPIs
-    dec.declaration_id AS recruitment_declaration_id,
+    dec.declaration_external_id AS recruitment_declaration_id,
     dec.declaration_state AS recruitment_declaration_state,
     CASE 
-      WHEN dec.participant_type = 'mentor' THEN completed_dec.declaration_id
-      WHEN dec.participant_type = 'ect' AND dec.schedule_identifier LIKE "%reduced%" AND r2_dec.declaration_id IS NULL THEN completed_dec.declaration_id
-      WHEN dec.participant_type = 'ect' AND dec.schedule_identifier LIKE "%reduced%" AND r2_dec.declaration_id IS NOT NULL THEN r2_dec.declaration_id
-      WHEN dec.declaration_type = 'completed' THEN completed_dec.declaration_id
-      ELSE r2_dec.declaration_id
+      WHEN dec.participant_type = 'mentor' THEN completed_dec.declaration_external_id
+      WHEN dec.participant_type = 'ect' AND dec.schedule_identifier LIKE "%reduced%" AND r2_dec.declaration_external_id IS NULL THEN completed_dec.declaration_external_id
+      WHEN dec.participant_type = 'ect' AND dec.schedule_identifier LIKE "%reduced%" AND r2_dec.declaration_external_id IS NOT NULL THEN r2_dec.declaration_external_id
+      WHEN dec.declaration_type = 'completed' THEN completed_dec.declaration_external_id
+      ELSE r2_dec.declaration_external_id
     END AS engagement_y1_declaration_id,
     CASE 
       WHEN dec.participant_type = 'mentor' THEN completed_dec.declaration_state
@@ -214,7 +216,7 @@ participant_declarations AS (
       ELSE r2_dec.declaration_state
     END AS engagement_y1_declaration_state,
     CASE 
-      WHEN dec.participant_type = 'ect' THEN completed_dec.declaration_id
+      WHEN dec.participant_type = 'ect' THEN completed_dec.declaration_external_id
     END AS engagement_y2_declaration_id,
     CASE 
       WHEN dec.participant_type = 'ect' THEN completed_dec.declaration_state
