@@ -40,7 +40,7 @@ SELECT
   declaration_type,
   DATE(declaration_created_at_date) AS declaration_created_at_date,
   declaration_date,
-  teacher_id,
+  teacher_external_id AS teacher_id,
   trn,
   declaration_state,
   lead_provider,
