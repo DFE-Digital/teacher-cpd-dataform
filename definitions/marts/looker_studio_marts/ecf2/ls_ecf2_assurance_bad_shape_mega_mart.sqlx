@@ -38,7 +38,7 @@ config {
 
 SELECT
   DISTINCT
-  decs.teacher_id,
+  decs.teacher_external_id AS teacher_id,
   decs.trn,
   decs.participant_type,
   decs.declaration_external_id as declaration_id,
