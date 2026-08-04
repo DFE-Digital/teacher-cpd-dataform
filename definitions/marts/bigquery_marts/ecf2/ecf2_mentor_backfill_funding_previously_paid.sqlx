@@ -3,7 +3,7 @@ config {
     tags: ["ecf2"],
     bigquery: {
         partitionBy: "declaration_date",
-        clusterBy: ["contract_year", "lead_provider"]
+        clusterBy: ["contract_period_year", "lead_provider"]
     },
 
     description: "A consolidated table of the static mentor backfill tables. Contains a row per declaration that was previously paid",
@@ -26,7 +26,7 @@ config {
         delivery_partner_id: "The ID of the delivery partner",
         delivery_partner: "The name of the delivery partner",
         payment_period: "String identifier for which raw Excel file the data was sourced from",
-        contract_year: "The contract / cohort inferred from the payment period / Excel file name",
+        payment_year: "The contract / cohort inferred from the payment period / Excel file name",
         funded_hours: "Integer value of the number of hourses funded as per the conditions of grant for that contract year.",
         clawedback: "True/False if a payment was clawedback. Only applies to the 2023 payments where a separate Excel was provided to identify clawbacks."
     }
