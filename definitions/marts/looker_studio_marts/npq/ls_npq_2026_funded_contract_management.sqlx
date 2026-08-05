@@ -25,15 +25,15 @@ config {
         total_funding_envelope_by_acceptances: "The total allocation for those who have accepted, calculated using price per participant",
         total_funding_envelope_by_starts: "The total allocation for those who have started, calculated using price per participant",
         estimated_amount_of_funding_allocation_used_by_acceptances: "The sum allocation estimated to be used by those who have accepted",
-        estimated_amount_of_funding_allocation_used_by_starts: "The sum allocation estimated to be used by those who have started"
-
+        estimated_amount_of_funding_allocation_used_by_starts: "The sum allocation estimated to be used by those who have started",
+        applications_accepted_eligible_not_funded: "Number of unfunded applications that were eligible to receive DfE funding"
     }
 }
 
 
 
 WITH base_data as (
-SELECT enrolments.provider_name, enrolments.short_course_name, enrolments.application_id, enrolments.application_status, enrolments.dfe_expected_funding_flag, enrolments.dfe_has_funded_flag, lp_npq_details.price_per_participant, lp_npq_details.total_provider_allocation, lp_npq_details.funded_start_percentage, lp_npq_details.funded_completed_percentage
+SELECT enrolments.provider_name, enrolments.short_course_name, enrolments.application_id, enrolments.application_status, enrolments.dfe_expected_funding_flag, enrolments.dfe_has_funded_flag, enrolments.funded_place, lp_npq_details.price_per_participant, lp_npq_details.total_provider_allocation, lp_npq_details.funded_start_percentage, lp_npq_details.funded_completed_percentage
 FROM ${ref('npq_enrolments_simplified')} as enrolments
 LEFT JOIN ${ref('npq_2026_funded_conversion_rates')} as lp_npq_details
 ON enrolments.provider_name = lp_npq_details.provider_long_name AND enrolments.short_course_name=lp_npq_details.short_course_name
@@ -54,7 +54,7 @@ metrics as (
     COUNTIF(dfe_expected_funding_flag and application_status = 'accepted') as funded_accepted_count,
     COUNTIF(dfe_expected_funding_flag and application_status = 'pending') as funded_pending_count,
     COUNTIF(dfe_expected_funding_flag and application_status = 'rejected') as funded_rejected_count,
-    COUNTIF(dfe_expected_funding_flag and application_status = 'accepted' AND dfe_has_funded_flag = FALSE) AS applications_accepted_eligible_not_funded,
+    COUNTIF(dfe_expected_funding_flag AND application_status = 'accepted' AND NOT funded_place) AS applications_accepted_eligible_not_funded,     
     COUNTIF(dfe_has_funded_flag) as funded_start_count,
     MAX(total_provider_allocation) as total_provider_allocation,
     price_per_participant,
