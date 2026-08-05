@@ -61,6 +61,7 @@ config {
         latest_outcome_date: "The date the most recent outocme was received",
         establishment_group_type: "Establishment Group type from GIAS and OFSTED",
         establishment_type: "Establishment type from GIAS and OFSTED",
+        funded_place: "This indicates if the accepted NPQ application is being funded by the DfE as one of the capped funded places. Being eligible for funding does not guarantee the application will be funded."
     }
 }
 
@@ -156,7 +157,7 @@ SELECT
   -- dfe funded
   IF(funding_eligiblity_status_code = 'funded' OR eligible_for_funding, true, false) as dfe_expected_funding_flag,
   IF(funded_start_declaration OR funded_retained1_declaration OR funded_retained2_declaration OR funded_completed_declaration, true, false) AS dfe_has_funded_flag,
- 
+  funded_place,
  
   -- Funding method
   funding_choice as non_dfe_funding_method,
