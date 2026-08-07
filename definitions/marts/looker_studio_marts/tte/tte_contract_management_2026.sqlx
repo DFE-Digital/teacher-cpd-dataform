@@ -24,7 +24,8 @@ config {
         pct_rejected: "Proportion of applications that are rejected.",
         applications_eligible_pending_or_accepted: "Number of applications eligible for DfE funding that are pending or accepted.",
         applications_accepted_funded: "Number of applications accepted onto a funded place.",
-        applications_started_declaration_paid: "Number of applications with a started declaration that has been submitted, is eligible, payable, or paid on a funded place."
+        applications_started_declaration_paid: "Number of applications with a started declaration that has been submitted, is eligible, payable, or paid on a funded place.",
+        applications_accepted_eligible_not_funded: "Number of applications that are eligible for DfE funding but accepted onto a non-funded place.",
     }
 }
 
@@ -36,6 +37,7 @@ SELECT
     COUNT(DISTINCT CASE WHEN eligible_for_funding = TRUE THEN application_id END) AS applications_eligible_for_funding,
     COUNT(DISTINCT CASE WHEN eligible_for_funding = FALSE THEN application_id END) AS applications_not_eligible_for_funding,
     COUNT(DISTINCT CASE WHEN funded_place = FALSE OR funded_place IS NULL THEN application_id END) AS total_unfunded_applications,
+    COUNT(DISTINCT CASE WHEN application_status = 'accepted' AND eligible_for_funding = TRUE AND funded_place = FALSE THEN application_id END) AS applications_accepted_eligible_not_funded,
 
     COUNT(DISTINCT CASE WHEN application_status = 'pending' AND eligible_for_funding = TRUE THEN application_id END) AS applications_pending,
     COUNT(DISTINCT CASE WHEN application_status = 'accepted' AND eligible_for_funding = TRUE THEN application_id END) AS applications_accepted,
