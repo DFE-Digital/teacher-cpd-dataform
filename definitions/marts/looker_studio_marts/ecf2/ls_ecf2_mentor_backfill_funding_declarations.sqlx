@@ -1,0 +1,281 @@
+config {
+    type: "table",
+    tags: ['ecf2'],
+    bigquery: {
+        partitionBy: "declaration_date",
+        clusterBy: ["payment_year"]
+    },
+    description: "This table consolidates all declarations for the 2026 Mentor Backfill Grant Funding payment year. ",
+    columns: {
+        payment_year: "The year of the payment window",
+        teacher_id: 'Id of the teacher from the ecf2 service',
+        teacher_external_id: 'The api id of the teacher - the id that is exposed to users of the service',
+        trn: {
+            description: 'Hidden field, trn of the teacher.',
+            bigqueryPolicyTags: ["projects/ecf-bq/locations/europe-west2/taxonomies/6302091323314055162/policyTags/301313311867345339"]
+        },
+        participant_type: "Mentor or ECT - must only be mentors in this table",
+        schedule_identifier: "The schedule of the mentor given the declaration",
+        declaration_id: "The id of the declaration in the ecf2 service",
+        declaration_external_id: "The api id of the declaration - the id that is exposed to users of the service",
+        declaration_type: "The type of declaration",
+        declaration_created_at_date: "The date the declaration was created in the service",
+        declaration_date: "The date of the evidence the declaration",
+        declaration_state: "The state of the declaration",
+        contract_period_year: "The contract year for the given declaration",
+        school_id: "The school id in the ecf2 service for which the declaration is for",
+        school_urn: "The school urn for which the declaration is for",
+        school_name: "Name of the school",
+        lead_provider_id: "Id of the lead provider in the ecf2 service",
+        lead_provider: "Name of the lead provider for the declaration",
+        delivery_partner_external_id: "The id of the delivery partner in the ecf2 service",
+        delivery_partner: "The name of the delivery partner for this declaration",
+        has_ecf_and_ectp_decs: "True/False check if the mentor has declarations in the payment year across multiple contracts - should always be false",
+        funded_hours: "The raw number of hours the declaration would attract given the rules - not adjusted for eligibility yet.",
+        funded_hours_2022: "The total hours funded in 2022 if any",
+        funded_hours_2023_a: "The total hours funded in 2023 - installment 1 if any",
+        funded_hours_2023_b: "The total hours funded in 2023 - installment 2 if any",
+        funded_hours_2024: "The total hours funded in 2024 if any",
+        funded_hours_2025: "The total hours funded in 2025 if any",
+        has_previously_paid_dec: "True/False if this teacher had this declaration type in the service already",
+        previously_paid_dec_state: "The state of the declaration in the service if the mentor already had this type of declaration. Should be Null or clawback otherwise there should not be the same declaration type again for this teacher",
+        eligible_funded_hours: "The number of hours that the declaration is eligible for funding - can be zero.",
+        zero_rated_reason: "The reason why if applicable the eligible funded hours was set to zero"
+
+    }
+}
+
+
+WITH previously_paid AS (
+  SELECT 
+    *
+  FROM ${ref(`ecf2_mentor_backfill_funding_previously_paid`)}
+),
+
+previously_paid_grouped AS (
+  -- get the total hours funded for each mentor per payment year
+  SELECT 
+    teacher_id,
+    payment_period,
+    SUM(funded_hours) AS funded_hours
+  FROM previously_paid
+  GROUP BY
+    teacher_id,
+    payment_period
+),
+
+
+base_declarations AS (
+  SELECT 
+    teacher_id,
+    teacher_external_id,
+    trn,
+    participant_type,
+    schedule_identifier,
+    declaration_id,
+    declaration_external_id,
+    declaration_type,
+    declaration_created_at_date,
+    declaration_date,
+    declaration_state,
+    -- statement_contract_period_year,
+    contract_period_year,
+    school_id,
+    school_urn,
+    school_name,
+    lead_provider_id,
+    lead_provider,
+    delivery_partner_external_id,
+    delivery_partner,
+  --   CASE declaration_type
+  --     WHEN 'completed' THEN 12
+  --     WHEN 'extended-6' THEN 11
+  --     WHEN 'extended-5' THEN 10
+  --     WHEN 'extended-4' THEN 9
+  --     WHEN 'extended-3' THEN 8
+  --     WHEN 'extended-2' THEN 7
+  --     WHEN 'extended-1' THEN 6
+  --     WHEN 'retained-4' THEN 5
+  --     WHEN 'retained-3' THEN 4
+  --     WHEN 'retained-2' THEN 3
+  --     WHEN 'retained-1' THEN 2
+  --     WHEN 'started' THEN 1
+  --     ELSE 0
+  -- END AS declaration_hierarchy
+  FROM ${ref(`ecf2_declarations_latest`)}
+  WHERE 
+    funded_declaration
+    AND participant_type = 'mentor'
+),
+
+
+declaration_expanded AS (
+  -- Get the declarations for the current payment year
+  -- Declaration_date is within 1/9/2025-31/8/2026 
+  -- Declaration state = eligible/payable/paid 
+  SELECT 
+    base.*,
+    CASE 
+      WHEN base.declaration_date >= "2025-09-01" AND base.declaration_date <= "2026-08-31" THEN 2026
+      ELSE NULL 
+    END AS payment_year,
+    CASE 
+      WHEN base.contract_period_year >= 2025 AND base.declaration_type = 'started' THEN 4
+      WHEN base.contract_period_year >= 2025 AND base.declaration_type = 'completed' THEN 16
+      WHEN base.contract_period_year <= 2024 AND base.declaration_type IN (
+        'started',
+        'retained-1',
+        'retained-2',
+        'retained-3',
+        'retained-4',
+        'completed'
+      ) THEN 6
+      ELSE 0
+    END AS funded_hours,
+    prev_paid_2022.funded_hours AS funded_hours_2022,
+    prev_paid_2023_a.funded_hours AS funded_hours_2023_a,
+    prev_paid_2023_b.funded_hours AS funded_hours_2023_b,
+    prev_paid_2024.funded_hours AS funded_hours_2024,
+    prev_paid_2025.funded_hours AS funded_hours_2025,
+    CASE WHEN prev_paid_dec.declaration_id IS NOT NULL THEN TRUE ELSE FALSE END AS has_previously_paid_dec,
+    -- CASE WHEN prev_paid_dec.declaration_state LIKE '%claw%' THEN TRUE ELSE FALSE END AS previously_paid_dec_clawback,
+    prev_paid_dec.declaration_state AS previously_paid_dec_state,
+    CASE WHEN 
+      prev_paid_2022.funded_hours IS NOT NULL OR
+      prev_paid_2023_a.funded_hours IS NOT NULL OR
+      prev_paid_2023_b.funded_hours IS NOT NULL OR
+      prev_paid_2024.funded_hours IS NOT NULL OR
+      prev_paid_2025.funded_hours IS NOT NULL
+      THEN TRUE ELSE FALSE
+    END AS has_funded_hours,
+
+
+  FROM base_declarations base
+  -- join previously paid per year - 2022
+  LEFT JOIN previously_paid_grouped prev_paid_2022
+    ON base.teacher_id = prev_paid_2022.teacher_id
+    AND prev_paid_2022.payment_period = 'Instalment 1 - 2022'
+  -- 2023 - installement 1
+  LEFT JOIN previously_paid_grouped prev_paid_2023_a
+    ON base.teacher_id = prev_paid_2023_a.teacher_id
+    AND prev_paid_2023_a.payment_period = 'Instalment 1 - 2023'
+  -- 2023 - installement 2
+  LEFT JOIN previously_paid_grouped prev_paid_2023_b
+    ON base.teacher_id = prev_paid_2023_b.teacher_id
+    AND prev_paid_2023_b.payment_period = 'Instalment 2 - 2023'
+  -- 2024
+  LEFT JOIN previously_paid_grouped prev_paid_2024
+    ON base.teacher_id = prev_paid_2024.teacher_id
+    AND prev_paid_2024.payment_period = '2024'
+  -- 2025
+  LEFT JOIN previously_paid_grouped prev_paid_2025
+    ON base.teacher_id = prev_paid_2025.teacher_id
+    AND prev_paid_2025.payment_period = '2025'
+  -- funded declaration type already
+  LEFT JOIN previously_paid prev_paid_dec
+    ON base.teacher_id = prev_paid_dec.teacher_id
+    AND base.declaration_type = prev_paid_dec.declaration_type
+    AND prev_paid_dec.payment_year >= 2024
+  
+  WHERE
+    base.declaration_date >= "2025-09-01" 
+    AND base.declaration_date <= "2026-08-31"
+),
+
+
+validation_declarations_multiple_contracts AS (
+  SELECT
+    teacher_id, 
+    payment_year,
+    MAX(CASE WHEN contract_period_year >= 2025 THEN 1 ELSE 0 END) has_ectp_dec,
+    MAX(CASE WHEN contract_period_year < 2025 THEN 1 ELSE 0 END) has_ecf_dec
+  FROM declaration_expanded
+  GROUP BY 
+    teacher_id,
+    payment_year
+),
+
+
+funding_eligibilities AS (
+  SELECT 
+    declaration_expanded.*,
+    CASE WHEN v1.has_ectp_dec + v1.has_ecf_dec >= 2 THEN TRUE ELSE FALSE END AS has_ecf_and_ectp_decs,
+    CASE 
+      -- if dec already received funding then 0
+      WHEN has_previously_paid_dec THEN 0  
+      -- contract 25 onwards, check any prior funding, if so, zero rated
+      WHEN contract_period_year >= 2025 AND has_funded_hours 
+      THEN 0 
+      -- contract 24 and before (started / retained-1 / retained-2)
+      WHEN contract_period_year < 2025 
+        AND declaration_type IN ('started', 'retained-1', 'retained-2') 
+        AND (funded_hours_2022 > 0 OR funded_hours_2023_a > 0)
+      THEN 0
+      -- contract 24 and before (retained-3 / retained-4, completed)
+      WHEN contract_period_year < 2025 
+        AND declaration_type IN ('completed', 'retained-3', 'retained-4') 
+        AND funded_hours_2023_b > 0
+      THEN 0
+      -- Otherwise, no prior funding, eligbile
+      ELSE funded_hours 
+    END AS eligible_funded_hours,
+
+    CASE 
+      -- declaration_type already received funding
+      WHEN has_previously_paid_dec THEN "Declaration type already attracted funding in 2024 or 2025" 
+      -- contract 25, any prior funded hours
+      WHEN contract_period_year >= 2025 AND has_funded_hours 
+      THEN "Attracted funding for any previous year" 
+      -- contract 24 and before, started, retained1/2 funding
+      WHEN contract_period_year < 2025 
+        AND declaration_type IN ('started', 'retained-1', 'retained-2') 
+        AND (funded_hours_2022 > 0 OR funded_hours_2023_a > 0)
+      THEN "Attracted funding in 2022 or 2023"
+      -- contract 24 and before (retained-3 / retained-4, completed
+      WHEN contract_period_year < 2025 
+        AND declaration_type IN ('completed', 'retained-3', 'retained-4') 
+        AND funded_hours_2023_b > 0
+      THEN "Attracted funding 2023"
+      -- Otherwise no reason / eligbile for funding
+      ELSE "" 
+    END AS zero_rated_reason
+
+  FROM declaration_expanded
+  -- Check if teacher has declarations across ECF and ECTP
+  LEFT JOIN validation_declarations_multiple_contracts v1
+    ON declaration_expanded.teacher_id = v1.teacher_id
+),
+
+
+too_many_funded_decs AS (
+  -- final check if teacher exceeds the maximum of 18 hours funded for contracts before 25
+  -- check has to be after performing all other checks as we only want to review the final set of eligible decs
+  SELECT 
+    teacher_id,
+    declaration_id,
+    SUM(eligible_funded_hours) OVER (
+      PARTITION BY teacher_id, payment_year
+      ORDER BY declaration_created_at_date
+      ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW
+    ) AS running_funded_hours
+  FROM funding_eligibilities
+  WHERE 
+    eligible_funded_hours > 0
+    AND contract_period_year < 2025
+)
+
+
+
+-- FINAL SELECT
+SELECT 
+  final.* EXCEPT(eligible_funded_hours, zero_rated_reason),
+  CASE WHEN tfd.running_funded_hours > 18 THEN 0 ELSE eligible_funded_hours END AS eligible_funded_hours,
+  CASE WHEN tfd.running_funded_hours > 18 THEN "Exceeds 18 hours of funding" ELSE zero_rated_reason END AS zero_rated_reason
+FROM funding_eligibilities final
+LEFT JOIN too_many_funded_decs tfd
+  ON final.teacher_id = tfd.teacher_id
+  AND final.declaration_id = tfd.declaration_id
+-- WHERE final.teacher_id = '118289'
+
+
+
