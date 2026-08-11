@@ -11,7 +11,9 @@ const tableNames = [
     "course_cohorts_latest",
     "cohorts_latest",
     "schedules_latest",
-    "course_cohort_providers_latest"
+    "course_cohort_providers_latest",
+    "session_details",
+    "events"
 ];
 
 tableNames.forEach(tableName => {
