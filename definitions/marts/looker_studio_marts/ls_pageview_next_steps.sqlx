@@ -375,7 +375,7 @@ js {
             }, ]
         },
         {
-            name: "Register for NPD",
+            name: "NPD - Register for NPD",
             application: "National Professional Development",
             funnelPaths: [
                 "/registration/start",
@@ -403,7 +403,7 @@ js {
             ]
         },
         {
-            name: "Change NPD Registration",
+            name: "NPD - Change NPD Registration",
             application: "National Professional Development",
             funnelPaths: [
                 "/registration/start/change",
@@ -430,7 +430,7 @@ js {
             ]
         },
         {
-            name: "Change Provider",
+            name: "NPD - Change Provider",
             application: "National Professional Development",
             funnelPaths: [
                 "/applications/:application_ecf_id/change-provider/start",
@@ -442,7 +442,7 @@ js {
             }]
         },
         {
-            name: "Register Interest",
+            name: "NPD - Register Interest",
             application: "National Professional Development",
             funnelPaths: [
                 "/registration-interest/sign-up",
