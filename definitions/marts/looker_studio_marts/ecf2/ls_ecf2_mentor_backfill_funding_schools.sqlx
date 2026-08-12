@@ -2,8 +2,7 @@ config {
   type: "table",
   tags: ["ecf2"],
   bigquery: {
-    partitionBy: "payment_year",
-    clusterBy: ["school_urn", "funding_model"]
+    clusterBy: ["payment_year", "funding_model"]
   },
   description: "School-level summary of Mentor Backfill Grant Funding declarations, split between ECF contracts before 2025 and ECTP contracts from 2025 onwards.",
   columns: {
