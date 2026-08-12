@@ -1,6 +1,6 @@
 config {
     type: "table",
-    tags: ["kpi", "ecf2"],
+    tags: ["kpi","ecf2"],
     assertions: {
         uniqueKey: ["date"]
     },
@@ -24,6 +24,8 @@ config {
     }
 }
 
+
+
 WITH
   registration_windows AS (
   SELECT
@@ -39,11 +41,14 @@ WITH
     DATE(EXTRACT(YEAR
       FROM
         registration_start_date) + 1, 8, 31) AS academic_year_end_date
-  FROM
-    ${ref(`cohorts_latest_ecf1`)} AS cohort
+  
+  FROM ${ref(`cohorts_latest_ecf1`)} AS cohort
   WHERE
-    DATE(registration_start_date) < CURRENT_DATE ),
-  registration_windows_with_metrics AS (
+    DATE(registration_start_date) < CURRENT_DATE
+),
+  
+
+registration_windows_with_metrics AS (
   SELECT
     registration_window_string,
     registration_window_year,
@@ -60,7 +65,10 @@ WITH
     ${ref(`ecf2_induction_periods`)},
     registration_windows
   GROUP BY
-    ALL ),
+    ALL
+),
+
+
 dates_with_metrics AS (
   SELECT
     date,
@@ -112,6 +120,8 @@ dates_with_metrics AS (
       OR (date >= registration_window_start_date
         AND registration_window_end_date IS NULL))
 )
+
+
 SELECT
   *,
   LEAD(date_is_in_registration_window_to_date_or_past_registration_window)
@@ -119,3 +129,4 @@ SELECT
     AS date_is_comparable_to_next_registration_window_to_date
 FROM
   dates_with_metrics
+

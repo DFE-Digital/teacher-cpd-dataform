@@ -1,6 +1,6 @@
 config {
     type: "table",
-    tags: ["kpi","ecf2"],
+    tags: ["kpi", "ecf2"],
     assertions: {
         uniqueKey: ["date"]
     },
@@ -24,6 +24,10 @@ config {
     }
 }
 
+-- NOTE: THIS TABLE WAS MIGRATED BUT NOT RENAMED TO AVOID ISSUES IN LOOKER
+
+
+
 WITH registration_windows AS (
   SELECT
     DATE(started_on) AS registration_window_start_date,
@@ -33,8 +37,7 @@ WITH registration_windows AS (
     ${functions.yearStartDateToAcademicYearString("DATE(started_on)")} AS registration_window_string,
     DATE(EXTRACT(YEAR FROM started_on), 9, 1) AS academic_year_start_date,
     DATE(EXTRACT(YEAR FROM started_on) + 1, 8, 31) AS academic_year_end_date
-  FROM
-    ${ref(`contract_periods_latest_ecf2`)}
+  FROM ${ref(`contract_periods_latest_ecf2`)}
   WHERE
     DATE(started_on) < CURRENT_DATE     
 ),
@@ -53,9 +56,7 @@ registration_windows_with_metrics AS (
       (DATE(started_on) <= registration_windows.academic_year_end_date
         AND (DATE(finished_on) >= registration_windows.academic_year_start_date
           OR finished_on IS NULL), trn, NULL)) AS number_of_live_ects_in_registration_window_ay
-  FROM
-    ${ref(`ecf2_induction_periods`)},
-    registration_windows
+  FROM ${ref(`ecf2_induction_periods`)}, registration_windows
   GROUP BY
     ALL
 ),
@@ -96,21 +97,16 @@ dates_with_metrics AS (
           AND CURRENT_DATE < DATE(EXTRACT(YEAR FROM CURRENT_DATE), 11, 1)
           THEN LAG(number_of_live_ects_in_registration_window_ay) OVER (PARTITION BY DATE_DIFF(date, registration_window_start_date, DAY) + 1 ORDER BY date ASC)
       ELSE registration_windows_with_metrics.number_of_live_ects_in_registration_window_ay
-  END
-    AS number_of_live_ects_baseline_estimate
+  END AS number_of_live_ects_baseline_estimate
   FROM
     UNNEST(GENERATE_DATE_ARRAY((
         SELECT
           MIN(registration_window_start_date)
         FROM
           registration_windows), CURRENT_DATE - 1)) AS date
-  LEFT JOIN
-    registration_windows_with_metrics
-  ON
-    ((date BETWEEN registration_window_start_date
-        AND registration_window_end_date)
-      OR (date >= registration_window_start_date
-        AND registration_window_end_date IS NULL))
+  LEFT JOIN registration_windows_with_metrics
+    ON ((date BETWEEN registration_window_start_date AND registration_window_end_date)
+      OR (date >= registration_window_start_date AND registration_window_end_date IS NULL))
 )
 
 
@@ -120,5 +116,6 @@ SELECT
   LEAD(date_is_in_registration_window_to_date_or_past_registration_window)
     OVER (PARTITION BY registration_window_day ORDER BY registration_window_year ASC)
     AS date_is_comparable_to_next_registration_window_to_date
-FROM
-  dates_with_metrics
+FROM dates_with_metrics
+
+
