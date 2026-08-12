@@ -30,20 +30,23 @@ config {
     }
 }
 
-WITH
-  entity_field_updates AS (
+WITH entity_field_updates AS (
     SELECT
       "Manage Training for Early Career Teachers" AS application,
       *
-    FROM
-      ${ref(`ecf1_entity_field_updates`)}
+    FROM ${ref(`ecf1_entity_field_updates`)}
+    WHERE DATE(occurred_at) <= DATE("2026-04-27")
+    
     UNION ALL
+    
     SELECT
       "Register Early Career Teachers" AS application,
       *
-    FROM
-      ${ref(`ecf2_entity_field_updates`)}
+    FROM ${ref(`ecf2_entity_field_updates`)}
+    WHERE DATE(occurred_at) >= DATE("2026-04-28")
   ),
+
+
   correction AS ( (
   /* Group updates for different fields which happened as part of the same update together so we don't double count them and can see the combinations of fields that get updated together */
     SELECT
@@ -58,18 +61,16 @@ WITH
       ARRAY_AGG(key_updated
       ORDER BY
         key_updated ASC) AS fields_updated
-    FROM
-      entity_field_updates
-    LEFT JOIN
-      UNNEST(new_data) AS DATA
-    ON
-      data.key = "type"
+    FROM entity_field_updates
+    LEFT JOIN UNNEST(new_data) AS DATA
+      ON data.key = "type"
     WHERE
       DATE(occurred_at) > event_date_checkpoint
       AND DATE(occurred_at) < CURRENT_DATE
       AND (request_path LIKE "/admin%"
         OR LOWER(request_user_agent) IS NULL
-        OR (entity_table_name = "participant_declarations"
+        -- ECF1 and ECF2 tables
+        OR (entity_table_name IN ("participant_declarations", "declarations")
           AND key_updated = "state"
           AND new_value IN ("awaiting_clawback", "voided")
           AND NOT ("ParticipantDeclaration::NPQ" IN UNNEST(data.value))))
@@ -87,7 +88,7 @@ WITH
       AND NOT (entity_table_name = "induction_periods" AND key_updated IN ("number_of_terms", "finished_on", "outcome"))
       AND NOT key_updated IN ("created_at", "updated_at")
       /* Exclude state transitions that are expected, so we only include state transitions between states that should not be allowed and so must have been done manually */
-      AND NOT (entity_table_name IN ("participant_declarations", "statement_line_items") AND key_updated = "state" AND (
+      AND NOT (entity_table_name IN ("participant_declarations", "declarations", "statement_line_items") AND key_updated = "state" AND (
         (previous_value = "submitted" AND new_value = "eligible")
         OR (previous_value = "submitted" AND new_value = "ineligible")
         OR (previous_value = "eligible" AND new_value = "payable")
@@ -95,32 +96,36 @@ WITH
         OR (previous_value = "awaiting_clawback" AND new_value = "clawed_back")
       ))
     GROUP BY
-      ALL)),
-  correction_metrics AS (
+      ALL)
+),
+
+
+correction_metrics AS (
   SELECT
     DATE(occurred_at) AS date,
     application,
     entity_table_name,
     ARRAY_TO_STRING(fields_updated, " and ") AS fields_updated,
     CASE
-      WHEN entity_table_name = "participant_declarations" AND "state" IN UNNEST(fields_updated) AND new_value = "awaiting_clawback" THEN "Clawed back declaration"
-      WHEN entity_table_name = "participant_declarations"
-    AND "state" IN UNNEST(fields_updated)
-    AND new_value = "voided" THEN "Voided declaration"
+      WHEN entity_table_name IN ("participant_declarations", "declarations") AND "state" IN UNNEST(fields_updated) AND new_value = "awaiting_clawback" THEN "Clawed back declaration"
+      WHEN entity_table_name IN ("participant_declarations", "declarations")
+        AND "state" IN UNNEST(fields_updated)
+        AND new_value = "voided" THEN "Voided declaration"
       WHEN request_path LIKE "/admin%" THEN IF((previous_value = "" OR previous_value IS NULL) AND new_value IS NOT NULL AND new_value != "", "Update from blank/null", "Update to existing value") || " via admin console"
       WHEN LOWER(request_user_agent) IS NULL THEN IF((previous_value = "" OR previous_value IS NULL) AND new_value IS NOT NULL AND new_value != "", "Update from blank/null", "Update to existing value") || " - likely manual database change by a developer"
       ELSE "Unknown"
-  END
-    AS correction_type,
+    END AS correction_type,
     COUNT(*) AS number_of_corrections
-  FROM
-    correction
+  FROM correction
   GROUP BY
     date,
     application,
     correction_type,
     entity_table_name,
-    fields_updated )
+    fields_updated
+)
+
+
 SELECT
   dates.date,
   application,
@@ -139,12 +144,9 @@ IF
   (registration_window_year >= 2024, date_is_comparable_to_next_registration_window_to_date, FALSE) AS date_is_comparable_to_next_registration_window_to_date,
   number_of_live_ects_baseline_estimate,
   IFNULL(number_of_corrections, 0) AS number_of_corrections
-FROM
-  ${ref("ls_ecf_kpi_live_participants_baseline_cube")} AS dates
-LEFT JOIN
-  correction_metrics
-ON
-  dates.date = correction_metrics.date
+FROM ${ref("ls_ecf_kpi_live_participants_baseline_cube")} AS dates
+LEFT JOIN correction_metrics
+  ON dates.date = correction_metrics.date
 WHERE
   dates.date > event_date_checkpoint
   AND dates.date < CURRENT_DATE

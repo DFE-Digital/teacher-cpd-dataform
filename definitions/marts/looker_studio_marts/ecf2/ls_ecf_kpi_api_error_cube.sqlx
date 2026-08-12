@@ -26,20 +26,44 @@ config {
     }
 }
 
-WITH
-  api_error_metrics AS (
-    SELECT
-      DATE(occurred_at) AS date,
-      status_code,
-      lp_name AS lead_provider,
-      COUNT(*) AS number_of_api_errors
-    FROM
-      ${ref("ls_ecf_api_monitoring")}
-    WHERE status_code >= 400 AND api_environment = "Manage Training - Production"
+WITH api_errors AS (
+  SELECT
+    occurred_at,
+    status_code,
+    lp_name AS lead_provider
+  FROM
+    ${ref("ls_ecf_api_monitoring")}
+  WHERE
+    status_code >= 400
+    AND api_environment = "Manage Training - Production"
+    AND DATE(occurred_at) <= DATE("2026-04-27")
     AND DATE(occurred_at) < CURRENT_DATE
-    GROUP BY
-      ALL
-  )
+
+  UNION ALL
+
+  SELECT
+    occurred_at,
+    status_code,
+    lp_name AS lead_provider
+  FROM
+    ${ref("ls_ecf_api_monitoring")}
+  WHERE
+    status_code >= 400
+    AND api_environment = "Register Early Career Teachers - Production"
+    AND DATE(occurred_at) >= DATE("2026-04-28")
+    AND DATE(occurred_at) < CURRENT_DATE
+),
+
+api_error_metrics AS (
+  SELECT
+    DATE(occurred_at) AS date,
+    status_code,
+    lead_provider,
+    COUNT(*) AS number_of_api_errors
+  FROM api_errors
+  GROUP BY ALL
+)
+
 SELECT
   dates.date,
   status_code,
@@ -57,10 +81,8 @@ SELECT
   IFNULL(number_of_api_errors, 0) AS number_of_api_errors
 FROM
   ${ref("ls_ecf_kpi_live_participants_baseline_cube")} AS dates
-LEFT JOIN
-  api_error_metrics
-ON
-  dates.date = api_error_metrics.date
+LEFT JOIN api_error_metrics
+  ON dates.date = api_error_metrics.date
 WHERE
   dates.date > event_date_checkpoint
   AND dates.date < CURRENT_DATE
