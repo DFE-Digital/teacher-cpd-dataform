@@ -101,7 +101,8 @@ school_rollup AS (
     -- Historical ECF-specific zero-rating reasons
     COUNTIF(zero_rated_reason = "Attracted funding in 2022 or 2023") AS declaration_funded_2022,
     COUNTIF(zero_rated_reason = "Attracted funding 2023") AS declaration_funded_2023,
-    ROUND(SUM(estimated_funding_amount),2) AS estimated_funded_amount
+    -- funding amount
+    ROUND(SUM(CASE WHEN eligible_funded_hours = 0 THEN 0 ELSE estimated_funding_amount END),2) AS estimated_funded_amount
 
   FROM declarations
 
