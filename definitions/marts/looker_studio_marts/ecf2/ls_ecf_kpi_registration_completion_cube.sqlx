@@ -44,7 +44,9 @@ WITH pageviews AS (
     "events_ecf2" AS source,
     occurred_at,
     DATE(occurred_at) AS occurred_on,
-    request_user_id AS user_id,
+    -- request_user_id AS user_id,
+    -- rect no longer has reliable user_ids
+    COALESCE(request_user_id, anonymised_user_agent_and_ip) AS user_id,
     ${functions.contentGroupPath("request_path")} AS path
   FROM ${ref(`events_ecf2`)}
   WHERE
@@ -69,7 +71,7 @@ registration_journeys AS (
         /* Start of participant registration journey for a school which already has cohort set up. This is the page *after* the SIT is told what information we need from them. It asks them the name of the participant. */
         "/schools/[grouped]/participants/who/name",
         /* RECT */
-        "school/register-ect/what-you-will-need",
+        "/school/register-ect/what-you-will-need",
         "/school/ects/[grouped]/mentorship/new"
         ), occurred_at, NULL)) AS first_started_registration_journey_on_this_date_at,
     ARRAY_AGG(

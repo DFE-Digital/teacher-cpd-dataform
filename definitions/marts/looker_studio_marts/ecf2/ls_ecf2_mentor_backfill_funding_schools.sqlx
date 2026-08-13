@@ -52,6 +52,10 @@ WITH declarations AS (
     has_previously_paid_dec,
     eligible_funded_hours,
     zero_rated_reason,
+    CASE 
+      WHEN contract_period_year < 2025 THEN estimated_funding_amount * eligible_funded_hours
+      ELSE estimated_funding_amount
+    END AS estimated_funding_amount,
 
     -- Assign each declaration to its funding model
     CASE
@@ -96,7 +100,8 @@ school_rollup AS (
     COUNTIF(zero_rated_reason = "Extended Declarations") AS extended_declaration_count,
     -- Historical ECF-specific zero-rating reasons
     COUNTIF(zero_rated_reason = "Attracted funding in 2022 or 2023") AS declaration_funded_2022,
-    COUNTIF(zero_rated_reason = "Attracted funding 2023") AS declaration_funded_2023
+    COUNTIF(zero_rated_reason = "Attracted funding 2023") AS declaration_funded_2023,
+    ROUND(SUM(estimated_funding_amount),2) AS estimated_funded_amount
 
   FROM declarations
 

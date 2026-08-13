@@ -51,7 +51,24 @@ config {
 }
 
 
-WITH previously_paid AS (
+WITH funding_rates AS (
+
+  SELECT 'ecf' AS programme, 'Rest' AS region, 'Payment 20 hours (1 year of training)' AS payment_type, NULL as declaration_type, 721.68 / 20 AS amount
+  UNION ALL SELECT 'ecf', 'Inner London', 'Payment 20 hours (1 year of training)', NULL, 876.13 / 20
+  UNION ALL SELECT 'ecf', 'Outer London', 'Payment 20 hours (1 year of training)', NULL, 793.83 / 20
+  UNION ALL SELECT 'ecf', 'Fringe', 'Payment 20 hours (1 year of training)', NULL, 743.57 / 20
+  UNION ALL SELECT 'ectp', 'Rest', 'Pro rata - Start', 'started', 144.34
+  UNION ALL SELECT 'ectp', 'Inner London', 'Pro rata - Start', 'started', 175.33
+  UNION ALL SELECT 'ectp','Outer London', 'Pro rata - Start', 'started', 158.77
+  UNION ALL SELECT 'ectp','Fringe', 'Pro rata - Start', 'started', 148.71
+  UNION ALL SELECT 'ectp','Rest', 'Pro rata - Completed', 'completed', 577.34
+  UNION ALL SELECT 'ectp','Inner London', 'Pro rata - Completed', 'completed', 700.90
+  UNION ALL SELECT 'ectp','Outer London', 'Pro rata - Completed', 'completed', 835.06
+  UNION ALL SELECT 'ectp','Fringe', 'Pro rata - Completed', 'completed', 594.85
+),
+
+
+previously_paid AS (
   SELECT 
     *
   FROM ${ref(`ecf2_mentor_backfill_funding_previously_paid`)}
@@ -305,6 +322,7 @@ SELECT
   gias.PhaseOfEducation_name AS gias_phase_of_education,
   gias.EstablishmentStatus_name AS gias_establishment_status,
   gias.LA_name AS gias_local_authority,
+  bands.teacher_pay_band AS payment_region,
   final.lead_provider_id,
   final.lead_provider,
   final.delivery_partner_external_id,
@@ -324,7 +342,8 @@ SELECT
   -- final.zero_rated_reason
   CASE WHEN tfd.running_funded_hours > 18 THEN 0 ELSE eligible_funded_hours END AS eligible_funded_hours,
   CASE WHEN tfd.running_funded_hours > 18 THEN "Exceeds 18 hours of funding" ELSE zero_rated_reason END AS zero_rated_reason,
-  -- bands.teacher_pay_band,
+  -- multipliply hourly ecf rate by eligible funded hours in Looker/Data Studio
+  COALESCE(ecf_funding_rates.amount, ectp_funding_rates.amount) AS estimated_funding_amount
 
 FROM funding_eligibilities final
 -- check funding limits
@@ -335,7 +354,15 @@ LEFT JOIN too_many_funded_decs tfd
 LEFT JOIN ${ref('establishments')} AS gias
   ON CAST(gias.urn AS INT) = final.school_urn
 -- funding rates
--- LEFT JOIN ${ref('la_teacher_pay_band_grouping')} AS bands
---   ON bands.LA_code = CAST(gias.LA_code AS INT)
-
+LEFT JOIN ${ref('la_teacher_pay_band_grouping')} AS bands
+  ON bands.LA_code = CAST(gias.LA_code AS INT)
+LEFT JOIN funding_rates ecf_funding_rates
+  ON bands.teacher_pay_band = ecf_funding_rates.region
+  AND final.contract_period_year < 2025
+  AND ecf_funding_rates.programme = 'ecf'
+LEFT JOIN funding_rates ectp_funding_rates
+  ON bands.teacher_pay_band = ectp_funding_rates.region
+  AND final.contract_period_year >= 2025
+  AND ectp_funding_rates.programme = 'ectp'
+  AND ectp_funding_rates.declaration_type = final.declaration_type
 
