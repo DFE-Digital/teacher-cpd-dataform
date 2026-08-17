@@ -53,10 +53,10 @@ config {
 
 WITH funding_rates AS (
 
-  SELECT 'ecf' AS programme, 'Rest' AS region, 'Payment 20 hours (1 year of training)' AS payment_type, NULL as declaration_type, 721.68 / 20 AS amount
-  UNION ALL SELECT 'ecf', 'Inner London', 'Payment 20 hours (1 year of training)', NULL, 876.13 / 20
-  UNION ALL SELECT 'ecf', 'Outer London', 'Payment 20 hours (1 year of training)', NULL, 793.83 / 20
-  UNION ALL SELECT 'ecf', 'Fringe', 'Payment 20 hours (1 year of training)', NULL, 743.57 / 20
+  SELECT 'ecf' AS programme, 'Rest' AS region, 'Payment 36 hours' AS payment_type, NULL as declaration_type, 1713.86 / 36 AS amount
+  UNION ALL SELECT 'ecf', 'Inner London', 'Payment 36 hours', NULL, 2097.60 / 36
+  UNION ALL SELECT 'ecf', 'Outer London', 'Payment 36 hours', NULL, 1888.84 / 36
+  UNION ALL SELECT 'ecf', 'Fringe', 'Payment 36 hours', NULL, 1765.06 / 36
   UNION ALL SELECT 'ectp', 'Rest', 'Pro rata - Start', 'started', 144.34
   UNION ALL SELECT 'ectp', 'Inner London', 'Pro rata - Start', 'started', 175.33
   UNION ALL SELECT 'ectp','Outer London', 'Pro rata - Start', 'started', 158.77
@@ -322,6 +322,7 @@ SELECT
   gias.PhaseOfEducation_name AS gias_phase_of_education,
   gias.EstablishmentStatus_name AS gias_establishment_status,
   gias.LA_name AS gias_local_authority,
+  gias.Section41Approved_name AS section41,
   bands.teacher_pay_band AS payment_region,
   final.lead_provider_id,
   final.lead_provider,
