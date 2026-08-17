@@ -1,0 +1,116 @@
+config {
+  type: "table",
+  tags: ["ecf2"],
+  bigquery: {
+    clusterBy: ["payment_year", "funding_model"]
+  },
+  description: "School-level summary of Mentor Backfill Grant Funding declarations, split between ECF contracts before 2025 and ECTP contracts from 2025 onwards.",
+  columns: {
+    payment_year: "The year of the payment window",
+    school_urn: "School URN taken from the declaration",
+    funding_model: "The funding model: ECF for contract periods before 2025, ECTP for contract periods from 2025 onwards",
+    school_name: "Name of the school derived from the declaration",
+    gias_school_name: "Name of the school as it is defined in GIAS - should always match school name",
+    gias_establishment_type: "Establishment type taken from GIAS",
+    gias_phase_of_education: "Education phase taken from GIAS",
+    gias_establishment_status: "Status taken from GIAS, e.g. open / closed",
+    gias_local_authority: "Local authority taken from GIAS",
+
+    num_mentors: "Number of distinct mentors with declarations for this funding model in this school and payment year",
+    declaration_count: "Number of mentor declarations for this funding model in this school and payment year",
+
+    total_funded_hours: "Total raw funded hours assigned according to the rules per declaration type. This is before eligibility checks.",
+    total_eligible_funded_hours: "Total eligible funded hours after zero-rating. Use this column for funding calculations.",
+    funded_declaration_count: "Number of declarations with eligible funded hours greater than zero",
+
+    zero_rated_declaration_count: "Number of declarations that were zero-rated",
+    declarations_exceeding_18_hours: "Number of declarations zero-rated due to exceeding 18 hours of funding",
+    declarations_previously_paid: "Number of declarations zero-rated because the declaration type had already attracted funding",
+    extended_declaration_count: "Number of declarations zero-rated because they were an extended declaration type",
+    declaration_funded_2022: "Number of ECF declarations zero-rated because they attracted funding in 2022 or 2023 for started / retained-1 / retained-2",
+    declaration_funded_2023: "Number of ECF declarations zero-rated because they attracted funding in 2023 for retained-3 / retained-4 / completed"
+  }
+}
+
+WITH declarations AS (
+
+  SELECT
+    payment_year,
+    school_urn,
+    school_name,
+    gias_school_name,
+    gias_establishment_type,
+    gias_phase_of_education,
+    gias_establishment_status,
+    gias_local_authority,
+
+    teacher_id,
+    declaration_id,
+    declaration_type,
+    contract_period_year,
+    funded_hours,
+    has_previously_paid_dec,
+    eligible_funded_hours,
+    zero_rated_reason,
+    CASE 
+      WHEN contract_period_year < 2025 THEN estimated_funding_amount * eligible_funded_hours
+      ELSE estimated_funding_amount
+    END AS estimated_funding_amount,
+
+    -- Assign each declaration to its funding model
+    CASE
+      WHEN contract_period_year < 2025 THEN "ecf"
+      WHEN contract_period_year >= 2025 THEN "ectp"
+      ELSE NULL
+    END AS funding_model
+
+  FROM ${ref("ls_ecf2_mentor_backfill_funding_declarations")}
+
+  WHERE school_urn IS NOT NULL
+    AND contract_period_year IS NOT NULL
+),
+
+school_rollup AS (
+
+  SELECT
+    payment_year,
+    school_urn,
+    funding_model,
+
+    -- School information
+    ANY_VALUE(school_name) AS school_name,
+    ANY_VALUE(gias_school_name) AS gias_school_name,
+    ANY_VALUE(gias_establishment_type) AS gias_establishment_type,
+    ANY_VALUE(gias_phase_of_education) AS gias_phase_of_education,
+    ANY_VALUE(gias_establishment_status) AS gias_establishment_status,
+    ANY_VALUE(gias_local_authority) AS gias_local_authority,
+
+    -- Population
+    COUNT(DISTINCT teacher_id) AS num_mentors,
+    COUNT(DISTINCT declaration_id) AS declaration_count,
+
+    -- Funding
+    SUM(funded_hours) AS total_funded_hours,
+    SUM(eligible_funded_hours) AS total_eligible_funded_hours,
+    COUNTIF(eligible_funded_hours > 0) AS funded_declaration_count,
+    -- Zero-rated declarations
+    COUNTIF(eligible_funded_hours = 0) AS zero_rated_declaration_count,
+    COUNTIF(zero_rated_reason = "Exceeds 18 hours of funding") AS declarations_exceeding_18_hours,
+    COUNTIF(has_previously_paid_dec) AS declarations_previously_paid,
+    COUNTIF(zero_rated_reason = "Extended Declarations") AS extended_declaration_count,
+    -- Historical ECF-specific zero-rating reasons
+    COUNTIF(zero_rated_reason = "Attracted funding in 2022 or 2023") AS declaration_funded_2022,
+    COUNTIF(zero_rated_reason = "Attracted funding 2023") AS declaration_funded_2023,
+    -- funding amount
+    ROUND(SUM(CASE WHEN eligible_funded_hours = 0 THEN 0 ELSE estimated_funding_amount END),2) AS estimated_funded_amount
+
+  FROM declarations
+
+  GROUP BY
+    payment_year,
+    school_urn,
+    funding_model
+)
+
+SELECT *
+FROM school_rollup

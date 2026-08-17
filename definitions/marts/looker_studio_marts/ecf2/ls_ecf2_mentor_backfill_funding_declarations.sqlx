@@ -26,6 +26,11 @@ config {
         school_id: "The school id in the ecf2 service for which the declaration is for",
         school_urn: "The school urn for which the declaration is for",
         school_name: "Name of the school",
+        teacher_pay_band: "The band associated to the local_authority as provided by the Grant Funding Team.",
+        gias_school_name: "The school name currently in GIAS for the used_school_urn.",
+        gias_establishment_type: "The establishment type currently in GIAS for the used_school_urn.",
+        gias_phase_of_education: "The phase of education currently in GIAS for the used_school_urn.",
+        gias_establishment_status: "The establishment status currently in GIAS for the used_school_urn.",
         lead_provider_id: "Id of the lead provider in the ecf2 service",
         lead_provider: "Name of the lead provider for the declaration",
         delivery_partner_external_id: "The id of the delivery partner in the ecf2 service",
@@ -46,7 +51,24 @@ config {
 }
 
 
-WITH previously_paid AS (
+WITH funding_rates AS (
+
+  SELECT 'ecf' AS programme, 'Rest' AS region, 'Payment 20 hours (1 year of training)' AS payment_type, NULL as declaration_type, 721.68 / 20 AS amount
+  UNION ALL SELECT 'ecf', 'Inner London', 'Payment 20 hours (1 year of training)', NULL, 876.13 / 20
+  UNION ALL SELECT 'ecf', 'Outer London', 'Payment 20 hours (1 year of training)', NULL, 793.83 / 20
+  UNION ALL SELECT 'ecf', 'Fringe', 'Payment 20 hours (1 year of training)', NULL, 743.57 / 20
+  UNION ALL SELECT 'ectp', 'Rest', 'Pro rata - Start', 'started', 144.34
+  UNION ALL SELECT 'ectp', 'Inner London', 'Pro rata - Start', 'started', 175.33
+  UNION ALL SELECT 'ectp','Outer London', 'Pro rata - Start', 'started', 158.77
+  UNION ALL SELECT 'ectp','Fringe', 'Pro rata - Start', 'started', 148.71
+  UNION ALL SELECT 'ectp','Rest', 'Pro rata - Completed', 'completed', 577.34
+  UNION ALL SELECT 'ectp','Inner London', 'Pro rata - Completed', 'completed', 700.90
+  UNION ALL SELECT 'ectp','Outer London', 'Pro rata - Completed', 'completed', 835.06
+  UNION ALL SELECT 'ectp','Fringe', 'Pro rata - Completed', 'completed', 594.85
+),
+
+
+previously_paid AS (
   SELECT 
     *
   FROM ${ref(`ecf2_mentor_backfill_funding_previously_paid`)}
@@ -221,6 +243,15 @@ funding_eligibilities AS (
     END AS eligible_funded_hours,
 
     CASE 
+      -- extended declarations
+      WHEN declaration_type NOT IN (
+        'started',
+        'retained-1',
+        'retained-2',
+        'retained-3',
+        'retained-4',
+        'completed'
+      ) THEN "Extended Declarations"
       -- declaration_type already received funding
       WHEN has_previously_paid_dec THEN "Declaration type already attracted funding in 2024 or 2025" 
       -- contract 25, any prior funded hours
@@ -267,15 +298,71 @@ too_many_funded_decs AS (
 
 
 -- FINAL SELECT
+-- final checks and zero rated reason adjustments
+-- Add funding rate and gias school information
 SELECT 
-  final.* EXCEPT(eligible_funded_hours, zero_rated_reason),
+  -- final.* EXCEPT(eligible_funded_hours, zero_rated_reason),
+  final.teacher_id,
+  final.teacher_external_id,
+  final.trn,
+  final.participant_type,
+  final.schedule_identifier,
+  final.declaration_id,
+  final.declaration_external_id,
+  final.declaration_type,
+  final.declaration_created_at_date,
+  final.declaration_date,
+  final.declaration_state,
+  final.contract_period_year,
+  final.school_id,
+  final.school_urn,
+  final.school_name,
+  gias.EstablishmentName AS gias_school_name,
+  gias.TypeOfEstablishment_name AS gias_establishment_type,
+  gias.PhaseOfEducation_name AS gias_phase_of_education,
+  gias.EstablishmentStatus_name AS gias_establishment_status,
+  gias.LA_name AS gias_local_authority,
+  bands.teacher_pay_band AS payment_region,
+  final.lead_provider_id,
+  final.lead_provider,
+  final.delivery_partner_external_id,
+  final.delivery_partner,
+  final.payment_year,
+  final.funded_hours,
+  final.funded_hours_2022,
+  final.funded_hours_2023_a,
+  final.funded_hours_2023_b,
+  final.funded_hours_2024,
+  final.funded_hours_2025,
+  final.has_previously_paid_dec,
+  final.previously_paid_dec_state,
+  final.has_funded_hours,
+  final.has_ecf_and_ectp_decs,
+  -- final.eligible_funded_hours
+  -- final.zero_rated_reason
   CASE WHEN tfd.running_funded_hours > 18 THEN 0 ELSE eligible_funded_hours END AS eligible_funded_hours,
-  CASE WHEN tfd.running_funded_hours > 18 THEN "Exceeds 18 hours of funding" ELSE zero_rated_reason END AS zero_rated_reason
+  CASE WHEN tfd.running_funded_hours > 18 THEN "Exceeds 18 hours of funding" ELSE zero_rated_reason END AS zero_rated_reason,
+  -- multipliply hourly ecf rate by eligible funded hours in Looker/Data Studio
+  COALESCE(ecf_funding_rates.amount, ectp_funding_rates.amount) AS estimated_funding_amount
+
 FROM funding_eligibilities final
+-- check funding limits
 LEFT JOIN too_many_funded_decs tfd
   ON final.teacher_id = tfd.teacher_id
   AND final.declaration_id = tfd.declaration_id
--- WHERE final.teacher_id = '118289'
-
-
+-- add gias information
+LEFT JOIN ${ref('establishments')} AS gias
+  ON CAST(gias.urn AS INT) = final.school_urn
+-- funding rates
+LEFT JOIN ${ref('la_teacher_pay_band_grouping')} AS bands
+  ON bands.LA_code = CAST(gias.LA_code AS INT)
+LEFT JOIN funding_rates ecf_funding_rates
+  ON bands.teacher_pay_band = ecf_funding_rates.region
+  AND final.contract_period_year < 2025
+  AND ecf_funding_rates.programme = 'ecf'
+LEFT JOIN funding_rates ectp_funding_rates
+  ON bands.teacher_pay_band = ectp_funding_rates.region
+  AND final.contract_period_year >= 2025
+  AND ectp_funding_rates.programme = 'ectp'
+  AND ectp_funding_rates.declaration_type = final.declaration_type
 
