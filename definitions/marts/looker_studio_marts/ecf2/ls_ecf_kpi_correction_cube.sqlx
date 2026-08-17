@@ -75,11 +75,13 @@ WITH entity_field_updates AS (
           AND new_value IN ("awaiting_clawback", "voided")
           AND NOT ("ParticipantDeclaration::NPQ" IN UNNEST(data.value))))
       /* Exclude updates which are very likely to be automated activity, and so not manual developer data corrections */
-      AND entity_table_name NOT IN ("analytics_participants",
+      AND entity_table_name NOT IN (
+        "analytics_participants",
         "emails",
         "nomination_emails",
         "schools",
-        "pending_induction_submission_batches")
+        "pending_induction_submission_batches"
+      )
       AND NOT (entity_table_name = "induction_records" AND key_updated IN ("end_date", "induction_status"))
       AND NOT (entity_table_name = "participant_profiles" AND key_updated IN ("induction_completion_date", "induction_start_date", "schedule_id"))
       AND NOT (entity_table_name = "support_queries" AND key_updated IN ("zendesk_ticket_id"))
@@ -89,7 +91,7 @@ WITH entity_field_updates AS (
       AND NOT key_updated IN (
         "created_at",
         "updated_at",
-        "api_udpated_at",
+        "api_updated_at",
         "api_mentor_training_record_id",
         "api_ect_training_record_id",
         "api_transfer_updated_at"
