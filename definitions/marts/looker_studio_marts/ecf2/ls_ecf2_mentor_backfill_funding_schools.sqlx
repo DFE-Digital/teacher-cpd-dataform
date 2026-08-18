@@ -77,6 +77,7 @@ school_rollup AS (
     payment_year,
     school_urn,
     funding_model,
+    section41,
 
     -- School information
     ANY_VALUE(school_name) AS school_name,
@@ -110,7 +111,8 @@ school_rollup AS (
   GROUP BY
     payment_year,
     school_urn,
-    funding_model
+    funding_model,
+    section41
 )
 
 SELECT *
