@@ -1,0 +1,32 @@
+config {
+  type: "declaration",
+  schema: "static_tables",
+  name: "npq_2024_2025_characteristics",
+  columns: {
+    application_id: {
+      description: "Unique identifier for the NPQ application."
+    },
+    trn: {
+      description: "Teacher reference number. Used only as a join key to npq_enrolments_simplified. Hidden field.",
+      bigqueryPolicyTags: ["projects/ecf-bq/locations/europe-west2/taxonomies/6302091323314055162/policyTags/301313311867345339"]
+    },
+    sex: {
+      description: "Participant sex. Values: Female, Male, Unknown. Hidden field.",
+      bigqueryPolicyTags: ["projects/ecf-bq/locations/europe-west2/taxonomies/6302091323314055162/policyTags/301313311867345339"]
+    },
+    ethnicity: {
+      description: "Participant ethnicity. Values: White, Black or Black British, Asian or Asian British, Mixed/Multiple ethnic groups, Any Other ethnic group, Unknown. Hidden field.",
+      bigqueryPolicyTags: ["projects/ecf-bq/locations/europe-west2/taxonomies/6302091323314055162/policyTags/301313311867345339"]
+    },
+    age: {
+      description: "Participant age band. Values: Under 25, 25 to 29, 30 to 39, 40 to 49, 50 to 59, 60 and over, Age unclassified. Hidden field.",
+      bigqueryPolicyTags: ["projects/ecf-bq/locations/europe-west2/taxonomies/6302091323314055162/policyTags/301313311867345339"]
+    },
+    cohort_raw: {
+      description: "Cohort as originally recorded, e.g. 2025a."
+    },
+    cohort: {
+      description: "Cohort year only, e.g. 2025."
+    }
+  }
+}
