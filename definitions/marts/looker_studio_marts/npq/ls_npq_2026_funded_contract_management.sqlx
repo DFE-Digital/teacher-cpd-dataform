@@ -54,7 +54,7 @@ metrics as (
     COUNTIF(dfe_expected_funding_flag and application_status = 'accepted') as funded_accepted_count,
     COUNTIF(dfe_expected_funding_flag and application_status = 'pending') as funded_pending_count,
     COUNTIF(dfe_expected_funding_flag and application_status = 'rejected') as funded_rejected_count,
-    COUNTIF(dfe_expected_funding_flag AND application_status = 'accepted' AND NOT funded_place) AS applications_accepted_eligible_not_funded,     
+    COUNTIF(dfe_expected_funding_flag AND application_status = 'accepted' AND (funded_place IS NULL OR funded_place = FALSE)) AS applications_accepted_eligible_not_funded,     
     COUNTIF(dfe_has_funded_flag) as funded_start_count,
     MAX(total_provider_allocation) as total_provider_allocation,
     price_per_participant,
