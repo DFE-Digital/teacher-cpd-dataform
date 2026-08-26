@@ -80,17 +80,12 @@ WITH statement_contract_periods AS (
   SELECT
     DISTINCT st.id AS statement_id,
     st.contract_id,
-    active_lp.contract_period_year AS statement_contract_period_year
-  FROM
-    ${ref('statements_latest_ecf2')} AS st
-  LEFT JOIN
-    ${ref('contracts_latest_ecf2')} AS c
-  ON
-    st.contract_id = c.id
-  LEFT JOIN
-    ${ref('active_lead_providers_latest_ecf2')} AS active_lp
-  ON
-    c.active_lead_provider_id = active_lp.id
+    framework_agreements.contract_period_year AS statement_contract_period_year
+  FROM ${ref('statements_latest_ecf2')} AS st
+  LEFT JOIN ${ref('contracts_latest_ecf2')} AS c
+    ON st.contract_id = c.id
+  LEFT JOIN ${ref('framework_agreements_latest_ecf2')} AS framework_agreements
+    ON c.framework_agreement_id = framework_agreements.id
 )
 
 
