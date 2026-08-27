@@ -1,3 +1,8 @@
+-- NOTE: this file will need to be updated once declarations are confirmed (Jan 2027)
+-- declarations will be visible in declarations_latest_tte
+-- temporary fixes are labelled fix 1, 2, 3 throughout
+
+
 config {
     type: "table",
     tags: ["tte"],
@@ -27,14 +32,34 @@ latest_participant_outcome AS (
     GROUP BY declaration_id
 ),
 
-current_application_lead_provider AS (
+
+-- Temporary fix 1 - delete this block once declarations come through and uncomment current_application_lead_provider
+current_application_lead_provider_temp AS (
     SELECT
-        application_id,
-        lead_provider_id AS current_lead_provider_id,
-        assigned_at
-    FROM ${ref('application_lead_providers_latest_tte')}
-    WHERE `current` = true
+        MAX(CASE WHEN key = 'application_id' THEN value END) AS application_id,
+        MAX(CASE WHEN key = 'lead_provider_id' THEN value END) AS current_lead_provider_id,
+        MAX(CASE WHEN key = 'assigned_at' THEN value END) AS assigned_at
+    FROM (
+        SELECT d.key, d.value[OFFSET(0)] AS value, occurred_at
+        FROM ${ref('events_tte')}
+        CROSS JOIN UNNEST(data) AS d
+        WHERE entity_table_name = 'application_lead_providers'
+        AND ARRAY_LENGTH(d.value) > 0
+    )
+    GROUP BY occurred_at
+    HAVING MAX(CASE WHEN key = 'current' THEN value END) = 'true'
 )
+
+-- Temporary fix 1 - uncomment this CTE after deleting current_application_lead_provider_temp above
+-- current_application_lead_provider AS (
+--     SELECT
+--         application_id,
+--         lead_provider_id AS current_lead_provider_id,
+--         assigned_at
+--     FROM ${ref('application_lead_providers_latest_tte')}
+--     WHERE `current` = true
+-- )
+
 
 SELECT
     -- Application
@@ -143,13 +168,23 @@ SELECT
 
 FROM ${ref('applications_latest_tte')} app
 LEFT JOIN ${ref('declarations_latest_tte')} dec ON CAST(dec.application_id AS STRING) = CAST(app.id AS STRING)
-LEFT JOIN ${ref('lead_providers_latest_tte')} lp ON CAST(lp.id AS STRING) = CAST(dec.lead_provider_id AS STRING)
+
+-- Temporary fix 2 - delete this once declarations come through and uncomment the line below it
+LEFT JOIN ${ref('lead_providers_latest_tte')} lp ON CAST(lp.id AS STRING) = CAST(alp.current_lead_provider_id AS STRING)
+-- LEFT JOIN ${ref('lead_providers_latest_tte')} lp ON CAST(lp.id AS STRING) = CAST(dec.lead_provider_id AS STRING)
+
+
 LEFT JOIN ${ref('course_cohorts_latest_tte')} cc ON CAST(cc.id AS STRING) = CAST(app.course_cohort_id AS STRING)
 LEFT JOIN ${ref('courses_latest_tte')} c ON CAST(c.id AS STRING) = CAST(cc.course_id AS STRING)
 LEFT JOIN ${ref('cohorts_latest_tte')} coh ON CAST(coh.id AS STRING) = CAST(cc.cohort_id AS STRING)
 LEFT JOIN ${ref('schedules_latest_tte')} sch_t ON CAST(sch_t.id AS STRING) = CAST(cc.schedule_id AS STRING)
 LEFT JOIN ${ref('institutions_latest_tte')} inst ON CAST(inst.id AS STRING) = CAST(app.institution_id AS STRING)
 LEFT JOIN ${ref('schools_latest_tte')} sch ON sch.ukprn = app.ukprn
-LEFT JOIN current_application_lead_provider alp ON CAST(alp.application_id AS STRING) = CAST(app.id AS STRING)
+
+-- Temporary fix 3 - delete this once declarations come through and uncomment the line below it
+LEFT JOIN current_application_lead_provider_temp alp ON CAST(alp.application_id AS STRING) = CAST(app.id AS STRING)
+-- LEFT JOIN current_application_lead_provider alp ON CAST(alp.application_id AS STRING) = CAST(app.id AS STRING)
+
+
 LEFT JOIN latest_application_event ae ON CAST(ae.application_id AS STRING) = CAST(app.id AS STRING)
 LEFT JOIN latest_participant_outcome po ON CAST(po.declaration_id AS STRING) = CAST(dec.id AS STRING)
