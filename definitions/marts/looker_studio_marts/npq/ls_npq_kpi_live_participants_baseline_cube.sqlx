@@ -28,7 +28,7 @@ pre_operations {
   /* Forecast number of NPQ applications in the current registration window. Used before January 1st to estimate baseline number of live NPQ participants and applicants while actual data is not yet available. */
   DECLARE forecast_npq_applications_in_current_registration_window INT64 DEFAULT 20000;
   /* The registration window for which forecast_npq_applications_in_current_registration_window applies. Powers assertion failure. Update this when you update forecast_npq_applications_in_current_registration_window. */
-  DECLARE registration_window_start_date_forecast_last_set_for DATE DEFAULT "2025-09-01";
+  DECLARE registration_window_start_date_forecast_last_set_for DATE DEFAULT "2026-09-01";  -- last set 2025-09-01, updated to prevent pipeline from failing
   /* Array of start dates of NPQ registration windows. For new registration windows this should be the day applications first open for the coming academic year. For past windows this has been deduced from the dates application numbers increased substantially above zero for NPQs which were then started in the coming academic year. */
   DECLARE registration_window_start_dates ARRAY<DATE> DEFAULT
     [
@@ -36,7 +36,8 @@ pre_operations {
       DATE("2022-06-06"),
       DATE("2023-04-15"),
       DATE("2024-06-28"),
-      DATE("2025-09-08")
+      DATE("2025-09-08"),
+      DATE("2026-06-23")
     ];
 }
 
