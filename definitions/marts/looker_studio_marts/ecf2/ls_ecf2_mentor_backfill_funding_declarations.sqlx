@@ -86,6 +86,65 @@ previously_paid_grouped AS (
     payment_period
 ),
 
+manual_declarations AS (
+  -- from pre-assurance checks (does not include the Jul/Aug round yet)
+  SELECT
+    t.id AS teacher_id,
+    a.user_id AS teacher_external_id,
+    t.trn AS trn,
+    LOWER(a.participant_type) AS participant_type,
+    CAST(NULL AS STRING) AS schedule_identifier,
+    CONCAT('manual-dec-', CAST(ROW_NUMBER() OVER () AS STRING)) AS declaration_id,
+    CONCAT('manual-dec-', CAST(ROW_NUMBER() OVER () AS STRING)) AS declaration_external_id,
+    LOWER(REPLACE(declaration_type, ' ', '-')) AS declaration_type,
+    CASE 
+      WHEN milestone = 'Apr-26' THEN TIMESTAMP('2026-04-01') 
+      WHEN milestone = 'Jan-26' THEN TIMESTAMP('2026-01-01') 
+      WHEN milestone = 'Jul-26' THEN TIMESTAMP('2026-07-01')
+    END AS declaration_created_at_date,
+    a.declaration_date,
+    CASE 
+      WHEN a.pre_assurance_check_outcome = TRUE THEN 'paid'
+      ELSE NULL
+    END AS declaration_state,
+    CASE
+      WHEN SAFE_CAST(a.cohort AS INT64) >= 2000
+        THEN SAFE_CAST(a.cohort AS INT64)
+
+      WHEN SAFE_CAST(a.cohort AS INT64) BETWEEN 0 AND 99
+        THEN 2000 + SAFE_CAST(a.cohort AS INT64)
+
+      WHEN REGEXP_CONTAINS(a.cohort, r'(\d{4})$')
+        THEN CAST(REGEXP_EXTRACT(a.cohort, r'(\d{4})$') AS INT64)
+      ELSE NULL
+    END AS contract_period_year,
+    s.school_id,
+    a.school_urn,
+    s.school_name,
+    CASE 
+        WHEN LOWER(a.lead_provider) LIKE '%ucl%' THEN '1'
+        WHEN LOWER(a.lead_provider) LIKE '%capita%' THEN '2'
+        WHEN LOWER(a.lead_provider) LIKE '%national institute of teaching%' OR LOWER(lead_provider) LIKE '%niot%' THEN '3'
+        WHEN LOWER(a.lead_provider) LIKE '%teach first%' THEN '4'
+        WHEN LOWER(a.lead_provider) LIKE '%edt%' or LOWER(lead_provider) LIKE '%education development%' THEN '5'
+        WHEN LOWER(a.lead_provider) LIKE '%ambition%' THEN '6'
+        WHEN LOWER(a.lead_provider) LIKE '%best practice%' THEN '7'
+      END AS lead_provider_id,
+    a.lead_provider,
+    CAST(NULL AS STRING) AS delivery_partner_external_id,
+    CAST(NULL AS STRING) AS delivery_partner
+
+  FROM ${ref(`pre_assurance_checks_manually_paid_mentors`)} a
+
+  LEFT JOIN ${ref(`ecf2_schools`)} s
+    ON a.school_urn = s.school_urn
+  LEFT JOIN ${ref(`teachers_latest_ecf2`)} t
+    ON a.user_id = t.api_id
+
+  WHERE 
+    LOWER(a.participant_type) = 'mentor'
+    AND a.pre_assurance_check_outcome = TRUE
+),
 
 base_declarations AS (
   SELECT 
@@ -128,6 +187,8 @@ base_declarations AS (
   WHERE 
     funded_declaration
     AND participant_type = 'mentor'
+  UNION ALL
+    SELECT * FROM manual_declarations
 ),
 
 
