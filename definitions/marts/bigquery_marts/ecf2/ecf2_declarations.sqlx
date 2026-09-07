@@ -94,7 +94,7 @@ SELECT
   d.id AS declaration_id,
   d.api_id AS declaration_external_id,
   d.declaration_type,
-  d.declaration_date,
+  d.evidenced_at AS declaration_date,
   d.created_at AS declaration_created_at_date,
   d.updated_at AS declaration_updated_at_date,
   CASE
