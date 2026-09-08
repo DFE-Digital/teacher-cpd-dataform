@@ -41,7 +41,7 @@ config {
 
 SELECT
   declaration_external_id AS declaration_id,
-  declaration_date,
+  evidenced_at AS declaration_date,
   declaration_type,
   declaration_state,
   funded_declaration,

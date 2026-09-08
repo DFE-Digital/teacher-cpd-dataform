@@ -2,7 +2,7 @@ config {
     type: "table",
     tags: ["ecf2"],
     bigquery: {
-        partitionBy: "declaration_date",
+        partitionBy: "evidenced_at",
         clusterBy: ["contract_period_year", "lead_provider"]
     },
 
@@ -10,7 +10,7 @@ config {
     columns: {
         declaration_id: "The ID of a declartion in the ecf2 service (sourced from BigQuery)",
         declaration_external_id: "The id of the declaration as it is served to Lead Providers in the API - also known as the declaration api id. Sourced from the raw excel files",
-        declaration_date: "The date the milestone can be evidenced as having been met, when the participant qualified to be declared against. This field is key for determining where a declaration falls in relation to other declarations because it relates to when in the participants training it was evidenced (sourced from BigQuery)",
+        evidenced_at: "Formerly known as delcaration_date. The date the milestone can be evidenced as having been met, when the participant qualified to be declared against. This field is key for determining where a declaration falls in relation to other declarations because it relates to when in the participants training it was evidenced (sourced from BigQuery)",
         declaration_type: "The type of the declaration which indicates how far along a participant is in their training (sourced from BigQuery)",
         declaration_state: "Dervied from payment and clawback status. If a clawback is present it takes priority over payment_status. Sourced from BigQuery.",
         participant_type: "Should only be mentors. Joined the declaration_external_id with data in the service which might return ECT or Mentor.",
@@ -41,7 +41,7 @@ WITH declarations AS (
     teacher_id,
     teacher_external_id,
     trn,
-    declaration_date,
+    evidenced_at,
     declaration_type,
     declaration_state,
     contract_period_year,
@@ -57,7 +57,7 @@ WITH declarations AS (
 clawbacks AS (
   SELECT
     id as declaration_external_id,
-    -- declaration_date,
+    -- evidenced_at,
     -- declaration_type,
     -- state AS declaration_state,
     -- school_urn,
@@ -72,7 +72,7 @@ clawbacks AS (
 mentor2022instalment1 AS (
   SELECT
     declaration_id AS declaration_external_id,
-    -- declaration_date,
+    -- evidenced_at,
     -- declaration_type,
     -- state AS declaration_state,
     -- urn as school_urn,
@@ -87,7 +87,7 @@ mentor2022instalment1 AS (
 mentor2023instalment1 AS (
   SELECT
     id AS declaration_external_id,
-    -- declaration_date,
+    -- evidenced_at,
     -- declaration_type,
     -- state AS declaration_state,
     -- school_urn,
@@ -105,7 +105,7 @@ mentor2023instalment1 AS (
 mentor2023instalment2 AS (
   SELECT
     id AS declaration_external_id,
-    -- declaration_date,
+    -- evidenced_at,
     -- declaration_type,
     -- state AS declaration_state,
     -- school_urn,
@@ -123,7 +123,7 @@ mentor2023instalment2 AS (
 mentor2024 AS (
   SELECT
     declaration_id AS declaration_external_id,
-    -- declaration_date,
+    -- evidenced_at,
     -- declaration_type,
     -- state AS declaration_state,
     -- mentors_current_school_urn AS current_school_urn,
@@ -141,7 +141,7 @@ mentor2024 AS (
 mentor2025 AS (
   SELECT
     declaration_id AS declaration_external_id,
-    -- declaration_date,
+    -- evidenced_at,
     -- declaration_type,
     -- state AS declaration_state,
     -- mentors_current_school_urn AS current_school_urn,
@@ -181,7 +181,7 @@ SELECT
   dec.teacher_external_id,
   dec.trn,
   dec.contract_period_year,
-  dec.declaration_date,
+  dec.evidenced_at,
   dec.declaration_type,
   dec.declaration_state,
   dec.lead_provider_id,

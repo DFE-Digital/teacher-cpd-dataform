@@ -13,7 +13,7 @@ config {
     columns: {
         declaration_id: "PK of this table",
         declaration_api_id: "The id of the declaration as it is served to Lead Providers in the API.",
-        declaration_date: "The date the milestone can be evidenced as having been met, when the participant qualified to be declared against. This field is key for determining where a declaration falls in relation to other declarations because it relates to when in the participants training it was evidenced",
+        evidenced_at: "Formerly known as delcaration_date. The date the milestone can be evidenced as having been met, when the participant qualified to be declared against. This field is key for determining where a declaration falls in relation to other declarations because it relates to when in the participants training it was evidenced",
         declaration_created_at_date: "When the training_period was created in the ECF2 service",
         declaration_updated_at_date: "When the training_period was last updated in the ECF2 service",
         declaration_type: "The type of the declaration which indicates how far along a participant is in their training",
@@ -94,7 +94,7 @@ SELECT
   d.id AS declaration_id,
   d.api_id AS declaration_external_id,
   d.declaration_type,
-  d.evidenced_at AS declaration_date,
+  d.evidenced_at , --AS declaration_date,
   d.created_at AS declaration_created_at_date,
   d.updated_at AS declaration_updated_at_date,
   CASE
