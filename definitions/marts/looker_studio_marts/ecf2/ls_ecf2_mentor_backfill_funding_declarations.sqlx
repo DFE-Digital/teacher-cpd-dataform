@@ -102,7 +102,7 @@ manual_declarations AS (
       WHEN milestone = 'Jan-26' THEN TIMESTAMP('2026-01-01') 
       WHEN milestone = 'Jul-26' THEN TIMESTAMP('2026-07-01')
     END AS declaration_created_at_date,
-    a.evidenced_at,
+    a.declaration_date AS evidenced_at,
     CASE 
       WHEN a.pre_assurance_check_outcome = TRUE THEN 'paid'
       ELSE NULL
