@@ -8,7 +8,7 @@ config {
         labels: {
             purpose: "assurance"
         },
-        partitionBy: "declaration_date",
+        partitionBy: "evidenced_at",
         clusterBy: ["lead_provider", "teacher_id"]
     },
     description: "This is #2 in a series of Assurance 'Bad Shapes' marts that identify declarations received that fall outside the expected declaration rules. This mart identifies declarations that were received in the same milestone period as the declaration date of another declaration for the same participant. It distinguishes between multiple declarations received on the first or last day of milestone period, which possibly indicates an acceptable dummy date, and multiple declarations received after day 1 of milestone period and before final day of milestone period. Declarations are excluded if they are one of multiples received on a dummy date. Only participants with a current cohort of 2023 or later are included",
@@ -16,7 +16,7 @@ config {
         declaration_id: 'ID associated with the declaration which qualifies as falling into a bad shape',
         declaration_type: 'The type of the declaration which indicates how far along a participant is in their training',
         declaration_created_at_date: 'The date the declaration was submitted, this field is only relevant to determine which sequence should be applied, it is not used to compare declarations against each other',
-        declaration_date: 'The date the declaration was evidenced, when the participant qualified to be declared against. This field is key for determining where a declaration falls in relation to other declarations because it relates to when in the participants training it was evidenced',
+        evidenced_at: 'Formerly known as declaration_date. The date the declaration was evidenced, when the participant qualified to be declared against. This field is key for determining where a declaration falls in relation to other declarations because it relates to when in the participants training it was evidenced',
         teacher_id: "ID of each participant's profile.",
         trn: {
             description: "TRN associated with the ECT's profile.",
@@ -47,7 +47,7 @@ WITH declarations_extended AS (
     declaration_external_id as declaration_id,
     declaration_type,
     DATE(declaration_created_at_date) AS declaration_created_at_date,
-    declaration_date,
+    evidenced_at,
     teacher_external_id AS teacher_id,
     trn,
     declarations.participant_type,
@@ -60,16 +60,16 @@ WITH declarations_extended AS (
     statement_contract_period_year,
     milestone_start,
     milestone_end,
-    DATE_DIFF(DATE(declaration_date),milestone_start,DAY) AS days_from_start,
-    DATE_DIFF(DATE(declaration_date),milestone_start,DAY) = 0 AS first_day,
-    DATE_DIFF(DATE(declaration_date),milestone_end,DAY) AS days_from_end,
-    DATE_DIFF(DATE(declaration_date),milestone_end,DAY) = 0 AS last_day
+    DATE_DIFF(DATE(evidenced_at),milestone_start,DAY) AS days_from_start,
+    DATE_DIFF(DATE(evidenced_at),milestone_start,DAY) = 0 AS first_day,
+    DATE_DIFF(DATE(evidenced_at),milestone_end,DAY) AS days_from_end,
+    DATE_DIFF(DATE(evidenced_at),milestone_end,DAY) = 0 AS last_day
   FROM
     ${ref("ecf2_declarations_latest")} declarations
   CROSS JOIN
     ${functions.ecf2_cohortMilestonesWithStartAndEndDatesWithOrdering(ctx)} AS milestone_dates
   WHERE
-    (DATE(declaration_date) BETWEEN milestone_start AND milestone_end)
+    (DATE(evidenced_at) BETWEEN milestone_start AND milestone_end)
     AND declaration_state IN ('eligible', 'payable', 'paid') 
     AND statement_contract_period_year = milestone_dates.contract_year
 )

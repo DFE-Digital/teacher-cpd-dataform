@@ -9,7 +9,7 @@ config {
         labels: {
             purpose: "assurance"
         },
-        partitionBy: "declaration_date",
+        partitionBy: "evidenced_at",
         clusterBy: ["lead_provider", "teacher_id"]
     },
     description: "This is #1 in a series of Assurance 'Bad Shapes' marts that identify declarations received that fall outside the expected declaration rules. Each declaration type has an expected sequence position (see 'expected_declaration_sequence_position' field for sequence), this mart checks if the declaration falls out of that expected sequence based on the date it was evidenced. It checks the sequence of the declaration_dates (evidence date) of the declarations received and checks whether a declaration was evidenced out of sequence compared to the declarations evidenced before and after the given declaration. The logic in this mart is adjusted to accomodate a change in the approved sequence for declarations submitted after '01/08/2025' when 'completed' declarations were shifted to be evidenced before 'extended' type declarations. Prior to that date, 'completed' declarations were to be evidenced last. This mart modifies the expected sequence based on when those completed and extended declarations were received. Similarly, adjustments are included to permit ECTs on a reduced schedule to receive a 'completed' declaration at any point to accomodate their reduced period of training. The sequence of declarations evidenced on the same day are not considered here as they fall under a separate bad shapes mart. Only participants with a current cohort of 2023 or later are included",
@@ -17,7 +17,7 @@ config {
         declaration_id: 'ID associated with the declaration which qualifies as falling into a bad shape',
         declaration_type: 'The type of the declaration which indicates how far along a participant is in their training',
         declaration_created_at_date: 'The date the declaration was submitted, this field is only relevant to determine which sequence should be applied, it is not used to compare declarations against each other',
-        declaration_date: 'The date the declaration was evidenced, when the participant qualified to be declared against. This field is key for determining where a declaration falls in relation to other declarations because it relates to when in the participants training it was evidenced',
+        evidenced_at: 'Formerly known as declaration_date. The date the declaration was evidenced, when the participant qualified to be declared against. This field is key for determining where a declaration falls in relation to other declarations because it relates to when in the participants training it was evidenced',
         teacher_id: "ID of each participant's profile.",
         trn: {
             description: "TRN associated with the ECT's profile.",
@@ -48,7 +48,7 @@ WITH extended_declarations AS (
     declaration_external_id as declaration_id,
     declarations.declaration_type,
     DATE(declaration_created_at_date) AS declaration_created_at_date,
-    declaration_date,
+    evidenced_at,
     teacher_external_id AS teacher_id,
     trn,
     declarations.participant_type,
@@ -67,7 +67,7 @@ WITH extended_declarations AS (
     ROW_NUMBER() OVER (
         PARTITION BY teacher_id, declarations.participant_type
         ORDER BY 
-            DATE(declaration_date) ASC,
+            DATE(evidenced_at) ASC,
             expected_declaration_sequence_position ASC
     ) AS actual_evidenced_sequence_position
   FROM ${ref('ecf2_declarations_latest')} declarations
@@ -87,16 +87,16 @@ WITH extended_declarations AS (
 SELECT
   *,
   MAX(expected_declaration_sequence_position) OVER participant_declarations_evidenced_prior_to_current_record AS max_declaration_sequence_evidenced_before_date,
-  MAX(DATE(declaration_date)) OVER participant_declarations_evidenced_prior_to_current_record AS max_declaration_date_evidenced_before_date,
+  MAX(DATE(evidenced_at)) OVER participant_declarations_evidenced_prior_to_current_record AS max_declaration_date_evidenced_before_date,
   MIN(expected_declaration_sequence_position) OVER participant_declarations_evidenced_after_current_record AS min_declaration_sequence_evidenced_after_date,
-  MIN(DATE(declaration_date)) OVER participant_declarations_evidenced_after_current_record AS min_declaration_date_evidenced_after_date
+  MIN(DATE(evidenced_at)) OVER participant_declarations_evidenced_after_current_record AS min_declaration_date_evidenced_after_date
 FROM extended_declarations
 QUALIFY
   (max_declaration_sequence_evidenced_before_date > expected_declaration_sequence_position
-    AND max_declaration_date_evidenced_before_date <> DATE(declaration_date)
+    AND max_declaration_date_evidenced_before_date <> DATE(evidenced_at)
     AND max_declaration_sequence_evidenced_before_date IS NOT NULL)
   OR (min_declaration_sequence_evidenced_after_date <= expected_declaration_sequence_position
-    AND min_declaration_date_evidenced_after_date <> DATE(declaration_date)
+    AND min_declaration_date_evidenced_after_date <> DATE(evidenced_at)
     AND min_declaration_sequence_evidenced_after_date IS NOT NULL)
   AND (schedule_identifier NOT LIKE '%reduced%'
     OR extended_declarations.declaration_type <> 'completed')

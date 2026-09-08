@@ -2,7 +2,7 @@ config {
     type: "table",
     tags: ['ecf2'],
     bigquery: {
-        partitionBy: "declaration_date",
+        partitionBy: "evidenced_at",
         clusterBy: ["payment_year"]
     },
     description: "This table consolidates all declarations for the 2026 Mentor Backfill Grant Funding payment year. ",
@@ -20,7 +20,7 @@ config {
         declaration_external_id: "The api id of the declaration - the id that is exposed to users of the service",
         declaration_type: "The type of declaration",
         declaration_created_at_date: "The date the declaration was created in the service",
-        declaration_date: "The date of the evidence the declaration",
+        evidenced_at: "The date of the evidence the declaration",
         declaration_state: "The state of the declaration",
         contract_period_year: "The contract year for the given declaration",
         school_id: "The school id in the ecf2 service for which the declaration is for",
@@ -102,7 +102,7 @@ manual_declarations AS (
       WHEN milestone = 'Jan-26' THEN TIMESTAMP('2026-01-01') 
       WHEN milestone = 'Jul-26' THEN TIMESTAMP('2026-07-01')
     END AS declaration_created_at_date,
-    a.declaration_date,
+    a.evidenced_at,
     CASE 
       WHEN a.pre_assurance_check_outcome = TRUE THEN 'paid'
       ELSE NULL
@@ -157,7 +157,7 @@ base_declarations AS (
     declaration_external_id,
     declaration_type,
     declaration_created_at_date,
-    declaration_date,
+    evidenced_at,
     declaration_state,
     -- statement_contract_period_year,
     contract_period_year,
@@ -199,7 +199,7 @@ declaration_expanded AS (
   SELECT 
     base.*,
     CASE 
-      WHEN base.declaration_date >= "2025-09-01" AND base.declaration_date <= "2026-08-31" THEN 2026
+      WHEN base.evidenced_at >= "2025-09-01" AND base.evidenced_at <= "2026-08-31" THEN 2026
       ELSE NULL 
     END AS payment_year,
     CASE 
@@ -261,8 +261,8 @@ declaration_expanded AS (
     AND prev_paid_dec.payment_year >= 2024
   
   WHERE
-    base.declaration_date >= "2025-09-01" 
-    AND base.declaration_date <= "2026-08-31"
+    base.evidenced_at >= "2025-09-01" 
+    AND base.evidenced_at <= "2026-08-31"
 ),
 
 
@@ -372,7 +372,7 @@ SELECT
   final.declaration_external_id,
   final.declaration_type,
   final.declaration_created_at_date,
-  final.declaration_date,
+  final.evidenced_at,
   final.declaration_state,
   final.contract_period_year,
   final.school_id,

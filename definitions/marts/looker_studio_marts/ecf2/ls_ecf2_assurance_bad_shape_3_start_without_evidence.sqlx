@@ -8,7 +8,7 @@ config {
         labels: {
             purpose: "assurance"
         },
-        partitionBy: "declaration_date",
+        partitionBy: "evidenced_at",
         clusterBy: ["lead_provider", "teacher_id"]
     },
     description: "This is #3 in a series of Assurance 'Bad Shapes' marts that identify declarations received that fall outside the expected declaration rules. This mart identifies start declarations from a 2025 statement cohort or later submitted without evidence.",
@@ -16,7 +16,7 @@ config {
         declaration_id: 'ID associated with the declaration which qualifies as falling into a bad shape',
         declaration_type: 'The type of the declaration which indicates how far along a participant is in their training',
         declaration_created_at_date: 'The date the declaration was submitted, this field is only relevant to determine which sequence should be applied, it is not used to compare declarations against each other',
-        declaration_date: 'The date the declaration was evidenced, when the participant qualified to be declared against. This field is key for determining where a declaration falls in relation to other declarations because it relates to when in the participants training it was evidenced',
+        evidenced_at: 'Formerly known as declaration_date. The date the declaration was evidenced, when the participant qualified to be declared against. This field is key for determining where a declaration falls in relation to other declarations because it relates to when in the participants training it was evidenced',
         teacher_id: "ID of each participant's profile.",
         trn: {
             description: "TRN associated with the ECT's profile.",
@@ -39,7 +39,7 @@ SELECT
   declaration_external_id as declaration_id,
   declaration_type,
   DATE(declaration_created_at_date) AS declaration_created_at_date,
-  declaration_date,
+  evidenced_at,
   teacher_external_id AS teacher_id,
   trn,
   declaration_state,
