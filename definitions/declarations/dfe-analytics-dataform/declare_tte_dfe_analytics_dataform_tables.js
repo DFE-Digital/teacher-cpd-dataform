@@ -12,6 +12,11 @@ const tableNames = [
     "cohorts_latest",
     "schedules_latest",
     "course_cohort_providers_latest",
+    "delivery_partners_latest",
+    "delivery_partnerships_latest",
+    "registration_interests_latest",
+    "users_latest",
+    "milestones_latest",
     "session_details",
     "events"
 ];
