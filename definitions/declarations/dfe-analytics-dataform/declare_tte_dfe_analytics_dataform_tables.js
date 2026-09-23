@@ -12,8 +12,14 @@ const tableNames = [
     "cohorts_latest",
     "schedules_latest",
     "course_cohort_providers_latest",
+    "delivery_partners_latest",
+    "delivery_partnerships_latest",
+    "registration_interests_latest",
+    "users_latest",
+    "milestones_latest",
     "session_details",
-    "events"
+    "events",
+    "persist_api_request"
 ];
 
 tableNames.forEach(tableName => {
@@ -23,3 +29,9 @@ tableNames.forEach(tableName => {
         name: tableName + "_tte"
     });
 });
+
+declare({
+        database: "ecf-bq",
+        schema: "dfe_analytics_dataform",
+        name: "tte_entity_field_updates"
+    });

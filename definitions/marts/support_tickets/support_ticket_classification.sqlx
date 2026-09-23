@@ -6,11 +6,11 @@ config {
     bigquery: {
         partitionBy: "created_at",
     },
-    description: "This mart tracks and classifies support tickets submitted to CPD service lines, enabling analysis of support demand across the ECTE and NPQ programmes. The mart supports operational decision-making and service improvement by categorising tickets by programme (ECTE or NPQ) and service classification (e.g., Induction & AB, NPQ, ECTE Funding). Each ticket is assigned a derived classification based on its originating Zendesk group, associated tags and issue types and for migrated tickets, it's ticket subject, with logic to identify duplicates. Tickets are also mapped to high-level programme_type categories (ECTE, NPQ, or TBC) to facilitate streamlined reporting. The mart distinguishes between active services (e.g., CPD - ECTE, CPD - NPQ) and archive or triage groups, and flags tickets closed as part of merge actions to avoid duplicate counts.",
+    description: "This mart tracks and classifies support tickets submitted to CPD service lines, enabling analysis of support demand across the ECTE, NPQ and NPD programmes. The mart supports operational decision-making and service improvement by categorising tickets by programme (ECTE, NPQ or NPD) and service classification (e.g., Induction & AB, NPQ, ECTE Funding). Each ticket is assigned a derived classification based on its originating Zendesk group, associated tags and issue types and for migrated tickets, it's ticket subject, with logic to identify duplicates. Tickets are also mapped to high-level programme_type categories (ECTE, NPQ, NPD or TBC) to facilitate streamlined reporting. The mart distinguishes between active services (e.g., CPD - ECTE, CPD - NPQ) and archive or triage groups, and flags tickets closed as part of merge actions to avoid duplicate counts. NPD tickets are identified from issue types prefixed npd, as NPD has no Zendesk group of its own.",
     columns: {
         ticket_id: "UID of each support ticket taken from Zendesk.",
-        programme_type: "A calculated field which indicates which programme the ticket belongs to. Possible values: ECTE, NPQ or Triage",
-        classification: "The derived classification for the ticket. Possible values: CPD - ECTE, ECTE - Funding, NPQ - Get a TRN, ECTE - Induction and AB, CPD - NPQ, NPQ - Funding, CPD - Triage. Tickets marked as 'Unclassifiable - bad data' cannot be classified with the data available from Zendesk or the migrated subject.",
+        programme_type: "A calculated field which indicates which programme the ticket belongs to. Possible values: ECTE, NPQ, NPD or Triage",
+        classification: "The derived classification for the ticket. Possible values: CPD - ECTE, ECTE - Funding, NPQ - Get a TRN, ECTE - Induction and AB, CPD - NPQ, NPQ - Funding, CPD - NPD, NPD - Funding, NPD - Get a TRN, CPD - Triage. Tickets marked as 'Unclassifiable - bad data' cannot be classified with the data available from Zendesk or the migrated subject.",
         support_ticket_theme: "NPQ PROGRAMME TYPE ONLY: The theme of the request contained in the support ticket. Derived from the issue_types assigned to the ticket.",
         group_name: "Name of group this ticket relates to taken from Zendesk e.g. CPD",
         service_name: "Name of service this ticket relates to taken from Zendesk e.g. ECTE",
@@ -72,6 +72,14 @@ classification_logic AS (
     cpd_prog_data.*,
     CASE
       -- First classification layer: classifies support tickets based on issue_types associated to each ticket. This should surfice for tickets created after mid-2024 (data quality improves)
+
+      -- NPD classification. NPD has no Zendesk group of its own, so issue types prefixed npd are the only signal.
+      -- These sit above the NPQ and RECT branches because npd___trn_request and npd___reception___funding_eligibility_
+      -- would otherwise be caught by the get_a_trn and funding rules below.
+      WHEN (SELECT LOGICAL_OR(STARTS_WITH(val, 'npd')) AND LOGICAL_OR(val LIKE '%funding%') FROM UNNEST(cpd_prog_data.issue_type) AS val) THEN 'NPD - Funding'
+      WHEN (SELECT LOGICAL_OR(STARTS_WITH(val, 'npd')) AND LOGICAL_OR(val LIKE '%trn%') FROM UNNEST(cpd_prog_data.issue_type) AS val) THEN 'NPD - Get a TRN'
+      WHEN (SELECT LOGICAL_OR(STARTS_WITH(val, 'npd')) FROM UNNEST(cpd_prog_data.issue_type) AS val) THEN 'CPD - NPD'
+
       WHEN group_name = 'CPD - RECT' then 'CPD - RECT'
       WHEN (SELECT LOGICAL_OR(val LIKE '%induction_and_ab%') FROM UNNEST(cpd_prog_data.issue_type ) AS val) THEN 'RECT - Induction and AB'
       WHEN (SELECT LOGICAL_OR(val LIKE '%funding%') and LOGICAL_OR(val LIKE '%npq%') FROM  UNNEST(cpd_prog_data.issue_type ) AS val) THEN 'NPQ - Funding'
@@ -91,8 +99,12 @@ classification_logic AS (
       WHEN cpd_prog_data.group_name = 'CPD - Triage' THEN 'CPD - Triage'
       WHEN LOWER(service_name) = 'ecf' OR LOWER(service_name) = 'ecte' THEN 'CPD - RECT'
       WHEN LOWER(service_name) = 'npq' THEN 'CPD - NPQ'
+      -- NPD has no Zendesk group of its own. NPD tickets arrive through the existing CPD
+      -- groups and are identified from issue types in the layer above.
+
 
       -- Third classification layer: classifies support tickets based on tags associated to each ticket
+      WHEN (SELECT LOGICAL_OR(STARTS_WITH(val, 'npd')) FROM UNNEST(cpd_prog_data.tags) AS val) THEN 'CPD - NPD'
       WHEN (SELECT LOGICAL_OR(val LIKE '%induction_and_ab%') FROM UNNEST( cpd_prog_data.tags) AS val) THEN 'RECT - Induction and AB'
       WHEN (SELECT LOGICAL_OR(val LIKE '%funding%') and LOGICAL_OR(val LIKE '%npq%') FROM  UNNEST( cpd_prog_data.tags) AS val) THEN 'NPQ - Funding'
       WHEN (SELECT LOGICAL_OR(STARTS_WITH(val, 'get_a_trn')) FROM UNNEST( cpd_prog_data.tags) AS val ) THEN 'NPQ - Get a TRN'      
@@ -128,6 +140,7 @@ SELECT
   CASE
     WHEN classified_tickets.classification IN ('CPD - RECT', 'RECT - Induction and AB', 'RECT - Funding') THEN 'RECT'
     WHEN classified_tickets.classification IN ('CPD - NPQ', 'NPQ - Funding', 'NPQ - Get a TRN') THEN 'NPQ'
+    WHEN classified_tickets.classification IN ('CPD - NPD', 'NPD - Funding', 'NPD - Get a TRN') THEN 'NPD'
     WHEN classified_tickets.classification IN ('CPD - Triage') THEN 'Triage'
     ELSE NULL
   END AS programme_type,

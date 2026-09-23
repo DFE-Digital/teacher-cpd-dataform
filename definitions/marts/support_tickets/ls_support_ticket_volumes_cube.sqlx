@@ -34,7 +34,19 @@ config {
         npq_registration_window_month: "Month of NPQ registration window that this date falls within, treating the npq_registration_year_start_date as day 1 of month 1. An integer. For example, if an NPQ registration window started on Dec 25th 2056, Dec 27th 2056 falls in month 1, Jan 5th 2056 falls in month 1, Jan 25th 2057 falls in month 2 etc.",
         date_is_in_npq_registration_window_to_date_or_past_npq_registration_window: "TRUE if date is either between the start date of the current NPQ registration window and today's date, or falls within an NPQ registration window that ended on a past date. For use to filter metrics on dashboards which are calculated for the NPQ 'registration window to date'.",
         date_is_comparable_to_next_npq_registration_window_to_date: "TRUE if the date with the same npq_registration_window_day in the following NPQ registration window (i.e. the one after the registration_window date falls within) is between the start date of the current NPQ registration window and today's date, or if that date falls within an NPQ registration window that ended on a past date. For example, if two consecutive registration windows were 2nd Feb 2057 - 6th March 2058 and 7th March 2058 - 28th Feb 2059, and the current date is 8th March 2058 (registration_window_day = 2), this field would be TRUE for 2nd & 3rd Feb 2057 but FALSE after that. For use to filter metrics on dashboards which are calculated for the NPQ 'registration window to date' and then compared with the 'same period last registration window'.",
-        number_of_live_npq_participants_and_applicants_baseline_estimate: "Best available actual or estimated number of live NPQ participants or applicants to use as a baseline in the registration window that date falls within. Live is defined as the period between the start declaration date and assumed no longer live date overlapping with the first academic year that starts after the registration window begins. To act as a baseline across a range of KPIs. Note that these KPIs should be defined with the baseline (denominator) applying to the whole registration window, even if the numerator applies only to a particular day, week, month etc. For the current registration window, data is not complete enough until late March, so this is set to the value from the previous registration window until 1st January."
+        number_of_live_npq_participants_and_applicants_baseline_estimate: "Best available actual or estimated number of live NPQ participants or applicants to use as a baseline in the registration window that date falls within. Live is defined as the period between the start declaration date and assumed no longer live date overlapping with the first academic year that starts after the registration window begins. To act as a baseline across a range of KPIs. Note that these KPIs should be defined with the baseline (denominator) applying to the whole registration window, even if the numerator applies only to a particular day, week, month etc. For the current registration window, data is not complete enough until late March, so this is set to the value from the previous registration window until 1st January.",
+      tte_registration_window_day: "Day number within the NPD registration window that created_at falls on.",
+      tte_registration_window_week: "Week number within the NPD registration window that created_at falls on.",
+      tte_registration_window_month: "Month number within the NPD registration window that created_at falls on.",
+      tte_registration_window_string: "Label of the NPD registration window that created_at falls in.",
+      tte_registration_window_year: "Year of the NPD registration window that created_at falls in.",
+      tte_registration_window_start_date: "First date of the NPD registration window that created_at falls in.",
+      tte_registration_window_end_date: "Last date of the NPD registration window that created_at falls in.",
+      tte_academic_year_start_date: "First date of the NPD academic year that created_at falls in.",
+      tte_academic_year_end_date: "Last date of the NPD academic year that created_at falls in.",
+    date_is_in_tte_registration_window_to_date_or_past_tte_registration_window: "True where the date sits within the current NPD registration window up to today, or within a completed NPD registration window. Used to keep part-window comparisons like for like.",
+    date_is_comparable_to_next_tte_registration_window_to_date: "True where the date has an equivalent point in the next NPD registration window, for year-on-year comparison.",
+    number_of_live_tte_participants_and_applicants_baseline_estimate: "Estimated number of live NPD participants and applicants on that date, taken from number_of_live_tte_participants_and_applicants_baseline_estimate in ls_tte_kpi_live_participants_baseline_cube. Used as the denominator for NPD ticket-rate metrics."
     }
 }
 
@@ -193,7 +205,20 @@ SELECT
   npq_baseline_cube.academic_year_end_date AS npq_academic_year_end_date,
   npq_baseline_cube.date_is_in_registration_window_to_date_or_past_registration_window AS date_is_in_npq_registration_window_to_date_or_past_npq_registration_window,
   npq_baseline_cube.date_is_comparable_to_next_registration_window_to_date AS date_is_comparable_to_next_npq_registration_window_to_date,
-  npq_baseline_cube.number_of_live_npq_participants_and_applicants_baseline_estimate AS number_of_live_npq_participants_and_applicants_baseline_estimate 
+  npq_baseline_cube.number_of_live_npq_participants_and_applicants_baseline_estimate AS number_of_live_npq_participants_and_applicants_baseline_estimate,
+    
+  tte_baseline_cube.registration_window_day AS tte_registration_window_day,
+  tte_baseline_cube.registration_window_week AS tte_registration_window_week,
+  tte_baseline_cube.registration_window_month AS tte_registration_window_month,
+  tte_baseline_cube.registration_window_string AS tte_registration_window_string,
+  tte_baseline_cube.registration_window_year AS tte_registration_window_year,
+  tte_baseline_cube.registration_window_start_date AS tte_registration_window_start_date,
+  tte_baseline_cube.registration_window_end_date AS tte_registration_window_end_date,
+  tte_baseline_cube.academic_year_start_date AS tte_academic_year_start_date,
+  tte_baseline_cube.academic_year_end_date AS tte_academic_year_end_date,
+  tte_baseline_cube.date_is_in_registration_window_to_date_or_past_registration_window AS date_is_in_tte_registration_window_to_date_or_past_tte_registration_window,
+  tte_baseline_cube.date_is_comparable_to_next_registration_window_to_date AS date_is_comparable_to_next_tte_registration_window_to_date,
+  tte_baseline_cube.number_of_live_tte_participants_and_applicants_baseline_estimate AS number_of_live_tte_participants_and_applicants_baseline_estimate
 FROM
   dates,
   programme_types,
@@ -212,3 +237,7 @@ LEFT JOIN
 LEFT JOIN
   ${ref(`ls_npq_kpi_live_participants_baseline_cube`)} AS npq_baseline_cube
   ON dates.created_at = npq_baseline_cube.date
+
+LEFT JOIN
+  ${ref(`ls_tte_kpi_live_participants_baseline_cube`)} AS tte_baseline_cube
+  ON dates.created_at = tte_baseline_cube.date

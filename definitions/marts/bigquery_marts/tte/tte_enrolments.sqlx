@@ -9,6 +9,90 @@ config {
     bigquery: {
         partitionBy: "DATE(application_created_at)",
         clusterBy: ["application_status", "funding_choice", "teacher_catchment_country"]
+    },
+    description: "One row per declaration per NPD (TTE) application. Joins applications to their current lead provider, course, cohort, schedule, institution, school, declarations, latest application event and latest participant outcome. Note the grain: applications with multiple declarations appear multiple times, and applications with no declarations appear once with NULL declaration fields. Contains three temporary workarounds pending declaration data arriving in the source.",
+    columns: {
+        application_id: "Primary identifier of the application in the TTE service",
+        application_ecf_id: "Identifier of the application in the legacy ECF service",
+        application_status: "Current status of the application",
+        application_created_at: "Timestamp the application was created",
+        application_updated_at: "Timestamp the application was last updated",
+        application_trn: "Teacher Reference Number supplied by the applicant on submission",
+        eligible_for_funding: "TRUE where the applicant is eligible for DfE funding",
+        funded_place: "TRUE where the lead provider has confirmed a funded place",
+        funding_choice: "Non-DfE funding method the applicant selected",
+        funding_eligiblity_status_code: "Code describing the outcome of the funding eligibility check",
+        review_status: "Status of any manual review of the application",
+        participant_outcome_state: "Outcome state held on the application record",
+        primary_establishment: "TRUE where the institution is the applicant's primary place of work",
+        targeted_support_funding_eligibility: "TRUE where the applicant is eligible for targeted support funding",
+        teacher_catchment: "Catchment the applicant declared they teach in",
+        teacher_catchment_country: "Country the applicant declared they teach in",
+        teacher_catchment_iso_country_code: "ISO code of the country the applicant declared they teach in",
+        work_setting: "Setting the applicant declared they work in",
+        works_in_childcare: "TRUE where the applicant declared they work in childcare",
+        works_in_nursery: "TRUE where the applicant declared they work in a nursery",
+        works_in_school: "TRUE where the applicant declared they work in a school",
+        kind_of_nursery: "Type of nursery the applicant declared they work in",
+        number_of_pupils: "Number of pupils the applicant declared at their setting",
+        application_ukprn: "UKPRN the applicant declared, used to join to school records",
+        user_id: "Identifier of the user who submitted the application",
+        course_cohort_id: "Identifier of the course cohort held on the application record",
+        current_lead_provider_id: "Identifier of the lead provider currently assigned to the application",
+        lead_provider_assigned_at: "Timestamp the current lead provider was assigned",
+        lead_provider_id: "Primary identifier of the lead provider",
+        lead_provider_name: "Name of the lead provider",
+        lead_provider_ecf_id: "Identifier of the lead provider in the legacy ECF service",
+        course_id: "Primary identifier of the course",
+        course_name: "Full name of the course",
+        course_identifier: "Machine-readable course identifier, e.g. tte-1",
+        course_short_code: "Short code for the course",
+        course_group: "Group the course belongs to",
+        course_cohort_id_key: "Primary identifier of the course cohort record",
+        cohort_id: "Identifier of the cohort the course cohort belongs to",
+        schedule_id: "Identifier of the schedule the course cohort follows",
+        cohort_start_year: "Calendar year the cohort starts",
+        cohort_identifier: "Machine-readable cohort identifier",
+        cohort_registration_starts_at: "Timestamp registration opens for the cohort",
+        cohort_registration_ends_at: "Timestamp registration closes for the cohort",
+        schedule_name: "Name of the training schedule",
+        schedule_training_starts_at: "Timestamp training starts under this schedule",
+        schedule_training_ends_at: "Timestamp training ends under this schedule",
+        institution_name: "Name of the institution the applicant is associated with",
+        address_1: "First line of the institution address",
+        address_2: "Second line of the institution address",
+        address_3: "Third line of the institution address",
+        town: "Town of the institution",
+        county: "County of the institution",
+        postcode: "Postcode of the institution",
+        region: "Region of the institution",
+        institution_reference_number: "Reference number of the institution, URN or equivalent",
+        institutionable_type: "Type of institution record, e.g. school or childcare provider",
+        la_code: "Local authority code of the school",
+        la_name: "Local authority name of the school",
+        phase_name: "Phase of education of the school",
+        phase_type: "Phase type of the school",
+        establishment_status_code: "Status code of the establishment",
+        establishment_status_name: "Status name of the establishment, e.g. open or closed",
+        establishment_type_code: "Type code of the establishment",
+        establishment_type_name: "Type name of the establishment",
+        high_pupil_premium: "TRUE where the school is in the highest pupil premium band",
+        eyl_funding_eligible: "TRUE where the setting is eligible for early years leadership funding",
+        declaration_id: "Primary identifier of the declaration. NULL where the application has no declarations",
+        declaration_ecf_id: "Identifier of the declaration in the legacy ECF service",
+        declaration_type: "Type of declaration, e.g. started, retained-1, completed",
+        declaration_date: "Evidenced date of the declaration",
+        declaration_state: "State of the declaration, e.g. submitted, eligible, payable, paid, voided",
+        declaration_state_reason: "Reason recorded for the current declaration state",
+        declaration_lead_provider_id: "Identifier of the lead provider that submitted the declaration",
+        delivery_partner_id: "Identifier of the delivery partner on the declaration",
+        declaration_cohort_id: "Identifier of the cohort the declaration was made against",
+        application_event_type: "Type of the most recent event on the application",
+        application_event: "Name of the most recent event on the application",
+        application_event_metadata: "Metadata attached to the most recent event on the application",
+        participant_outcome_ecf_id: "Identifier of the latest participant outcome for the declaration",
+        participant_outcome_state_result: "Result of the latest participant outcome, e.g. passed or failed",
+        participant_outcome_completion_date: "Completion date of the latest participant outcome"
     }
 }
 
@@ -88,6 +172,9 @@ SELECT
     app.ukprn AS application_ukprn,
     app.user_id,
     app.course_cohort_id,
+    app.on_submission_trn AS application_trn,
+    app.notes,
+    app.referred_by_return_to_teaching_adviser,
 
    -- Application lead provider (current)
     alp.current_lead_provider_id,
@@ -104,17 +191,27 @@ SELECT
     c.identifier AS course_identifier,
     c.short_code AS course_short_code,
     c.course_group,
+    c.ecf_id AS course_ecf_id,
+    c.description AS course_description,
+    c.position AS course_position,
+    c.display AS course_display,
 
     -- Course Cohort
     cc.id AS course_cohort_id_key,
     cc.cohort_id,
-    cc.schedule_id,
+    -- cc.schedule_id,
+    cc.academic_year,
+    cc.term_identifier,
+    cc.training_starts_at AS course_cohort_training_starts_at,
 
    -- Cohort
     coh.start_year AS cohort_start_year,
     coh.identifier AS cohort_identifier,
     coh.registration_starts_at AS cohort_registration_starts_at,
     coh.registration_ends_at AS cohort_registration_ends_at,
+    coh.ecf_id AS cohort_ecf_id,
+    coh.description AS cohort_description,
+    coh.funding_cap,
 
     -- Schedule
     sch_t.name AS schedule_name,
@@ -132,6 +229,8 @@ SELECT
     inst.region,
     inst.institution_reference_number,
     inst.institutionable_type,
+    inst.institutionable_id,
+    inst.postcode_without_spaces,
 
     -- School
     sch.la_code,
@@ -144,6 +243,9 @@ SELECT
     sch.establishment_type_name,
     sch.high_pupil_premium,
     sch.eyl_funding_eligible,
+    sch.close_date,
+    sch.last_changed_date,
+    sch.number_of_pupils AS school_number_of_pupils,
 
     -- Declaration
     dec.id AS declaration_id,
@@ -155,6 +257,8 @@ SELECT
     dec.lead_provider_id AS declaration_lead_provider_id,
     dec.delivery_partner_id,
     dec.cohort_id AS declaration_cohort_id,
+    dec.secondary_delivery_partner_id,
+    dec.superseded_by_id,
 
     -- Application events
     ae.application_event_type,
@@ -180,7 +284,14 @@ LEFT JOIN ${ref('lead_providers_latest_tte')} lp ON CAST(lp.id AS STRING) = CAST
 LEFT JOIN ${ref('course_cohorts_latest_tte')} cc ON CAST(cc.id AS STRING) = CAST(app.course_cohort_id AS STRING)
 LEFT JOIN ${ref('courses_latest_tte')} c ON CAST(c.id AS STRING) = CAST(cc.course_id AS STRING)
 LEFT JOIN ${ref('cohorts_latest_tte')} coh ON CAST(coh.id AS STRING) = CAST(cc.cohort_id AS STRING)
-LEFT JOIN ${ref('schedules_latest_tte')} sch_t ON CAST(sch_t.id AS STRING) = CAST(cc.schedule_id AS STRING)
+
+-- schedule_id removed from course_cohort, so commenting this out
+--LEFT JOIN ${ref('schedules_latest_tte')} sch_t ON CAST(sch_t.id AS STRING) = CAST(cc.schedule_id AS STRING)
+-- NOW join schedules via cohort_id and course group
+LEFT JOIN `ecf-bq.dfe_analytics_dataform.schedules_latest_tte` sch_t
+  ON CAST(sch_t.cohort_id AS STRING) = CAST(cc.cohort_id AS STRING)
+  AND sch_t.course_group = c.course_group
+
 LEFT JOIN ${ref('institutions_latest_tte')} inst ON CAST(inst.id AS STRING) = CAST(app.institution_id AS STRING)
 LEFT JOIN ${ref('schools_latest_tte')} sch ON sch.ukprn = app.ukprn
 LEFT JOIN latest_application_event ae ON CAST(ae.application_id AS STRING) = CAST(app.id AS STRING)
