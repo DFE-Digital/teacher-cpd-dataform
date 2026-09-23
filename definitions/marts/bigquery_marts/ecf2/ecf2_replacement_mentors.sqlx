@@ -1,0 +1,100 @@
+config {
+    type: "table",
+    tags: ["ecf2"],
+    assertions: {
+        uniqueKey: ["teacher_api_id"]    
+    },
+
+    description: "A complete list of replacement mentors from ECF and RECT. As of Sept 2026, not all replacement schedules were migrated correctly to RECT. Therefore there is a need to supplement ECF2 data with ECF1 mentors who were on a replacement schedule. REMOVE TABLE ONCE SCHEDULES FULLY MIGRATED TO RECT",
+    columns: {
+        teacher_api_id: "External ID of the mentor - what is shown on the API",
+        trn: {
+            description: "The mentor TRN",
+            bigqueryPolicyTags: ["projects/ecf-bq/locations/europe-west2/taxonomies/6302091323314055162/policyTags/301313311867345339"]
+        },
+        schedule_ecf: "The schedule identifier value as it is shown in ECF1.",
+        schedule_rect: "The schedule identifier value as it is shown in RECT.",
+        source: "Whether the record came from ECF or RECT or both",
+    }
+}
+
+
+
+WITH ecf1_replacement_mentors AS (
+  SELECT 
+    participant_profile_id,
+    user_id,
+    TRN AS trn,
+    schedule_identifier
+  FROM ${ref('ecf_inductions_dedupe')}
+  WHERE 
+    participant_type = 'ParticipantProfile::Mentor'
+    AND schedule_identifier LIKE '%replace%'
+  ORDER BY
+    participant_profile_id,
+    start_date
+),
+
+rect_replacement_mentors AS (
+  SELECT 
+    teacher_external_id,
+    teacher_id,
+    trn,
+    schedule_identifier,
+  FROM ${ref('ecf2_training_periods_latest')} 
+  WHERE 
+    participant_type = 'mentor'
+    AND schedule_identifier LIKE '%replace%'
+),
+
+combined_replacement_mentors AS (
+  -- return a long-form list of all replacement mentors in both services
+  -- a trn may appear twice if they are in both ecf and rect
+  -- a trn may also only appear once if they are in either ecf or rect
+  SELECT 
+    ecf.user_id AS teacher_api_id,
+    ecf.trn,
+    ecf.schedule_identifier AS schedule_ecf,
+    NULL as schedule_rect,
+    'ecf' AS source,
+  FROM ecf1_replacement_mentors ecf
+
+  UNION ALL
+  
+  SELECT 
+    rect.teacher_external_id AS teacher_api_id,
+    rect.trn,
+    NULL AS schedule_ecf,
+    rect.schedule_identifier AS schedule_rect,
+    'rect' AS source,
+  FROM rect_replacement_mentors rect
+),
+
+combined_deduped_replacement_mentors AS (
+  -- aggregate replacement mentors to return one row per teacher id
+  -- do not include trn in select/group as this casues dups if they changed
+  SELECT
+    teacher_api_id,
+    -- trn,
+    MAX(schedule_ecf) AS schedule_ecf,
+    MAX(schedule_rect) AS schedule_rect,
+    STRING_AGG(DISTINCT source, ', ' ORDER BY source) AS source
+  FROM combined_replacement_mentors
+  GROUP BY 
+    teacher_api_id
+)
+
+SELECT 
+  a.teacher_api_id,
+  tp.trn,  -- latest trn from rect
+  a.schedule_ecf,
+  COALESCE(a.schedule_rect, tp.schedule_identifier) AS schedule_rect,
+  a.source
+FROM combined_deduped_replacement_mentors a
+LEFT JOIN ${ref('ecf2_training_periods_latest')} tp
+  ON a.teacher_api_id = tp.teacher_external_id
+  AND tp.participant_type = 'mentor'
+-- WHERE a.source = 'ecf'
+-- ORDER BY
+--   a.teacher_api_id
+
