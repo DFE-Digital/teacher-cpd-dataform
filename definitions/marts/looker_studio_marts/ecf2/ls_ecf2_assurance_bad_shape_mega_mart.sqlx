@@ -38,7 +38,8 @@ config {
 
 SELECT
   DISTINCT
-  decs.teacher_external_id AS teacher_id,
+  t.id AS teacher_id,
+  decs.teacher_external_id AS teacher_api_id,
   decs.trn,
   decs.participant_type,
   decs.declaration_external_id as declaration_id,
@@ -67,6 +68,9 @@ LEFT JOIN ${ref('ls_ecf2_assurance_bad_shape_4_start_dec_not_received')} shape_4
   ON decs.declaration_external_id = shape_4.declaration_id
 LEFT JOIN  ${ref('ls_ecf2_assurance_bad_shape_5_received_in_early_milestone')} shape_5
   ON decs.declaration_external_id = shape_5.declaration_id
+
+LEFT JOIN ${ref('teachers_latest_ecf2')} t
+  ON decs.teacher_external_id = t.api_id
 
 WHERE
   COALESCE(shape_1.declaration_id, shape_2.declaration_id, shape_3.declaration_id, shape_4.declaration_id, shape_5.declaration_id) IS NOT NULL
