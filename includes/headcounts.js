@@ -1,6 +1,14 @@
 /* To be updated by a Programme Delivery Manager once per quarter. */
 
 const headcounts = [{
+     date: "2026-09-29",
+   ecteHeadcount: 22,
+   npqHeadcount: 24
+   }, {
+     date: "2026-08-29",
+   ecteHeadcount: 26,
+   npqHeadcount: 15
+   }, {
     date: "2026-07-29",
    ecteHeadcount: 29,
    npqHeadcount: 32
