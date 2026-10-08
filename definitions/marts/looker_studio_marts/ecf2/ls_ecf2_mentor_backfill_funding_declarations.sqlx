@@ -42,14 +42,13 @@ config {
         funded_hours_2023_b: "The total hours funded in 2023 - installment 2 if any",
         funded_hours_2024: "The total hours funded in 2024 if any",
         funded_hours_2025: "The total hours funded in 2025 if any",
-        has_previously_paid_dec: "True/False if this teacher had this declaration type in the service already",
+        is_previously_paid_dec: "True/False if this teacher had this declaration type in the service already",
         previously_paid_dec_state: "The state of the declaration in the service if the mentor already had this type of declaration. Should be Null or clawback otherwise there should not be the same declaration type again for this teacher",
         eligible_funded_hours: "The number of hours that the declaration is eligible for funding - can be zero.",
         zero_rated_reason: "The reason why if applicable the eligible funded hours was set to zero"
 
     }
 }
-
 
 WITH funding_rates AS (
 
@@ -71,7 +70,7 @@ WITH funding_rates AS (
 previously_paid AS (
   SELECT 
     *
-  FROM ${ref(`ecf2_mentor_backfill_funding_previously_paid`)}
+  FROM ${ref('ecf2_mentor_backfill_funding_previously_paid')} 
 ),
 
 previously_paid_grouped AS (
@@ -134,11 +133,11 @@ manual_declarations AS (
     CAST(NULL AS STRING) AS delivery_partner_external_id,
     CAST(NULL AS STRING) AS delivery_partner
 
-  FROM ${ref(`pre_assurance_checks_manually_paid_mentors`)} a
+  FROM ${ref('pre_assurance_checks_manually_paid_mentors')} a
 
-  LEFT JOIN ${ref(`ecf2_schools`)} s
+  LEFT JOIN ${ref('ecf2_schools')} s
     ON a.school_urn = s.school_urn
-  LEFT JOIN ${ref(`teachers_latest_ecf2`)} t
+  LEFT JOIN ${ref('teachers_latest_ecf2')} t
     ON a.user_id = t.api_id
 
   WHERE 
@@ -159,7 +158,6 @@ base_declarations AS (
     declaration_created_at_date,
     evidenced_at,
     declaration_state,
-    -- statement_contract_period_year,
     contract_period_year,
     school_id,
     school_urn,
@@ -183,7 +181,7 @@ base_declarations AS (
   --     WHEN 'started' THEN 1
   --     ELSE 0
   -- END AS declaration_hierarchy
-  FROM ${ref(`ecf2_declarations_latest`)}
+  FROM ${ref('ecf2_declarations_latest')}
   WHERE 
     funded_declaration
     AND participant_type = 'mentor'
@@ -199,9 +197,15 @@ declaration_expanded AS (
   SELECT 
     base.*,
     CASE 
-      WHEN base.evidenced_at >= "2025-09-01" AND base.evidenced_at <= "2026-08-31" THEN 2026
-      ELSE NULL 
-    END AS payment_year,
+      WHEN base.declaration_type IN ('started', 'retained-1', 'retained-2') THEN "year_1_dec"
+      WHEN base.declaration_type IN ('completed', 'retained-3', 'retained-4') THEN "year_2_dec"
+      ELSE "extended"
+    END AS declaration_period,
+    2026 AS payment_year,
+    -- CASE 
+    --   WHEN base.evidenced_at >= "2025-09-01" AND base.evidenced_at <= "2026-08-31" THEN 2026
+    --   ELSE NULL 
+    -- END AS payment_year,
     CASE 
       WHEN base.contract_period_year >= 2025 AND base.declaration_type = 'started' THEN 4
       WHEN base.contract_period_year >= 2025 AND base.declaration_type = 'completed' THEN 16
@@ -214,13 +218,8 @@ declaration_expanded AS (
         'completed'
       ) THEN 6
       ELSE 0
-    END AS funded_hours,
-    prev_paid_2022.funded_hours AS funded_hours_2022,
-    prev_paid_2023_a.funded_hours AS funded_hours_2023_a,
-    prev_paid_2023_b.funded_hours AS funded_hours_2023_b,
-    prev_paid_2024.funded_hours AS funded_hours_2024,
-    prev_paid_2025.funded_hours AS funded_hours_2025,
-    CASE WHEN prev_paid_dec.declaration_id IS NOT NULL THEN TRUE ELSE FALSE END AS has_previously_paid_dec,
+    END AS funded_hours, -- irrespective of whether they were previously paid or not
+    CASE WHEN prev_paid_dec.declaration_id IS NOT NULL THEN TRUE ELSE FALSE END AS is_previously_paid_dec,
     -- CASE WHEN prev_paid_dec.declaration_state LIKE '%claw%' THEN TRUE ELSE FALSE END AS previously_paid_dec_clawback,
     prev_paid_dec.declaration_state AS previously_paid_dec_state,
     CASE WHEN 
@@ -231,8 +230,12 @@ declaration_expanded AS (
       prev_paid_2025.funded_hours IS NOT NULL
       THEN TRUE ELSE FALSE
     END AS has_funded_hours,
-
-
+    prev_paid_2022.funded_hours AS funded_hours_2022,
+    prev_paid_2023_a.funded_hours AS funded_hours_2023_a,
+    prev_paid_2023_b.funded_hours AS funded_hours_2023_b,
+    prev_paid_2024.funded_hours AS funded_hours_2024,
+    prev_paid_2025.funded_hours AS funded_hours_2025
+   
   FROM base_declarations base
   -- join previously paid per year - 2022
   LEFT JOIN previously_paid_grouped prev_paid_2022
@@ -261,12 +264,19 @@ declaration_expanded AS (
     AND prev_paid_dec.payment_year >= 2024
   
   WHERE
-    base.evidenced_at >= "2025-09-01" 
+    (base.evidenced_at >= "2025-09-01" 
+    AND base.evidenced_at <= "2026-08-31")
+     -- plus any started declarations that was created after last year's cutoff
+     -- this part of the OR statement needs to be reviewed on a year-by-year basis
+    OR (base.declaration_created_at_date >= "2025-08-29"
     AND base.evidenced_at <= "2026-08-31"
+    AND base.declaration_type = 'started'
+    AND base.contract_period_year >= 2025
+    -- AND base.evidenced_at >= "2025-07-01"
+    )
 ),
 
-
-validation_declarations_multiple_contracts AS (
+validation_declarations_in_multiple_contracts AS (
   SELECT
     teacher_id, 
     payment_year,
@@ -285,7 +295,8 @@ funding_eligibilities AS (
     CASE WHEN v1.has_ectp_dec + v1.has_ecf_dec >= 2 THEN TRUE ELSE FALSE END AS has_ecf_and_ectp_decs,
     CASE 
       -- if dec already received funding then 0
-      WHEN has_previously_paid_dec THEN 0  
+      -- TODO: ONLY IF NOT CLAWEDBACK?!
+      WHEN is_previously_paid_dec THEN 0  
       -- contract 25 onwards, check any prior funding, if so, zero rated
       WHEN contract_period_year >= 2025 AND has_funded_hours 
       THEN 0 
@@ -314,11 +325,11 @@ funding_eligibilities AS (
         'completed'
       ) THEN "Extended Declarations"
       -- declaration_type already received funding
-      WHEN has_previously_paid_dec THEN "Declaration type already attracted funding in 2024 or 2025" 
+      WHEN is_previously_paid_dec THEN "Declaration type already attracted funding in 2024 or 2025" 
       -- contract 25, any prior funded hours
       WHEN contract_period_year >= 2025 AND has_funded_hours 
       THEN "Attracted funding for any previous year" 
-      -- contract 24 and before, started, retained1/2 funding
+      -- contract 24 and before, started, retained 1/2 funding
       WHEN contract_period_year < 2025 
         AND declaration_type IN ('started', 'retained-1', 'retained-2') 
         AND (funded_hours_2022 > 0 OR funded_hours_2023_a > 0)
@@ -334,10 +345,9 @@ funding_eligibilities AS (
 
   FROM declaration_expanded
   -- Check if teacher has declarations across ECF and ECTP
-  LEFT JOIN validation_declarations_multiple_contracts v1
+  LEFT JOIN validation_declarations_in_multiple_contracts v1
     ON declaration_expanded.teacher_id = v1.teacher_id
 ),
-
 
 too_many_funded_decs AS (
   -- final check if teacher exceeds the maximum of 18 hours funded for contracts before 25
@@ -346,7 +356,7 @@ too_many_funded_decs AS (
     teacher_id,
     declaration_id,
     SUM(eligible_funded_hours) OVER (
-      PARTITION BY teacher_id, payment_year
+      PARTITION BY teacher_id, declaration_period
       ORDER BY declaration_created_at_date
       ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW
     ) AS running_funded_hours
@@ -354,77 +364,79 @@ too_many_funded_decs AS (
   WHERE 
     eligible_funded_hours > 0
     AND contract_period_year < 2025
+),
+
+
+results AS (
+  -- FINAL SELECT
+  -- final checks and zero rated reason adjustments
+  -- Add funding rate and gias school information
+  SELECT
+    -- final.* EXCEPT(eligible_funded_hours, zero_rated_reason),
+    final.teacher_id,
+    final.teacher_external_id,
+    final.trn,
+    final.participant_type,
+    final.schedule_identifier,
+    final.declaration_id,
+    final.declaration_external_id,
+    final.declaration_type,
+    final.declaration_created_at_date,
+    final.evidenced_at,
+    final.declaration_state,
+    final.contract_period_year,
+    final.school_id,
+    final.school_urn,
+    final.school_name,
+    gias.EstablishmentName AS gias_school_name,
+    gias.TypeOfEstablishment_name AS gias_establishment_type,
+    gias.PhaseOfEducation_name AS gias_phase_of_education,
+    gias.EstablishmentStatus_name AS gias_establishment_status,
+    gias.LA_name AS gias_local_authority,
+    gias.Section41Approved_name AS section41,
+    bands.teacher_pay_band AS payment_region,
+    final.lead_provider_id,
+    final.lead_provider,
+    final.delivery_partner_external_id,
+    final.delivery_partner,
+    final.payment_year,
+    final.funded_hours,
+    final.is_previously_paid_dec,
+    final.previously_paid_dec_state,
+    final.has_funded_hours,
+    final.funded_hours_2022,
+    final.funded_hours_2023_a,
+    final.funded_hours_2023_b,
+    final.funded_hours_2024,
+    final.funded_hours_2025,
+    final.has_ecf_and_ectp_decs,
+    -- final.eligible_funded_hours
+    -- final.zero_rated_reason
+    CASE WHEN tfd.running_funded_hours > 18 THEN 0 ELSE eligible_funded_hours END AS eligible_funded_hours,
+    CASE WHEN tfd.running_funded_hours > 18 THEN "Exceeds 18 hours of funding" ELSE zero_rated_reason END AS zero_rated_reason,
+    -- multipliply hourly ecf rate by eligible funded hours in Looker/Data Studio
+    COALESCE(ecf_funding_rates.amount, ectp_funding_rates.amount) AS estimated_funding_amount
+
+  FROM funding_eligibilities final
+  -- check funding limits
+  LEFT JOIN too_many_funded_decs tfd
+    ON final.teacher_id = tfd.teacher_id
+    AND final.declaration_id = tfd.declaration_id
+  -- add gias information
+  LEFT JOIN ${ref('establishments')} AS gias
+    ON CAST(gias.urn AS INT) = final.school_urn
+  -- funding rates
+  LEFT JOIN ${ref('la_teacher_pay_band_grouping')} AS bands
+    ON bands.LA_code = CAST(gias.LA_code AS INT)
+  LEFT JOIN funding_rates ecf_funding_rates
+    ON bands.teacher_pay_band = ecf_funding_rates.region
+    AND final.contract_period_year < 2025
+    AND ecf_funding_rates.programme = 'ecf'
+  LEFT JOIN funding_rates ectp_funding_rates
+    ON bands.teacher_pay_band = ectp_funding_rates.region
+    AND final.contract_period_year >= 2025
+    AND ectp_funding_rates.programme = 'ectp'
+    AND ectp_funding_rates.declaration_type = final.declaration_type
 )
 
-
-
--- FINAL SELECT
--- final checks and zero rated reason adjustments
--- Add funding rate and gias school information
-SELECT 
-  -- final.* EXCEPT(eligible_funded_hours, zero_rated_reason),
-  final.teacher_id,
-  final.teacher_external_id,
-  final.trn,
-  final.participant_type,
-  final.schedule_identifier,
-  final.declaration_id,
-  final.declaration_external_id,
-  final.declaration_type,
-  final.declaration_created_at_date,
-  final.evidenced_at,
-  final.declaration_state,
-  final.contract_period_year,
-  final.school_id,
-  final.school_urn,
-  final.school_name,
-  gias.EstablishmentName AS gias_school_name,
-  gias.TypeOfEstablishment_name AS gias_establishment_type,
-  gias.PhaseOfEducation_name AS gias_phase_of_education,
-  gias.EstablishmentStatus_name AS gias_establishment_status,
-  gias.LA_name AS gias_local_authority,
-  gias.Section41Approved_name AS section41,
-  bands.teacher_pay_band AS payment_region,
-  final.lead_provider_id,
-  final.lead_provider,
-  final.delivery_partner_external_id,
-  final.delivery_partner,
-  final.payment_year,
-  final.funded_hours,
-  final.funded_hours_2022,
-  final.funded_hours_2023_a,
-  final.funded_hours_2023_b,
-  final.funded_hours_2024,
-  final.funded_hours_2025,
-  final.has_previously_paid_dec,
-  final.previously_paid_dec_state,
-  final.has_funded_hours,
-  final.has_ecf_and_ectp_decs,
-  -- final.eligible_funded_hours
-  -- final.zero_rated_reason
-  CASE WHEN tfd.running_funded_hours > 18 THEN 0 ELSE eligible_funded_hours END AS eligible_funded_hours,
-  CASE WHEN tfd.running_funded_hours > 18 THEN "Exceeds 18 hours of funding" ELSE zero_rated_reason END AS zero_rated_reason,
-  -- multipliply hourly ecf rate by eligible funded hours in Looker/Data Studio
-  COALESCE(ecf_funding_rates.amount, ectp_funding_rates.amount) AS estimated_funding_amount
-
-FROM funding_eligibilities final
--- check funding limits
-LEFT JOIN too_many_funded_decs tfd
-  ON final.teacher_id = tfd.teacher_id
-  AND final.declaration_id = tfd.declaration_id
--- add gias information
-LEFT JOIN ${ref('establishments')} AS gias
-  ON CAST(gias.urn AS INT) = final.school_urn
--- funding rates
-LEFT JOIN ${ref('la_teacher_pay_band_grouping')} AS bands
-  ON bands.LA_code = CAST(gias.LA_code AS INT)
-LEFT JOIN funding_rates ecf_funding_rates
-  ON bands.teacher_pay_band = ecf_funding_rates.region
-  AND final.contract_period_year < 2025
-  AND ecf_funding_rates.programme = 'ecf'
-LEFT JOIN funding_rates ectp_funding_rates
-  ON bands.teacher_pay_band = ectp_funding_rates.region
-  AND final.contract_period_year >= 2025
-  AND ectp_funding_rates.programme = 'ectp'
-  AND ectp_funding_rates.declaration_type = final.declaration_type
-
+SELECT * FROM results
