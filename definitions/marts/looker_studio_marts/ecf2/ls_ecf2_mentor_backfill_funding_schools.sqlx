@@ -50,7 +50,7 @@ WITH declarations AS (
     declaration_type,
     contract_period_year,
     funded_hours,
-    has_previously_paid_dec,
+    is_previously_paid_dec,
     eligible_funded_hours,
     zero_rated_reason,
     CASE 
@@ -98,7 +98,7 @@ school_rollup AS (
     -- Zero-rated declarations
     COUNTIF(eligible_funded_hours = 0) AS zero_rated_declaration_count,
     COUNTIF(zero_rated_reason = "Exceeds 18 hours of funding") AS declarations_exceeding_18_hours,
-    COUNTIF(has_previously_paid_dec) AS declarations_previously_paid,
+    COUNTIF(is_previously_paid_dec) AS declarations_previously_paid,
     COUNTIF(zero_rated_reason = "Extended Declarations") AS extended_declaration_count,
     -- Historical ECF-specific zero-rating reasons
     COUNTIF(zero_rated_reason = "Attracted funding in 2022 or 2023") AS declaration_funded_2022,
