@@ -93,8 +93,8 @@ manual_declarations AS (
     t.trn AS trn,
     LOWER(a.participant_type) AS participant_type,
     CAST(NULL AS STRING) AS schedule_identifier,
-    CONCAT('manual-dec-', CAST(ROW_NUMBER() OVER () AS STRING)) AS declaration_id,
-    CONCAT('manual-dec-', CAST(ROW_NUMBER() OVER () AS STRING)) AS declaration_external_id,
+    -- CONCAT('manual-dec-', CAST(ROW_NUMBER() OVER () AS STRING)) AS declaration_id,
+    -- CONCAT('manual-dec-', CAST(ROW_NUMBER() OVER () AS STRING)) AS declaration_external_id,
     LOWER(REPLACE(declaration_type, ' ', '-')) AS declaration_type,
     CASE 
       WHEN milestone = 'Apr-26' THEN TIMESTAMP('2026-04-01') 
@@ -145,6 +145,37 @@ manual_declarations AS (
     AND a.pre_assurance_check_outcome = TRUE
 ),
 
+manual_declarations_dedupe AS (
+  SELECT 
+    teacher_id,
+    teacher_external_id,
+    trn,
+    participant_type,
+    schedule_identifier,
+    CONCAT('manual-dec-', CAST(ROW_NUMBER() OVER () AS STRING)) AS declaration_id,
+    CONCAT('manual-dec-', CAST(ROW_NUMBER() OVER () AS STRING)) AS declaration_external_id,
+    declaration_type,
+    declaration_created_at_date,
+    evidenced_at,
+    declaration_state,
+    contract_period_year,
+    school_id,
+    school_urn,
+    school_name,
+    lead_provider_id,
+    lead_provider,
+    delivery_partner_external_id,
+    delivery_partner
+  FROM manual_declarations
+  -- de-dupe, e.g., 1080279 // dc707ac7-cb58-4371-95aa-6f8bb0e33047 has two completed decs
+  QUALIFY ROW_NUMBER() OVER (
+    PARTITION BY
+      trn,
+      declaration_type
+    ORDER BY declaration_type
+  ) = 1
+),
+
 base_declarations AS (
   SELECT 
     teacher_id,
@@ -186,7 +217,7 @@ base_declarations AS (
     funded_declaration
     AND participant_type = 'mentor'
   UNION ALL
-    SELECT * FROM manual_declarations
+    SELECT * FROM manual_declarations_dedupe
 ),
 
 
@@ -234,7 +265,13 @@ declaration_expanded AS (
     prev_paid_2023_a.funded_hours AS funded_hours_2023_a,
     prev_paid_2023_b.funded_hours AS funded_hours_2023_b,
     prev_paid_2024.funded_hours AS funded_hours_2024,
-    prev_paid_2025.funded_hours AS funded_hours_2025
+    prev_paid_2025.funded_hours AS funded_hours_2025,
+    COALESCE(prev_paid_2022.funded_hours, 0) +
+    COALESCE(prev_paid_2023_a.funded_hours, 0) +
+    COALESCE(prev_paid_2023_b.funded_hours, 0) +
+    COALESCE(prev_paid_2024.funded_hours, 0) +
+    COALESCE(prev_paid_2025.funded_hours, 0)
+    AS total_funded_hours
    
   FROM base_declarations base
   -- join previously paid per year - 2022
@@ -310,11 +347,14 @@ funding_eligibilities AS (
         AND declaration_type IN ('completed', 'retained-3', 'retained-4') 
         AND funded_hours_2023_b > 0
       THEN 0
+      -- total funding ovver 36
+      WHEN total_funded_hours >= 36 THEN 0
       -- Otherwise, no prior funding, eligbile
       ELSE funded_hours 
     END AS eligible_funded_hours,
 
     CASE 
+
       -- extended declarations
       WHEN declaration_type NOT IN (
         'started',
@@ -339,6 +379,9 @@ funding_eligibilities AS (
         AND declaration_type IN ('completed', 'retained-3', 'retained-4') 
         AND funded_hours_2023_b > 0
       THEN "Attracted funding 2023"
+      -- total funding amount exceeded
+      WHEN total_funded_hours >= 36
+      THEN "Exceeds 36 total hour funded"
       -- Otherwise no reason / eligbile for funding
       ELSE "" 
     END AS zero_rated_reason
@@ -349,7 +392,7 @@ funding_eligibilities AS (
     ON declaration_expanded.teacher_id = v1.teacher_id
 ),
 
-too_many_funded_decs AS (
+too_many_funded_decs_per_year AS (
   -- final check if teacher exceeds the maximum of 18 hours funded for contracts before 25
   -- check has to be after performing all other checks as we only want to review the final set of eligible decs
   SELECT 
@@ -364,6 +407,23 @@ too_many_funded_decs AS (
   WHERE 
     eligible_funded_hours > 0
     AND contract_period_year < 2025
+),
+
+
+too_many_funded_decs AS (
+  -- final check if teacher exceeds the maximum of 18 hours funded for contracts before 25
+  -- check has to be after performing all other checks as we only want to review the final set of eligible decs
+  SELECT 
+    teacher_id,
+    declaration_id,
+    SUM(eligible_funded_hours) OVER (
+      PARTITION BY teacher_id
+      ORDER BY declaration_created_at_date
+      ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW
+    ) AS running_funded_hours
+  FROM funding_eligibilities
+  WHERE 
+    eligible_funded_hours > 0
 ),
 
 
@@ -409,16 +469,28 @@ results AS (
     final.funded_hours_2023_b,
     final.funded_hours_2024,
     final.funded_hours_2025,
+    final.total_funded_hours,
     final.has_ecf_and_ectp_decs,
     -- final.eligible_funded_hours
     -- final.zero_rated_reason
-    CASE WHEN tfd.running_funded_hours > 18 THEN 0 ELSE eligible_funded_hours END AS eligible_funded_hours,
-    CASE WHEN tfd.running_funded_hours > 18 THEN "Exceeds 18 hours of funding" ELSE zero_rated_reason END AS zero_rated_reason,
+    CASE 
+      WHEN tfd_year.running_funded_hours > 18 THEN 0 
+      WHEN tfd.running_funded_hours + final.total_funded_hours > 36 THEN 0 
+      ELSE eligible_funded_hours 
+    END AS eligible_funded_hours,
+    CASE 
+      WHEN tfd_year.running_funded_hours > 18 THEN "Exceeds 18 hours of funding" 
+      WHEN tfd.running_funded_hours + final.total_funded_hours > 36 THEN "Exceeds 36 total hours of funding" 
+      ELSE zero_rated_reason
+    END AS zero_rated_reason,
     -- multipliply hourly ecf rate by eligible funded hours in Looker/Data Studio
     COALESCE(ecf_funding_rates.amount, ectp_funding_rates.amount) AS estimated_funding_amount
 
   FROM funding_eligibilities final
   -- check funding limits
+  LEFT JOIN too_many_funded_decs_per_year tfd_year
+    ON final.teacher_id = tfd_year.teacher_id
+    AND final.declaration_id = tfd_year.declaration_id
   LEFT JOIN too_many_funded_decs tfd
     ON final.teacher_id = tfd.teacher_id
     AND final.declaration_id = tfd.declaration_id
@@ -438,5 +510,6 @@ results AS (
     AND ectp_funding_rates.programme = 'ectp'
     AND ectp_funding_rates.declaration_type = final.declaration_type
 )
+
 
 SELECT * FROM results
