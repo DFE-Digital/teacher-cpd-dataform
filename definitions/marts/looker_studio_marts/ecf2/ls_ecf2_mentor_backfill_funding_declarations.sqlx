@@ -109,8 +109,11 @@ manual_declarations AS (
     CASE
       WHEN SAFE_CAST(a.cohort AS INT64) >= 2000
         THEN SAFE_CAST(a.cohort AS INT64)
+      
+      WHEN SAFE_CAST(a.cohort AS INT64) BETWEEN 0 AND 19
+        THEN 2020 + SAFE_CAST(a.cohort AS INT64)
 
-      WHEN SAFE_CAST(a.cohort AS INT64) BETWEEN 0 AND 99
+      WHEN SAFE_CAST(a.cohort AS INT64) BETWEEN 20 AND 99
         THEN 2000 + SAFE_CAST(a.cohort AS INT64)
 
       WHEN REGEXP_CONTAINS(a.cohort, r'(\d{4})$')
