@@ -53,10 +53,12 @@ config {
         course_cohort_id_key: "Primary identifier of the course cohort record",
         cohort_id: "Identifier of the cohort the course cohort belongs to",
         schedule_id: "Identifier of the schedule the course cohort follows",
+        schedule_identifier: "Machine-readable schedule identifier",
         cohort_start_year: "Calendar year the cohort starts",
         cohort_identifier: "Machine-readable cohort identifier",
         cohort_registration_starts_at: "Timestamp registration opens for the cohort",
         cohort_registration_ends_at: "Timestamp registration closes for the cohort",
+        schedule_identifier: "Machine-readable schedule identifier",
         schedule_name: "Name of the training schedule",
         schedule_training_starts_at: "Timestamp training starts under this schedule",
         schedule_training_ends_at: "Timestamp training ends under this schedule",
@@ -229,6 +231,7 @@ SELECT
     coh.funding_cap,
 
     -- Schedule
+    sch_t.identifier AS schedule_identifier,
     sch_t.name AS schedule_name,
     sch_t.training_starts_at AS schedule_training_starts_at,
     sch_t.training_ends_at AS schedule_training_ends_at,
