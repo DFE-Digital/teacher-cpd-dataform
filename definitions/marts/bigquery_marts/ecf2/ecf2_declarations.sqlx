@@ -123,6 +123,7 @@ SELECT
   tp.teacher_id,
   tp.teacher_external_id,
   tp.trn,
+  tp.training_record_id,
   tp.ect_first_became_eligible_for_training_at,
   tp.mentor_first_became_eligible_for_training_at,
   tp.ect_became_ineligible_for_funding_on,
