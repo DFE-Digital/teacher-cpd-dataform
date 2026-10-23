@@ -47,6 +47,7 @@ config {
             bigqueryPolicyTags: ["projects/ecf-bq/locations/europe-west2/taxonomies/6302091323314055162/policyTags/301313311867345339"]
         },
         teacher_api_id: "The external id of the teacher in the ECF2 Service.",
+        training_record_id: "The ecf1 profile id taken from teachers. api_ect_training_record_id if the participant is an ECT otherwise api_mentor_training_record_id.",
         trs_induction_status: "The status of the induction of a teacher as stored in TRS.",
         trs_induction_start_date: "The date a teacher started their statutory induction, taken from a teachers induction record in the Teaching Record System",
         trs_induction_completed_date: "The date a teacher completed their statutory induction, taken from a teachers induction record in the Teaching Record System",
@@ -194,6 +195,11 @@ training_periods AS (
     -- note: trs_induction_status is only null - is this due to sandbox data?
     t.trn,
     t.api_id as teacher_external_id,
+    CASE 
+      WHEN tp.participant_type = 'ect' 
+      THEN t.api_ect_training_record_id 
+      ELSE t.api_mentor_training_record_id
+    END AS training_record_id,
     t.trs_induction_status,  
     t.trs_induction_start_date,
     t.trs_induction_completed_date,
