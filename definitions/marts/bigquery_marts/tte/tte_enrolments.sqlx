@@ -17,7 +17,9 @@ config {
         application_status: "Current status of the application",
         application_created_at: "Timestamp the application was created",
         application_updated_at: "Timestamp the application was last updated",
-        application_trn: "Teacher Reference Number supplied by the applicant on submission",
+        on_submission_trn: "TRN supplied by the applicant on submission, from the application record",
+        application_trn: "First TRN on the user profile valid at application creation",
+        user_trn: "Current TRN on the user profile",
         eligible_for_funding: "TRUE where the applicant is eligible for DfE funding",
         funded_place: "TRUE where the lead provider has confirmed a funded place",
         funding_choice: "Non-DfE funding method the applicant selected",
@@ -51,10 +53,12 @@ config {
         course_cohort_id_key: "Primary identifier of the course cohort record",
         cohort_id: "Identifier of the cohort the course cohort belongs to",
         schedule_id: "Identifier of the schedule the course cohort follows",
+        schedule_identifier: "Machine-readable schedule identifier",
         cohort_start_year: "Calendar year the cohort starts",
         cohort_identifier: "Machine-readable cohort identifier",
         cohort_registration_starts_at: "Timestamp registration opens for the cohort",
         cohort_registration_ends_at: "Timestamp registration closes for the cohort",
+        schedule_identifier: "Machine-readable schedule identifier",
         schedule_name: "Name of the training schedule",
         schedule_training_starts_at: "Timestamp training starts under this schedule",
         schedule_training_ends_at: "Timestamp training ends under this schedule",
@@ -116,6 +120,17 @@ latest_participant_outcome AS (
     GROUP BY declaration_id
 ),
 
+application_trns AS (
+    SELECT
+        app.id AS application_id,
+        uv.trn
+    FROM ${ref('applications_latest_tte')} app
+    JOIN ${ref('users_version_tte')} uv
+        ON CAST(uv.id AS STRING) = CAST(app.user_id AS STRING)
+        AND app.created_at >= uv.valid_from
+        AND (uv.valid_to IS NULL OR app.created_at < uv.valid_to)
+    QUALIFY ROW_NUMBER() OVER (PARTITION BY app.id ORDER BY uv.valid_from DESC) = 1
+),
 
 -- Temporary fix 1 - delete this block once declarations come through and uncomment current_application_lead_provider
 current_application_lead_provider_temp AS (
@@ -172,7 +187,9 @@ SELECT
     app.ukprn AS application_ukprn,
     app.user_id,
     app.course_cohort_id,
-    app.on_submission_trn AS application_trn,
+    app.on_submission_trn,
+    app_trn.trn AS application_trn,
+    users.trn AS user_trn,
     app.notes,
     app.referred_by_return_to_teaching_adviser,
 
@@ -214,6 +231,7 @@ SELECT
     coh.funding_cap,
 
     -- Schedule
+    sch_t.identifier AS schedule_identifier,
     sch_t.name AS schedule_name,
     sch_t.training_starts_at AS schedule_training_starts_at,
     sch_t.training_ends_at AS schedule_training_ends_at,
@@ -271,6 +289,13 @@ SELECT
     po.participant_outcome_completion_date
 
 FROM ${ref('applications_latest_tte')} app
+
+LEFT JOIN ${ref('users_latest_tte')} users
+    ON CAST(users.id AS STRING) = CAST(app.user_id AS STRING)
+LEFT JOIN application_trns app_trn
+    ON CAST(app_trn.application_id AS STRING) = CAST(app.id AS STRING)
+
+
 LEFT JOIN ${ref('declarations_latest_tte')} dec ON CAST(dec.application_id AS STRING) = CAST(app.id AS STRING)
 
 -- Temporary fix 2 - delete this once declarations come through and uncomment the line below it

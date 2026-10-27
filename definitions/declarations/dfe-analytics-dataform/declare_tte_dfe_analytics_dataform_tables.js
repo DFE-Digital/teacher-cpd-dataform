@@ -16,6 +16,7 @@ const tableNames = [
     "delivery_partnerships_latest",
     "registration_interests_latest",
     "users_latest",
+    "users_version",
     "milestones_latest",
     "session_details",
     "events",

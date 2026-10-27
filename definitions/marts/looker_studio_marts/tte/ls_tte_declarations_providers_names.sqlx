@@ -1,0 +1,105 @@
+-- this is a placeholder for extended use of the self serve apps once NPD Declarations have been finalised 
+/* 
+config {
+    type: "table",
+    tags: ["tte"],
+    assertions: {
+        uniqueKey: ["declaration_id"],
+    },
+    bigquery: {
+        partitionBy: "DATE(declaration_date)",
+        clusterBy: ["lp_name", "course_identifier"]
+    },
+    description: "One row per declaration for NPD (TTE) applications. Built from tte_enrolments, filtered to rows with a declaration. Intended for the TTE Self-Serve Data dashboard and to support conversations between the product team, contract managers, and other Digital colleagues. Joins delivery partner names, user TRN verification, and the cohort stored against the declaration.",
+    columns: {
+        declaration_id: "Primary identifier of the declaration.",
+        application_id: "Primary identifier of the application associated to the declaration.",
+        cohort: "The cohort identifier of the cohort the application's course cohort belongs to.",
+        cohort_id: "Identifier of the cohort the course cohort belongs to.",
+        cohort_start_year: "Calendar year the cohort starts.",
+        cohort_identifier: "Machine-readable cohort identifier.",
+        cohort_registration_starts_at: "Timestamp registration opens for the cohort.",
+        cohort_registration_ends_at: "Timestamp registration closes for the cohort.",
+        cohort_ecf_id: "Identifier of the cohort in the legacy ECF service.",
+        cohort_description: "Description of the cohort.",
+        funding_cap: "Funding cap held on the cohort.",
+        course_cohort_id: "Identifier of the course cohort held on the application record.",
+        course_cohort_id_key: "Primary identifier of the course cohort record.",
+        academic_year: "Academic year held on the course cohort.",
+        term_identifier: "Term identifier held on the course cohort.",
+        course_cohort_training_starts_at: "Timestamp training starts for the course cohort.",
+        course_identifier: "Machine-readable course identifier, e.g. tte-1.",
+        declaration_date: "Evidenced date of the declaration.",
+        declaration_type: "Type of declaration, e.g. started, retained-1, completed.",
+        declaration_state: "State of the declaration, e.g. submitted, eligible, payable, paid, voided.",
+        lp_name: "Name of the lead provider. Currently the lead provider assigned to the application, not the declaration, until temporary fix 3 in tte_enrolments is reverted.",
+        lead_provider_id: "Primary identifier of the lead provider.",
+        delivery_partner_id: "Identifier of the delivery partner on the declaration.",
+        delivery_partner_name: "The name of the delivery partner indicated on the declaration.",
+        secondary_delivery_partner_id: "Identifier of the secondary delivery partner on the declaration.",
+        secondary_delivery_partner_name: "The name of the secondary delivery partner indicated on the declaration.",
+        declaration_cohort_id: "Identifier of the cohort the declaration was made against.",
+        statement_cohort: "The cohort identifier stored against the declaration.",
+        user_id: "Identifier of the user who submitted the application.",
+        verified_trn: {
+            description: "The TRN of the participant that has been verified.",
+            bigqueryPolicyTags: ["projects/ecf-bq/locations/europe-west2/taxonomies/6302091323314055162/policyTags/301313311867345339"]
+        }
+    }
+}
+
+SELECT
+    enrolments.declaration_id,
+    enrolments.application_id,
+    enrolments.cohort_identifier AS cohort,
+    enrolments.cohort_id,
+    enrolments.cohort_start_year,
+    enrolments.cohort_identifier,
+    enrolments.cohort_registration_starts_at,
+    enrolments.cohort_registration_ends_at,
+    enrolments.cohort_ecf_id,
+    enrolments.cohort_description,
+    enrolments.funding_cap,
+    enrolments.course_cohort_id,
+    enrolments.course_cohort_id_key,
+    enrolments.academic_year,
+    enrolments.term_identifier,
+    enrolments.course_cohort_training_starts_at,
+    enrolments.course_identifier,
+    enrolments.declaration_date,
+    enrolments.declaration_type,
+    enrolments.declaration_state,
+    enrolments.lead_provider_name AS lp_name,
+    enrolments.lead_provider_id,
+    enrolments.delivery_partner_id,
+    delivery_partners.name AS delivery_partner_name,
+    enrolments.secondary_delivery_partner_id,
+    secondary_delivery_partners.name AS secondary_delivery_partner_name,
+    enrolments.declaration_cohort_id,
+    statement_cohorts.identifier AS statement_cohort,
+    enrolments.user_id,
+    CASE
+        WHEN users.trn_verified = TRUE THEN users.trn
+        ELSE NULL
+    END AS verified_trn
+FROM
+    ${ref('tte_enrolments')} AS enrolments
+LEFT JOIN
+    ${ref('users_latest_tte')} AS users
+ON
+    CAST(users.id AS STRING) = CAST(enrolments.user_id AS STRING)
+LEFT JOIN
+    ${ref('cohorts_latest_tte')} AS statement_cohorts
+ON
+    CAST(statement_cohorts.id AS STRING) = CAST(enrolments.declaration_cohort_id AS STRING)
+LEFT JOIN
+    ${ref('delivery_partners_latest_tte')} AS delivery_partners
+ON
+    CAST(delivery_partners.id AS STRING) = CAST(enrolments.delivery_partner_id AS STRING)
+LEFT JOIN
+    ${ref('delivery_partners_latest_tte')} AS secondary_delivery_partners
+ON
+    CAST(secondary_delivery_partners.id AS STRING) = CAST(enrolments.secondary_delivery_partner_id AS STRING)
+WHERE
+    enrolments.declaration_id IS NOT NULL
+*/ 
