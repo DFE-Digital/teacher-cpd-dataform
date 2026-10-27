@@ -143,6 +143,7 @@ WITH base_training_periods AS (
     schedules.contract_period_year,
 
     -- partnerships
+    p.framework_agreement_id,
     p.lead_provider_id,
     p.lead_provider_name AS lead_provider,
     p.delivery_partner_id,
