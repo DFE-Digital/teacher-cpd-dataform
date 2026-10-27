@@ -31,6 +31,7 @@ SELECT
   school_partnerships.id AS school_partnership_id,
   school_partnerships.api_id AS school_partnership_external_id,
   school_partnerships.lead_provider_delivery_partnership_id,
+  lpdp.framework_agreement_id,
   -- lead provider info
   framework_agreements.contract_period_year,
   framework_agreements.lead_provider_id AS lead_provider_id,
