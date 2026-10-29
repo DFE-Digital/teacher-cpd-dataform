@@ -1,7 +1,15 @@
 config {
     type: "assertion",
     description: "This assertion checks if our main tables in the CPD project are missing metadata information. If this alert fires, either add in the meta description or contact the relevant team to add in the description.",
-    dependencies: []
+    dependencies: [
+        "tad_ecf2_training_periods",
+        "tad_ecf2_declarations",
+        "tad_ecf2_mentorship_periods",
+        "participant_declarations_npq",
+        "participant_outcomes",
+        "ecf2_induction_periods",
+        "tad_npq_enrolment"
+    ]
 }
 
   -- Dependencies above are to make sure the above tables run before the assertion checks if metadata is missing
