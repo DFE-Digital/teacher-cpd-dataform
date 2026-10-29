@@ -15,7 +15,7 @@ config {
         expression_of_interest_id: "The primary key of the active_lead_providers table. The expression of interest indicates which lead provider wish to deliver the training to a participant. Only always populated when training_programme is provider-led AND there is no partnership (identified by the presence of school_partnership_id).",
         ect_at_school_period_id: "The id of an ect spending a period of time at a school. Must be null when mentor_at_school_period_id is present",
         mentor_at_school_period_id: "The id of a mentor spending a period of time at a school. Must be null when ect_at_school_period_id is present",
-        participant_type: "Either ECT or Mentor. Derived from ect or mentor_at_school_period_id.",
+        participant_type: "Either ect or mentor. Derived from ect or mentor_at_school_period_id.",
         training_programme: "The type of training the ECT or Mentor is registered for. Possible values: provider_led, school_led",
         teacher_id: "The internal CPD programme id for a teacher",
         training_status: "Derived from the started, finished, deferred, withdrawn dates. Deferred is given priority over Withdrawn over Finished over Active.",
@@ -31,11 +31,12 @@ config {
         working_pattern: "Only available for ECTs. Possible values: Full-Time or Part-Time",
         school_id: "The ID of the school",
         school_reported_appropriate_body_id: "The ID of the appropriate body responsible for this training_period as reported by the school",
-        appropriate_body_name: "The name of the appropriate body.",
+        school_reported_appropriate_body: "The name of the appropriate body.",
         lead_provider_id: "ID of the lead provider responsible for the training period.",
         lead_provider: "The name of the lead_provider",
         delivery_partner_id: "The ID of the delivery partner",
         delivery_partner: "The name of the delivery partner",
+        delivery_partner_external_id: "The unique identifier for delivery partners as exposed over the API.",
         trn: {
             description: "The teacher reference number.",
             bigqueryPolicyTags: ["projects/ecf-bq/locations/europe-west2/taxonomies/6302091323314055162/policyTags/301313311867345339"]
@@ -54,6 +55,8 @@ config {
         school_type: "",
         school_phase: "",
         school_urn: "Unique Reference Number (URN) assigned to a school. Note that a URN is not persistent across structural changes: if a school closes and re-opens with materially different characteristics, a new URN is issued and a new record is created rather than updating the existing one.",
+        sparsity_uplift: "",
+        pupil_premium_uplift: "",        
         created_at: "When the training_period was created in the ECF2 service",
         updated_at: "When the training_period was last updated in the ECF2 service"
     }
@@ -71,7 +74,7 @@ SELECT
 *
 FROM ${ref("ecf2_training_periods")}
 
-WHERE started_on <= CURRENT_DATE() 
+-- WHERE started_on <= CURRENT_DATE() 
 
 QUALIFY ROW_NUMBER() OVER (
     PARTITION BY participant_type, teacher_id

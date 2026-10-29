@@ -1,0 +1,5 @@
+config {
+  type: "declaration",
+  schema: "static_tables",
+  name: "pre_assurance_checks_manually_paid_mentors"
+}

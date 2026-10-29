@@ -1,0 +1,264 @@
+config {
+    type: "table",
+    tags: ["ecf2"],
+    assertions: {
+        uniqueKey: ["teacher_id"],
+    },
+    description: "This mart identifies ECTs that are registered in RECT but not in RIAB. This is an annual report run in October",
+    columns: {
+        teacher_id: "The ID of the participant as assinged in the RECT service.",
+        trn: {
+            description: "TRN associated with the ECT's profile.",
+            bigqueryPolicyTags: ["projects/ecf-bq/locations/europe-west2/taxonomies/6302091323314055162/policyTags/301313311867345339"]
+        },
+        school_urn: 'The URN of the school of the ECTs first training period.',
+        school_name: 'The name of the school of the ECTs first training period.',
+        appropriate_body_id: 'The id of the Appropriate Body as reported by the school of the ECTs first training period.',
+        ab_indicated_on_training_registration: 'The name of the Appropriate Body as reported by the school of the ECTs first training period.',
+        ab_hub_region: 'The Hub Region code for the Appropriate Body dervied from a manual mapping table',
+        school_hub_region: 'The Hub Region of the school derived from a static table tsh_lsoa_lookup_2023',
+        training_programme: 'The training program of the ECTs first training period',
+        training_started_on: 'The started_on date of the ECTS first training period',
+        training_registration_occurred_on: "The created_at date of the ECTs first training period.",
+        induction_period_created_at: "The created_at date of the RIAB induction record",
+        in_riab: "True/False if the ECT has a induction period in RIAB",
+    }
+}
+
+
+
+pre_operations {
+  DECLARE CURRENT_YEAR INT64 DEFAULT 2026;
+  DECLARE EARLIEST_TRAINING_REG_DATE DATE DEFAULT DATE '2026-06-15';
+}
+
+
+WITH ab_mapping AS (
+  SELECT '4cb21fcf-d643-4120-9c5b-2d105abcb4af' AS ecf_id, 378 AS rect_id UNION ALL -- Saffron Teaching School Hub
+  SELECT 'a77df925-7b9e-4957-a3b4-aa9d9318a7cd', 526 UNION ALL -- Inspiration Teaching School Hub
+  SELECT 'c99bfcf6-1dc6-49fd-9a28-abe670720883', 392 UNION ALL -- Chafford Hundred Teaching School Hub
+  SELECT '3162da6d-8b35-4861-9939-48cb85d802f7', 507 UNION ALL -- Unity Teaching School Hub
+  SELECT 'acff7f4a-2967-44c2-8c2a-99b4552dd9a8', 358 UNION ALL -- Alban Teaching School Hub
+  SELECT '1db342ef-4b29-452d-b105-12ae959b631d', 336 UNION ALL -- Chiltern Teaching School Hub
+  SELECT '5baa0a83-ccf7-4c25-9564-81754b481337', 4 UNION ALL -- Leicestershire & Rutland TS Hub
+  SELECT '83ebc588-154b-4afc-87d1-cf3f3005e3d9', 3 UNION ALL -- Redhill Teaching Hub
+  SELECT '287967cc-40f7-4e7e-b1b0-786f1767d06c', 257 UNION ALL -- Potentia TSH
+  SELECT 'ec9f0d00-4ab7-44d9-97a9-8057bce3f5b4', 531 UNION ALL -- Flying High Teaching School Hub
+  SELECT 'f68d9fe5-fe43-4186-8495-8ea0b182821d', 273 UNION ALL -- Leicester & Leicestershire TSH
+  SELECT '742bdf50-5a2b-45d8-9131-36ddaaccbf08', 416 UNION ALL -- L.E.A.D. Teaching School Hub Lincolnshire
+  SELECT 'a3c3064a-52ba-4bfe-b4b5-3b9991d2b9ce', 414 UNION ALL -- Spencer Teaching School Hub
+  SELECT '80d6265f-8ca4-4604-a3cb-b4512b8e4ae2', 422 UNION ALL -- Northamptonshire Teaching School Hub
+  SELECT 'e883f73b-48e5-4bb9-b577-d3151f7a94d7', 27 UNION ALL -- East London Teaching School Hub
+  SELECT '710e9278-b3fe-4bf6-8b26-e118647ae80a', 388 UNION ALL -- Thames South Teaching School Hub
+  SELECT '3fbad505-80d8-4aed-b5cb-141270b3e5c7', 513 UNION ALL -- London District East Teaching School Hub
+  SELECT 'c14321bb-cd23-4076-bc9d-9b264cf7255b', 459 UNION ALL -- Cambridgeshire and Peterborough Teaching School Hub
+  SELECT 'bb014ec5-a974-4173-adcc-8cd9f8573fb0', 533 UNION ALL -- North East London Teaching School Hub
+  SELECT '7a6fa110-9550-4a54-8952-5d063f5d9d1f', 424 UNION ALL -- North West London Teaching School Hub
+  SELECT '658c4468-30d9-4563-8581-0d20c075220f', 390 UNION ALL -- Teach West London
+  SELECT '6b433d0a-2244-4132-931f-c7c17b8fa68c', 316 UNION ALL -- Central London Teaching School Hub
+  SELECT 'cda22c42-2e71-45d0-914a-d2fafadd52ea', 1 UNION ALL -- Wandle Teaching School Hub
+  SELECT '9e78be52-5598-4883-881c-814f63fb91e7', 463 UNION ALL -- Harris City Academy Crystal Palace Teaching School Hub
+  SELECT 'da694a86-d043-4aea-b4b1-dfb85a93eb88', 10 UNION ALL -- London South Teaching School Hub
+  SELECT '9bb3b070-00b9-4881-a118-7c5d71f412de', 396 UNION ALL -- The Three Rivers Teaching School Hub
+  SELECT 'ff335729-990b-4e0f-9f05-1fb279491a68', 19 UNION ALL -- Tees Valley Teaching School Hub
+  SELECT '3b9cf79f-5bd4-4b81-b627-0d5ccac8b5bf', 409 UNION ALL -- Northern Lights TSH: South Tyne & Wear
+  SELECT 'cc390aa6-4d13-46a0-8e05-960fe4e198dc', 37 UNION ALL -- NELTSH Teaching School Hub
+  SELECT '3028b162-409f-4143-90d7-e312357b1300', 522 UNION ALL -- Inspire Learning Teaching School Hub NW
+  SELECT 'd4d9529e-aca5-41ff-881b-267a8570aaac', 384 UNION ALL -- The East Manchester Teaching Hub
+  SELECT '53eee9d4-7458-4cce-aaac-2358801d1e91', 534 UNION ALL -- One Cumbria Teaching School Hub
+  SELECT '98634cc2-e894-4959-82b3-ac27cbbbf72d', 476 UNION ALL -- Cheshire Teaching School Hub
+  SELECT '30d88c98-1d82-4e9c-af08-c39bbd78acb0', 43 UNION ALL -- Generate Teaching Hub
+  SELECT '52697507-c765-4445-91df-35e01bbac58d', 63 UNION ALL -- Star Teaching School Hub Pennine Lancashire
+  -- SELECT '3e7e39de-a62c-4940-bdb1-8c47f3970a92', 63 UNION ALL -- Star Teaching School Hub Pennine Lancashire
+  -- SELECT '46469655-8d0f-4a8c-9966-0fae6a00162a', 63 UNION ALL -- Star Teaching School Hub Pennine Lancashire
+  SELECT '0f6720a7-097c-406a-aa60-29ba7eb1ca21', 57 UNION ALL -- Embrace Teaching School Hub (SW Lancashire)
+  SELECT 'd39267fc-ded1-49e0-b6ae-1161b3f3b439', 383 UNION ALL -- Bright Futures Teaching School Hub-Salford & Trafford
+  SELECT '4206bdd2-1806-40ff-a44e-41dc52dabd62', 44 UNION ALL -- Rainbow Teaching School Hub
+  SELECT 'f8ab3d0e-8b2f-4156-ab18-267c3b651a1d', 6 UNION ALL -- The Julian Teaching School Hub
+  SELECT 'dadd329c-6055-4e1c-b0ef-8ebc68f064a2', 45 UNION ALL -- STEP Ahead Teaching School Hub
+  SELECT '21a0cc8d-e737-4ab4-87f4-d9b80c91d5b0', 518 UNION ALL -- TSH Berkshire
+  SELECT '9f914a53-8e75-4671-ad0f-410645a12850', 469 UNION ALL -- SFET Teaching School Hub
+  SELECT 'c3e06654-9827-4ded-9ab5-c6bf7bfb6b0e', 347 UNION ALL -- Thames Gateway Teaching School Hub
+  SELECT '6ee878a2-2328-4270-951a-368349fabc48', 366 UNION ALL -- Kent Teaching School Hub
+  SELECT '7ca83340-10da-4525-a8fd-3cb6c14f386c', 346 UNION ALL -- HISP Teaching School Hub (Thornden School)
+  SELECT '33f2e3a7-0bf6-4f2f-970f-c5e94c9f2d20', 403 UNION ALL -- GLF West Sussex Teaching School Hub
+  SELECT '7c59dc41-d732-4367-b236-564c01aee4c1', 53 UNION ALL -- Xavier Teaching School Hub
+  SELECT '77bf65fb-493b-4d3c-86eb-6a2c9839a32d', 329 UNION ALL -- Astra Teaching School Hub, Buckinghamshire
+  SELECT 'db5d0a2e-7bab-45d8-aa98-3de2b0e19c95', 442 UNION ALL -- HISP Teaching School Hub (Portswood Primary)
+  SELECT 'ac3b03c0-f34e-4221-b6f7-d12b49d4ebb4', 490 UNION ALL -- Oxfordshire Teaching School Hub
+  SELECT 'cb1611b7-ae1a-4e20-88cf-b7691b69d366', 475 UNION ALL -- South Central Teaching School Hub
+  SELECT '105eee26-443c-4696-9a9b-3458e394cdee', 355 UNION ALL -- Balcarras
+  SELECT '87cf3a47-887a-4766-ad15-2b200aa06024', 364 UNION ALL -- One Cornwall Teaching School Hub (East Cornwall)
+  SELECT 'dfc0062b-40a6-4fb5-9630-33911bfe024f', 344 UNION ALL -- Odyssey Teaching School Hub
+  SELECT '3bd3c5fe-8c39-4f9c-af3e-ae992ad0ff30', 331 UNION ALL -- Kingsbridge Teaching School Hub
+  SELECT 'e300d8d8-caf0-4f90-9147-bee0d6d40e4b', 330 UNION ALL -- Colyton Teaching School Hub
+  SELECT '86ad4e94-0571-4c27-a0fc-15ac35cdb355', 326 UNION ALL -- Five Counties Teaching School Hubs Alliance (Somerset)
+  -- SELECT '3f3a6140-56bc-453b-b945-5a46a224484e', 326 UNION ALL -- Five Counties Teaching School Hubs Alliance (Somerset)
+  SELECT '6a70cbe0-3df8-4e8b-a80c-5c2cc63a59a2', 20 UNION ALL -- Five Counties Teaching School Hubs Alliance (South Glos/BANES)
+  SELECT 'd9f1f6de-bcca-44e7-85e7-b6eb6116ad08', 509 UNION ALL -- Swindon and Wiltshire Teaching School Hub
+  SELECT 'c0f863cc-d23c-446a-ab09-01ed3c55f92c', 335 UNION ALL -- One Cornwall Teaching School Hub (West)
+  SELECT '7fbadaef-a05e-43c4-acda-1ec176c0e781', 356 UNION ALL -- Prince Henry's Teaching School Hub
+  SELECT '2e51f844-31b7-4483-9fea-2ba68b147375', 25 UNION ALL -- Star Teaching School Hub Birmingham South
+  SELECT 'acf178fc-bf68-46b1-9605-47771d82dba8', 420 UNION ALL -- STEP
+  SELECT '344aadbf-a964-4f9c-ae80-2194a574c236', 337 UNION ALL -- John Taylor Teaching School Hub
+  SELECT '832ff85f-ad31-4598-94c1-548e3f34947e', 340 UNION ALL -- Tudor Grange Teaching School Hub
+  SELECT 'cacab004-f450-41bd-9947-e263481d035a', 439 UNION ALL -- The Golden Thread Teaching School Hub
+  SELECT '98f2a7b6-bc4e-45da-b4fa-6d5424ef1021', 62 UNION ALL -- Coventry and Central Warwickshire Teaching School Hub
+  SELECT 'ab2d6c9d-d5d8-4224-b2ae-0a83c8be6810', 520 UNION ALL -- Haybridge Teaching School Hub
+  SELECT 'f5018a20-0ea5-49f0-8b00-0a51fa478b5b', 46 UNION ALL -- Manor Teaching School Hub
+  SELECT 'dac3b20c-2fe8-4d9f-bfa9-6bc0db00d1a8', 288 UNION ALL -- Arthur Terry Teaching School Hub-North Birmingham
+  SELECT '1c80a27a-1167-4a4f-a922-55ae84e1631e', 376 UNION ALL -- Exchange Teaching School Hub
+  SELECT 'c21360e8-3dbb-4b06-b2a7-0c189d11d962', 437 UNION ALL -- Red Kite Teaching School Hub
+  SELECT '8a0739eb-5a6e-40ae-b466-67cfa81346bf', 525 UNION ALL -- South Yorkshire Teaching Hub
+  SELECT 'c1496245-02f3-4dbe-b348-eb7eddc76175', 359 UNION ALL -- Pathfinder Teaching School Hub
+  SELECT 'b448a843-3de3-4a0e-9c13-ea4341e08c8d', 386 UNION ALL -- DRET Teaching School Hub
+  SELECT '28a2de7e-0f10-4885-acbd-6bdd88d9e058', 7 UNION ALL -- The Vantage Teaching School Hub North Humber
+  SELECT 'e5f5a644-6698-441b-8e52-640fa832a1b2', 511 UNION ALL -- Exceed Teaching School Hub
+  SELECT 'afd6665a-654f-4916-b0ec-7883c9ed5e12', 382 UNION ALL -- Calderdale and Kirklees Teaching School Hub
+  -- SELECT 'ba0947b9-3182-4d62-8d9b-9497019d6b85', 376 UNION ALL -- UNCLEAR IF Selby & Wakefield is Exchange TSH == Exchange Teaching School Hub
+  SELECT 'ac48354f-b75b-417e-b9d4-5ef0d2c674df', 334 UNION ALL -- Leeds Teaching School Hub
+  SELECT 'babb1465-bbee-4a68-b3bf-96677e26758c', 23 UNION ALL -- Educational Success Partners (ESP)
+  SELECT '2b4166b4-efb9-44ea-a848-318882ef5d3c', 302 UNION ALL -- Independent Schools Teacher Induction Panel (ISTIP)
+  SELECT '8fa977bf-20e6-421f-a48c-afe5f3626a0b', 491 -- National Teacher Accreditation
+),
+
+
+-- THIS IS THE SOURCE TABLE FOR THE AB&REG REPORT
+-- THERE IS A PYTHON NOTEBOOK WHICH USES THIS TABLE TO GENERATE THE KPIs AND OUTPUT FILES
+
+-- key constraints:
+-- ECTs only
+-- contract year = 2026
+-- Riab induction period created after 2026-06-15
+-- in python we also define the RECT / RIAB cutoffs (RECT = 2026-10-14 / Riab = 2026-10-17 -- some grace period added)
+
+
+-- PART 1: Get Teachers that are in RECT BUT NOT in riab
+-- any teacher with a training period from prior years is excluded altogether
+-- i.e., only teachers who have their first ever training_period within the date bounds are check in riab
+teachers_in_riab AS (
+  SELECT
+    trn,
+    appropriate_body_name,
+    DATE(induction_period_created_at) AS induction_period_created_at
+  FROM ${ref('ecf2_teacher_induction_periods')}
+  WHERE
+    -- NOTE: for future registration windows, this date should be updated 
+    -- with the first opportunitty to create induction windows in the registration window
+    -- DATE(induction_period_created_at) >= EARLIEST_TRAINING_REG_DATE
+    finished_on IS NULL
+  QUALIFY
+    ROW_NUMBER() OVER (PARTITION BY trn ORDER BY induction_period_created_at DESC ) = 1
+),
+
+
+-- The earliest_training_periods_for_teachers_in_rect CTE ensures we only select the first training period for an ECT to 
+-- prevent ECTs who have rolled over from a previous year appearing in the KPI. AB & Regs team will have more information on this
+-- Early Registrations: Evie noted that some ECTs registered for training during the summer do not begin induction until January, 
+-- causing them to appear as missing registrations at the September measurement point. Nathan explained that the current process 
+-- may assign an automatic early date, whereas the newer process allows the induction tutor to specify the actual training-period start date; 
+-- Tim should use the earliest qualifying training-period start date and disregard registrations beginning after the measurement point.
+earliest_ect_training_periods AS (
+  SELECT
+    teacher_id,
+    trn,
+    participant_type,
+    contract_period_year,
+    started_on,
+    finished_on,
+    training_programme,
+    training_status,
+    school_urn,
+    school_name,
+    school_reported_appropriate_body_id AS appropriate_body_id,
+    school_reported_appropriate_body AS appropriate_body,
+    created_at,
+    CASE
+      WHEN ect_first_became_eligible_for_training_at IS NOT NULL THEN TRUE 
+      ELSE FALSE
+    END AS eligible_for_funding,
+
+  FROM ${ref('ecf2_training_periods')}
+  WHERE 
+  participant_type = 'ect'
+  QUALIFY
+    ROW_NUMBER() OVER (
+      PARTITION BY teacher_id, participant_type 
+      ORDER BY 
+        started_on ASC,
+        created_at ASC
+    )=1
+),
+
+
+ects_in_rect AS (
+  -- This returns the training period data for the participants earliest tp
+  -- last check (29 Sept 26): there were no ECTs with more than 1 tp in contract 2026
+  SELECT
+    tp.teacher_id,
+    tp.trn,
+    tp.training_programme,
+    tp.school_urn,
+    tp.school_name,
+    tp.appropriate_body_id,
+    tp.started_on,
+    IFNULL(tp.appropriate_body,'No_AB_indicated') AS ab_indicated_on_training_registration,
+    DATE(tp.created_at) AS training_registration_occurred_on,
+  FROM earliest_ect_training_periods tp
+  WHERE
+    -- for future registration windows, the cohort should be updated
+    tp.contract_period_year = CURRENT_YEAR
+    AND DATE(tp.created_at) >= EARLIEST_TRAINING_REG_DATE
+    AND tp.training_status != 'withdrawn'
+    AND (tp.eligible_for_funding IS TRUE OR tp.eligible_for_funding IS NULL)
+    AND tp.trn IS NOT NULL
+),
+
+
+
+-- Final query for part 1, RECT not in RIAB
+-- add the school_regions and hub regions
+rect_not_riab AS (
+  SELECT
+    rect.teacher_id,
+    rect.trn,
+    -- teachers.corrected_name AS ect_name,
+    rect.school_urn,
+    rect.school_name,
+    rect.appropriate_body_id,
+    rect.ab_indicated_on_training_registration,
+    ab_regions.hub_region AS ab_hub_region,
+    school_regions.tsh_area AS school_hub_region,
+    rect.training_programme,
+    rect.started_on AS training_started_on,
+    rect.training_registration_occurred_on,
+    riab.induction_period_created_at,
+    CASE 
+      WHEN riab.trn IS NOT NULL THEN TRUE
+      ELSE FALSE
+    END AS in_riab
+
+  FROM ects_in_rect AS rect
+
+  LEFT JOIN teachers_in_riab riab
+    ON rect.trn = riab.trn
+
+  -- LEFT JOIN ecf-bq.dfe_analytics_dataform.teachers_latest_ecf2 AS teachers
+    -- ON rect.teacher_id = teachers.id
+
+  LEFT JOIN ${ref('establishments')} AS gias
+    ON rect.school_urn = SAFE_CAST(gias.urn AS int64)
+
+  -- For future registration windows, the following two static tables should be looked at and ensure the mapping is correct
+  LEFT JOIN ${ref('tsh_lsoa_lookup_2023')} AS school_regions
+    ON gias.LSOA_code = school_regions.lsoa21cd
+
+  LEFT JOIN ab_mapping
+    ON rect.appropriate_body_id = SAFE_CAST(ab_mapping.rect_id AS String)
+
+  LEFT JOIN ${ref('ab_to_hub_region_mapping_2025_09_15')} AS ab_regions
+    ON ab_mapping.ecf_id = ab_regions.appropriate_body_id
+)
+
+
+SELECT * FROM rect_not_riab

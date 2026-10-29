@@ -9,11 +9,12 @@ config {
         clusterBy: ["declaration_type", "contract_period_year", "training_programme", "lead_provider"]
     },
     
-    description: "WARNING - SANDBOX DATA ONLY. Latest preferred declarations for an ECT or Mentor, join LATEST preferred participant atributes from ecf2_training_periods. The latest preferred declaration groups declarations from the same tpye (e.g., started, retained, etc.) and selects the latest one per participant and participant type.",
+    description: "Latest preferred declarations for an ECT or Mentor, join LATEST preferred participant atributes from ecf2_training_periods. The latest preferred declaration groups declarations from the same tpye (e.g., started, retained, etc.) and selects the latest one per participant and participant type.",
     columns: {
         declaration_id: "PK of this table",
         declaration_api_id: "The id of the declaration as it is served to Lead Providers in the API.",
-        declaration_date: "The date the milestone can be evidenced as having been met, when the participant qualified to be declared against. This field is key for determining where a declaration falls in relation to other declarations because it relates to when in the participants training it was evidenced",
+        evidenced_at: "Formerly known as delcaration_date. The date the milestone can be evidenced as having been met, when the participant qualified to be declared against. This field is key for determining where a declaration falls in relation to other declarations because it relates to when in the participants training it was evidenced",
+        declaration_type: "The type of the declaration which indicates how far along a participant is in their training",
         training_period_id: "The id of the latest preferred training period for an ECT or Mentor. This determines what period of time the Mentor or ECT was training in, the school and school partnership they are registered with, their training programme and relevant mentorship period data. A new record is created when an ECT or Mentor has been registered for training for the first time or the ECT, resumed their training (deferred to active) or Mentor has changed school, cohort or provide",
         participant_type: "Either ECT or Mentor. Derived from ect or mentor_at_school_period_id.",
         teacher_id: "The internal id of a teacher",
@@ -43,6 +44,8 @@ config {
         lead_provider: "The name of the lead_provider",
         delivery_partner_id: "The ID of the delivery partner",
         delivery_partner: "The name of the delivery partner",
+        school_reported_appropriate_body_id: "The appropriate body indicated on the ECT or Mentors training period associated with this declaration",
+        school_reported_appropriate_body: "ID of the appropriate body indicated on the ECT or Mentors training period associated with this declaration",
         mentorship_period_id: "",
         payment_statement_id: "The id of the statement for a payment. A populated statement id does not necessarily infer a paid status. Refer to the payment_status instead.",
         clawback_statement_id: "The of the statement for a clawback. A populated statement id does not necessarily infer a clawbacked status. Refer to the clawback_status instead.",
@@ -63,7 +66,7 @@ config {
 }
 
 SELECT *,
--- TODO: handle "no_payment" state
+-- TODO: handle "no_payment" state (will need to check after Apr28 but should be fine as-is)
 ${functions.stateToStateHierarchy('declaration_state')} AS state_hierarchy,
 ${functions.declarationTypeToDeclarationTypeHierarchy('declaration_type')} AS type_hierarchy,
 
@@ -77,5 +80,5 @@ QUALIFY
         declaration_type
     ORDER BY 
         state_hierarchy DESC, 
-        declaration_date DESC
+        evidenced_at DESC
     ) = 1

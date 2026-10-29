@@ -1,5 +1,6 @@
 config {
     type: "table",
+    tags: ["ecf1"],
     bigquery: {
         partitionBy: "",
         clusterBy: ["cohort", "participant_course", "cpd_lead_provider_name","declaration_type"]

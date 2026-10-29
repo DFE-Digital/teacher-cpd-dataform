@@ -2,6 +2,7 @@ config {
     schema: "TAD",
     database: "ecf-bq",
     name: "participant_outcomes",
+    tags: ["TAD"],
     type: "table",
     assertions: {
         uniqueKey: ["outcome_id"]

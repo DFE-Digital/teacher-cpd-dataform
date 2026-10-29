@@ -1,5 +1,6 @@
 config {
     type: "incremental",
+    tags: ["cross_programme"],
     assertions: {
         uniqueKey: ["date", "error_code", "page_path", "application", "logged_in_user"]
     },
@@ -43,7 +44,7 @@ WITH
       ${ref("events_ecf2")}
     WHERE
       DATE(occurred_at) > event_date_checkpoint
-    AND DATE(occurred_at) < CURRENT_DATE )
+      AND DATE(occurred_at) < CURRENT_DATE )
   UNION ALL (
     SELECT
       "Apply for a National Professional Qualification" AS application,
@@ -56,7 +57,20 @@ WITH
       ${ref("events_npq")}
     WHERE
       DATE(occurred_at) > event_date_checkpoint
-    AND DATE(occurred_at) < CURRENT_DATE ) )
+      AND DATE(occurred_at) < CURRENT_DATE )
+  UNION ALL (
+    SELECT
+      "National Professional Development" AS application,
+      occurred_at,
+      response_status,
+      request_path,
+      request_user_id,
+      device_category
+    FROM
+      ${ref("events_tte")}
+    WHERE
+      DATE(occurred_at) > event_date_checkpoint
+      AND DATE(occurred_at) < CURRENT_DATE ) )
 SELECT
   DATE(occurred_at) AS date,
   application,

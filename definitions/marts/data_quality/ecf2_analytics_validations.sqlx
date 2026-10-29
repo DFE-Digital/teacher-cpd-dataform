@@ -1,0 +1,105 @@
+config {
+  type: "table",
+//   schema: "data_quality",  // e.g., ecf-bq.data_quality.ecf2_assertions
+  tags: ["ecf2", "data_quality", "assertion"]
+}
+
+-- Each custom "data validation" is its own CTE
+-- Each data quality check should return the following:
+--   observed_date: date of run_time
+--   entity: the table name it checks against
+--   validation_check: the name of the validation
+--   validation_scope: human description of the valdiation check (what is expected)
+--   number_of_records: the query should be written in a way that a count of 0 records should be returned if all data is valid, else number of records that fail the test
+-- Each data quality check should validate "analytics" derived/calculated fields (i.e., not source fields as these already have validations built-in on the service)
+
+
+WITH ecf2_training_periods_record_count AS (
+    -- validate total record count
+    -- it should match training_periods_latest
+    -- i.e., our joins do not cause data to be dropped or duplicated
+    SELECT
+        CURRENT_TIMESTAMP() AS observed_date,
+        'ecf2_training_periods' as entity,
+        'row_count' as validation_check,
+        'the difference in row count to the DfE source table "_training_periods_latest_ecf2". Expected 0 as it should match the source table. Values < 0 indicate dropped records. Values > 0 may indicate duplicative rows possibly due to joins.' as validation_scope,
+        (SELECT COUNT(*) FROM ${ref("ecf2_training_periods")}) -
+        (SELECT COUNT(*) FROM ${ref("training_periods_latest_ecf2")}) AS number_of_records
+),
+
+ecf2_training_periods_participant_type AS (
+    -- validate that participant types are either ect or mentor
+    SELECT DISTINCT
+        CURRENT_TIMESTAMP() AS observed_date,
+        'ecf2_training_periods' as entity,
+        'participant_type' as validation_check,
+        'participant types should either be "ect" or "mentor"' as validation_scope,
+        count(*) as number_of_records
+    FROM ${ref("ecf2_training_periods")}
+    WHERE
+        participant_type NOT IN ('ect', 'mentor')
+),
+
+ecf2_declarations_record_count AS (
+    -- validate total record count
+    -- it should match training_periods_latest
+    -- i.e., our joins do not cause data to be dropped or duplicated
+    SELECT
+        CURRENT_TIMESTAMP() AS observed_date,
+        'ecf2_declarations' as entity,
+        'row_count' as validation_check,
+        'the difference in row count to the DfE source table "_declarations_latest_ecf2". Expected 0 as it should match the source table. Values < 0 indicate dropped records. Values > 0 may indicate duplicative rows possibly due to joins.' as validation_scope,
+        (SELECT COUNT(*) FROM ${ref("ecf2_declarations")}) -
+        (SELECT COUNT(*) FROM ${ref("declarations_latest_ecf2")}) AS number_of_records
+),
+
+ecf2_mentorships_record_count AS (
+    -- validate total record count
+    -- it should match training_periods_latest
+    -- i.e., our joins do not cause data to be dropped or duplicated
+    SELECT
+        CURRENT_TIMESTAMP() AS observed_date,
+        'ecf2_mentorship_periods' as entity,
+        'row_count' as validation_check,
+        'the difference in row count to the DfE source table "_mentorship_periods_latest_ecf2". Expected 0 as it should match the source table. Values < 0 indicate dropped records. Values > 0 may indicate duplicative rows possibly due to joins.' as validation_scope,
+        (SELECT COUNT(*) FROM ${ref("ecf2_mentorship_periods")}) -
+        (SELECT COUNT(*) FROM ${ref("mentorship_periods_latest_ecf2")}) AS number_of_records
+),
+
+
+ecf2_declarations_contract_year_mismatch AS (
+    -- validate that the statement contract year always matches the contract year of the training period
+    -- i.e., our joins do not cause data to be dropped or duplicated or otherwise incorrect
+    SELECT DISTINCT
+        CURRENT_TIMESTAMP() AS observed_date,
+        'ecf2_declarations' as entity,
+        'contract_year_mismatch' as validation_check,
+        'statement contract year should = training period contract year' as validation_scope,
+        count(*) as number_of_records
+    FROM ${ref("ecf2_declarations")}
+    WHERE
+        statement_contract_period_year != contract_period_year
+)
+
+
+
+SELECT * FROM (
+    SELECT * FROM ecf2_training_periods_record_count
+
+    UNION ALL 
+    SELECT * FROM ecf2_training_periods_participant_type
+
+    UNION ALL 
+    SELECT * FROM ecf2_declarations_record_count
+
+    UNION ALL 
+    SELECT * FROM ecf2_mentorships_record_count
+
+    UNION ALL 
+    SELECT * FROM ecf2_declarations_contract_year_mismatch
+
+
+    -- add more union all here
+)
+-- WHERE number_of_records != 0
+

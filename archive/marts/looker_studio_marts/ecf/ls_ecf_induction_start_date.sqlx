@@ -1,0 +1,68 @@
+config {
+    type: "table",
+    tags: ["ecf1"],
+    assertions: {
+        uniqueKey: ["participant_profile_id"]
+    },
+    bigquery: {
+        partitionBy: "DATE(participant_created_at)",
+        clusterBy: ["cohort", "lead_provider_name", "schedule_identifier"]
+    },
+    description: "This mart provides a report that gives the induction start/completion date for each FIP ECT participant. It pulls the Lead Provider from the ecf_inductions_dedupe table. Currently only the induction completion date is exposed to Lead Providers over the API. This report will help Lead Providers determine where schedule changes are required.",
+    columns: {
+        user_id: "User ID of the ECT.",
+        participant_profile_id: "ID of each ECT's profile.",
+        trn: {
+            description: "TRN associated with the ECT's profile.",
+            bigqueryPolicyTags: ["projects/ecf-bq/locations/europe-west2/taxonomies/6302091323314055162/policyTags/301313311867345339"]
+        },
+        participant_type_short: "Shows the participant as an ECT.",
+        cohort: "Cohort of the ECT.",
+        schedule_identifier: "Schedule of the ECT.",
+        training_status: "Training status as taken from the ECT's most recent/current induction record.",
+        induction_status: "Induction status as taken from the ECT's most recent/current induction record.",
+        participant_created_at: "Timestamp of when the ECT's participant profile was created.",
+        induction_start_date: "Date when the ECT started induction, as stored in the Database of Qualified Teachers (DQT).",
+        induction_completion_date: "Date when the ECT completed induction, as stored in the Database of Qualified Teachers (DQT).",
+        school_urn: "URN from the ECT's most recent/current induction record.",
+        lead_provider_name: "Lead Provider that is partnered with the ECT's school.",
+        delivery_partner_name: "Delivery Partner that is partnered with the ECT's school.",
+        appropriate_body_name: "Appropriate Body that is associated with the ECT's school.",
+        cohort_rolled_over_21_24: "TRUE/FALSE flag from the service as to whether the participant's cohort has been changed from 2021 to 2024."
+    }
+}
+
+WITH
+  induction_start_date_table AS (
+  SELECT
+    ecfid.user_id,
+    ecfid.participant_profile_id,
+    ecfid.trn,
+    'ECT' AS participant_type_short,
+    ecfid.cohort,
+    ecfid.schedule_identifier,
+    ecfid.training_status,
+    ecfid.induction_status,
+    ppl.created_at AS participant_created_at,
+    ppl.induction_start_date,
+    ppl.induction_completion_date,
+    ecfid.school_urn,
+    ecfid.lead_provider_name,
+    ecfid.delivery_partner_name,
+    ecfid.appropriate_body_name,
+    ecfid.cohort_rolled_over_21_24,
+    ecfid.eligible_for_funding
+  FROM
+    ${ref(`ecf_inductions_dedupe`)} ecfid
+  LEFT JOIN
+    ${ref(`participant_profiles_latest_ecf1`)} ppl
+  ON
+    ecfid.participant_profile_id = ppl.id
+  WHERE
+    ecfid.participant_type LIKE '%ECT'
+    AND (induction_programme_type = 'full_induction_programme'
+    OR induction_programme_type = 'core_induction_programme') )
+SELECT
+  *
+FROM
+  induction_start_date_table

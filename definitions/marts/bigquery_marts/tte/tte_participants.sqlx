@@ -1,0 +1,185 @@
+-- tte_enrolments vs tte_participants
+
+-- tte_enrolments is one row per declaration. An application with three declarations
+-- appears three times, with every application, course and institution field repeated
+-- on each row. Counting rows there counts declarations, not people. THis was created due 
+-- to the initial tte prod structure.
+
+-- tte_participants is one row per application. It keeps the application fields once
+-- and pivots the declarations out into columns: started_declaration_date,
+-- completed_declaration_date and so on. It also derives assumed_no_longer_live_date,
+-- which is what the KPI baseline cube needs to work out who is still training.
+
+-- Use tte_enrolments when the question is about declarations. Use tte_participants
+-- when the question is about applicants or participants.
+
+-- This mirrors npq_enrolments, which is already at application grain despite the name.
+-- Keeping the same shape means NPD and NPQ can share downstream KPI logic.
+
+-- Declaration columns are NULL for every row until declarations arrive, expected Jan 2027.
+
+-- primary driver for tte_participants is to enable the new NPD Performance Dashboard
+
+config {
+    type: "table",
+    tags: ["tte"],
+    assertions: {
+        uniqueKey: ["application_id"]
+    },
+    bigquery: {
+        partitionBy: "DATE(application_created_at)",
+        clusterBy: ["application_status", "course_identifier"]
+    },
+    description: "One row per NPD (TTE) application. Collapses tte_enrolments, which holds one row per declaration, down to application grain and pivots out the started and completed declarations. Mirrors the shape of npq_enrolments so the two services can share downstream KPI logic. Declaration fields are NULL for every application until the first declarations arrive, expected January 2027.",
+    columns: {
+        application_id: "Primary identifier of the application in the TTE service",
+        application_ecf_id: "Identifier of the application in the legacy ECF service",
+        application_trn: "Teacher Reference Number the applicant gave on submission. Not checked against the Database of Qualified Teachers",
+        user_id: "Identifier of the user who submitted the application",
+        application_status: "Current status of the application",
+        application_created_at: "Timestamp the application was created",
+        application_updated_at: "Timestamp the application was last updated",
+        eligible_for_funding: "TRUE where the applicant is eligible for DfE funding",
+        funded_place: "TRUE where the lead provider has confirmed a funded place",
+        funding_choice: "Non-DfE funding method the applicant selected",
+        funding_eligiblity_status_code: "Code describing the outcome of the funding eligibility check",
+        work_setting: "Setting the applicant said they work in",
+        teacher_catchment: "Catchment the applicant said they teach in",
+        teacher_catchment_iso_country_code: "ISO code of the country the applicant said they teach in",
+        course_id: "Primary identifier of the course",
+        course_identifier: "Machine-readable course identifier, currently only tte-1",
+        course_name: "Full name of the course",
+        course_short_code: "Short code for the course",
+        course_usual_length_months: "How long the course normally takes, in months. Set to 6 for tte-1 on the basis that Excellence in Reception Teaching runs across two school terms. Provisional. Inclusive Teaching and Inclusive Leadership launch in 2027 and their lengths are not yet decided",
+        cohort_id: "Identifier of the cohort the application sits in",
+        cohort_identifier: "Machine-readable cohort identifier",
+        cohort_start_year: "Calendar year the cohort starts",
+        lead_provider_id: "Identifier of the lead provider currently assigned to the application",
+        lead_provider_name: "Name of the lead provider currently assigned to the application",
+        institution_name: "Name of the institution the applicant is attached to",
+        la_name: "Local authority of the applicant's school",
+        region: "Region of the applicant's institution",
+        started_declaration_id: "Identifier of the started declaration kept for this application",
+        started_declaration_date: "Evidenced date of the started declaration. Where several exist, the one in the strongest state wins, then the latest date",
+        started_declaration_state: "State of the started declaration, for example submitted, eligible, payable, paid",
+        funded_start_declaration: "TRUE where the started declaration is in a state DfE pays for: paid, payable or eligible",
+        completed_declaration_id: "Identifier of the completed declaration kept for this application",
+        completed_declaration_date: "Evidenced date of the completed declaration",
+        completed_declaration_state: "State of the completed declaration",
+        funded_completed_declaration: "TRUE where the completed declaration is in a state DfE pays for",
+        latest_outcome_state: "Result recorded against the completed declaration, for example passed or failed",
+        latest_outcome_date: "Date the participant outcome was recorded against the completed declaration",
+        assumed_no_longer_live_date: "Date the participant is taken to have stopped training. Uses the recorded outcome date where there is one, otherwise the started declaration date plus the usual course length. NULL where training has not started, which means the participant does not count as live"
+    }
+}
+
+WITH
+  -- tte_enrolments repeats application fields on every declaration row, so take one row per application.
+  applications AS (
+  SELECT
+    application_id,
+    application_ecf_id,
+    application_trn,
+    user_id,
+    application_status,
+    application_created_at,
+    application_updated_at,
+    eligible_for_funding,
+    funded_place,
+    funding_choice,
+    funding_eligiblity_status_code,
+    work_setting,
+    teacher_catchment,
+    teacher_catchment_iso_country_code,
+    course_id,
+    course_identifier,
+    course_name,
+    course_short_code,
+    cohort_id,
+    cohort_identifier,
+    cohort_start_year,
+    lead_provider_id,
+    lead_provider_name,
+    institution_name,
+    la_name,
+    region
+  FROM
+    ${ref('tte_enrolments')}
+  QUALIFY
+    ROW_NUMBER() OVER (PARTITION BY application_id ORDER BY application_updated_at DESC) = 1 ),
+  -- Rank declarations the same way npq_enrolments does, so a paid declaration beats a voided one.
+  declarations_ranked AS (
+  SELECT
+    application_id,
+    declaration_id,
+    declaration_type,
+    declaration_date,
+    declaration_state,
+    participant_outcome_state_result,
+    participant_outcome_completion_date,
+    CASE declaration_state
+      WHEN 'paid' THEN 7
+      WHEN 'payable' THEN 6
+      WHEN 'eligible' THEN 5
+      WHEN 'submitted' THEN 4
+      WHEN 'clawed_back' THEN 3
+      WHEN 'awaiting_clawback' THEN 2
+      WHEN 'voided' THEN 1
+      ELSE 0
+    END AS state_hierarchy,
+    IFNULL(declaration_state IN ('paid', 'payable', 'eligible'), FALSE) AS funded_declaration
+  FROM
+    ${ref('tte_enrolments')}
+  WHERE
+    declaration_id IS NOT NULL ),
+  started_declarations AS (
+  SELECT
+    application_id,
+    declaration_id AS started_declaration_id,
+    declaration_date AS started_declaration_date,
+    declaration_state AS started_declaration_state,
+    funded_declaration AS funded_start_declaration
+  FROM
+    declarations_ranked
+  WHERE
+    declaration_type = 'started'
+  QUALIFY
+    ROW_NUMBER() OVER (PARTITION BY application_id ORDER BY state_hierarchy DESC, declaration_date DESC) = 1 ),
+  completed_declarations AS (
+  SELECT
+    application_id,
+    declaration_id AS completed_declaration_id,
+    declaration_date AS completed_declaration_date,
+    declaration_state AS completed_declaration_state,
+    funded_declaration AS funded_completed_declaration,
+    participant_outcome_state_result AS latest_outcome_state,
+    participant_outcome_completion_date AS latest_outcome_date
+  FROM
+    declarations_ranked
+  WHERE
+    declaration_type = 'completed'
+  QUALIFY
+    ROW_NUMBER() OVER (PARTITION BY application_id ORDER BY state_hierarchy DESC, declaration_date DESC) = 1 )
+SELECT
+  applications.*,
+  /* Provisional. tte-1 runs across two school terms, so 6 months. The 2027 SEND courses need their own figures. */
+  CASE applications.course_identifier
+    WHEN 'tte-1' THEN 6
+  END AS course_usual_length_months,
+  started_declarations.* EXCEPT (application_id),
+  completed_declarations.* EXCEPT (application_id),
+  COALESCE(
+    DATE(completed_declarations.latest_outcome_date),
+    DATE_ADD(DATE(started_declarations.started_declaration_date),
+      INTERVAL CASE applications.course_identifier WHEN 'tte-1' THEN 6 END MONTH)
+  ) AS assumed_no_longer_live_date
+FROM
+  applications
+LEFT JOIN
+  started_declarations
+USING
+  (application_id)
+LEFT JOIN
+  completed_declarations
+USING
+  (application_id)

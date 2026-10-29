@@ -46,30 +46,30 @@ function correctOrderDeclarationsTypesShouldBeReceived() {
                 'started' AS declaration_type,
                 1 AS expected_declaration_sequence_position,
                 1 AS earliest_declaration_can_be_received,
-                'ECT' AS participant_type
+                'ect' AS participant_type
             ),
             
             -- Retained milestones
-            STRUCT(DATE '2021-09-01', DATE_ADD(CURRENT_DATE(), INTERVAL 1 DAY), 'retained-1', 2, 2, 'ECT'),
-            STRUCT(DATE '2021-09-01', DATE_ADD(CURRENT_DATE(), INTERVAL 1 DAY), 'retained-2', 3, 3, 'ECT'),
-            STRUCT(DATE '2021-09-01', DATE_ADD(CURRENT_DATE(), INTERVAL 1 DAY), 'retained-3', 4, 4, 'ECT'),
-            STRUCT(DATE '2021-09-01', DATE_ADD(CURRENT_DATE(), INTERVAL 1 DAY), 'retained-4', 5, 5, 'ECT'),
+            STRUCT(DATE '2021-09-01', DATE_ADD(CURRENT_DATE(), INTERVAL 1 DAY), 'retained-1', 2, 2, 'ect'),
+            STRUCT(DATE '2021-09-01', DATE_ADD(CURRENT_DATE(), INTERVAL 1 DAY), 'retained-2', 3, 3, 'ect'),
+            STRUCT(DATE '2021-09-01', DATE_ADD(CURRENT_DATE(), INTERVAL 1 DAY), 'retained-3', 4, 4, 'ect'),
+            STRUCT(DATE '2021-09-01', DATE_ADD(CURRENT_DATE(), INTERVAL 1 DAY), 'retained-4', 5, 5, 'ect'),
             
             -- Completed
-            STRUCT(DATE '2025-08-01', DATE_ADD(CURRENT_DATE(), INTERVAL 1 DAY), 'completed', 6, 6, 'ECT'),
-            STRUCT(DATE '2021-09-01', DATE '2025-07-31', 'completed', 9, 6, 'ECT'),
+            STRUCT(DATE '2025-08-01', DATE_ADD(CURRENT_DATE(), INTERVAL 1 DAY), 'completed', 6, 6, 'ect'),
+            STRUCT(DATE '2021-09-01', DATE '2025-07-31', 'completed', 9, 6, 'ect'),
 
             -- Extended
-            STRUCT(DATE '2025-08-01', DATE_ADD(CURRENT_DATE(), INTERVAL 1 DAY), 'extended-1', 7, 7, 'ECT'),
-            STRUCT(DATE '2025-08-01', DATE_ADD(CURRENT_DATE(), INTERVAL 1 DAY), 'extended-2', 8, 8, 'ECT'),
-            STRUCT(DATE '2025-08-01', DATE_ADD(CURRENT_DATE(), INTERVAL 1 DAY), 'extended-3', 9, 9, 'ECT'),
-            STRUCT(DATE '2021-09-01', DATE '2025-07-31', 'extended-1', 6, 6, 'ECT'),
-            STRUCT(DATE '2021-09-01', DATE '2025-07-31', 'extended-2', 7, 7, 'ECT'),
-            STRUCT(DATE '2021-09-01', DATE '2025-07-31', 'extended-3', 8, 8, 'ECT'),
+            STRUCT(DATE '2025-08-01', DATE_ADD(CURRENT_DATE(), INTERVAL 1 DAY), 'extended-1', 7, 7, 'ect'),
+            STRUCT(DATE '2025-08-01', DATE_ADD(CURRENT_DATE(), INTERVAL 1 DAY), 'extended-2', 8, 8, 'ect'),
+            STRUCT(DATE '2025-08-01', DATE_ADD(CURRENT_DATE(), INTERVAL 1 DAY), 'extended-3', 9, 9, 'ect'),
+            STRUCT(DATE '2021-09-01', DATE '2025-07-31', 'extended-1', 6, 6, 'ect'),
+            STRUCT(DATE '2021-09-01', DATE '2025-07-31', 'extended-2', 7, 7, 'ect'),
+            STRUCT(DATE '2021-09-01', DATE '2025-07-31', 'extended-3', 8, 8, 'ect'),
 
             -- MENTOR SEQUENCE (1-YEAR PROGRAMME)
             -- Started
-            STRUCT(DATE '2021-09-01', DATE_ADD(CURRENT_DATE(), INTERVAL 1 DAY), 'started', 1, 1, 'Mentor'),
+            STRUCT(DATE '2021-09-01', DATE_ADD(CURRENT_DATE(), INTERVAL 1 DAY), 'started', 1, 1, 'mentor'),
             
             -- Retained -- VALIDATE!!
             -- STRUCT(DATE '2021-09-01', DATE_ADD(CURRENT_DATE(), INTERVAL 1 DAY), 'retained-1', 2, 2, 'mentor'),
@@ -78,18 +78,19 @@ function correctOrderDeclarationsTypesShouldBeReceived() {
             -- STRUCT(DATE '2021-09-01', DATE_ADD(CURRENT_DATE(), INTERVAL 1 DAY), 'retained-4', 3, 3, 'mentor'),
             
             -- Completed
-            STRUCT(DATE '2025-08-01', DATE_ADD(CURRENT_DATE(), INTERVAL 1 DAY), 'completed', 3, 3, 'Mentor'),
-            STRUCT(DATE '2021-09-01', DATE '2025-07-31', 'completed', 3, 3, 'Mentor')
+            -- STRUCT(DATE '2025-08-01', DATE_ADD(CURRENT_DATE(), INTERVAL 1 DAY), 'completed', 3, 3, 'mentor'),  -- changed to 2,2 on 10 June 2026 following call with CMs
+            STRUCT(DATE '2025-08-01', DATE_ADD(CURRENT_DATE(), INTERVAL 1 DAY), 'completed', 2, 2, 'mentor'),  
+            STRUCT(DATE '2021-09-01', DATE '2025-07-31', 'completed', 3, 3, 'mentor')
 
             -- TODO: replacement Mentors!!
 
             -- Extended -- VALIDATE!!
-            -- STRUCT(DATE '2025-08-01', DATE_ADD(CURRENT_DATE(), INTERVAL 1 DAY), 'extended-1', 4, 4, 'Mentor'),
-            -- STRUCT(DATE '2025-08-01', DATE_ADD(CURRENT_DATE(), INTERVAL 1 DAY), 'extended-2', 5, 5, 'Mentor'),
-            -- STRUCT(DATE '2025-08-01', DATE_ADD(CURRENT_DATE(), INTERVAL 1 DAY), 'extended-3', 6, 6, 'Mentor'),
-            -- STRUCT(DATE '2021-09-01', DATE '2025-07-31', 'extended-1', 4, 4, 'Mentor'),
-            -- STRUCT(DATE '2021-09-01', DATE '2025-07-31', 'extended-2', 5, 5, 'Mentor'),
-            -- STRUCT(DATE '2021-09-01', DATE '2025-07-31', 'extended-3', 6, 6, 'Mentor')
+            -- STRUCT(DATE '2025-08-01', DATE_ADD(CURRENT_DATE(), INTERVAL 1 DAY), 'extended-1', 4, 4, 'mentor'),
+            -- STRUCT(DATE '2025-08-01', DATE_ADD(CURRENT_DATE(), INTERVAL 1 DAY), 'extended-2', 5, 5, 'mentor'),
+            -- STRUCT(DATE '2025-08-01', DATE_ADD(CURRENT_DATE(), INTERVAL 1 DAY), 'extended-3', 6, 6, 'mentor'),
+            -- STRUCT(DATE '2021-09-01', DATE '2025-07-31', 'extended-1', 4, 4, 'mentor'),
+            -- STRUCT(DATE '2021-09-01', DATE '2025-07-31', 'extended-2', 5, 5, 'mentor'),
+            -- STRUCT(DATE '2021-09-01', DATE '2025-07-31', 'extended-3', 6, 6, 'mentor')
         ])
     )`;
 }
@@ -122,6 +123,36 @@ CROSS JOIN (
       ${ctx.ref("cohorts_latest_ecf1")}
     WHERE start_year >=2023) AS cohorts
 ORDER BY cohort_year asc, milestone_start asc)`;
+}
+
+
+function ecf2_cohortMilestonesWithStartAndEndDatesWithOrdering(ctx) {
+    /*This generates a list of milestone periods based on the standard final dates of milestone periods and calculates what their first date of the milestone period would be. It DOES NOT number the milestones in ascending order of milestone end date. */
+    return `
+    (SELECT
+      CAST(CONCAT((contract_year + cohort_offset),'-',milestone_start_date) AS date) AS milestone_start,
+      CAST(CONCAT((contract_year + cohort_offset),'-',milestone_end_date) AS date) AS milestone_end,
+      contract_periods.contract_year,
+      row_number () OVER (ORDER BY contract_year ASC, CAST(CONCAT((contract_year + cohort_offset),'-',milestone_start_date) AS date) ASC) AS milestone_order
+    FROM
+    UNNEST([
+      STRUCT('06-01' AS milestone_start_date, '12-31' AS milestone_end_date, 0 AS cohort_offset),
+      STRUCT('01-01', '03-31', 1),
+      STRUCT('04-01', '07-31', 1),
+      STRUCT('08-01', '12-31', 1),
+      STRUCT('01-01', '03-31', 2),
+      STRUCT('04-01', '07-31', 2),
+      STRUCT('08-01', '12-31', 2),
+      STRUCT('01-01', '03-31', 3),
+      STRUCT('04-01', '07-31', 3)
+  ]) AS milestones
+  CROSS JOIN (
+      SELECT
+        DISTINCT(year) AS contract_year
+      FROM
+        ${ctx.ref("contract_periods_latest_ecf2")}
+      WHERE year >= 2023) AS contract_periods
+  ORDER BY contract_year asc, milestone_start asc)`;
 }
 
 
@@ -167,6 +198,7 @@ module.exports = {
     yearStartDateToAcademicYearString,
     correctOrderDeclarationsTypesShouldBeReceived,
     cohortMilestonesWithStartAndEndDateswithordering,
+    ecf2_cohortMilestonesWithStartAndEndDatesWithOrdering,
     stateToStateHierarchy,
     declarationTypeToDeclarationTypeHierarchy
 };

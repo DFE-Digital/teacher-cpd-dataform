@@ -1,5 +1,6 @@
 config {
     type: "table",
+    tags: ["npq"],
     assertions: {
         uniqueKey: ["application_id"],
         /* Check for new course identifiers where the mapping used to calculate course_usual_length_months below has not been updated. */
