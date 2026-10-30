@@ -1,6 +1,6 @@
 config {
     type: "incremental",
-    tags: ["kpi","npq"],
+    tags: ["kpi","tte"],
     assertions: {
       uniqueKey: ["date"]
     },
@@ -8,7 +8,7 @@ config {
         partitionBy: "date",
         labels: {usage: "kpi"}
     },
-    description: "Single-dimension cube (by date) containing aggregable NPQ registration journey completion metrics (number of journey starts, completion & total time between start and completion). To enable calculation of completion rate KPI.",
+    description: "Single-dimension cube (by date) containing aggregable TTE / NPD registration journey completion metrics (number of journey starts, completion & total time between start and completion). To enable calculation of completion rate KPI.",
     columns: {
         date: "Date for which these metrics have been calculated",
         registration_window_start_date: "The first date in the registration window this date falls within",
@@ -32,7 +32,7 @@ WITH
     request_user_id AS user_id,
     ${functions.contentGroupPath("request_path")} AS path
   FROM
-    ${ref(`events_npq`)}
+    ${ref(`events_tte`)}
   WHERE
     response_status LIKE "2%"
     AND DATE(occurred_at) < CURRENT_DATE
@@ -100,7 +100,7 @@ SELECT
   IFNULL(occurred_on_with_metrics.number_of_users_who_started_registration_journeys, 0) AS number_of_users_who_started_registration_journeys,
   IFNULL(occurred_on_with_metrics.number_of_users_who_completed_registration_journeys_later_that_day, 0) AS number_of_users_who_completed_registration_journeys_later_that_day,
 FROM
-  ${ref("ls_npq_kpi_live_participants_baseline_cube")} AS dates
+  ${ref("ls_tte_kpi_live_participants_baseline_cube")} AS dates
 LEFT JOIN
   occurred_on_with_metrics
 ON
@@ -125,10 +125,10 @@ post_operations {
     /* So, implementing this incremental query would mean that these fields contain out of date values for past dates. */
     /* This post operation updates these from the baseline, even for past dates. */
     /* It doesn't add significantly to the bytes queried by the overall query because it doesn't reference the events table, where 99% of these bytes come from. */
-    UPDATE ${self()} AS ls_npq_kpi_registration_completion_cube
+    UPDATE ${self()} AS ls_tte_kpi_registration_completion_cube
     SET
         date_is_in_registration_window_to_date_or_past_registration_window = dates.date_is_in_registration_window_to_date_or_past_registration_window,
         date_is_comparable_to_next_registration_window_to_date = dates.date_is_comparable_to_next_registration_window_to_date
-    FROM ${ref(`ls_npq_kpi_live_participants_baseline_cube`)} AS dates
-    WHERE ls_npq_kpi_registration_completion_cube.date = dates.date
+    FROM ${ref(`ls_tte_kpi_live_participants_baseline_cube`)} AS dates
+    WHERE ls_tte_kpi_registration_completion_cube.date = dates.date
 }
