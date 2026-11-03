@@ -15,22 +15,43 @@ config {
   -- Dependencies above are to make sure the above tables run before the assertion checks if metadata is missing
 WITH
   key_tables AS (
+    -- All key tables in TAD
   SELECT
-    DISTINCT table_name
+    DISTINCT table_name,
+    'TAD' AS dataset_name
   FROM
-    `${dataform.projectConfig.defaultDatabase}.TAD.INFORMATION_SCHEMA.TABLES` )
+    `${dataform.projectConfig.defaultDatabase}.TAD.INFORMATION_SCHEMA.TABLES`
+  UNION ALL
+    -- ls_ecf2 tables in dataform
+  SELECT
+    DISTINCT table_name,
+    'dataform' AS dataset_name
+  FROM
+    `${dataform.projectConfig.defaultDatabase}.dataform.INFORMATION_SCHEMA.TABLES`
+  WHERE
+    REGEXP_CONTAINS(LOWER(table_name), r'ls_ecf2|ls_npq|ls_tte') ),
+  column_metadata AS (
+    -- Metadata from TAD
+  SELECT
+    *,
+    'TAD' AS dataset_name
+  FROM
+    `${dataform.projectConfig.defaultDatabase}.TAD.INFORMATION_SCHEMA.COLUMN_FIELD_PATHS`
+  UNION ALL
+    -- Metadata from dataform
+  SELECT
+    *,
+    'dataform' AS dataset_name
+  FROM
+    `${dataform.projectConfig.defaultDatabase}.dataform.INFORMATION_SCHEMA.COLUMN_FIELD_PATHS` )
 SELECT
-  dev_branch.*
+  column_metadata.*
 FROM
-  ${
-      dataform.projectConfig.schemaSuffix ?
-          `\`${dataform.projectConfig.defaultDatabase}.dataform_${dataform.projectConfig.schemaSuffix}.INFORMATION_SCHEMA.COLUMN_FIELD_PATHS\`` :
-          `\`${dataform.projectConfig.defaultDatabase}.TAD.INFORMATION_SCHEMA.COLUMN_FIELD_PATHS\``
-  }
-  AS dev_branch
+  column_metadata
 RIGHT JOIN
   key_tables
 ON
-  key_tables.table_name = dev_branch.table_name
+  key_tables.table_name = column_metadata.table_name
+  AND key_tables.dataset_name = column_metadata.dataset_name
 WHERE
-  description IS NULL
+  column_metadata.description IS NULL
