@@ -29,6 +29,7 @@ WITH
   FROM
     `${dataform.projectConfig.defaultDatabase}.dataform.INFORMATION_SCHEMA.TABLES`
   WHERE
+  -- key tables are also in dataform and have the prefix ls_ecf2, ls_npq, or ls_tte
     REGEXP_CONTAINS(LOWER(table_name), r'ls_ecf2|ls_npq|ls_tte') ),
   column_metadata AS (
     -- Metadata from TAD
