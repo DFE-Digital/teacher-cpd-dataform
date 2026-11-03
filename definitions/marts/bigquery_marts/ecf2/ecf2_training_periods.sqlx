@@ -142,13 +142,16 @@ WITH base_training_periods AS (
     schedules.identifier AS schedule_identifier,
     schedules.contract_period_year,
 
-    -- partnerships
-    p.framework_agreement_id,
-    p.lead_provider_id,
-    p.lead_provider_name AS lead_provider,
+    -- partnerships (from partnerhsip or expression of interest)
+    COALESCE(p.framework_agreement_id, frameworks.id) AS framework_agreement_id,
+    COALESCE(p.lead_provider_id, lp.id) AS lead_provider_id,
+    COALESCE(p.lead_provider_name, lp.name) AS lead_provider,
     p.delivery_partner_id,
     p.delivery_partner_name AS delivery_partner,
     p.delivery_partner_external_id,
+    -- COALESCE(p.delivery_partner_id, dp.id) AS delivery_partner_id,
+    -- COALESCE(p.delivery_partner_name, dp.name) AS delivery_partner,
+    -- COALESCE(p.delivery_partner_external_id, dp.api_id) AS delivery_partner_external_id,
 
     -- appropriate body
     ect.school_reported_appropriate_body_id,
@@ -172,6 +175,20 @@ WITH base_training_periods AS (
 
   LEFT JOIN ${ref('ecf2_partnerships')} AS p
     ON tp.school_partnership_id = p.school_partnership_id
+  
+  LEFT JOIN ${ref('framework_agreements_latest_ecf2')} AS frameworks
+    ON frameworks.id = tp.expression_of_interest_id
+    AND schedules.contract_period_year = frameworks.contract_period_year
+  
+  LEFT JOIN ${ref('lead_providers_latest_ecf2')} AS lp
+    ON frameworks.lead_provider_id = lp.id
+  
+  -- the join from frameworks to lpdps and delivery partner is one to many....
+  -- LEFT JOIN ${ref('lead_provider_delivery_partnerships_latest_ecf2')} AS lpdp
+  --   ON lpdp.framework_agreement_id = frameworks.id
+
+  -- LEFT JOIN ${ref('delivery_partners_latest_ecf2')} AS dp
+  --   ON lpdp.delivery_partner_id = dp.id
 
   LEFT JOIN ${ref('appropriate_bodies_latest_ecf2')} AS ab
     ON ect.school_reported_appropriate_body_id = ab.id
