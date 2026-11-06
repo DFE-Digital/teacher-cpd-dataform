@@ -1,0 +1,58 @@
+config {
+    type: "assertion",
+    description: "This assertion checks if our main tables in the CPD project are missing metadata information. If this alert fires, either add in the meta description or contact the relevant team to add in the description.",
+    dependencies: [
+        "tad_ecf2_training_periods",
+        "tad_ecf2_declarations",
+        "tad_ecf2_mentorship_periods",
+        "participant_declarations_npq",
+        "participant_outcomes",
+        "ecf2_induction_periods",
+        "tad_npq_enrolment"
+    ]
+}
+
+  -- Dependencies above are to make sure the above tables run before the assertion checks if metadata is missing
+WITH
+  key_tables AS (
+    -- All key tables in TAD
+  SELECT
+    DISTINCT table_name,
+    'TAD' AS dataset_name
+  FROM
+    `${dataform.projectConfig.defaultDatabase}.TAD.INFORMATION_SCHEMA.TABLES`
+  UNION ALL
+    -- ls_ecf2 tables in dataform
+  SELECT
+    DISTINCT table_name,
+    'dataform' AS dataset_name
+  FROM
+    `${dataform.projectConfig.defaultDatabase}.dataform.INFORMATION_SCHEMA.TABLES`
+  WHERE
+  -- key tables are also in dataform and have the prefix ls_ecf2, ls_npq, or ls_tte
+    REGEXP_CONTAINS(LOWER(table_name), r'ls_ecf2|ls_npq|ls_tte') ),
+  column_metadata AS (
+    -- Metadata from TAD
+  SELECT
+    *,
+    'TAD' AS dataset_name
+  FROM
+    `${dataform.projectConfig.defaultDatabase}.TAD.INFORMATION_SCHEMA.COLUMN_FIELD_PATHS`
+  UNION ALL
+    -- Metadata from dataform
+  SELECT
+    *,
+    'dataform' AS dataset_name
+  FROM
+    `${dataform.projectConfig.defaultDatabase}.dataform.INFORMATION_SCHEMA.COLUMN_FIELD_PATHS` )
+SELECT
+  column_metadata.*
+FROM
+  column_metadata
+RIGHT JOIN
+  key_tables
+ON
+  key_tables.table_name = column_metadata.table_name
+  AND key_tables.dataset_name = column_metadata.dataset_name
+WHERE
+  column_metadata.description IS NULL
