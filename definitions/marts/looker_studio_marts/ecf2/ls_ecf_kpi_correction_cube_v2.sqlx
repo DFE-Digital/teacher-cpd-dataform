@@ -1,0 +1,169 @@
+config {
+    type: "incremental",
+    tags: ["kpi","ecf2"],
+    assertions: {
+        uniqueKey: ["date", "application", "correction_type"]
+    },
+    bigquery: {
+        partitionBy: "date",
+        labels: {
+            usage: "kpi"
+        }
+    },
+    description: "Single-dimension cube (by date) containing aggregable ECF2 data correction metrics. Corrections are derived from events recorded in the service.",
+    columns: {
+        date: "Date for which these metrics have been calculated",
+        application: "Name of the ECTE application which these corrections took place in. Either Manage Training for Early Career Teachers or Register Early Career Teachers.",
+        correction_type: "The tpye of event recorded as defined by the source table, e.g., merging teachers (duplicate records) or more generic corrections like 'admin data fixes'.",
+        registration_window_start_date: "The first date in the registration window this date falls within",
+        registration_window_string: "Registration window date falls within formatted as e.g. 2032-33 for display purposes",
+        registration_window: "Calendar year registration_window_start_date falls within e.g. 2032 for the 2032-33 registration window",
+        registration_window_day: "Number of days within registration window that this date is since the registration_year_start_date, counting registration_year_start_date as day 1.",
+        registration_window_week: "Week of registration window that this date falls within, treating the registration_year_start_date as day 1 of week 1.",
+        registration_window_month: "Month of registration window that this date falls within, treating the registration_year_start_date as day 1 of month 1. An integer. For example, if a registration window started on Dec 25th 2056, Dec 27th 2056 falls in month 1, Jan 5th 2056 falls in month 1, Jan 25th 2057 falls in month 2 etc.",
+        date_is_in_registration_window_to_date_or_past_registration_window: "TRUE if date is either between the start date of the current registration window and today's date, or falls within a registration window that ended on a past date. For use to filter metrics on dashboards which are calculated for the 'registration window to date'.",
+        date_is_comparable_to_next_registration_window_to_date: "TRUE if the date with the same registration_window_day in the following registration window (i.e. the one after the registration_window date falls within) is between the start date of the current registration window and today's date, or if that date falls within a registration window that ended on a past date. For example, if two consecutive registration windows were 2nd Feb 2057 - 6th March 2058 and 7th March 2058 - 28th Feb 2059, and the current date is 8th March 2058 (registration_window_day = 2), this field would be TRUE for 2nd & 3rd Feb 2057 but FALSE after that. For use to filter metrics on dashboards which are calculated for the 'registration window to date' and then compared with the 'same period last registration window'.",
+        number_of_live_ects_baseline_estimate: "Best available actual or estimated number of live ECTs (according to RIAB) to use as a baseline in the registration window that date falls within. Live is defined as having induction recorded in RIAB where the period between the start and end dates overlaps with the first academic year that starts after the registration window begins. To act as a baseline across a range of KPIs. Note that these KPIs should be defined with the baseline (denominator) applying to the whole registration window, even if the numerator applies only to a particular day, week, month etc. RIAB data is used because it has significantly higher data quality than Manage. For the current registration window, data is not complete enough until late October, so this is set to the value from the previous registration window until 1st November.",
+        number_of_corrections: "Number of corrections made of type 'correction_type' to the 'fields_updated' fields in table 'entity_table_name' on 'date'. A correction is a set of updates to fields on a single entity that took place at exactly the same time that represent either a developer updating the database manually, a response to a web request handled by the admin console (paths beginning /admin), or a status change on a declaration to voided or awaiting_clawback."
+    }
+}
+
+WITH events AS (
+  -- SELECT
+  --   "Manage Training for Early Career Teachers" AS application,
+  --   *
+  -- FROM `ecf-bq.dfe_analytics_dataform.events_latest_ecf2` 
+  -- WHERE DATE(happened_at) <= DATE("2026-04-26")
+  
+  -- UNION ALL
+  
+  SELECT
+    "Register Early Career Teachers" AS application,
+    *
+  FROM ${ref(`events_latest_ecf2`)}
+  WHERE DATE(happened_at) >= DATE("2026-04-28")
+),
+
+
+correction AS (
+  SELECT
+    application,
+    happened_at AS occurred_at,
+    event_type_custom AS event_type,
+    heading,
+    body,
+    author_type,
+    author_id,
+    author_name,
+    CASE 
+      WHEN zendesk_ticket_id IS NOT NULL THEN TRUE 
+      ELSE FALSE 
+    END AS has_zendesk_ticket,
+    modifications,
+    -- logic to identify data corrections
+    CASE
+      -- most events where the author is a dfe staff are treated as corrections
+      WHEN author_type = 'dfe_staff_user' AND event_type_custom NOT IN (
+        'contract_period_added',
+        'active_lead_provider_created', 
+        'dfe_user_created', 
+        'dfe_user_updated'
+        ) THEN TRUE
+      -- otherwise, selected system events are corrections
+      WHEN event_type_custom = 'teacher_declaration_voided' AND author_type = 'lead_provider_api' THEN TRUE
+      WHEN event_type_custom = 'teacher_declaration_awaiting_clawback' AND author_type = 'lead_provider_api' THEN TRUE
+      WHEN event_type_custom = 'teacher_name_updated_by_user' AND author_type = 'school_user' THEN TRUE
+      WHEN event_type_custom = 'teacher_registration_undone' AND author_type = 'system' THEN TRUE
+      WHEN event_type_custom = 'teacher_training_periods_merged' AND author_type = 'system' THEN TRUE
+      WHEN event_type_custom = 'teacher_trs_merged' AND author_type = 'system' THEN TRUE
+      WHEN event_type_custom = 'teacher_merged' AND author_type = 'system' THEN TRUE
+      WHEN event_type_custom = 'teacher_trn_replaced' AND author_type = 'system' THEN TRUE
+      WHEN event_type_custom = 'teacher_mentor_at_school_periods_merged' AND author_type = 'system' THEN TRUE
+      WHEN event_type_custom = 'teacher_ect_at_school_period_deleted' AND author_type = 'system' THEN TRUE
+      WHEN event_type_custom = 'school_merged' AND author_type = 'system' THEN TRUE
+      WHEN event_type_custom = 'school_partnership_recreated' AND author_type = 'system' THEN TRUE
+      WHEN event_type_custom = 'teacher_ect_at_school_periods_merged' AND author_type = 'system' THEN TRUE
+      WHEN event_type_custom = 'teacher_merged' AND author_type = 'system' THEN TRUE
+      WHEN event_type_custom = 'teacher_declaration_clawed_back' AND author_type = 'system' THEN TRUE
+      WHEN event_type_custom = 'teacher_mentorship_periods_merged' AND author_type = 'system' THEN TRUE
+      ELSE FALSE
+    END AS is_correction 
+  FROM events
+),
+
+
+correction_metrics AS (
+  SELECT
+    DATE(occurred_at) AS date,
+    application,
+    event_type AS correction_type,
+    -- CAST(MIN(occurred_at) AS DATE) AS earliest_recorded_event,
+    -- CAST(MAX(occurred_at) AS DATE) AS latest_recorded_event,
+    COUNT(*) AS number_of_corrections
+  FROM correction
+  WHERE 
+    is_correction IS TRUE
+  GROUP BY
+    date,
+    application,
+    event_type
+)
+
+
+SELECT
+  dates.date,
+  application,
+  correction_type,
+  earliest_recorded_event,
+  latest_recorded_event,
+  registration_window_start_date,
+  registration_window_year,
+  registration_window_string,
+  registration_window_day,
+  registration_window_week,
+  registration_window_month,
+  date_is_in_registration_window_to_date_or_past_registration_window,
+  /* We don't have complete registration windows' data until 2024-25 onwards for web analytics based KPIs so don't enable comparison until then */
+  IF (
+    registration_window_year >= 2024, 
+    date_is_comparable_to_next_registration_window_to_date,
+    FALSE
+  ) AS date_is_comparable_to_next_registration_window_to_date,
+  number_of_live_ects_baseline_estimate,
+  IFNULL(number_of_corrections, 0) AS number_of_corrections
+FROM ${ref(`ls_ecf_kpi_live_participants_baseline_cube`)} AS dates
+LEFT JOIN correction_metrics
+  ON dates.date = correction_metrics.date
+WHERE
+  dates.date > event_date_checkpoint
+  AND dates.date < CURRENT_DATE
+
+
+pre_operations {
+  DECLARE
+    event_date_checkpoint DEFAULT (
+    ${
+        when(incremental(),
+            `SELECT MAX(date) FROM ${self()}`,
+            /* Start calculating at the point of NPQ separation from Manage, because it is too complex to distinguish between ECTE and NPQ data corrections before then */
+            `SELECT DATE("2024-12-11")`)
+    }
+    )
+}
+
+post_operations {
+  /* This query is an incremental query, so the output is usually only updated for new days, not past dates. */
+    /* However the date_is_in_registration_window_to_date_or_past_registration_window and date_is_comparable_to_next_registration_window_to_date fields vary depending on what the current date is. */
+    /* So, implementing this incremental query would mean that these fields contain out of date values for past dates. */
+    /* This post operation updates these from the baseline, even for past dates. */
+    /* It doesn't add significantly to the bytes queried by the overall query because it doesn't reference the events table, where 99% of these bytes come from. */
+  UPDATE
+    ${self()} AS ls_ecf_kpi_correction_cube_v2
+  SET
+    date_is_in_registration_window_to_date_or_past_registration_window = dates.date_is_in_registration_window_to_date_or_past_registration_window,
+    date_is_comparable_to_next_registration_window_to_date = dates.date_is_comparable_to_next_registration_window_to_date
+  FROM
+    ${ref(`ls_ecf_kpi_live_participants_baseline_cube`)} AS dates
+  WHERE
+    ls_ecf_kpi_correction_cube_v2.date = dates.date
+}
