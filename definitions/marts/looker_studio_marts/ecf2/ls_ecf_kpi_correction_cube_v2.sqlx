@@ -114,8 +114,6 @@ SELECT
   dates.date,
   application,
   correction_type,
-  earliest_recorded_event,
-  latest_recorded_event,
   registration_window_start_date,
   registration_window_year,
   registration_window_string,
