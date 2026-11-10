@@ -1,0 +1,32 @@
+config {
+  type: "assertion",
+  description: "Detects new event_type_custom and author_type combinations for the ecf2_data_corrections_cube_v2."
+}
+
+WITH historical_combinations AS (
+  SELECT DISTINCT
+    event_type_custom,
+    author_type
+  FROM ${ref("events_latest_ecf2")}
+  WHERE DATE(happened_at) < DATE_SUB(CURRENT_DATE(), INTERVAL 7 DAY)
+),
+
+recent_combinations AS (
+  SELECT
+    event_type_custom,
+    author_type,
+    COUNT(*) AS event_count,
+    MIN(DATE(happened_at)) AS first_seen
+  FROM ${ref("events_latest_ecf2")}
+  WHERE DATE(happened_at) >= DATE_SUB(CURRENT_DATE(), INTERVAL 7 DAY)
+  GROUP BY
+    event_type_custom,
+    author_type
+)
+
+SELECT
+  recent_combinations.*
+FROM recent_combinations
+LEFT JOIN historical_combinations
+  USING (event_type_custom, author_type)
+WHERE historical_combinations.event_type_custom IS NULL
