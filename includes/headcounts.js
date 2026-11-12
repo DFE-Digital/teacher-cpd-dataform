@@ -1,6 +1,12 @@
 /* To be updated by a Programme Delivery Manager once per quarter. */
 
-const headcounts = [{
+const headcounts = 
+     [{
+     date: "2026-10-29",
+   ecteHeadcount: 22,
+   npqHeadcount: 10
+   npdHeadcount: 18       
+   }, {{
      date: "2026-09-29",
    ecteHeadcount: 22,
    npqHeadcount: 24
