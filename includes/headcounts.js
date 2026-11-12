@@ -6,7 +6,7 @@ const headcounts =
    ecteHeadcount: 22,
    npqHeadcount: 10
    npdHeadcount: 18       
-   }, {{
+   }, {
      date: "2026-09-29",
    ecteHeadcount: 22,
    npqHeadcount: 24
