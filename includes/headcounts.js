@@ -4,7 +4,7 @@ const headcounts =
      [{
      date: "2026-10-29",
    ecteHeadcount: 22,
-   npqHeadcount: 10
+   npqHeadcount: 10,
    npdHeadcount: 18       
    }, {
      date: "2026-09-29",
