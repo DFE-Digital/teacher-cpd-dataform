@@ -1,0 +1,84 @@
+config {
+    type: "table",
+    tags: ["tte"],
+    bigquery: {
+        clusterBy: ["lead_provider_name", "course_name"]
+    },
+    description: "This is the aggregated file that will be used to generate the NPD Contract manager dashboard. \n \
+    It takes the flat data generated in tte_contract_management_flat.sqlx. \n \
+    It creates a table that outlines the number of applications, acceptance rates, and starts for each Lead Provider, course and cohort. \n \
+    Note that declarations are expected in October 2026. \n",
+
+    columns: {
+        lead_provider_name: "Name of the lead provider.",
+        course_name: "Name of the course.",
+        cohort_start_year: "Year the cohort registration starts.",
+        cohort_registration: "Cohort identifier as registration start date, e.g. 2026-July.",
+        cohort_registration_starts_at: "When registration opens for the cohort.",
+        cohort_registration_ends_at: "When registration closes for the cohort.",
+        cohort_ecf_id: "ECF ID for the cohort.",
+        cohort_start: "Description of the cohort as cohort start date.",
+        // declaration_cohort_id: "Identifier of the cohort the declaration was made against. NULL where the application has no declarations.",
+        total_applications: "Total number of applications.",
+        applications_eligible_for_funding: "Number of applications eligible for DfE funding.",
+        applications_not_eligible_for_funding: "Number of applications not eligible for DfE funding.",
+        total_unfunded_applications: "Number of applications not on a funded place.",
+        applications_accepted_eligible_not_funded: "Number of applications that are eligible for DfE funding but accepted onto a non-funded place.",
+        applications_pending: "Number of applications eligible for DfE funding with a pending status.",
+        applications_accepted: "Number of applications eligible for DfE funding with an accepted status.",
+        applications_rejected: "Number of applications eligible for DfE funding with a rejected status.",
+        pct_pending: "Proportion of applications eligible for DfE funding that are pending.",
+        pct_accepted: "Proportion of applications eligible for DfE funding that are accepted.",
+        pct_rejected: "Proportion of applications eligible for DfE funding that are rejected.",
+        applications_eligible_pending_or_accepted: "Number of applications eligible for DfE funding that are pending or accepted.",
+        applications_accepted_funded: "Number of applications accepted onto a funded place.",
+        applications_started_declaration_paid: "Number of applications with a started declaration that has been submitted, is eligible, payable, or paid on a funded place."
+    }
+}
+
+SELECT
+    lead_provider_name,
+    course_name,
+    cohort_start_year,
+    cohort_identifier AS cohort_registration,
+    cohort_registration_starts_at,
+    cohort_registration_ends_at,
+    cohort_ecf_id,
+    cohort_description AS cohort_start,
+    -- declaration_cohort_id,
+
+    COUNT(DISTINCT application_id) AS total_applications,
+    COUNT(DISTINCT CASE WHEN eligible_for_funding = TRUE THEN application_id END) AS applications_eligible_for_funding,
+    COUNT(DISTINCT CASE WHEN eligible_for_funding = FALSE THEN application_id END) AS applications_not_eligible_for_funding,
+    COUNT(DISTINCT CASE WHEN funded_place = FALSE OR funded_place IS NULL THEN application_id END) AS total_unfunded_applications,
+    COUNT(DISTINCT CASE WHEN application_status = 'accepted' AND eligible_for_funding = TRUE AND funded_place = FALSE THEN application_id END) AS applications_accepted_eligible_not_funded,
+
+    COUNT(DISTINCT CASE WHEN application_status = 'pending' AND eligible_for_funding = TRUE THEN application_id END) AS applications_pending,
+    COUNT(DISTINCT CASE WHEN application_status = 'accepted' AND eligible_for_funding = TRUE THEN application_id END) AS applications_accepted,
+    COUNT(DISTINCT CASE WHEN application_status = 'rejected' AND eligible_for_funding = TRUE THEN application_id END) AS applications_rejected,
+
+    ROUND(SAFE_DIVIDE(
+        COUNT(DISTINCT CASE WHEN application_status = 'pending' AND eligible_for_funding = TRUE THEN application_id END),
+        COUNT(DISTINCT CASE WHEN eligible_for_funding = TRUE THEN application_id END)), 2) AS pct_pending,
+    ROUND(SAFE_DIVIDE(
+        COUNT(DISTINCT CASE WHEN application_status = 'accepted' AND eligible_for_funding = TRUE THEN application_id END),
+        COUNT(DISTINCT CASE WHEN eligible_for_funding = TRUE THEN application_id END)), 2) AS pct_accepted,
+    ROUND(SAFE_DIVIDE(
+        COUNT(DISTINCT CASE WHEN application_status = 'rejected' AND eligible_for_funding = TRUE THEN application_id END),
+        COUNT(DISTINCT CASE WHEN eligible_for_funding = TRUE THEN application_id END)), 2) AS pct_rejected,
+
+    COUNT(DISTINCT CASE WHEN flag_eligible_pending_or_accepted = TRUE THEN application_id END) AS applications_eligible_pending_or_accepted,
+    COUNT(DISTINCT CASE WHEN flag_accepted_funded = TRUE THEN application_id END) AS applications_accepted_funded,
+    COUNT(DISTINCT CASE WHEN flag_started_declaration_paid = TRUE THEN application_id END) AS applications_started_declaration_paid
+
+FROM ${ref('tte_contract_management_flat')}
+GROUP BY
+    lead_provider_name,
+    course_name,
+    cohort_start_year,
+    cohort_identifier,
+    cohort_registration_starts_at,
+    cohort_registration_ends_at,
+    cohort_ecf_id,
+    cohort_description
+    -- declaration_cohort_id
