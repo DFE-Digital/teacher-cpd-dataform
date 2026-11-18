@@ -15,7 +15,7 @@ config {
 SELECT
   *
 FROM
-  UNNEST([
+UNNEST([
   ${
       headcounts.headcounts.map(metricsDate => {
           return `    STRUCT(
@@ -27,6 +27,11 @@ FROM
             SAFE_CAST("${metricsDate.date}" AS DATE) AS date,
             "NPQ" AS headcount_group,
             SAFE_CAST(${metricsDate.npqHeadcount} AS FLOAT64) AS number_of_ftes
+        ),
+        STRUCT(
+            SAFE_CAST("${metricsDate.date}" AS DATE) AS date,
+            "NPD" AS headcount_group,
+            SAFE_CAST(${metricsDate.npdHeadcount ?? "NULL"} AS FLOAT64) AS number_of_ftes
         )`;
       }).join(',\n')
   }
