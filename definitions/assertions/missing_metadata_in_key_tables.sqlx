@@ -17,15 +17,13 @@ WITH
   key_tables AS (
     -- All key tables in TAD
   SELECT
-    *
-  FROM (
-    SELECT
-      DISTINCT table_name,
-      'TAD' AS dataset_name
-    FROM
-      `${dataform.projectConfig.defaultDatabase}.TAD.INFORMATION_SCHEMA.TABLES`
-    UNION ALL
-      -- ls_ecf2 tables in dataform
+    DISTINCT table_name,
+    'TAD' AS dataset_name
+  FROM
+    `${dataform.projectConfig.defaultDatabase}.TAD.INFORMATION_SCHEMA.TABLES`
+  UNION ALL
+    -- ls_ecf2 tables in dataform
+    (
     SELECT
       DISTINCT table_name,
       'dataform' AS dataset_name
