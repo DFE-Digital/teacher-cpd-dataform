@@ -1,0 +1,300 @@
+config {
+    type: "table",
+    tags: ["ecf2","assurance bad shapes"],
+    assertions: {
+        uniqueKey: ["teacher_id"],
+    },
+    bigquery: {
+        labels: {
+            purpose: "assurance"
+        },
+        partitionBy: "started_dec_date",
+        clusterBy: ["current_lead_provider", "teacher_id"]
+    },
+    description: "This is #7 in a series of Assurance 'Bad Shapes. Unlike Bad Shapes 1-5 this does not sit in the mega mart and instead acts as a new separate bad shape. This identifies mentors who may have been double funded with ITT mentor and ECTP training.",
+    columns: {
+        teacher_id: "ID of each participant's profile.",
+        teacher_api_id: "ID of each participant's profile as shown on the API/service.",
+        trn: {
+            description: "TRN associated with the ECT's profile.",
+            bigqueryPolicyTags: ["projects/ecf-bq/locations/europe-west2/taxonomies/6302091323314055162/policyTags/301313311867345339"]
+        },
+        participant_type: "ECT or Mentor. In this table, only mentors are included.",
+        first_training_contract: 'The contract year of the participants first registered training period.',
+        first_training_lead_provider: "The lead provider of the participants first training record.",
+        first_registered_for_training_on: "The earliest started_on of the participant's first training period",
+        lead_providers: "Array of all lead providers for which the participant had funded declarations",
+        current_lead_provider: 'The name of the lead provider that is attached to the latest training period',
+        current_contract: 'The contract year of the latest training period',
+        started_dec_contract: 'The contract year of the started declaration',
+        started_dec_date: "The evidenced_at date (formerly called declaration_date) of the started declaration. This is not the date when the declaration was created in the database.",
+        started_dec_lead_provider: "The lead provider that submitted the started declaration",
+        completed_dec_date: 'The evidenced_at date (formerly called declaration_date) of the completed declaration. This is not the date when the declaration was created in the database.',
+        completed_dec_contract: 'The contract year of the completed declaration.',
+        completed_dec_lead_provider: "The lead provider that submitted the completed declaration.",
+        mentor_became_ineligible_for_funding_on: 'The date the mentor became ineligble for funding. Should match the date of the completed declaration in most cases.',
+        mentor_became_ineligible_for_funding_reason: 'The reason why the mentor became ineligible for funding. If the mentor is inelgible for a reason other than receiving completed declaration then this will provide the reason"',
+        has_itt_claim: 'Whether the mentor has an ITT claim (if they are matched to the ITT dataset). True by default in this dataset',
+        itt_lead_provider: "The name of the lead provider that submitted the ITT claim",
+        itt_claim_ay: "The year the ITT claim was made for that mentor for that provider.",
+        itt_claim_submitted_at: "The date when the first ITT claim was made for that mentor for that provider.",
+        itt_claim_status: "The status of the ITT claim. Certain statuses excluded to keep only 'funded' claims",
+        itt_first_claim: "The date of the first ITT claim for the mentor regardless of provider",
+        itt_first_claim_ay: "The year the ITT claim was made for that mentor regardless of provider.",
+        same_lead_provider: "Always true - whether the ITT provider is the same as the at least one of the ECTP lead providers for which the the mentor had ECTP funded declarations.",
+        starting_itt_after_completing_ectp: "Boolean check whether the ITT training started after (i.e., the following year) completing ECTP training",
+        starting_itt_during_ectp: "Boolean check whether the ITT claim occured while doing ECTP training.",
+        starting_itt_before_ectp: "Boolean check whether the ITT claim was submitted before ECTP started declaration was submitted",
+        starting_itt_same_year_but_after_completing_ectp: "Boolean check whether the ITT claim was submitted in the same year as ECTP training but after completing ECTP training.",
+    }
+}
+
+
+WITH unclawed_back_itt_mentor_provider_claims AS (
+  SELECT
+    * 
+  FROM ${ref("itt_mentor_claims")}
+  WHERE
+    -- REVIEW STATUSES WHEN DOING RECT MIGRATION
+    /* These are the statuses identified as permitted and eligible for funding. 
+    All statuses received so far, including permitted and excluded statuses, 
+    can be found with definitions in this assertion file: 
+    itt_mentor_claims_have_unexpected_status.sqlx */
+    earliest_claim_current_status IN (
+      "paid",
+      "sampling_in_progress", 
+      "submitted",
+      "payment_infomation_requested",
+      "payment_in_progress", 
+      "clawback_rejected"
+    ) 
+    /* Only include claims for ITT mentor training with a provider that is also an ECTE lead provider */
+    AND ecte_lead_provider 
+  QUALIFY ROW_NUMBER() OVER (
+    PARTITION BY trn, provider_name
+    ORDER BY 
+      earliest_claim_submitted_at ASC
+  ) = 1
+),
+
+earliest_iit_claim AS (
+  SELECT
+    trn,
+    MIN(earliest_claim_submitted_at) AS first_claim,
+    MIN(CAST(SPLIT(claim_academic_year, '/')[SAFE_OFFSET(0)] AS INT64)) AS first_claim_ay
+  FROM ${ref("itt_mentor_claims")}
+  WHERE 
+    -- keep in sync with the above ITT cte
+    earliest_claim_current_status IN (
+      "paid",
+      "sampling_in_progress", 
+      "submitted",
+      "payment_infomation_requested",
+      "payment_in_progress", 
+      "clawback_rejected"
+    ) 
+  GROUP BY
+    trn
+),
+
+itt_mentors AS (
+  SELECT 
+    a.*,
+    CAST(SPLIT(a.claim_academic_year, '/')[SAFE_OFFSET(0)] AS INT64) AS claim_ay,
+    b.first_claim_ay,
+    b.first_claim
+  FROM unclawed_back_itt_mentor_provider_claims a
+  LEFT JOIN earliest_iit_claim b
+    ON a.trn = b.trn
+),
+
+rect_mentor_training_periods AS (
+  SELECT
+    training_period_id,
+    teacher_id,
+    trn,
+    teacher_external_id AS teacher_api_id,
+    participant_type,
+    contract_period_year,
+    lead_provider,
+    training_status,
+    training_programme,
+    started_on,
+    finished_on
+  FROM ${ref("ecf2_training_periods")}
+  WHERE
+    participant_type = 'mentor'
+),
+
+rect_providers AS (
+    -- get all providers in an ARRAY that a mentor had declarations with
+  SELECT
+    teacher_id,
+    ARRAY_AGG(DISTINCT lead_provider IGNORE NULLS) AS lead_providers
+  FROM ${ref("ecf2_declarations")}
+  WHERE
+     participant_type = 'mentor'
+     AND funded_declaration IS TRUE
+  GROUP BY
+    teacher_id
+),
+
+
+
+earliest_training_periods AS (
+  SELECT
+    teacher_id,
+    teacher_external_id AS teacher_api_id,
+    trn,
+    participant_type,
+    contract_period_year,
+    lead_provider,
+    started_on AS first_registered_for_training_on
+  FROM ${ref("ecf2_training_periods")}
+  WHERE
+    participant_type = 'mentor'
+  QUALIFY ROW_NUMBER() OVER (
+    PARTITION BY participant_type, teacher_id
+    ORDER BY 
+      started_on ASC,
+      created_at ASC                      
+  ) = 1
+),
+
+mentors_completions_reasons AS (
+  SELECT 
+    id AS teacher_id,
+    mentor_became_ineligible_for_funding_on,
+    mentor_became_ineligible_for_funding_reason
+  FROM ${ref("teachers_latest_ecf2")}
+  WHERE mentor_became_ineligible_for_funding_on IS NOT NULL
+
+),
+
+started_declarations AS (
+  SELECT 
+    teacher_id,
+    participant_type,
+    declaration_id,
+    declaration_state,
+    declaration_type,
+    evidenced_at,
+    declaration_created_at_date,
+    lead_provider,
+    contract_period_year,
+  FROM ${ref("ecf2_declarations_latest")}
+  WHERE 
+    participant_type = 'mentor'
+    AND declaration_type = 'started'
+    AND funded_declaration
+),
+
+completed_declarations AS (
+  SELECT 
+    teacher_id,
+    participant_type,
+    declaration_id,
+    declaration_state,
+    declaration_type,
+    evidenced_at,
+    declaration_created_at_date,
+    lead_provider,
+    contract_period_year,
+  FROM ${ref("ecf2_declarations_latest")}
+  WHERE 
+    participant_type = 'mentor'
+    AND declaration_type = 'completed'
+    AND funded_declaration
+),
+
+mentors AS (
+  SELECT 
+    tp.teacher_id,
+    tp.teacher_api_id,
+    tp.trn,
+    tp.participant_type,
+    tp.contract_period_year AS first_training_contract,
+    tp.lead_provider AS first_training_lead_provider,
+    tp.first_registered_for_training_on,
+    p.lead_providers,
+    tp_latest.lead_provider AS current_lead_provider,
+    tp_latest.contract_period_year AS current_contract,
+    started_dec.contract_period_year AS started_dec_contract,
+    started_dec.evidenced_at AS started_dec_date,
+    started_dec.lead_provider AS started_dec_lead_provider,
+    started_dec.declaration_state AS started_dec_state,
+    completed_dec.evidenced_at AS completed_dec_date,
+    completed_dec.contract_period_year AS completed_dec_contract,
+    completed_dec.lead_provider AS completed_dec_lead_provider,
+    funding.mentor_became_ineligible_for_funding_on,
+    funding.mentor_became_ineligible_for_funding_reason,
+    CASE WHEN itt.trn IS NOT NULL THEN TRUE ELSE FALSE END AS has_itt_claim,
+    itt.provider_name AS itt_lead_provider,
+    -- itt.claim_academic_year AS itt_claim_ay,
+    itt.claim_ay AS itt_claim_ay,
+    itt.earliest_claim_submitted_at AS itt_claim_submitted_at,
+    itt.earliest_claim_current_status AS itt_claim_status,
+    itt.first_claim AS itt_first_claim,
+    itt.first_claim_ay AS itt_first_claim_ay,
+    -- checks
+    -- same provider
+    -- itt.provider_name = tp.lead_provider AS same_lead_provider,
+    itt.provider_name IN UNNEST(p.lead_providers) AS same_lead_provider,
+    -- itt after ectp is complete
+    itt.first_claim_ay > IFNULL(
+      -- funding.mentor_became_ineligible_for_funding_on,
+      -- '2099-12-31'
+      completed_dec.contract_period_year,
+      tp_latest.contract_period_year
+    ) AS starting_itt_after_completing_ectp,
+    -- itt while ectp is ongoing
+    itt.first_claim > started_dec.evidenced_at 
+      AND funding.mentor_became_ineligible_for_funding_on IS NULL 
+    AS starting_itt_during_ectp,
+    -- itt before ectp started
+    itt.first_claim < started_dec.evidenced_at AS starting_itt_before_ectp,
+    -- same academic year but after completing ectp
+    CASE 
+      WHEN itt.earliest_claim_submitted_at > completed_dec.evidenced_at 
+        AND itt.claim_ay = completed_dec.contract_period_year
+      THEN TRUE ELSE FALSE
+    END AS starting_itt_same_year_but_after_completing_ectp,
+  FROM earliest_training_periods tp
+  
+  LEFT JOIN ${ref("ecf2_training_periods_latest")} tp_latest
+    ON tp.teacher_id = tp_latest.teacher_id
+    AND tp.participant_type = tp_latest.participant_type
+
+  LEFT JOIN rect_providers p
+    ON tp.teacher_id = p.teacher_id
+
+  LEFT JOIN started_declarations started_dec
+    ON started_dec.teacher_id = tp.teacher_id
+    AND started_dec.participant_type = tp.participant_type
+
+  LEFT JOIN completed_declarations completed_dec
+    ON completed_dec.teacher_id = tp.teacher_id
+    AND completed_dec.participant_type = tp.participant_type
+
+  LEFT JOIN mentors_completions_reasons funding
+    ON funding.teacher_id = tp.teacher_id
+  -- up to this join we should have a unique record per trn; earliest training period, 
+  -- started declaration date, lead provider when started, current lead provider, contract year from started dec
+  -- completed dec if available
+  -- the ITT join may cause multiple rows if they have multiple claims (e.g., it can be from multiple providers)
+  LEFT JOIN itt_mentors itt
+    ON itt.trn = tp.trn
+    -- AND itt.provider_name = tp.lead_provider
+)
+
+SELECT * FROM mentors
+WHERE
+  started_dec_date IS NOT NULL
+  AND has_itt_claim
+  AND same_lead_provider
+  AND starting_itt_after_completing_ectp IS FALSE
+  AND current_contract >= 2025
+  AND started_dec_contract > 2023
+  -- AND starting_itt_same_year_but_after_completing_ectp
+  AND itt_first_claim_ay >= 2024
+  -- AND teacher_id = '158216'

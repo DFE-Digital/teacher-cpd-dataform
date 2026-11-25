@@ -1,0 +1,118 @@
+config {
+    type: "table",
+    tags: ["ecf2","assurance bad shapes"],
+    assertions: {
+        uniqueKey: ["teacher_id"],
+    },
+    bigquery: {
+        labels: {
+            purpose: "assurance"
+        },
+        clusterBy: ["current_lead_provider", "teacher_id"]
+    },
+    description: "This is #6 in a series of Assurance 'Bad Shapes. Unlike Bad Shapes 1-5 this does not sit in the mega mart and instead acts as a new separate bad shape. This identifies ECTs and mentors who may have been moved to a 2026 contract where they should not be. Contract managers will need to investiage any records.",
+    columns: {
+        teacher_id: "ID of each participant's profile.",
+        teacher_api_id: "ID of each participant's profile as shown on the API/service.",
+        trn: {
+            description: "TRN associated with the ECT's profile.",
+            bigqueryPolicyTags: ["projects/ecf-bq/locations/europe-west2/taxonomies/6302091323314055162/policyTags/301313311867345339"]
+        },
+        participant_type: "ECT or Mentor.",
+        current_lead_provider: 'The name of the lead provider that is attached to the latest training period',
+        earliest_contract_period_year: 'The first/earliest contract year for the participant based on their training records',
+        latest_contract_period_year: 'The maximum contract year of any training record',
+        current_contract_period_year: "The contract year of the latest training period. Should always match the latest contract period, if not, investigate.",
+        num_training_periods: "A count of the number of training periods in the data for the participants.",
+        ecf_started_dec_provider: "The Lead Provider who submitted the started declaration",
+        ecf_started_decs: "The count of funded started declarations. Should alwasy = 1. If not, investigate.",
+        ecf_retained_decs: 'The count of funded retained declarations. Should be a maximum of 4, e.g., retained-1, -2, -3, and -4.',
+        ecf_completed_decs: 'The count of funded completed declarations. Should be a maximum of 1.',
+        ecf_extended_decs: "The count of funded extended declarations."
+    }
+}
+
+-- Identify ECTs and Mentors who meet the following criteria:
+-- ECTs and Mentors who were first registered for training before the 2026 cohort
+-- ECTs and Mentors must have an ECF funded started declaration (eligible, payable or paid), 
+--   i.e., from contract 21, 22, 23, or 24.
+-- ECTs and Mentors must now have a training period on a 2026 contract.
+-- ECTs and Mentors who also have any other funded ECF declaration, i.e., from cohort 21, 22, 23, or 24.
+
+
+WITH participants AS (
+  SELECT
+    teacher_id,
+    trn,
+    teacher_external_id AS teacher_api_id,
+    participant_type,
+    MIN(contract_period_year) AS earliest_contract_period_year,
+    MAX(contract_period_year) AS latest_contract_period_year,
+    ARRAY_AGG(
+      contract_period_year
+      ORDER BY started_on DESC
+      LIMIT 1
+    )[OFFSET(0)] AS current_contract_period_year,
+    ARRAY_AGG(
+      lead_provider
+      ORDER BY started_on DESC
+      LIMIT 1
+    )[OFFSET(0)] AS current_lead_provider,
+    COUNT(*) AS number_of_records
+  FROM ${ref("ecf2_training_periods")}
+  GROUP BY
+    teacher_id,
+    participant_type,
+    trn,
+    teacher_external_id
+),
+
+
+ecf_declarations AS (
+  SELECT 
+    teacher_id,
+    participant_type,
+    MAX(CASE WHEN declaration_type = 'started' THEN lead_provider ELSE NULL END) started_dec_provider,
+    SUM(CASE WHEN declaration_type = 'started' THEN 1 ELSE 0 END) started_dec,
+    SUM(CASE WHEN declaration_type LIKE 'retained%' THEN 1 ELSE 0 END) retained_dec,
+    SUM(CASE WHEN declaration_type = 'completed' THEN 1 ELSE 0 END) completed_dec,
+    SUM(CASE WHEN declaration_type LIKE 'exten%' THEN 1 ELSE 0 END) extended_dec,
+    -- declaration_state,
+    -- contract_period_year
+    -- declaration_created_at_date,
+  FROM ${ref("ecf2_declarations_latest")} 
+  WHERE 
+    funded_declaration IS TRUE
+    AND contract_period_year < 2025
+  GROUP BY
+    teacher_id,
+    participant_type
+)
+
+
+SELECT
+  p.teacher_id,
+  p.teacher_api_id,
+  p.trn,
+  p.participant_type,
+  p.current_lead_provider,
+  p.earliest_contract_period_year,
+  p.latest_contract_period_year,
+  p.current_contract_period_year,
+  p.number_of_records AS num_training_periods,
+  dec.started_dec_provider AS ecf_started_dec_provider,
+  dec.started_dec AS ecf_started_decs,
+  dec.retained_dec AS ecf_retained_decs,
+  dec.completed_dec AS ecf_completed_decs,
+  dec.extended_dec AS ecf_extended_decs
+
+
+FROM participants p 
+LEFT JOIN ecf_declarations dec
+ON dec.teacher_id = p.teacher_id
+AND dec.participant_type = p.participant_type
+WHERE 
+  earliest_contract_period_year < 2026
+  AND current_contract_period_year >= 2026
+  AND dec.started_dec > 0 
+  AND (dec.retained_dec > 0 or dec.extended_dec > 0 or dec.completed_dec > 0)
