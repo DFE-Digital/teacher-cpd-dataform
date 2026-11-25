@@ -14,6 +14,7 @@ config {
     columns: {
         date: "Date for which these metrics have been calculated",
         application: "Name of the ECTE application which these corrections took place in. Either Manage Training for Early Career Teachers or Register Early Career Teachers.",
+        author_type: "The type of author who created the event, e.g., 'system' or 'dfe staff'.",
         correction_type: "The tpye of event recorded as defined by the source table, e.g., merging teachers (duplicate records) or more generic corrections like 'admin data fixes'.",
         registration_window_start_date: "The first date in the registration window this date falls within",
         registration_window_string: "Registration window date falls within formatted as e.g. 2032-33 for display purposes",
@@ -96,6 +97,7 @@ correction_metrics AS (
   SELECT
     DATE(occurred_at) AS date,
     application,
+    author_type,
     event_type AS correction_type,
     -- CAST(MIN(occurred_at) AS DATE) AS earliest_recorded_event,
     -- CAST(MAX(occurred_at) AS DATE) AS latest_recorded_event,
@@ -106,13 +108,15 @@ correction_metrics AS (
   GROUP BY
     date,
     application,
-    event_type
+    event_type,
+    author_type
 )
 
 
 SELECT
   dates.date,
   application,
+  author_type,
   correction_type,
   registration_window_start_date,
   registration_window_year,
