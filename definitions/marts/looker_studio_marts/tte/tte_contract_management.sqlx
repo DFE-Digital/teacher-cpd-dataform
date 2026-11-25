@@ -7,7 +7,7 @@ config {
     description: "This is the aggregated file that will be used to generate the NPD Contract manager dashboard. \n \
     It takes the flat data generated in tte_contract_management_flat.sqlx. \n \
     It creates a table that outlines the number of applications, acceptance rates, and starts for each Lead Provider, course and cohort. \n \
-    Note that declarations are expected in October 2026. \n",
+    Eligibility uses funding_eligibility_combined, which spans the 19 Nov 2026 field change. \n",
 
     columns: {
         lead_provider_name: "Name of the lead provider.",
@@ -48,24 +48,24 @@ SELECT
     -- declaration_cohort_id,
 
     COUNT(DISTINCT application_id) AS total_applications,
-    COUNT(DISTINCT CASE WHEN eligible_for_funding = TRUE THEN application_id END) AS applications_eligible_for_funding,
-    COUNT(DISTINCT CASE WHEN eligible_for_funding = FALSE THEN application_id END) AS applications_not_eligible_for_funding,
+    COUNT(DISTINCT CASE WHEN funding_eligibility_combined = 'funded' THEN application_id END) AS applications_eligible_for_funding,
+    COUNT(DISTINCT CASE WHEN funding_eligibility_combined != 'funded' THEN application_id END) AS applications_not_eligible_for_funding,
     COUNT(DISTINCT CASE WHEN funded_place = FALSE OR funded_place IS NULL THEN application_id END) AS total_unfunded_applications,
-    COUNT(DISTINCT CASE WHEN application_status = 'accepted' AND eligible_for_funding = TRUE AND funded_place = FALSE THEN application_id END) AS applications_accepted_eligible_not_funded,
+    COUNT(DISTINCT CASE WHEN application_status = 'accepted' AND funding_eligibility_combined = 'funded' AND funded_place = FALSE THEN application_id END) AS applications_accepted_eligible_not_funded,
 
-    COUNT(DISTINCT CASE WHEN application_status = 'pending' AND eligible_for_funding = TRUE THEN application_id END) AS applications_pending,
-    COUNT(DISTINCT CASE WHEN application_status = 'accepted' AND eligible_for_funding = TRUE THEN application_id END) AS applications_accepted,
-    COUNT(DISTINCT CASE WHEN application_status = 'rejected' AND eligible_for_funding = TRUE THEN application_id END) AS applications_rejected,
+    COUNT(DISTINCT CASE WHEN application_status = 'pending' AND funding_eligibility_combined = 'funded' THEN application_id END) AS applications_pending,
+    COUNT(DISTINCT CASE WHEN application_status = 'accepted' AND funding_eligibility_combined = 'funded' THEN application_id END) AS applications_accepted,
+    COUNT(DISTINCT CASE WHEN application_status = 'rejected' AND funding_eligibility_combined = 'funded' THEN application_id END) AS applications_rejected,
 
     ROUND(SAFE_DIVIDE(
-        COUNT(DISTINCT CASE WHEN application_status = 'pending' AND eligible_for_funding = TRUE THEN application_id END),
-        COUNT(DISTINCT CASE WHEN eligible_for_funding = TRUE THEN application_id END)), 2) AS pct_pending,
+        COUNT(DISTINCT CASE WHEN application_status = 'pending' AND funding_eligibility_combined = 'funded' THEN application_id END),
+        COUNT(DISTINCT CASE WHEN funding_eligibility_combined = 'funded' THEN application_id END)), 2) AS pct_pending,
     ROUND(SAFE_DIVIDE(
-        COUNT(DISTINCT CASE WHEN application_status = 'accepted' AND eligible_for_funding = TRUE THEN application_id END),
-        COUNT(DISTINCT CASE WHEN eligible_for_funding = TRUE THEN application_id END)), 2) AS pct_accepted,
+        COUNT(DISTINCT CASE WHEN application_status = 'accepted' AND funding_eligibility_combined = 'funded' THEN application_id END),
+        COUNT(DISTINCT CASE WHEN funding_eligibility_combined = 'funded' THEN application_id END)), 2) AS pct_accepted,
     ROUND(SAFE_DIVIDE(
-        COUNT(DISTINCT CASE WHEN application_status = 'rejected' AND eligible_for_funding = TRUE THEN application_id END),
-        COUNT(DISTINCT CASE WHEN eligible_for_funding = TRUE THEN application_id END)), 2) AS pct_rejected,
+        COUNT(DISTINCT CASE WHEN application_status = 'rejected' AND funding_eligibility_combined = 'funded' THEN application_id END),
+        COUNT(DISTINCT CASE WHEN funding_eligibility_combined = 'funded' THEN application_id END)), 2) AS pct_rejected,
 
     COUNT(DISTINCT CASE WHEN flag_eligible_pending_or_accepted = TRUE THEN application_id END) AS applications_eligible_pending_or_accepted,
     COUNT(DISTINCT CASE WHEN flag_accepted_funded = TRUE THEN application_id END) AS applications_accepted_funded,
