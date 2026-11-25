@@ -126,19 +126,35 @@ rect_mentor_training_periods AS (
     participant_type = 'mentor'
 ),
 
-rect_providers AS (
-    -- get all providers in an ARRAY that a mentor had declarations with
+all_rect_providers AS (
+    -- get all providers that a mentor had declarations with
   SELECT
     teacher_id,
-    ARRAY_AGG(DISTINCT lead_provider IGNORE NULLS) AS lead_providers
+    lead_provider
   FROM ${ref("ecf2_declarations")}
   WHERE
      participant_type = 'mentor'
      AND funded_declaration IS TRUE
-  GROUP BY
-    teacher_id
+
+  -- add the latest/current lead provider to this list
+  UNION ALL
+
+  SELECT
+    teacher_id,
+    lead_provider
+  FROM ${ref("ecf2_training_periods_latest")}
+  WHERE
+    participant_type = 'mentor'
 ),
 
+rect_providers AS (
+  -- generate a single record per mentor with all providers where there is a funded declaration plus the latest one
+  SELECT
+    teacher_id,
+    ARRAY_AGG(DISTINCT lead_provider IGNORE NULLS) AS lead_providers
+  FROM all_rect_providers
+  GROUP BY teacher_id
+),
 
 
 earliest_training_periods AS (
