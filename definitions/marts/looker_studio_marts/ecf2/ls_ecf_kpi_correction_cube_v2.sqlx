@@ -2,7 +2,7 @@ config {
     type: "incremental",
     tags: ["kpi","ecf2"],
     assertions: {
-        uniqueKey: ["date", "application", "correction_type"]
+        uniqueKey: ["date", "application", "correction_type", "author_type"]
     },
     bigquery: {
         partitionBy: "date",
