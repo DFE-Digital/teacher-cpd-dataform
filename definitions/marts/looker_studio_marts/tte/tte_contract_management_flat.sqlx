@@ -14,7 +14,8 @@ config {
         application_status: "Status of the application. Can be pending, accepted, or rejected.",
         application_created_at: "When the application was created.",
         application_updated_at: "When the application was last updated.",
-        eligible_for_funding: "Whether the application is eligible for DfE funding.",
+        eligible_for_funding: "Legacy TRUE/FALSE funding eligibility. Stopped streaming 19 Nov 2026; use funding_eligibility_combined.",
+        funding_eligibility_combined: "Funding eligibility across the 19 Nov 2026 cutover, e.g. funded, ineligible_setting. Use this for eligibility.",
         funded_place: "Whether the application has been accepted onto a funded place.",
         funding_choice: "How the participant intends to fund their training. Can be school, trust, or self.",
         funding_eligiblity_status_code: "Funding eligibility status code.",
@@ -51,7 +52,7 @@ config {
         declaration_date: "Date of the declaration.",
         participant_outcome_state_result: "Outcome state for the participant.",
         participant_outcome_completion_date: "Date the participant outcome was completed.",
-        flag_eligible_pending_or_accepted: "True where the application is eligible for DfE funding and is pending or accepted.",
+        flag_eligible_pending_or_accepted: "True where funding_eligibility_combined is funded and the application is pending or accepted.",
         flag_accepted_funded: "True where the application has been accepted onto a funded place.",
         flag_started_declaration_paid: "True where a started declaration has been submitted, is eligible, payable, or paid on a funded place."
     }
@@ -66,6 +67,7 @@ SELECT
     application_updated_at,
 
     eligible_for_funding,
+    funding_eligibility_combined,
     funded_place,
     funding_choice,
     funding_eligiblity_status_code,
@@ -111,7 +113,7 @@ SELECT
     participant_outcome_state_result,
     participant_outcome_completion_date,
 
-    eligible_for_funding = TRUE
+    funding_eligibility_combined = 'funded'
     AND application_status IN ('pending', 'accepted') AS flag_eligible_pending_or_accepted,
 
     application_status = 'accepted'
