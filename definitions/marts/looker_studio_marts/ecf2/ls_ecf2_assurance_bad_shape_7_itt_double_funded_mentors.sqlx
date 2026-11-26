@@ -24,6 +24,7 @@ config {
         first_training_lead_provider: "The lead provider of the participants first training record.",
         first_registered_for_training_on: "The earliest started_on of the participant's first training period",
         lead_providers: "Array of all lead providers for which the participant had funded declarations",
+        lead_providers_str: "Concatenated string of all lead providers for Data Studio.",
         current_lead_provider: 'The name of the lead provider that is attached to the latest training period',
         current_contract: 'The contract year of the latest training period',
         started_dec_contract: 'The contract year of the started declaration',
@@ -151,7 +152,8 @@ rect_providers AS (
   -- generate a single record per mentor with all providers where there is a funded declaration plus the latest one
   SELECT
     teacher_id,
-    ARRAY_AGG(DISTINCT lead_provider IGNORE NULLS) AS lead_providers
+    ARRAY_AGG(DISTINCT lead_provider IGNORE NULLS) AS lead_providers,
+    STRING_AGG(DISTINCT lead_provider, ', ') AS lead_providers_str
   FROM all_rect_providers
   GROUP BY teacher_id
 ),
@@ -233,6 +235,7 @@ mentors AS (
     tp.lead_provider AS first_training_lead_provider,
     tp.first_registered_for_training_on,
     p.lead_providers,
+    p.lead_providers_str,
     tp_latest.lead_provider AS current_lead_provider,
     tp_latest.contract_period_year AS current_contract,
     started_dec.contract_period_year AS started_dec_contract,
